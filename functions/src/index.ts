@@ -66,6 +66,76 @@ export const syncClaims = functions.https.onCall(async (_data, context) => {
   return { ok: true };
 });
 
+// Get or create a teacher–parent chat for a given child. otherParticipantId is the parent's uid (when caller is teacher) or teacher's uid (when caller is parent).
+export const getOrCreateChat = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const { schoolId, childId, otherParticipantId } = data as {
+    schoolId?: string;
+    childId?: string;
+    otherParticipantId?: string;
+  };
+  if (!schoolId || !childId || !otherParticipantId || typeof schoolId !== 'string' || typeof childId !== 'string' || typeof otherParticipantId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolId, childId, and otherParticipantId are required.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  const callerRole = callerData?.role;
+  const childRef = db.collection('schools').doc(schoolId).collection('children').doc(childId);
+  const childSnap = await childRef.get();
+  if (!childSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Child not found.');
+  }
+  const child = childSnap.data() as { parentIds?: string[]; assignedTeacherId?: string; schoolId?: string };
+  const parentIds = child.parentIds ?? [];
+  const assignedTeacherId = child.assignedTeacherId;
+  let teacherId: string;
+  let parentId: string;
+  if (callerRole === 'teacher') {
+    if (callerData?.schoolId !== schoolId) {
+      throw new functions.https.HttpsError('permission-denied', 'You are not a teacher at this school.');
+    }
+    if (assignedTeacherId !== callerUid) {
+      throw new functions.https.HttpsError('permission-denied', 'You are not the assigned teacher for this child.');
+    }
+    if (!parentIds.includes(otherParticipantId)) {
+      throw new functions.https.HttpsError('permission-denied', 'The other participant is not a parent of this child.');
+    }
+    teacherId = callerUid;
+    parentId = otherParticipantId;
+  } else if (callerRole === 'parent') {
+    if (!parentIds.includes(callerUid)) {
+      throw new functions.https.HttpsError('permission-denied', 'You are not a parent of this child.');
+    }
+    if (assignedTeacherId !== otherParticipantId) {
+      throw new functions.https.HttpsError('permission-denied', 'The other participant is not the assigned teacher for this child.');
+    }
+    teacherId = otherParticipantId;
+    parentId = callerUid;
+  } else {
+    throw new functions.https.HttpsError('permission-denied', 'Only teachers and parents can start a chat.');
+  }
+  const chatId = `${childId}_${teacherId}_${parentId}`;
+  const chatRef = db.collection('schools').doc(schoolId).collection('chats').doc(chatId);
+  const chatSnap = await chatRef.get();
+  if (chatSnap.exists) {
+    return { chatId, schoolId };
+  }
+  const now = new Date().toISOString();
+  await chatRef.set({
+    schoolId,
+    teacherId,
+    parentId,
+    childId,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return { chatId, schoolId };
+});
+
 // Create a school and a principal user in one step (direct add, no invitation).
 // Callable by super_admin only. Creates: Auth user (principal), school doc, users/{uid} profile.
 // setUserClaims trigger will set custom claims for the new principal.

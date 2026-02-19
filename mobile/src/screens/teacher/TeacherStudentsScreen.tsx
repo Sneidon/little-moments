@@ -1,21 +1,32 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 
 export function TeacherStudentsScreen({
   navigation,
 }: {
-  navigation: { navigate: (a: string, b: { childId: string }) => void };
+  navigation: { navigate: (a: string, b?: { childId: string }) => void; getParent: () => { navigate: (a: string, b?: object) => void } | undefined };
 }) {
   const { profile } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [messageLoadingForId, setMessageLoadingForId] = useState<string | null>(null);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -64,21 +75,71 @@ export function TeacherStudentsScreen({
     };
   }, [profile?.schoolId, profile?.uid, refreshTrigger]);
 
-  const renderChild = ({ item }: { item: Child }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate('Reports', { childId: item.id })}
-    >
-      <Ionicons name="person-circle-outline" size={28} color="#6366f1" style={styles.cardIcon} />
-      <View style={styles.cardContent}>
-        <Text style={styles.name}>{item.name}</Text>
-        {item.allergies?.length ? (
-          <Text style={styles.allergies}>Allergies: {item.allergies.join(', ')}</Text>
-        ) : null}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
-    </TouchableOpacity>
+  const onMessageParent = useCallback(
+    async (child: Child) => {
+      const schoolId = profile?.schoolId;
+      if (!schoolId || !child.parentIds?.length) {
+        Alert.alert('No parents', 'This child has no linked parents.');
+        return;
+      }
+      setMessageLoadingForId(child.id);
+      try {
+        const { chatId, schoolId: sid } = await getOrCreateChat(
+          schoolId,
+          child.id,
+          child.parentIds[0]
+        );
+        const tabNav = navigation.getParent();
+        (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate(
+          'Messages',
+          { screen: 'ChatThread', params: { chatId, schoolId: sid } }
+        );
+      } catch (e) {
+        Alert.alert('Error', 'Could not start conversation. Please try again.');
+      } finally {
+        setMessageLoadingForId(null);
+      }
+    },
+    [profile?.schoolId, navigation]
   );
+
+  const renderChild = ({ item }: { item: Child }) => {
+    const hasParents = item.parentIds && item.parentIds.length > 0;
+    const isMessageLoading = messageLoadingForId === item.id;
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('Reports', { childId: item.id })}
+      >
+        <Ionicons name="person-circle-outline" size={28} color="#6366f1" style={styles.cardIcon} />
+        <View style={styles.cardContent}>
+          <Text style={styles.name}>{item.name}</Text>
+          {item.allergies?.length ? (
+            <Text style={styles.allergies}>Allergies: {item.allergies.join(', ')}</Text>
+          ) : null}
+        </View>
+        <TouchableOpacity
+          style={styles.messageBtn}
+          onPress={(e) => {
+            e.stopPropagation();
+            onMessageParent(item);
+          }}
+          disabled={!hasParents || isMessageLoading}
+        >
+          {isMessageLoading ? (
+            <ActivityIndicator size="small" color="#6366f1" />
+          ) : (
+            <Ionicons
+              name="chatbubble-outline"
+              size={22}
+              color={hasParents ? '#6366f1' : '#cbd5e1'}
+            />
+          )}
+        </TouchableOpacity>
+        <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -110,7 +171,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   cardIcon: { marginRight: 12 },
-  cardContent: { flex: 1 },
+  cardContent: { flex: 1, minWidth: 0 },
+  messageBtn: { padding: 8, marginRight: 4 },
   name: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
   allergies: { fontSize: 12, color: '#64748b', marginTop: 4 },
   empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },

@@ -118,3 +118,25 @@ export interface ClassRoom {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Teacher–parent chat thread (one per teacher + parent + child). */
+export interface Chat {
+  id: string;
+  schoolId: string;
+  teacherId: string;
+  parentId: string;
+  childId: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Preview of last message for list UI. */
+  lastMessageText?: string;
+  lastMessageAt?: string;
+}
+
+/** Single message in a chat thread. */
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  text: string;
+  createdAt: string;
+}

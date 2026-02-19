@@ -69,9 +69,9 @@ export function LoginScreen({ navigation }: Props) {
           <Ionicons name="log-in-outline" size={20} color="#fff" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>{loading ? 'Signing in…' : 'Sign in'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={loading}>
+        {/* <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={loading}>
           <Text style={styles.link}>Create an account</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </KeyboardAvoidingView>
   );

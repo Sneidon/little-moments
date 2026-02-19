@@ -10,7 +10,10 @@ import { TeacherStudentsScreen } from '../screens/teacher/TeacherStudentsScreen'
 import { TeacherSettingsScreen } from '../screens/teacher/TeacherSettingsScreen';
 import { AnnouncementsScreen } from '../screens/shared/AnnouncementsScreen';
 import { EventsScreen } from '../screens/shared/EventsScreen';
-import { MessagesPlaceholderScreen } from '../screens/shared/MessagesPlaceholderScreen';
+import { MessagesListScreen } from '../screens/shared/MessagesListScreen';
+import { ChatThreadScreen } from '../screens/shared/ChatThreadScreen';
+import { SelectChildToMessageScreen } from '../screens/teacher/SelectChildToMessageScreen';
+import type { MessagesStackParamList } from '../screens/shared/MessagesListScreen';
 import { ParentHomeScreen } from '../screens/parent/ParentHomeScreen';
 import { ParentChildProfileScreen } from '../screens/parent/ParentChildProfileScreen';
 import { ParentSettingsScreen } from '../screens/parent/ParentSettingsScreen';
@@ -36,6 +39,17 @@ type ParentHomeParamList = {
 };
 
 const Tab = createBottomTabNavigator();
+const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
+
+function MessagesNav() {
+  return (
+    <MessagesStack.Navigator>
+      <MessagesStack.Screen name="MessagesList" component={MessagesListScreen} options={{ title: 'Messages' }} />
+      <MessagesStack.Screen name="SelectChildToMessage" component={SelectChildToMessageScreen} options={{ title: 'Start conversation' }} />
+      <MessagesStack.Screen name="ChatThread" component={ChatThreadScreen} options={{ title: 'Chat' }} />
+    </MessagesStack.Navigator>
+  );
+}
 const TeacherDashboardStack = createNativeStackNavigator<TeacherDashboardParamList>();
 const TeacherStudentsStack = createNativeStackNavigator<TeacherStudentsParamList>();
 const ParentHomeStack = createNativeStackNavigator<ParentHomeParamList>();
@@ -113,10 +127,10 @@ export function MainTabs({ role }: { role: UserRole }) {
         />
         <Tab.Screen
           name="Messages"
-          component={MessagesPlaceholderScreen}
+          component={MessagesNav}
           options={{
             title: 'Messages',
-            headerShown: true,
+            headerShown: false,
             tabBarIcon: ({ focused }) => tabIcon('chatbubbles-outline', focused),
           }}
         />
@@ -169,10 +183,10 @@ export function MainTabs({ role }: { role: UserRole }) {
         />
         <Tab.Screen
           name="Messages"
-          component={MessagesPlaceholderScreen}
+          component={MessagesNav}
           options={{
             title: 'Messages',
-            headerShown: true,
+            headerShown: false,
             tabBarIcon: ({ focused }) => tabIcon('chatbubbles-outline', focused),
           }}
         />

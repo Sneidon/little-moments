@@ -7,6 +7,8 @@ import {
   ScrollView,
   Platform,
   RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -14,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { getOrCreateChat } from '../../api/chat';
 import type { DailyReport } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -127,6 +130,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [messageLoading, setMessageLoading] = useState(false);
 
   const schoolId = profile?.schoolId;
   const startOfDay = `${selectedDate}T00:00:00.000Z`;
@@ -240,6 +244,27 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
     if (date) setSelectedDate(date.toISOString().slice(0, 10));
   };
 
+  const onMessageParents = useCallback(async () => {
+    if (!schoolId || !child?.parentIds?.length) {
+      Alert.alert('No parents', 'This child has no linked parents.');
+      return;
+    }
+    const parentId = child.parentIds[0];
+    setMessageLoading(true);
+    try {
+      const { chatId, schoolId: sid } = await getOrCreateChat(schoolId, childId, parentId);
+      const tabNav = navigation.getParent();
+      (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate('Messages', {
+        screen: 'ChatThread',
+        params: { chatId, schoolId: sid },
+      });
+    } catch (e) {
+      Alert.alert('Error', 'Could not start conversation. Please try again.');
+    } finally {
+      setMessageLoading(false);
+    }
+  }, [schoolId, childId, child?.parentIds, navigation]);
+
   if (!schoolId) return null;
 
   return (
@@ -340,11 +365,18 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
       <View style={styles.actionRow}>
         <TouchableOpacity
           style={styles.actionBtn}
-          onPress={() => tabNav?.navigate('Messages')}
+          onPress={onMessageParents}
+          disabled={messageLoading || !child?.parentIds?.length}
           activeOpacity={0.7}
         >
-          <Ionicons name="chatbubble-outline" size={22} color="#475569" />
-          <Text style={styles.actionBtnText}>Message parents</Text>
+          {messageLoading ? (
+            <ActivityIndicator size="small" color="#475569" />
+          ) : (
+            <>
+              <Ionicons name="chatbubble-outline" size={22} color="#475569" />
+              <Text style={styles.actionBtnText}>Message parents</Text>
+            </>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnPrimary]}

@@ -59,7 +59,7 @@ export default function UsagePage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold text-slate-800">Usage & analytics</h1>
       <p className="mb-6 text-slate-600">
-        Overview of activity per school. For detailed analytics, integrate Firebase Analytics and custom events.
+        Overview of activity per school.
       </p>
 
       {loading ? (

@@ -7,6 +7,8 @@ import {
   ScrollView,
   RefreshControl,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -14,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, where, getDocs, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '../../../../shared/types';
 import type { DailyReport } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -48,7 +51,10 @@ function formatTime(iso: string) {
 export function ParentHomeScreen({
   navigation,
 }: {
-  navigation: { navigate: (a: string, b?: { childId: string; schoolId: string }) => void };
+  navigation: {
+    navigate: (a: string, b?: { childId: string; schoolId: string }) => void;
+    getParent: () => { navigate: (a: string, b?: object) => void } | undefined;
+  };
 }) {
   const insets = useSafeAreaInsets();
   const { profile, selectedChildId, setSelectedChildId } = useAuth();
@@ -62,11 +68,39 @@ export function ParentHomeScreen({
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [className, setClassName] = useState<string | null>(null);
+  const [messageLoading, setMessageLoading] = useState(false);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setRefreshTrigger((t) => t + 1);
   }, []);
+
+  const onMessageTeacher = useCallback(async () => {
+    if (!selectedChild?.assignedTeacherId) {
+      Alert.alert(
+        'No teacher assigned',
+        'Your selected child does not have an assigned teacher yet.'
+      );
+      return;
+    }
+    setMessageLoading(true);
+    try {
+      const { chatId, schoolId: sid } = await getOrCreateChat(
+        selectedChild.schoolId,
+        selectedChild.id,
+        selectedChild.assignedTeacherId
+      );
+      const tabNav = navigation.getParent();
+      (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate('Messages', {
+        screen: 'ChatThread',
+        params: { chatId, schoolId: sid },
+      });
+    } catch (e) {
+      Alert.alert('Error', 'Could not open messages. Please try again.');
+    } finally {
+      setMessageLoading(false);
+    }
+  }, [selectedChild, navigation]);
 
   useEffect(() => {
     const uid = profile?.uid;
@@ -229,6 +263,24 @@ export function ParentHomeScreen({
           </View>
         ) : null}
 
+        {/* Message teacher - links to Messages tab */}
+        {selectedChild?.assignedTeacherId ? (
+          <TouchableOpacity
+            style={styles.messageTeacherBtn}
+            onPress={onMessageTeacher}
+            disabled={messageLoading}
+          >
+            {messageLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+                <Text style={styles.messageTeacherBtnText}>Message teacher</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
+
         <View style={styles.dateBar}>
           <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
             <Ionicons name="chevron-back" size={24} color="#475569" />
@@ -380,6 +432,20 @@ const styles = StyleSheet.create({
   childChipActive: { borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.35)' },
   childChipText: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
   childChipTextActive: { color: '#fff', fontWeight: '600' },
+
+  messageTeacherBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#6d28d9',
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  messageTeacherBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
   dateBar: {
     flexDirection: 'row',

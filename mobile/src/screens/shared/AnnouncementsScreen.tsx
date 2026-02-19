@@ -43,10 +43,6 @@ export function AnnouncementsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Ionicons name="megaphone-outline" size={22} color="#1e293b" />
-        <Text style={styles.screenTitle}>Announcements</Text>
-      </View>
       <FlatList
         data={list}
         keyExtractor={(item) => item.id}

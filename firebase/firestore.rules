@@ -65,6 +65,24 @@ service cloud.firestore {
         allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
         allow write: if isPrincipal(schoolId) || isSuperAdmin();
       }
+      match /chats/{chatId} {
+        allow create: if isAuthenticated() && (
+          (isTeacher(schoolId) && request.resource.data.teacherId == request.auth.uid && request.resource.data.schoolId == schoolId)
+          || (hasRole('parent') && request.resource.data.parentId == request.auth.uid && request.resource.data.schoolId == schoolId && request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)/children/$(request.resource.data.childId)).data.parentIds)
+        );
+        allow read, update: if isAuthenticated() && (
+          resource.data.teacherId == request.auth.uid
+          || (hasRole('parent') && resource.data.parentId == request.auth.uid && isParentOfChildId(schoolId, resource.data.childId))
+        );
+        allow delete: if false;
+        match /messages/{messageId} {
+          allow read, create: if isAuthenticated() && (
+            get(/databases/$(database)/documents/schools/$(schoolId)/chats/$(chatId)).data.teacherId == request.auth.uid
+            || get(/databases/$(database)/documents/schools/$(schoolId)/chats/$(chatId)).data.parentId == request.auth.uid
+          );
+          allow update, delete: if false;
+        }
+      }
     }
   }
 }

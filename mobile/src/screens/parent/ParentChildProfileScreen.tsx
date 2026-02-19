@@ -7,11 +7,14 @@ import {
   ScrollView,
   Platform,
   RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { getOrCreateChat } from '../../api/chat';
 import type { DailyReport } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -100,7 +103,7 @@ function getReportDateStr(r: ReportWithExtras): string {
   return '';
 }
 
-export function ParentChildProfileScreen({ route }: Props) {
+export function ParentChildProfileScreen({ route, navigation }: Props) {
   const { childId, schoolId } = route.params;
   const [reports, setReports] = useState<ReportWithExtras[]>([]);
   const [child, setChild] = useState<Child | null>(null);
@@ -110,6 +113,7 @@ export function ParentChildProfileScreen({ route }: Props) {
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [messageLoading, setMessageLoading] = useState(false);
 
   const startOfDay = `${selectedDate}T00:00:00.000Z`;
   const endOfDay = `${selectedDate}T23:59:59.999Z`;
@@ -218,6 +222,30 @@ export function ParentChildProfileScreen({ route }: Props) {
     if (date) setSelectedDate(date.toISOString().slice(0, 10));
   };
 
+  const onMessageTeacher = useCallback(async () => {
+    if (!child?.assignedTeacherId) {
+      Alert.alert('No teacher assigned', 'This child does not have an assigned teacher yet.');
+      return;
+    }
+    setMessageLoading(true);
+    try {
+      const { chatId, schoolId: sid } = await getOrCreateChat(
+        schoolId,
+        childId,
+        child.assignedTeacherId
+      );
+      const tabNav = navigation.getParent();
+      (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate('Messages', {
+        screen: 'ChatThread',
+        params: { chatId, schoolId: sid },
+      });
+    } catch (e) {
+      Alert.alert('Error', 'Could not start conversation. Please try again.');
+    } finally {
+      setMessageLoading(false);
+    }
+  }, [child?.assignedTeacherId, schoolId, childId, navigation]);
+
   return (
     <ScrollView
       style={styles.container}
@@ -278,6 +306,24 @@ export function ParentChildProfileScreen({ route }: Props) {
           )}
         </>
       )}
+
+      {/* Message teacher */}
+      {child?.assignedTeacherId ? (
+        <TouchableOpacity
+          style={styles.messageTeacherBtn}
+          onPress={onMessageTeacher}
+          disabled={messageLoading}
+        >
+          {messageLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+              <Text style={styles.messageTeacherBtnText}>Message teacher</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      ) : null}
 
       {/* Summary cards */}
       <View style={styles.summaryRow}>
@@ -386,6 +432,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+
+  messageTeacherBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#6366f1',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  messageTeacherBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20, marginHorizontal: 16 },
   summaryCard: {

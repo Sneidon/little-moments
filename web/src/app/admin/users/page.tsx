@@ -124,11 +124,6 @@ export default function AdminUsersPage() {
           )}
         </div>
       )}
-
-      <p className="mt-4 text-sm text-slate-500">
-        User creation and role/school assignment are typically done via Firebase Auth (custom claims)
-        and Firestore, or Cloud Functions when users are created or invited.
-      </p>
     </div>
   );
 }

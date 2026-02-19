@@ -24,9 +24,14 @@ export default function ChildrenPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
+    preferredName: '',
     dateOfBirth: '',
-    allergies: '',
+    allergies: [] as string[],
+    allergyInput: '',
+    medicalNotes: '',
+    enrollmentDate: '',
     emergencyContact: '',
+    emergencyContactName: '',
     classId: '',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -56,38 +61,51 @@ export default function ChildrenPage() {
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
-      const data = {
-        schoolId,
+      const base = {
         name: form.name.trim(),
+        preferredName: form.preferredName.trim() || undefined,
         dateOfBirth: form.dateOfBirth,
-        allergies: form.allergies
-          ? form.allergies.split(',').map((s) => s.trim()).filter(Boolean)
-          : [],
+        allergies: form.allergies.filter(Boolean),
+        medicalNotes: form.medicalNotes.trim() || undefined,
+        enrollmentDate: form.enrollmentDate || undefined,
         emergencyContact: form.emergencyContact.trim() || null,
+        emergencyContactName: form.emergencyContactName.trim() || undefined,
         classId: form.classId || null,
-        parentIds: [],
-        createdAt: now,
         updatedAt: now,
       };
       if (editingId) {
+        const existing = children.find((c) => c.id === editingId);
+        const updateData = { ...base, parentIds: existing?.parentIds ?? [], createdAt: existing?.createdAt ?? now };
         await updateDoc(
           doc(db, 'schools', schoolId, 'children', editingId),
-          data
+          updateData
         );
         setChildren((prev) =>
           prev.map((c) =>
-            c.id === editingId ? { ...c, ...data } : c
+            c.id === editingId ? { ...c, ...base } : c
           )
         );
         setEditingId(null);
       } else {
+        const data = { schoolId, ...base, parentIds: [], createdAt: now };
         const ref = await addDoc(
           collection(db, 'schools', schoolId, 'children'),
           data
         );
         setChildren((prev) => [...prev, { id: ref.id, ...data } as Child]);
       }
-      setForm({ name: '', dateOfBirth: '', allergies: '', emergencyContact: '', classId: '' });
+      setForm({
+        name: '',
+        preferredName: '',
+        dateOfBirth: '',
+        allergies: [],
+        allergyInput: '',
+        medicalNotes: '',
+        enrollmentDate: '',
+        emergencyContact: '',
+        emergencyContactName: '',
+        classId: '',
+      });
       setShowForm(false);
     } finally {
       setSubmitting(false);
@@ -98,12 +116,27 @@ export default function ChildrenPage() {
     setEditingId(c.id);
     setForm({
       name: c.name,
+      preferredName: c.preferredName ?? '',
       dateOfBirth: c.dateOfBirth?.slice(0, 10) ?? '',
-      allergies: c.allergies?.join(', ') ?? '',
+      allergies: c.allergies ?? [],
+      allergyInput: '',
+      medicalNotes: c.medicalNotes ?? '',
+      enrollmentDate: c.enrollmentDate?.slice(0, 10) ?? '',
       emergencyContact: c.emergencyContact ?? '',
+      emergencyContactName: c.emergencyContactName ?? '',
       classId: c.classId ?? '',
     });
     setShowForm(true);
+  };
+
+  const addAllergy = () => {
+    const v = form.allergyInput.trim();
+    if (v && !form.allergies.includes(v)) {
+      setForm((f) => ({ ...f, allergies: [...f.allergies, v], allergyInput: '' }));
+    }
+  };
+  const removeAllergy = (idx: number) => {
+    setForm((f) => ({ ...f, allergies: f.allergies.filter((_, i) => i !== idx) }));
   };
 
   const className = (id: string) => classes.find((r) => r.id === id)?.name ?? id;
@@ -117,7 +150,18 @@ export default function ChildrenPage() {
           onClick={() => {
             setShowForm(true);
             setEditingId(null);
-            setForm({ name: '', dateOfBirth: '', allergies: '', emergencyContact: '', classId: '' });
+            setForm({
+              name: '',
+              preferredName: '',
+              dateOfBirth: '',
+              allergies: [],
+              allergyInput: '',
+              medicalNotes: '',
+              enrollmentDate: '',
+              emergencyContact: '',
+              emergencyContactName: '',
+              classId: '',
+            });
           }}
           className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
         >
@@ -145,6 +189,16 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Preferred name</label>
+              <input
+                type="text"
+                value={form.preferredName}
+                onChange={(e) => setForm((f) => ({ ...f, preferredName: e.target.value }))}
+                placeholder="Optional"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+            <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Date of birth</label>
               <input
                 type="date"
@@ -154,23 +208,12 @@ export default function ChildrenPage() {
                 required
               />
             </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Allergies (comma-separated)</label>
-              <input
-                type="text"
-                value={form.allergies}
-                onChange={(e) => setForm((f) => ({ ...f, allergies: e.target.value }))}
-                placeholder="e.g. Peanuts, Tree nuts"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              />
-            </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Emergency contact</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Enrollment date</label>
               <input
-                type="text"
-                value={form.emergencyContact}
-                onChange={(e) => setForm((f) => ({ ...f, emergencyContact: e.target.value }))}
-                placeholder="Phone number"
+                type="date"
+                value={form.enrollmentDate}
+                onChange={(e) => setForm((f) => ({ ...f, enrollmentDate: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
@@ -186,6 +229,66 @@ export default function ChildrenPage() {
                   <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
               </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Allergies</label>
+              <div className="flex flex-wrap gap-2 items-center">
+                <input
+                  type="text"
+                  value={form.allergyInput}
+                  onChange={(e) => setForm((f) => ({ ...f, allergyInput: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAllergy())}
+                  placeholder="Add allergy (e.g. Peanuts)"
+                  className="flex-1 min-w-[120px] rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+                <button
+                  type="button"
+                  onClick={addAllergy}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  Add
+                </button>
+              </div>
+              {form.allergies.length > 0 && (
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {form.allergies.map((a, idx) => (
+                    <li key={idx} className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-sm text-primary-800">
+                      {a}
+                      <button type="button" onClick={() => removeAllergy(idx)} className="text-primary-600 hover:text-primary-800" aria-label="Remove">×</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Medical notes</label>
+              <textarea
+                value={form.medicalNotes}
+                onChange={(e) => setForm((f) => ({ ...f, medicalNotes: e.target.value }))}
+                rows={2}
+                placeholder="Optional medical or care notes"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Emergency contact name</label>
+              <input
+                type="text"
+                value={form.emergencyContactName}
+                onChange={(e) => setForm((f) => ({ ...f, emergencyContactName: e.target.value }))}
+                placeholder="e.g. Parent name"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Emergency contact phone</label>
+              <input
+                type="text"
+                value={form.emergencyContact}
+                onChange={(e) => setForm((f) => ({ ...f, emergencyContact: e.target.value }))}
+                placeholder="Phone number"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
             </div>
           </div>
           <div className="mt-4 flex gap-2">
@@ -215,6 +318,7 @@ export default function ChildrenPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700">Name</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Preferred</th>
                 <th className="px-4 py-3 font-medium text-slate-700">DOB</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Class</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Allergies</th>
@@ -226,12 +330,17 @@ export default function ChildrenPage() {
               {children.map((c) => (
                 <tr key={c.id} className="border-t border-slate-100">
                   <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
+                  <td className="px-4 py-3 text-slate-600">{c.preferredName ?? '—'}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
                   </td>
                   <td className="px-4 py-3 text-slate-600">{c.classId ? className(c.classId) : '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{c.allergies?.length ? c.allergies.join(', ') : '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{c.emergencyContact ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {c.emergencyContactName || c.emergencyContact ? (
+                      <span title={c.emergencyContact ?? ''}>{c.emergencyContactName ?? c.emergencyContact ?? '—'}</span>
+                    ) : '—'}
+                  </td>
                   <td className="px-4 py-3">
                     <button
                       type="button"

@@ -30,11 +30,14 @@ export default function StaffPage() {
   const classForTeacher = (uid: string) =>
     classes.find((c) => c.assignedTeacherId === uid)?.name;
 
+  const formatDate = (s: string | undefined) =>
+    s ? new Date(s).toLocaleDateString(undefined, { dateStyle: 'short' }) : '—';
+
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">Staff</h1>
+      <h1 className="mb-2 text-2xl font-bold text-slate-800">Staff & teachers</h1>
       <p className="mb-6 text-slate-600">
-        Teachers and principals at your school. User accounts and role assignment are managed in the Super Admin area or via your backend.
+        Teachers and principals at your school. To add or edit staff (invite teachers, change roles, or update details), use the Super Admin area → Users.
       </p>
 
       {loading ? (
@@ -48,6 +51,8 @@ export default function StaffPage() {
                 <th className="px-4 py-3 font-medium text-slate-700">Email</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Role</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Assigned class</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Added</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Updated</th>
               </tr>
             </thead>
             <tbody>
@@ -67,12 +72,14 @@ export default function StaffPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{classForTeacher(u.uid) ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatDate(u.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatDate(u.updatedAt)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {staff.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500">No staff in this school yet.</p>
+            <p className="px-4 py-8 text-center text-slate-500">No staff in this school yet. Add users as teachers or principal in Super Admin → Users.</p>
           )}
         </div>
       )}

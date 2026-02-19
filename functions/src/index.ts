@@ -86,6 +86,8 @@ export const createSchoolWithPrincipal = functions.https.onCall(async (data, con
     address,
     contactEmail,
     contactPhone,
+    description,
+    website,
     principalEmail,
     principalDisplayName,
     principalPassword,
@@ -94,6 +96,8 @@ export const createSchoolWithPrincipal = functions.https.onCall(async (data, con
     address?: string;
     contactEmail?: string;
     contactPhone?: string;
+    description?: string;
+    website?: string;
     principalEmail?: string;
     principalDisplayName?: string;
     principalPassword?: string;
@@ -126,6 +130,9 @@ export const createSchoolWithPrincipal = functions.https.onCall(async (data, con
     address: address && typeof address === 'string' ? address.trim() || undefined : undefined,
     contactEmail: contactEmail && typeof contactEmail === 'string' ? contactEmail.trim() || undefined : undefined,
     contactPhone: contactPhone && typeof contactPhone === 'string' ? contactPhone.trim() || undefined : undefined,
+    description: description && typeof description === 'string' ? description.trim() || undefined : undefined,
+    website: website && typeof website === 'string' ? website.trim() || undefined : undefined,
+    subscriptionStatus: 'active',
     createdAt: now,
     updatedAt: now,
   });

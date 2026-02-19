@@ -20,12 +20,16 @@ export interface Child {
   id: string;
   schoolId: string;
   name: string;
+  preferredName?: string;
   dateOfBirth: string; // ISO date
   allergies?: string[];
+  medicalNotes?: string;
+  enrollmentDate?: string; // ISO date
   assignedTeacherId?: string;
   classId?: string; // room/class (e.g. Rainbow Room)
   parentIds: string[];
   emergencyContact?: string;
+  emergencyContactName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,12 +83,17 @@ export interface FoodMenu {
   updatedAt: string;
 }
 
+export type SubscriptionStatus = 'active' | 'suspended';
+
 export interface School {
   id: string;
   name: string;
   address?: string;
   contactEmail?: string;
   contactPhone?: string;
+  description?: string;
+  website?: string;
+  subscriptionStatus?: SubscriptionStatus;
   createdAt: string;
   updatedAt: string;
 }

@@ -82,10 +82,6 @@ export function TeacherStudentsScreen({
 
   return (
     <View style={styles.container}>
-      <View style={styles.titleRow}>
-        <Ionicons name="people-outline" size={24} color="#1e293b" />
-        <Text style={styles.title}>My students</Text>
-      </View>
       <FlatList
         data={children}
         keyExtractor={(item) => item.id}

@@ -26,7 +26,7 @@ const ParentHomeStack = createNativeStackNavigator();
 function TeacherDashboardNav() {
   return (
     <TeacherDashboardStack.Navigator>
-      <TeacherDashboardStack.Screen name="TeacherHome" component={TeacherHomeScreen} options={{ title: 'Dashboard' }} />
+      <TeacherDashboardStack.Screen name="TeacherHome" component={TeacherHomeScreen} options={{ title: 'Home' }} />
       <TeacherDashboardStack.Screen name="Reports" component={TeacherReportsScreen} options={{ title: 'Daily report' }} />
       <TeacherDashboardStack.Screen name="Announcements" component={AnnouncementsScreen} options={{ title: 'Announcements' }} />
       <TeacherDashboardStack.Screen name="Events" component={EventsScreen} options={{ title: 'Events' }} />

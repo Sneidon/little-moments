@@ -25,7 +25,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 type TeacherStackParamList = {
   TeacherHome: undefined;
   Reports: { childId: string };
-  AddUpdate: { initialType?: ReportType } | undefined;
+  AddUpdate: { initialType?: ReportType; initialChildId?: string } | undefined;
   Announcements: undefined;
   Events: undefined;
   Settings: undefined;
@@ -127,6 +127,12 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     const initial = route.params?.initialType;
     if (initial) setType(initial);
   }, [route.params?.initialType]);
+
+  // When navigating from Daily report with initialChildId, pre-select that child
+  useEffect(() => {
+    const id = route.params?.initialChildId;
+    if (id && children.some((c) => c.id === id)) setSelectedChildId(id);
+  }, [route.params?.initialChildId, children]);
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'snack'>('lunch');
   const [mealAmount, setMealAmount] = useState('most');
   const [notes, setNotes] = useState('');
@@ -250,9 +256,13 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         }
         if (photoCategory) payload.photoCategory = photoCategory;
       }
+      // Firestore does not accept undefined; remove undefined fields
+      const sanitized = Object.fromEntries(
+        Object.entries(payload).filter(([, v]) => v !== undefined)
+      ) as Record<string, unknown>;
       await addDoc(
         collection(db, 'schools', schoolId, 'children', selectedChildId, 'reports'),
-        payload
+        sanitized
       );
       Alert.alert('Done', 'Update saved.');
       setNotes('');

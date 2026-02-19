@@ -229,7 +229,6 @@ export function ParentHomeScreen({
           </View>
         ) : null}
 
-        {/* Date bar - same as Teacher */}
         <View style={styles.dateBar}>
           <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
             <Ionicons name="chevron-back" size={24} color="#475569" />
@@ -267,7 +266,6 @@ export function ParentHomeScreen({
           </>
         )}
 
-        {/* Today's Overview - same as Teacher (no Quick Actions) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
@@ -298,7 +296,6 @@ export function ParentHomeScreen({
           </View>
         </View>
 
-        {/* Today's Updates - like My Students section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             {isToday ? "Today's Updates" : 'Updates'}

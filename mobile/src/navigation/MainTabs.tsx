@@ -146,6 +146,7 @@ export function MainTabs({ role }: { role: UserRole }) {
           component={ParentCalendarScreen}
           options={{
             title: 'Calendar',
+            headerShown: true,
             tabBarIcon: ({ focused }) => tabIcon('calendar-outline', focused),
           }}
         />

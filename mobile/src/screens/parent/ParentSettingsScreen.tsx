@@ -74,12 +74,6 @@ export function ParentSettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.titleRow}>
-        <Ionicons name="settings-outline" size={24} color="#1e293b" />
-        <Text style={styles.title}>Settings</Text>
-      </View>
-      <Text style={styles.subtitle}>Manage your account and preferences</Text>
-
       {selectedChild && (
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
@@ -148,7 +142,7 @@ const styles = StyleSheet.create({
   },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   cardTitle: { fontSize: 14, fontWeight: '600', color: '#475569' },
-  childName: { fontSize: 18, fontWeight: '600', color: '#1e293b' },
+  childName: { fontSize: 14, fontWeight: '600', color: '#1e293b' },
   row: { fontSize: 14, color: '#64748b', marginTop: 4 },
   label: { fontSize: 12, fontWeight: '600', color: '#475569', marginTop: 12, marginBottom: 4 },
   allergyRow: {},

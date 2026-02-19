@@ -80,6 +80,26 @@ function reportIconColor(type: string): string {
   return '#64748b';
 }
 
+/** Parse time-only string (e.g. "13:00") with a date string to get ms. Nap times are stored as "HH:mm". */
+function parseTimeWithDate(timeStr: string | undefined, dateStr: string): number {
+  if (!timeStr || typeof timeStr !== 'string') return NaN;
+  const parts = timeStr.trim().split(':').map((p) => parseInt(p, 10));
+  const h = !isNaN(parts[0]) ? parts[0] : 0;
+  const m = !isNaN(parts[1]) ? parts[1] : 0;
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setHours(h, m, 0, 0);
+  return d.getTime();
+}
+
+function getReportDateStr(r: ReportWithExtras): string {
+  const t = r.timestamp ?? r.createdAt;
+  if (typeof t === 'string') return t.slice(0, 10);
+  if (t && typeof (t as { toDate?: () => Date }).toDate === 'function') {
+    return (t as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
+  }
+  return '';
+}
+
 export function ParentChildProfileScreen({ route }: Props) {
   const { childId, schoolId } = route.params;
   const [reports, setReports] = useState<ReportWithExtras[]>([]);
@@ -113,17 +133,29 @@ export function ParentChildProfileScreen({ route }: Props) {
   let napDuration = '';
   if (naps.length > 0) {
     let totalMs = 0;
+    const dateStr = selectedDate;
     for (const n of naps) {
       const r = n as ReportWithExtras;
+      const reportDate = getReportDateStr(r) || dateStr;
       if (r.napStartTime && r.napEndTime) {
-        totalMs +=
-          new Date(r.napEndTime).getTime() - new Date(r.napStartTime).getTime();
+        const startMs = parseTimeWithDate(r.napStartTime, reportDate);
+        const endMs = parseTimeWithDate(r.napEndTime, reportDate);
+        if (!isNaN(startMs) && !isNaN(endMs)) {
+          totalMs += endMs - startMs;
+        } else {
+          totalMs += 1.5 * 60 * 60 * 1000;
+        }
       } else {
         totalMs += 1.5 * 60 * 60 * 1000;
       }
     }
     const hours = totalMs / (60 * 60 * 1000);
-    napDuration = hours >= 1 ? `${hours.toFixed(1)}h` : `${Math.round(hours * 60)}m`;
+    napDuration =
+      Number.isFinite(hours) && hours >= 0
+        ? hours >= 1
+          ? `${hours.toFixed(1)}h`
+          : `${Math.round(hours * 60)}m`
+        : '0h';
   } else {
     napDuration = '0h';
   }

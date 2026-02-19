@@ -119,6 +119,14 @@ export function TeacherHomeScreen({
     const dayEnd = `${selectedDate}T23:59:59.999Z`;
     let cancelled = false;
 
+    const toIso = (ts: unknown): string => {
+      if (typeof ts === 'string') return ts;
+      if (ts && typeof (ts as { toDate?: () => Date }).toDate === 'function') {
+        return (ts as { toDate: () => Date }).toDate().toISOString();
+      }
+      return '';
+    };
+
     const check = async () => {
       let total = 0;
       let meals = 0;
@@ -128,8 +136,8 @@ export function TeacherHomeScreen({
           collection(db, 'schools', schoolId, 'children', child.id, 'reports')
         );
         snap.docs.forEach((d) => {
-          const data = d.data() as { timestamp?: string; type?: string };
-          const ts = data.timestamp;
+          const data = d.data() as { timestamp?: unknown; createdAt?: unknown; type?: string };
+          const ts = toIso(data.timestamp) || toIso(data.createdAt);
           if (ts && ts >= dayStart && ts <= dayEnd) {
             total++;
             if (data.type === 'meal') meals++;

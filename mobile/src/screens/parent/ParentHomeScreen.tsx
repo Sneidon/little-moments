@@ -7,8 +7,10 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -46,6 +48,7 @@ export function ParentHomeScreen({
   });
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -96,6 +99,11 @@ export function ParentHomeScreen({
   }, [selectedChild?.id, selectedChild?.schoolId, selectedDate, refreshTrigger]);
 
   const isToday = selectedDate === new Date().toISOString().slice(0, 10);
+  const onDatePickerChange = (event: { type: string }, date?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (event.type === 'dismissed') return;
+    if (date) setSelectedDate(date.toISOString().slice(0, 10));
+  };
   const meals = reports.filter((r) => r.type === 'meal').length;
   const naps = reports.filter((r) => r.type === 'nap_time').length;
   const nappy = reports.filter((r) => r.type === 'nappy_change').length;
@@ -163,11 +171,37 @@ export function ParentHomeScreen({
         <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
           <Ionicons name="chevron-back" size={24} color="#6366f1" />
         </TouchableOpacity>
-        <Text style={styles.dateText}>{isToday ? 'Today' : new Date(selectedDate).toLocaleDateString()}</Text>
+        <TouchableOpacity
+          style={styles.dateCenter}
+          onPress={() => setShowDatePicker(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.dateText}>{isToday ? 'Today' : new Date(selectedDate).toLocaleDateString()}</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
           <Ionicons name="chevron-forward" size={24} color="#6366f1" />
         </TouchableOpacity>
       </View>
+
+      {showDatePicker && (
+        <>
+          <DateTimePicker
+            value={new Date(selectedDate + 'T12:00:00')}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'calendar' : 'default'}
+            onChange={onDatePickerChange}
+            maximumDate={new Date()}
+          />
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={styles.datePickerDone}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.datePickerDoneText}>Done</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
@@ -249,7 +283,17 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   dateArrow: { padding: 4 },
+  dateCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
   dateText: { fontSize: 14, fontWeight: '600', color: '#1e293b' },
+  datePickerDone: {
+    marginBottom: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#6366f1',
+    borderRadius: 8,
+    marginHorizontal: 16,
+  },
+  datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   statCard: {
     flex: 1,

@@ -25,7 +25,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 type TeacherStackParamList = {
   TeacherHome: undefined;
   Reports: { childId: string };
-  AddUpdate: { initialType?: 'incident' } | undefined;
+  AddUpdate: { initialType?: ReportType } | undefined;
   Announcements: undefined;
   Events: undefined;
   Settings: undefined;
@@ -119,8 +119,14 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [childPickerOpen, setChildPickerOpen] = useState(false);
   const [type, setType] = useState<ReportType>(
-    route.params?.initialType === 'incident' ? 'incident' : 'meal'
+    route.params?.initialType ?? 'meal'
   );
+
+  // When navigating from quick actions with initialType, switch to that tab
+  useEffect(() => {
+    const initial = route.params?.initialType;
+    if (initial) setType(initial);
+  }, [route.params?.initialType]);
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'snack'>('lunch');
   const [mealAmount, setMealAmount] = useState('most');
   const [notes, setNotes] = useState('');
@@ -272,9 +278,6 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <Text style={styles.pageTitle}>Add Update</Text>
-      <Text style={styles.pageSubtitle}>Log daily activities for your students.</Text>
 
       {/* Select Child card */}
       <View style={styles.card}>
@@ -406,7 +409,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               <Text style={styles.cardTitle}>Upload Photo</Text>
               <Text style={styles.photoZoneLabel}>Photo</Text>
               <TouchableOpacity
-                style={[styles.photoUploadZone, photoUri && styles.photoUploadZoneFilled]}
+                style={[styles.photoUploadZone, photoUri ? styles.photoUploadZoneFilled : null]}
                 onPress={async () => {
                   if (photoUri) return;
                   Alert.alert('Add Photo', 'Take a new photo or choose from library.', [

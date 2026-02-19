@@ -2,13 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
-  RefreshControl,
   ScrollView,
+  Platform,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -51,6 +52,7 @@ export function TeacherHomeScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -167,7 +169,15 @@ export function TeacherHomeScreen({
         day: 'numeric',
       });
 
+  const onDatePickerChange = (event: { type: string }, date?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (event.type === 'dismissed') return;
+    if (date) setSelectedDate(date.toISOString().slice(0, 10));
+  };
+
   const teacherName = profile?.displayName?.trim() || profile?.email?.split('@')[0] || 'Teacher';
+
+  const tabNav = navigation.getParent() as { navigate: (name: string, params?: { initialType: string }) => void } | undefined;
 
   const quickActions = [
     {
@@ -175,35 +185,35 @@ export function TeacherHomeScreen({
       label: 'Log Meal',
       icon: 'restaurant' as const,
       color: '#ea580c',
-      onPress: () => (navigation.getParent() as any)?.navigate('AddUpdate'),
+      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'meal' }),
     },
     {
       id: 'nap',
       label: 'Log Nap',
       icon: 'bed' as const,
       color: '#7c3aed',
-      onPress: () => (navigation.getParent() as any)?.navigate('AddUpdate'),
+      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'nap_time' }),
     },
     {
       id: 'nappy',
       label: 'Log Nappy',
       icon: 'water' as const,
       color: '#0d9488',
-      onPress: () => (navigation.getParent() as any)?.navigate('AddUpdate'),
+      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'nappy_change' }),
     },
     {
       id: 'activity',
       label: 'Add Activity',
       icon: 'sparkles' as const,
       color: '#2563eb',
-      onPress: () => (navigation.getParent() as any)?.navigate('AddUpdate'),
+      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'medication' }),
     },
     {
       id: 'photo',
       label: 'Add Photo',
       icon: 'camera' as const,
       color: '#db2777',
-      onPress: () => (navigation.getParent() as any)?.navigate('AddUpdate', { initialType: 'incident' }),
+      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'incident' }),
     },
     {
       id: 'message',
@@ -269,14 +279,38 @@ export function TeacherHomeScreen({
           <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
             <Ionicons name="chevron-back" size={24} color="#475569" />
           </TouchableOpacity>
-          <View style={styles.dateCenter}>
+          <TouchableOpacity
+            style={styles.dateCenter}
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.7}
+          >
             <Ionicons name="calendar-outline" size={20} color="#475569" />
             <Text style={styles.dateText}>{displayDate}</Text>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
             <Ionicons name="chevron-forward" size={24} color="#475569" />
           </TouchableOpacity>
         </View>
+
+        {showDatePicker && (
+          <>
+            <DateTimePicker
+              value={new Date(selectedDate + 'T12:00:00')}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'calendar' : 'default'}
+              onChange={onDatePickerChange}
+              maximumDate={new Date()}
+            />
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.datePickerDone}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.datePickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
 
         {/* Today's Overview */}
         <View style={styles.section}>
@@ -404,6 +438,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dateText: { fontSize: 15, fontWeight: '600', color: '#334155' },
+  datePickerDone: {
+    marginTop: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#7c3aed',
+    borderRadius: 8,
+    marginHorizontal: 16,
+  },
+  datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
   section: { marginTop: 24, paddingHorizontal: 16 },
   sectionHeader: {

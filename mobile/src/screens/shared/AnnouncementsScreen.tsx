@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,13 @@ import type { Announcement } from '../../../../shared/types';
 export function AnnouncementsScreen() {
   const { profile } = useAuth();
   const [list, setList] = useState<Announcement[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setRefreshTrigger((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     if (!profile?.schoolId) return;
@@ -17,9 +24,10 @@ export function AnnouncementsScreen() {
     );
     const unsub = onSnapshot(q, (snap) => {
       setList(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement)));
+      setRefreshing(false);
     });
     return () => unsub();
-  }, [profile?.schoolId]);
+  }, [profile?.schoolId, refreshTrigger]);
 
   const renderItem = ({ item }: { item: Announcement }) => (
     <View style={styles.card}>
@@ -36,6 +44,9 @@ export function AnnouncementsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListEmptyComponent={<Text style={styles.empty}>No announcements.</Text>}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     </View>
   );

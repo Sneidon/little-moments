@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,13 @@ import type { Event } from '../../../../shared/types';
 export function EventsScreen() {
   const { profile } = useAuth();
   const [list, setList] = useState<Event[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setRefreshTrigger((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     if (!profile?.schoolId) return;
@@ -17,9 +24,10 @@ export function EventsScreen() {
     );
     const unsub = onSnapshot(q, (snap) => {
       setList(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Event)));
+      setRefreshing(false);
     });
     return () => unsub();
-  }, [profile?.schoolId]);
+  }, [profile?.schoolId, refreshTrigger]);
 
   const respond = async (eventId: string, response: 'accepted' | 'declined') => {
     if (!profile?.schoolId || profile.role !== 'parent') return;
@@ -52,6 +60,9 @@ export function EventsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListEmptyComponent={<Text style={styles.empty}>No events.</Text>}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     </View>
   );

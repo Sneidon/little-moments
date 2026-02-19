@@ -8,10 +8,11 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { collection, addDoc, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import type { Child } from '../../../../shared/types';
+import type { ClassRoom } from '../../../../shared/types';
 import type { ReportType } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -37,18 +38,44 @@ export function AddUpdateScreen({ navigation }: Props) {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Children are assigned by classId; teacher is assigned to class(es) via assignedTeacherId on the class
   useEffect(() => {
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
     if (!schoolId || !uid) return;
-    const q = query(
-      collection(db, 'schools', schoolId, 'children'),
-      where('assignedTeacherId', '==', uid)
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
-    });
-    return () => unsub();
+
+    let cancelled = false;
+    let unsub: (() => void) | null = null;
+
+    (async () => {
+      const classesSnap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
+      if (cancelled) return;
+      const myClasses = classesSnap.docs.filter(
+        (d) => (d.data() as ClassRoom).assignedTeacherId === uid
+      );
+      const classIds = myClasses.map((d) => d.id).slice(0, 10);
+
+      if (classIds.length === 0) {
+        setChildren([]);
+        return;
+      }
+
+      unsub = onSnapshot(
+        query(
+          collection(db, 'schools', schoolId, 'children'),
+          where('classId', 'in', classIds)
+        ),
+        (snap) => {
+          if (cancelled) return;
+          setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
+        }
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
   }, [profile?.schoolId, profile?.uid]);
 
   const selectedChild = children.find((c) => c.id === selectedChildId);

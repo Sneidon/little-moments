@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -42,6 +43,13 @@ export function ParentHomeScreen({
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setRefreshTrigger((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     const uid = profile?.uid;
@@ -65,7 +73,7 @@ export function ParentHomeScreen({
         });
       }
     })();
-  }, [profile?.uid, setSelectedChildId]);
+  }, [profile?.uid, setSelectedChildId, refreshTrigger]);
 
   const selectedChild = children.find((c) => c.id === selectedChildId) ?? children[0];
 
@@ -81,9 +89,10 @@ export function ParentHomeScreen({
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as DailyReport));
       const filtered = list.filter((r) => r.timestamp >= start && r.timestamp <= end);
       setReports(filtered);
+      setRefreshing(false);
     });
     return () => unsub();
-  }, [selectedChild?.id, selectedChild?.schoolId, selectedDate]);
+  }, [selectedChild?.id, selectedChild?.schoolId, selectedDate, refreshTrigger]);
 
   const isToday = selectedDate === new Date().toISOString().slice(0, 10);
   const meals = reports.filter((r) => r.type === 'meal').length;
@@ -174,6 +183,9 @@ export function ParentHomeScreen({
         keyExtractor={(item) => item.id}
         renderItem={renderReport}
         ListEmptyComponent={<Text style={styles.empty}>No updates for this day.</Text>}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Announcements')}>
         <Text style={styles.fabText}>Announcements</Text>

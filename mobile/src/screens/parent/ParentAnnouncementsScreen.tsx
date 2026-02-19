@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,13 @@ export function ParentAnnouncementsScreen() {
   const { profile } = useAuth();
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [list, setList] = useState<Announcement[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setRefreshTrigger((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     const uid = profile?.uid;
@@ -27,7 +34,7 @@ export function ParentAnnouncementsScreen() {
         }
       }
     })();
-  }, [profile?.uid]);
+  }, [profile?.uid, refreshTrigger]);
 
   useEffect(() => {
     if (!schoolId) return;
@@ -37,9 +44,10 @@ export function ParentAnnouncementsScreen() {
     );
     const unsub = onSnapshot(q, (snap) => {
       setList(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement)));
+      setRefreshing(false);
     });
     return () => unsub();
-  }, [schoolId]);
+  }, [schoolId, refreshTrigger]);
 
   const renderItem = ({ item }: { item: Announcement }) => (
     <View style={styles.card}>
@@ -59,6 +67,9 @@ export function ParentAnnouncementsScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ListEmptyComponent={<Text style={styles.empty}>No announcements.</Text>}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
       )}
     </View>

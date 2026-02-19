@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import type { Child } from '../../../../shared/types';
+import type { ClassRoom } from '../../../../shared/types';
 
 export function TeacherStudentsScreen({
   navigation,
@@ -12,20 +13,55 @@ export function TeacherStudentsScreen({
 }) {
   const { profile } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setRefreshTrigger((t) => t + 1);
+  }, []);
+
+  // Children are assigned by classId; teacher is assigned to class(es) via assignedTeacherId on the class
   useEffect(() => {
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
     if (!schoolId || !uid) return;
-    const q = query(
-      collection(db, 'schools', schoolId, 'children'),
-      where('assignedTeacherId', '==', uid)
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
-    });
-    return () => unsub();
-  }, [profile?.schoolId, profile?.uid]);
+
+    let cancelled = false;
+    let unsub: (() => void) | null = null;
+
+    (async () => {
+      const classesSnap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
+      if (cancelled) return;
+      const myClasses = classesSnap.docs.filter(
+        (d) => (d.data() as ClassRoom).assignedTeacherId === uid
+      );
+      const classIds = myClasses.map((d) => d.id).slice(0, 10);
+
+      if (classIds.length === 0) {
+        setChildren([]);
+        setRefreshing(false);
+        return;
+      }
+
+      unsub = onSnapshot(
+        query(
+          collection(db, 'schools', schoolId, 'children'),
+          where('classId', 'in', classIds)
+        ),
+        (snap) => {
+          if (cancelled) return;
+          setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
+          setRefreshing(false);
+        }
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
+  }, [profile?.schoolId, profile?.uid, refreshTrigger]);
 
   const renderChild = ({ item }: { item: Child }) => (
     <TouchableOpacity
@@ -47,6 +83,9 @@ export function TeacherStudentsScreen({
         keyExtractor={(item) => item.id}
         renderItem={renderChild}
         ListEmptyComponent={<Text style={styles.empty}>No children assigned yet.</Text>}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     </View>
   );

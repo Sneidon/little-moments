@@ -18,10 +18,27 @@ import { PhotosPlaceholderScreen } from '../screens/shared/PhotosPlaceholderScre
 import { ParentCalendarScreen } from '../screens/parent/ParentCalendarScreen';
 import { ParentAnnouncementsScreen } from '../screens/parent/ParentAnnouncementsScreen';
 
+type TeacherDashboardParamList = {
+  TeacherHome: undefined;
+  Reports: { childId: string };
+  Announcements: undefined;
+  Events: undefined;
+};
+type TeacherStudentsParamList = {
+  StudentsList: undefined;
+  Reports: { childId: string };
+};
+type ParentHomeParamList = {
+  ParentHome: undefined;
+  ChildProfile: { childId: string; schoolId: string };
+  Announcements: undefined;
+  Events: undefined;
+};
+
 const Tab = createBottomTabNavigator();
-const TeacherDashboardStack = createNativeStackNavigator();
-const TeacherStudentsStack = createNativeStackNavigator();
-const ParentHomeStack = createNativeStackNavigator();
+const TeacherDashboardStack = createNativeStackNavigator<TeacherDashboardParamList>();
+const TeacherStudentsStack = createNativeStackNavigator<TeacherStudentsParamList>();
+const ParentHomeStack = createNativeStackNavigator<ParentHomeParamList>();
 
 function TeacherDashboardNav() {
   return (

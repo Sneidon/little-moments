@@ -59,7 +59,7 @@ function getReportTitle(item: ReportWithExtras): string {
   if (item.type === 'nappy_change') return 'Nappy Change';
   if (item.type === 'medication') return item.activityTitle || 'Activity';
   if (item.type === 'incident') return 'Photo';
-  return item.type.replace('_', ' ');
+  return String(item.type).replace('_', ' ');
 }
 
 function reportIcon(type: string): keyof typeof Ionicons.glyphMap {

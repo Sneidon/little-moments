@@ -73,7 +73,7 @@ function getReportTitle(item: ReportWithExtras): string {
   if (item.type === 'nappy_change') return 'Nappy Change';
   if (item.type === 'medication') return item.activityTitle || 'Activity';
   if (item.type === 'incident') return 'Photo';
-  return item.type.replace('_', ' ');
+  return String(item.type).replace('_', ' ');
 }
 
 function reportIcon(type: string): keyof typeof Ionicons.glyphMap {
@@ -185,7 +185,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
     getDoc(childRef).then(async (snap) => {
       if (!snap.exists()) return;
       const data = snap.data() as Child;
-      setChild({ id: snap.id, ...data } as Child);
+      setChild({ ...data, id: snap.id } as Child);
       if (data.classId) {
         const classSnap = await getDoc(doc(db, 'schools', schoolId, 'classes', data.classId));
         if (classSnap.exists()) setClassName((classSnap.data() as ClassRoom).name);

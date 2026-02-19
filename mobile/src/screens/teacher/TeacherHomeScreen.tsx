@@ -39,7 +39,10 @@ function getInitials(name: string): string {
 export function TeacherHomeScreen({
   navigation,
 }: {
-  navigation: { navigate: (a: string, b?: { childId: string }) => void };
+  navigation: {
+    navigate: (a: string, b?: { childId: string }) => void;
+    getParent: () => { navigate: (name: string, params?: { initialType?: string }) => void } | undefined;
+  };
 }) {
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();

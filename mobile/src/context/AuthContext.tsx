@@ -9,7 +9,7 @@ interface AuthContextValue {
   profile: UserProfile | null;
   loading: boolean;
   selectedChildId: string | null;
-  setSelectedChildId: (id: string | null) => void;
+  setSelectedChildId: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);

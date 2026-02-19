@@ -18,6 +18,10 @@ export default function StaffPage() {
   const [form, setForm] = useState({ teacherEmail: '', teacherDisplayName: '', teacherPreferredName: '', teacherPassword: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [editingUid, setEditingUid] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ displayName: '', preferredName: '', isActive: true });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const load = async () => {
     const schoolId = profile?.schoolId;
@@ -40,6 +44,49 @@ export default function StaffPage() {
 
   const formatDate = (s: string | undefined) =>
     s ? new Date(s).toLocaleDateString(undefined, { dateStyle: 'short' }) : '—';
+
+  const startEditTeacher = (u: UserProfile) => {
+    if (u.role === 'principal') return;
+    setEditingUid(u.uid);
+    setEditError('');
+    setEditForm({
+      displayName: u.displayName ?? '',
+      preferredName: u.preferredName ?? '',
+      isActive: u.isActive !== false,
+    });
+  };
+
+  const updateTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUid) return;
+    setEditError('');
+    setEditSubmitting(true);
+    try {
+      const functions = getFunctions(app);
+      const updateTeacherFn = httpsCallable<
+        { teacherUid: string; displayName?: string; preferredName?: string; isActive?: boolean },
+        { ok: boolean }
+      >(functions, 'updateTeacher');
+      await updateTeacherFn({
+        teacherUid: editingUid,
+        displayName: editForm.displayName.trim() || undefined,
+        preferredName: editForm.preferredName.trim() || undefined,
+        isActive: editForm.isActive,
+      });
+      await load();
+      setEditingUid(null);
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : err && typeof err === 'object' && 'details' in err
+            ? String((err as { details: unknown }).details)
+            : 'Failed to update teacher';
+      setEditError(message);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
 
   const addTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,6 +215,64 @@ export default function StaffPage() {
         </form>
       )}
 
+      {editingUid && (
+        <form
+          onSubmit={updateTeacher}
+          className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
+          <h2 className="mb-4 font-semibold text-slate-800">Edit teacher</h2>
+          {editError && <p className="mb-4 text-sm text-red-600">{editError}</p>}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Display name</label>
+              <input
+                type="text"
+                value={editForm.displayName}
+                onChange={(e) => setEditForm((f) => ({ ...f, displayName: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Preferred name</label>
+              <input
+                type="text"
+                value={editForm.preferredName}
+                onChange={(e) => setEditForm((f) => ({ ...f, preferredName: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="Optional"
+              />
+            </div>
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editIsActive"
+                checked={editForm.isActive}
+                onChange={(e) => setEditForm((f) => ({ ...f, isActive: e.target.checked }))}
+                className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              />
+              <label htmlFor="editIsActive" className="text-sm font-medium text-slate-700">Active (inactive teachers cannot be assigned to new classes)</label>
+            </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="submit"
+              disabled={editSubmitting}
+              className="rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              {editSubmitting ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditingUid(null); setEditError(''); }}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
       {loading ? (
         <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
       ) : (
@@ -179,9 +284,11 @@ export default function StaffPage() {
                 <th className="px-4 py-3 font-medium text-slate-700">Preferred name</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Email</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Role</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Status</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Assigned class</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Added</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Updated</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -201,9 +308,33 @@ export default function StaffPage() {
                       {u.role}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    {u.role === 'teacher' ? (
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                          u.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {u.isActive !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{classForTeacher(u.uid) ?? '—'}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(u.createdAt)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(u.updatedAt)}</td>
+                  <td className="px-4 py-3">
+                    {u.role === 'teacher' && (
+                      <button
+                        type="button"
+                        onClick={() => startEditTeacher(u)}
+                        className="text-primary-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

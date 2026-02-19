@@ -204,11 +204,61 @@ export const createTeacher = functions.https.onCall(async (data, context) => {
     ...(preferredName ? { preferredName } : {}),
     role: 'teacher',
     schoolId,
+    isActive: true,
     createdAt: now,
     updatedAt: now,
   });
 
   return { teacherUid };
+});
+
+// Update a teacher's name or active status. Callable by principal only (for teachers in their school).
+export const updateTeacher = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can update teachers.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const { teacherUid, displayName, preferredName, isActive } = data as {
+    teacherUid?: string;
+    displayName?: string;
+    preferredName?: string;
+    isActive?: boolean;
+  };
+
+  if (!teacherUid || typeof teacherUid !== 'string' || !teacherUid.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Teacher UID is required.');
+  }
+
+  const teacherRef = db.collection('users').doc(teacherUid);
+  const teacherSnap = await teacherRef.get();
+  if (!teacherSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Teacher not found.');
+  }
+  const teacherData = teacherSnap.data() as { role?: string; schoolId?: string };
+  if (teacherData.role !== 'teacher' || teacherData.schoolId !== schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Can only update teachers in your school.');
+  }
+
+  const now = new Date().toISOString();
+  const updates: Record<string, unknown> = { updatedAt: now };
+  if (displayName !== undefined && typeof displayName === 'string' && displayName.trim()) {
+    updates.displayName = displayName.trim();
+  }
+  if (preferredName !== undefined) {
+    updates.preferredName = typeof preferredName === 'string' && preferredName.trim() ? preferredName.trim() : null;
+  }
+  if (isActive !== undefined) updates.isActive = Boolean(isActive);
+
+  await teacherRef.update(updates);
+  return { ok: true };
 });
 
 const MAX_PARENTS_PER_CHILD = 4;
@@ -228,10 +278,11 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
   }
   const schoolId = callerData.schoolId;
 
-  const { childId, parentEmail, parentDisplayName, parentPassword } = data as {
+  const { childId, parentEmail, parentDisplayName, parentPhone, parentPassword } = data as {
     childId?: string;
     parentEmail?: string;
     parentDisplayName?: string;
+    parentPhone?: string;
     parentPassword?: string;
   };
 
@@ -269,13 +320,16 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
   });
   const parentUid = userRecord.uid;
 
+  const phone = (parentPhone && typeof parentPhone === 'string') ? parentPhone.trim() || undefined : undefined;
   await db.collection('users').doc(parentUid).set({
     email: parentEmail.trim(),
     displayName: (parentDisplayName && typeof parentDisplayName === 'string')
       ? parentDisplayName.trim()
       : parentEmail.trim(),
+    ...(phone ? { phone } : {}),
     role: 'parent',
     schoolId,
+    isActive: true,
     createdAt: now,
     updatedAt: now,
   });
@@ -287,6 +341,55 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
   });
 
   return { parentUid };
+});
+
+// Update a parent's name, phone, or active status. Callable by principal only (for parents in their school).
+export const updateParent = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can update parents.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const { parentUid, displayName, phone, isActive } = data as {
+    parentUid?: string;
+    displayName?: string;
+    phone?: string;
+    isActive?: boolean;
+  };
+
+  if (!parentUid || typeof parentUid !== 'string' || !parentUid.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Parent UID is required.');
+  }
+
+  const parentRef = db.collection('users').doc(parentUid);
+  const parentSnap = await parentRef.get();
+  if (!parentSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Parent not found.');
+  }
+  const parentData = parentSnap.data() as { role?: string; schoolId?: string };
+  if (parentData.role !== 'parent' || parentData.schoolId !== schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Can only update parents in your school.');
+  }
+
+  const now = new Date().toISOString();
+  const updates: Record<string, unknown> = { updatedAt: now };
+  if (displayName !== undefined && typeof displayName === 'string' && displayName.trim()) {
+    updates.displayName = displayName.trim();
+  }
+  if (phone !== undefined) {
+    updates.phone = typeof phone === 'string' && phone.trim() ? phone.trim() : null;
+  }
+  if (isActive !== undefined) updates.isActive = Boolean(isActive);
+
+  await parentRef.update(updates);
+  return { ok: true };
 });
 
 // Scheduled event reminders (one day before). Proposal: "Schedule event reminders one day

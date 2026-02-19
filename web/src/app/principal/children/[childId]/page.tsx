@@ -35,9 +35,13 @@ export default function ChildDetailPage() {
   const [loading, setLoading] = useState(true);
   const [filterDay, setFilterDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [showInviteParent, setShowInviteParent] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ parentEmail: '', parentDisplayName: '', parentPassword: '' });
+  const [inviteForm, setInviteForm] = useState({ parentEmail: '', parentDisplayName: '', parentPhone: '', parentPassword: '' });
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState('');
+  const [editingParentUid, setEditingParentUid] = useState<string | null>(null);
+  const [editParentForm, setEditParentForm] = useState({ displayName: '', phone: '', isActive: true });
+  const [editParentSubmitting, setEditParentSubmitting] = useState(false);
+  const [editParentError, setEditParentError] = useState('');
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -87,6 +91,59 @@ export default function ChildDetailPage() {
     return () => { cancelled = true; };
   }, [child?.parentIds]);
 
+  const refetchParents = async () => {
+    const ids = child?.parentIds ?? [];
+    if (ids.length === 0) { setParents([]); return; }
+    const snaps = await Promise.all(ids.map((uid: string) => getDoc(doc(db, 'users', uid))));
+    setParents(
+      snaps
+        .filter((s) => s.exists())
+        .map((s) => ({ uid: s.id, ...s.data() } as UserProfile))
+    );
+  };
+
+  const startEditParent = (p: UserProfile) => {
+    setEditingParentUid(p.uid);
+    setEditParentError('');
+    setEditParentForm({
+      displayName: p.displayName ?? '',
+      phone: p.phone ?? '',
+      isActive: p.isActive !== false,
+    });
+  };
+
+  const handleUpdateParent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingParentUid) return;
+    setEditParentError('');
+    setEditParentSubmitting(true);
+    try {
+      const functions = getFunctions(app);
+      const updateParentFn = httpsCallable<
+        { parentUid: string; displayName?: string; phone?: string; isActive?: boolean },
+        { ok: boolean }
+      >(functions, 'updateParent');
+      await updateParentFn({
+        parentUid: editingParentUid,
+        displayName: editParentForm.displayName.trim() || undefined,
+        phone: editParentForm.phone.trim() || undefined,
+        isActive: editParentForm.isActive,
+      });
+      await refetchParents();
+      setEditingParentUid(null);
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : err && typeof err === 'object' && 'details' in err
+            ? String((err as { details: unknown }).details)
+            : 'Failed to update parent';
+      setEditParentError(message);
+    } finally {
+      setEditParentSubmitting(false);
+    }
+  };
+
   const handleInviteParent = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteError('');
@@ -102,18 +159,19 @@ export default function ChildDetailPage() {
     try {
       const functions = getFunctions(app);
       const invite = httpsCallable<
-        { childId: string; parentEmail: string; parentDisplayName?: string; parentPassword: string },
+        { childId: string; parentEmail: string; parentDisplayName?: string; parentPhone?: string; parentPassword: string },
         { parentUid: string }
       >(functions, 'inviteParentToChild');
       await invite({
         childId: child.id,
         parentEmail: inviteForm.parentEmail.trim(),
         parentDisplayName: inviteForm.parentDisplayName.trim() || undefined,
+        parentPhone: inviteForm.parentPhone.trim() || undefined,
         parentPassword: inviteForm.parentPassword,
       });
       const childSnap = await getDoc(doc(db, 'schools', profile!.schoolId!, 'children', child.id));
       if (childSnap.exists()) setChild({ id: childSnap.id, ...childSnap.data() } as Child);
-      setInviteForm({ parentEmail: '', parentDisplayName: '', parentPassword: '' });
+      setInviteForm({ parentEmail: '', parentDisplayName: '', parentPhone: '', parentPassword: '' });
       setShowInviteParent(false);
     } catch (err: unknown) {
       const message =
@@ -228,15 +286,90 @@ export default function ChildDetailPage() {
             {parents.map((p) => (
               <li
                 key={p.uid}
-                className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3"
               >
-                <div>
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-slate-800">{p.displayName ?? '—'}</span>
-                  <span className="ml-2 text-slate-600">{p.email}</span>
+                  <span className="text-slate-600">{p.email}</span>
+                  <span
+                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                      p.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {p.isActive !== false ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-600">
+                    {p.phone ? (
+                      <a href={`tel:${p.phone}`} className="hover:underline">{p.phone}</a>
+                    ) : (
+                      <span className="text-slate-400">No phone</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => startEditParent(p)}
+                    className="text-sm text-primary-600 hover:underline"
+                  >
+                    Edit
+                  </button>
                 </div>
               </li>
             ))}
           </ul>
+        )}
+        {editingParentUid && (
+          <form onSubmit={handleUpdateParent} className="mb-4 max-w-md space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+            <h3 className="font-medium text-slate-800">Edit parent</h3>
+            {editParentError && <p className="text-sm text-red-600">{editParentError}</p>}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Display name</label>
+              <input
+                type="text"
+                value={editParentForm.displayName}
+                onChange={(e) => setEditParentForm((f) => ({ ...f, displayName: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
+              <input
+                type="tel"
+                value={editParentForm.phone}
+                onChange={(e) => setEditParentForm((f) => ({ ...f, phone: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="Optional"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editParentIsActive"
+                checked={editParentForm.isActive}
+                onChange={(e) => setEditParentForm((f) => ({ ...f, isActive: e.target.checked }))}
+                className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              />
+              <label htmlFor="editParentIsActive" className="text-sm font-medium text-slate-700">Active</label>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={editParentSubmitting}
+                className="rounded-lg bg-primary-600 px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
+              >
+                {editParentSubmitting ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEditingParentUid(null); setEditParentError(''); }}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         )}
         {(child.parentIds?.length ?? 0) < MAX_PARENTS && (
           <>
@@ -273,6 +406,16 @@ export default function ChildDetailPage() {
                   />
                 </div>
                 <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
+                  <input
+                    type="tel"
+                    value={inviteForm.parentPhone}
+                    onChange={(e) => setInviteForm((f) => ({ ...f, parentPhone: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
                   <input
                     type="password"
@@ -294,7 +437,7 @@ export default function ChildDetailPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setShowInviteParent(false); setInviteError(''); setInviteForm({ parentEmail: '', parentDisplayName: '', parentPassword: '' }); }}
+                    onClick={() => { setShowInviteParent(false); setInviteError(''); setInviteForm({ parentEmail: '', parentDisplayName: '', parentPhone: '', parentPassword: '' }); }}
                     className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
                   >
                     Cancel

@@ -10,7 +10,11 @@ export interface UserProfile {
   email: string;
   displayName: string;
   preferredName?: string;
+  /** Contact phone (especially for parents). */
+  phone?: string;
   role: UserRole;
+  /** If false, user is inactive (principal can reactivate teachers/parents). Default true. */
+  isActive?: boolean;
   schoolId?: string; // teachers, principals
   fcmTokens?: string[];
   createdAt: string;

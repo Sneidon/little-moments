@@ -167,9 +167,11 @@ export default function ClassesPage() {
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">—</option>
-                {teachers.map((t) => (
-                  <option key={t.uid} value={t.uid}>{t.displayName} ({t.role})</option>
-                ))}
+                {teachers
+                  .filter((t) => t.role === 'principal' || (t.role === 'teacher' && t.isActive !== false))
+                  .map((t) => (
+                    <option key={t.uid} value={t.uid}>{t.displayName} ({t.role})</option>
+                  ))}
               </select>
             </div>
           </div>

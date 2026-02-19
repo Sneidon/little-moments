@@ -14,6 +14,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { formatClassDisplay } from '@/lib/formatClass';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
@@ -173,7 +174,7 @@ export default function ChildrenPage() {
     setForm((f) => ({ ...f, allergies: f.allergies.filter((_, i) => i !== idx) }));
   };
 
-  const className = (id: string) => classes.find((r) => r.id === id)?.name ?? id;
+  const classDisplay = (id: string) => formatClassDisplay(classes.find((r) => r.id === id)) || id;
 
   return (
     <div>
@@ -260,7 +261,7 @@ export default function ChildrenPage() {
               >
                 <option value="">—</option>
                 {classes.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                  <option key={r.id} value={r.id}>{formatClassDisplay(r)}</option>
                 ))}
               </select>
             </div>
@@ -372,7 +373,7 @@ export default function ChildrenPage() {
                   <td className="px-4 py-3 text-slate-600">
                     {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{c.classId ? className(c.classId) : '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">{c.classId ? classDisplay(c.classId) : '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{c.allergies?.length ? c.allergies.join(', ') : '—'}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {c.emergencyContactName || c.emergencyContact ? (

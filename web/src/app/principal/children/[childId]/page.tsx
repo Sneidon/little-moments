@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { formatClassDisplay } from '@/lib/formatClass';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 import type { DailyReport } from 'shared/types';
@@ -58,8 +59,8 @@ export default function ChildDetailPage() {
     return () => { cancelled = true; };
   }, [profile?.schoolId, childId, router]);
 
-  const className = (id: string | null | undefined) =>
-    id ? classes.find((c) => c.id === id)?.name ?? id : '—';
+  const classDisplay = (id: string | null | undefined) =>
+    id ? formatClassDisplay(classes.find((c) => c.id === id)) || id : '—';
 
   const reportsForDay = reports.filter((r) => {
     const ts = r.timestamp ?? '';
@@ -112,7 +113,7 @@ export default function ChildDetailPage() {
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Class</p>
-            <p className="text-slate-800">{className(child.classId)}</p>
+            <p className="text-slate-800">{classDisplay(child.classId)}</p>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Enrollment date</p>

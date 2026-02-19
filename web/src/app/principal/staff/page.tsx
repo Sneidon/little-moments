@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/config/firebase';
+import { formatClassDisplay } from '@/lib/formatClass';
 import type { UserProfile } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
@@ -35,7 +36,7 @@ export default function StaffPage() {
   }, [profile?.schoolId]);
 
   const classForTeacher = (uid: string) =>
-    classes.find((c) => c.assignedTeacherId === uid)?.name;
+    formatClassDisplay(classes.find((c) => c.assignedTeacherId === uid));
 
   const formatDate = (s: string | undefined) =>
     s ? new Date(s).toLocaleDateString(undefined, { dateStyle: 'short' }) : '—';

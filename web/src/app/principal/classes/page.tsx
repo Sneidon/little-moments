@@ -12,6 +12,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { formatClassDisplay } from '@/lib/formatClass';
 import type { ClassRoom } from 'shared/types';
 import type { UserProfile } from 'shared/types';
 
@@ -27,15 +28,6 @@ export default function ClassesPage() {
   const [maxAgeMonths, setMaxAgeMonths] = useState<string>('');
   const [assignedTeacherId, setAssignedTeacherId] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  /** Display age in months or years (2 years or more = yr). */
-  const formatAgeMonths = (months: number | null | undefined): string => {
-    if (months == null) return '—';
-    const m = Number(months);
-    if (Number.isNaN(m)) return '—';
-    if (m >= 24) return `${Math.round(m / 12)} yr`;
-    return `${m} mo`;
-  };
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -206,8 +198,7 @@ export default function ClassesPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 font-medium text-slate-700">Class name</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Age range</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Class</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Assigned teacher</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Actions</th>
               </tr>
@@ -215,12 +206,7 @@ export default function ClassesPage() {
             <tbody>
               {classes.map((c) => (
                 <tr key={c.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {c.minAgeMonths != null || c.maxAgeMonths != null
-                      ? `${formatAgeMonths(c.minAgeMonths)} – ${formatAgeMonths(c.maxAgeMonths)}`
-                      : '—'}
-                  </td>
+                  <td className="px-4 py-3 font-medium text-slate-800">{formatClassDisplay(c)}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {c.assignedTeacherId ? teacherName(c.assignedTeacherId) : '—'}
                   </td>

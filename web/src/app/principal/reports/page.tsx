@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { formatClassDisplay } from '@/lib/formatClass';
 import type { DailyReport } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
@@ -87,7 +88,7 @@ export default function ReportsPage() {
     { value: 'incident', label: 'Incident' },
   ];
 
-  const className = (id: string) => classes.find((c) => c.id === id)?.name ?? id;
+  const classDisplay = (id: string) => formatClassDisplay(classes.find((c) => c.id === id)) || id;
 
   return (
     <div>
@@ -182,7 +183,7 @@ export default function ReportsPage() {
                   <tr key={r.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 font-medium text-slate-800">{r.childName}</td>
                     {!filterClassId && (
-                      <td className="px-4 py-3 text-slate-600">{r.childClassId ? className(r.childClassId) : '—'}</td>
+                      <td className="px-4 py-3 text-slate-600">{r.childClassId ? classDisplay(r.childClassId) : '—'}</td>
                     )}
                     <td className="px-4 py-3 text-slate-600">{r.type?.replace('_', ' ')}</td>
                     <td className="px-4 py-3 text-slate-600">

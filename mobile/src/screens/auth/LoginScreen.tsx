@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -43,6 +44,10 @@ export function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.form}>
+        <View style={styles.logoRow}>
+          <Ionicons name="heart" size={48} color="#6366f1" />
+          <Text style={styles.appTitle}>Little Moments</Text>
+        </View>
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -61,6 +66,7 @@ export function LoginScreen({ navigation }: Props) {
           editable={!loading}
         />
         <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+          <Ionicons name="log-in-outline" size={20} color="#fff" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>{loading ? 'Signing in…' : 'Sign in'}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={loading}>
@@ -74,6 +80,8 @@ export function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#f8fafc' },
   form: { gap: 12 },
+  logoRow: { alignItems: 'center', marginBottom: 24 },
+  appTitle: { fontSize: 22, fontWeight: '700', color: '#1e293b', marginTop: 12 },
   input: {
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -82,7 +90,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
-  button: { backgroundColor: '#6366f1', padding: 14, borderRadius: 8, alignItems: 'center' },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6366f1',
+    padding: 14,
+    borderRadius: 8,
+  },
+  buttonIcon: { marginRight: 8 },
   buttonText: { color: '#fff', fontWeight: '600' },
   link: { color: '#6366f1', textAlign: 'center', marginTop: 12 },
 });

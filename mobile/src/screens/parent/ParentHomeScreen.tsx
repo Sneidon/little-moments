@@ -8,6 +8,7 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -111,11 +112,21 @@ export function ParentHomeScreen({
     setSelectedDate(d.toISOString().slice(0, 10));
   };
 
+  const reportTypeIcon = (type: string) => {
+    if (type === 'meal') return 'restaurant-outline';
+    if (type === 'nap_time') return 'bed-outline';
+    if (type === 'nappy_change') return 'water-outline';
+    return 'sparkles-outline';
+  };
+
   const renderReport = ({ item }: { item: DailyReport }) => (
     <View style={styles.updateCard}>
-      <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
-      <Text style={styles.updateType}>{item.type.replace('_', ' ')}</Text>
-      {item.notes ? <Text style={styles.updateNotes}>{item.notes}</Text> : null}
+      <Ionicons name={reportTypeIcon(item.type) as any} size={22} color="#6366f1" style={styles.updateCardIcon} />
+      <View style={styles.updateCardContent}>
+        <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+        <Text style={styles.updateType}>{item.type.replace('_', ' ')}</Text>
+        {item.notes ? <Text style={styles.updateNotes}>{item.notes}</Text> : null}
+      </View>
     </View>
   );
 
@@ -150,34 +161,41 @@ export function ParentHomeScreen({
 
       <View style={styles.dateBar}>
         <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-          <Text style={styles.dateArrowText}>←</Text>
+          <Ionicons name="chevron-back" size={24} color="#6366f1" />
         </TouchableOpacity>
         <Text style={styles.dateText}>{isToday ? 'Today' : new Date(selectedDate).toLocaleDateString()}</Text>
         <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-          <Text style={styles.dateArrowText}>→</Text>
+          <Ionicons name="chevron-forward" size={24} color="#6366f1" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
+          <Ionicons name="restaurant-outline" size={18} color="#6366f1" style={styles.statIcon} />
           <Text style={styles.statValue}>{meals}</Text>
           <Text style={styles.statLabel}>Meals</Text>
         </View>
         <View style={styles.statCard}>
+          <Ionicons name="bed-outline" size={18} color="#6366f1" style={styles.statIcon} />
           <Text style={styles.statValue}>{naps}</Text>
           <Text style={styles.statLabel}>Nap</Text>
         </View>
         <View style={styles.statCard}>
+          <Ionicons name="water-outline" size={18} color="#6366f1" style={styles.statIcon} />
           <Text style={styles.statValue}>{nappy}</Text>
           <Text style={styles.statLabel}>Nappy</Text>
         </View>
         <View style={styles.statCard}>
+          <Ionicons name="sparkles-outline" size={18} color="#6366f1" style={styles.statIcon} />
           <Text style={styles.statValue}>{activities}</Text>
           <Text style={styles.statLabel}>Activities</Text>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>{isToday ? "Today's updates" : 'Updates'}</Text>
+      <View style={styles.sectionTitleRow}>
+        <Ionicons name="list-outline" size={20} color="#475569" />
+        <Text style={styles.sectionTitle}>{isToday ? "Today's updates" : 'Updates'}</Text>
+      </View>
       <FlatList
         data={reports}
         keyExtractor={(item) => item.id}
@@ -188,9 +206,11 @@ export function ParentHomeScreen({
         }
       />
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Announcements')}>
+        <Ionicons name="megaphone-outline" size={20} color="#fff" style={styles.fabIcon} />
         <Text style={styles.fabText}>Announcements</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.fab, styles.fabSecondary]} onPress={() => navigation.navigate('Events')}>
+        <Ionicons name="calendar-outline" size={20} color="#fff" style={styles.fabIcon} />
         <Text style={styles.fabText}>Events</Text>
       </TouchableOpacity>
     </View>
@@ -229,7 +249,6 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   dateArrow: { padding: 4 },
-  dateArrowText: { fontSize: 18, color: '#6366f1' },
   dateText: { fontSize: 14, fontWeight: '600', color: '#1e293b' },
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   statCard: {
@@ -240,10 +259,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  statIcon: { marginBottom: 4 },
   statValue: { fontSize: 18, fontWeight: '700', color: '#6366f1' },
   statLabel: { fontSize: 11, color: '#64748b', marginTop: 2 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#475569', marginBottom: 12 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#475569' },
   updateCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: '#fff',
     padding: 14,
     borderRadius: 12,
@@ -251,11 +274,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  updateCardIcon: { marginRight: 12 },
+  updateCardContent: { flex: 1 },
   updateTime: { fontSize: 12, color: '#64748b' },
   updateType: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 4 },
   updateNotes: { fontSize: 14, color: '#475569', marginTop: 4 },
   empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },
-  fab: { backgroundColor: '#6366f1', padding: 12, borderRadius: 8, marginTop: 8 },
+  fab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6366f1',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  fabIcon: { marginRight: 8 },
   fabSecondary: { backgroundColor: '#94a3b8' },
-  fabText: { color: '#fff', textAlign: 'center', fontWeight: '600' },
+  fabText: { color: '#fff', fontWeight: '600' },
 });

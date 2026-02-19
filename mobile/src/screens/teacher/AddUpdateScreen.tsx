@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -114,7 +115,10 @@ export function AddUpdateScreen({ navigation }: Props) {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.sectionTitle}>Select child</Text>
+      <View style={styles.sectionTitleRow}>
+        <Ionicons name="person-outline" size={20} color="#475569" />
+        <Text style={styles.sectionTitle}>Select child</Text>
+      </View>
       <View style={styles.childList}>
         {children.map((c) => (
           <TouchableOpacity
@@ -128,11 +132,19 @@ export function AddUpdateScreen({ navigation }: Props) {
           </TouchableOpacity>
         ))}
       </View>
-      {children.length === 0 && <Text style={styles.hint}>No children assigned to your class.</Text>}
+      {children.length === 0 && (
+        <View style={styles.emptyRow}>
+          <Ionicons name="people-outline" size={24} color="#94a3b8" />
+          <Text style={styles.hint}>No children assigned to your class.</Text>
+        </View>
+      )}
 
       {selectedChild && (
         <>
-          <Text style={styles.sectionTitle}>Update type</Text>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="create-outline" size={20} color="#475569" />
+            <Text style={styles.sectionTitle}>Update type</Text>
+          </View>
           <View style={styles.typeRow}>
             {REPORT_TYPES.map((t) => (
               <TouchableOpacity
@@ -183,8 +195,10 @@ export function AddUpdateScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#475569', marginBottom: 8 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#475569' },
   childList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   childChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -196,7 +210,7 @@ const styles = StyleSheet.create({
   childChipActive: { borderColor: '#6366f1', backgroundColor: '#eef2ff' },
   childChipText: { fontSize: 14, color: '#64748b' },
   childChipTextActive: { color: '#6366f1', fontWeight: '600' },
-  hint: { fontSize: 13, color: '#64748b', marginBottom: 16 },
+  hint: { fontSize: 13, color: '#64748b' },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   typeBtn: {
     paddingHorizontal: 12,

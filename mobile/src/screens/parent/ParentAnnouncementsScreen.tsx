@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -51,9 +52,12 @@ export function ParentAnnouncementsScreen() {
 
   const renderItem = ({ item }: { item: Announcement }) => (
     <View style={styles.card}>
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.body}>{item.body}</Text>
-      <Text style={styles.meta}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+      <Ionicons name="megaphone" size={24} color="#6366f1" style={styles.cardIcon} />
+      <View style={styles.cardContent}>
+        <Text style={styles.title}>{item.title}</Text>
+        <Text style={styles.body}>{item.body}</Text>
+        <Text style={styles.meta}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+      </View>
     </View>
   );
 
@@ -79,6 +83,8 @@ export function ParentAnnouncementsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
   card: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
@@ -86,6 +92,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  cardIcon: { marginRight: 12 },
+  cardContent: { flex: 1 },
   title: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
   body: { fontSize: 14, color: '#475569', marginTop: 8 },
   meta: { fontSize: 12, color: '#94a3b8', marginTop: 8 },

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -73,8 +74,13 @@ export function ParentCalendarScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Calendar</Text>
-      <Text style={styles.subheader}>Events and important dates</Text>
+      <View style={styles.headerRow}>
+        <Ionicons name="calendar-outline" size={24} color="#1e293b" />
+        <View>
+          <Text style={styles.header}>Calendar</Text>
+          <Text style={styles.subheader}>Events and important dates</Text>
+        </View>
+      </View>
       {!schoolId ? (
         <Text style={styles.empty}>Loading…</Text>
       ) : (
@@ -94,8 +100,9 @@ export function ParentCalendarScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   header: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
-  subheader: { fontSize: 14, color: '#64748b', marginTop: 4, marginBottom: 16 },
+  subheader: { fontSize: 14, color: '#64748b', marginTop: 4 },
   card: {
     backgroundColor: '#fff',
     padding: 16,

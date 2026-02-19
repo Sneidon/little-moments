@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -105,10 +106,14 @@ export function TeacherHomeScreen({
       style={styles.card}
       onPress={() => navigation.navigate('Reports', { childId: item.id })}
     >
-      <Text style={styles.name}>{item.name}</Text>
-      {item.allergies?.length ? (
-        <Text style={styles.allergies}>Allergies: {item.allergies.join(', ')}</Text>
-      ) : null}
+      <Ionicons name="person-circle-outline" size={28} color="#6366f1" style={styles.cardIcon} />
+      <View style={styles.cardContent}>
+        <Text style={styles.name}>{item.name}</Text>
+        {item.allergies?.length ? (
+          <Text style={styles.allergies}>Allergies: {item.allergies.join(', ')}</Text>
+        ) : null}
+      </View>
+      <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
     </TouchableOpacity>
   );
 
@@ -125,16 +130,21 @@ export function TeacherHomeScreen({
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
+          <Ionicons name="people" size={20} color="#6366f1" style={styles.statIcon} />
           <Text style={styles.statValue}>{children.length}</Text>
           <Text style={styles.statLabel}>Students</Text>
         </View>
         <View style={styles.statCard}>
+          <Ionicons name="document-text" size={20} color="#6366f1" style={styles.statIcon} />
           <Text style={styles.statValue}>{reportsToday}</Text>
           <Text style={styles.statLabel}>Reports today</Text>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>My students</Text>
+      <View style={styles.sectionTitleRow}>
+        <Ionicons name="people-outline" size={20} color="#475569" />
+        <Text style={styles.sectionTitle}>My students</Text>
+      </View>
       <FlatList
         data={children}
         keyExtractor={(item) => item.id}
@@ -145,9 +155,11 @@ export function TeacherHomeScreen({
         }
       />
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Announcements')}>
+        <Ionicons name="megaphone-outline" size={20} color="#fff" style={styles.fabIcon} />
         <Text style={styles.fabText}>Announcements</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.fab, styles.fabSecondary]} onPress={() => navigation.navigate('Events')}>
+        <Ionicons name="calendar-outline" size={20} color="#fff" style={styles.fabIcon} />
         <Text style={styles.fabText}>Events</Text>
       </TouchableOpacity>
     </View>
@@ -168,10 +180,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  statIcon: { marginBottom: 6 },
   statValue: { fontSize: 24, fontWeight: '700', color: '#6366f1' },
   statLabel: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#475569', marginBottom: 12 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#475569' },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
@@ -179,10 +195,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  cardIcon: { marginRight: 12 },
+  cardContent: { flex: 1 },
   name: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
   allergies: { fontSize: 12, color: '#64748b', marginTop: 4 },
   empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },
-  fab: { backgroundColor: '#6366f1', padding: 12, borderRadius: 8, marginTop: 8 },
+  fab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6366f1',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  fabIcon: { marginRight: 8 },
   fabSecondary: { backgroundColor: '#94a3b8' },
-  fabText: { color: '#fff', textAlign: 'center', fontWeight: '600' },
+  fabText: { color: '#fff', fontWeight: '600' },
 });

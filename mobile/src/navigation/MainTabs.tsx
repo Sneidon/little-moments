@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import type { UserRole } from '../../../shared/types';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
@@ -53,26 +54,119 @@ function ParentHomeNav() {
   );
 }
 
+const tabIcon = (name: React.ComponentProps<typeof Ionicons>['name'], focused: boolean) => (
+  <Ionicons name={name} size={24} color={focused ? '#6366f1' : '#94a3b8'} />
+);
+
 export function MainTabs({ role }: { role: UserRole }) {
   if (role === 'teacher') {
     return (
-      <Tab.Navigator screenOptions={{ headerShown: false }}>
-        <Tab.Screen name="Dashboard" component={TeacherDashboardNav} options={{ title: 'Dashboard' }} />
-        <Tab.Screen name="AddUpdate" component={AddUpdateScreen} options={{ title: 'Add Update', headerShown: true, headerTitle: 'Add update' }} />
-        <Tab.Screen name="Students" component={TeacherStudentsNav} options={{ title: 'Students' }} />
-        <Tab.Screen name="Messages" component={MessagesPlaceholderScreen} options={{ title: 'Messages', headerShown: true }} />
-        <Tab.Screen name="Settings" component={TeacherSettingsScreen} options={{ title: 'Settings', headerShown: true }} />
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#6366f1',
+          tabBarInactiveTintColor: '#94a3b8',
+        }}
+      >
+        <Tab.Screen
+          name="Dashboard"
+          component={TeacherDashboardNav}
+          options={{
+            title: 'Dashboard',
+            tabBarIcon: ({ focused }) => tabIcon('grid-outline', focused),
+          }}
+        />
+        <Tab.Screen
+          name="AddUpdate"
+          component={AddUpdateScreen}
+          options={{
+            title: 'Add Update',
+            headerShown: true,
+            headerTitle: 'Add update',
+            tabBarIcon: ({ focused }) => tabIcon('add-circle-outline', focused),
+          }}
+        />
+        <Tab.Screen
+          name="Students"
+          component={TeacherStudentsNav}
+          options={{
+            title: 'Students',
+            tabBarIcon: ({ focused }) => tabIcon('people-outline', focused),
+          }}
+        />
+        <Tab.Screen
+          name="Messages"
+          component={MessagesPlaceholderScreen}
+          options={{
+            title: 'Messages',
+            headerShown: true,
+            tabBarIcon: ({ focused }) => tabIcon('chatbubbles-outline', focused),
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={TeacherSettingsScreen}
+          options={{
+            title: 'Settings',
+            headerShown: true,
+            tabBarIcon: ({ focused }) => tabIcon('settings-outline', focused),
+          }}
+        />
       </Tab.Navigator>
     );
   }
   if (role === 'parent') {
     return (
-      <Tab.Navigator screenOptions={{ headerShown: false }}>
-        <Tab.Screen name="Home" component={ParentHomeNav} options={{ title: 'Home' }} />
-        <Tab.Screen name="Photos" component={PhotosPlaceholderScreen} options={{ title: 'Photos', headerShown: true }} />
-        <Tab.Screen name="Calendar" component={ParentCalendarScreen} options={{ title: 'Calendar' }} />
-        <Tab.Screen name="Messages" component={MessagesPlaceholderScreen} options={{ title: 'Messages', headerShown: true }} />
-        <Tab.Screen name="Settings" component={ParentSettingsScreen} options={{ title: 'Settings', headerShown: true }} />
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#6366f1',
+          tabBarInactiveTintColor: '#94a3b8',
+        }}
+      >
+        <Tab.Screen
+          name="Home"
+          component={ParentHomeNav}
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ focused }) => tabIcon('home-outline', focused),
+          }}
+        />
+        <Tab.Screen
+          name="Photos"
+          component={PhotosPlaceholderScreen}
+          options={{
+            title: 'Photos',
+            headerShown: true,
+            tabBarIcon: ({ focused }) => tabIcon('images-outline', focused),
+          }}
+        />
+        <Tab.Screen
+          name="Calendar"
+          component={ParentCalendarScreen}
+          options={{
+            title: 'Calendar',
+            tabBarIcon: ({ focused }) => tabIcon('calendar-outline', focused),
+          }}
+        />
+        <Tab.Screen
+          name="Messages"
+          component={MessagesPlaceholderScreen}
+          options={{
+            title: 'Messages',
+            headerShown: true,
+            tabBarIcon: ({ focused }) => tabIcon('chatbubbles-outline', focused),
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={ParentSettingsScreen}
+          options={{
+            title: 'Settings',
+            headerShown: true,
+            tabBarIcon: ({ focused }) => tabIcon('settings-outline', focused),
+          }}
+        />
       </Tab.Navigator>
     );
   }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
@@ -29,11 +30,17 @@ export function TeacherSettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
+      <View style={styles.titleRow}>
+        <Ionicons name="settings-outline" size={24} color="#1e293b" />
+        <Text style={styles.title}>Settings</Text>
+      </View>
       <Text style={styles.subtitle}>Manage your account</Text>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Profile</Text>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="person-outline" size={18} color="#475569" />
+          <Text style={styles.cardTitle}>Profile</Text>
+        </View>
         <Text style={styles.row}>{profile?.displayName ?? '—'}</Text>
         <Text style={styles.row}>{profile?.email}</Text>
         {className ? (
@@ -42,7 +49,10 @@ export function TeacherSettingsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Account</Text>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="log-out-outline" size={18} color="#475569" />
+          <Text style={styles.cardTitle}>Account</Text>
+        </View>
         <Text style={styles.signOutHint}>Sign out to switch account or use the web app as principal.</Text>
         <Text style={styles.signOutLink} onPress={handleSignOut}>
           Sign out
@@ -54,6 +64,7 @@ export function TeacherSettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
   subtitle: { fontSize: 14, color: '#64748b', marginTop: 4, marginBottom: 20 },
   card: {
@@ -64,7 +75,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: '#475569', marginBottom: 12 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  cardTitle: { fontSize: 14, fontWeight: '600', color: '#475569' },
   row: { fontSize: 14, color: '#1e293b', marginBottom: 4 },
   room: { color: '#6366f1', fontWeight: '500' },
   signOutHint: { fontSize: 13, color: '#64748b', marginBottom: 12 },

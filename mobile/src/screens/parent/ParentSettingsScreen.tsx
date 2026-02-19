@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
@@ -73,12 +74,18 @@ export function ParentSettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
+      <View style={styles.titleRow}>
+        <Ionicons name="settings-outline" size={24} color="#1e293b" />
+        <Text style={styles.title}>Settings</Text>
+      </View>
       <Text style={styles.subtitle}>Manage your account and preferences</Text>
 
       {selectedChild && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Child profile</Text>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="person-outline" size={18} color="#475569" />
+            <Text style={styles.cardTitle}>Child profile</Text>
+          </View>
           <Text style={styles.childName}>{selectedChild.name}</Text>
           <Text style={styles.row}>
             {getAge(selectedChild.dateOfBirth)} old
@@ -104,7 +111,10 @@ export function ParentSettingsScreen() {
 
       {school && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Daycare information</Text>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="business-outline" size={18} color="#475569" />
+            <Text style={styles.cardTitle}>Daycare information</Text>
+          </View>
           <Text style={styles.row}>{school.name}</Text>
           {school.contactPhone ? <Text style={styles.row}>{school.contactPhone}</Text> : null}
           {school.contactEmail ? <Text style={styles.row}>{school.contactEmail}</Text> : null}
@@ -112,7 +122,10 @@ export function ParentSettingsScreen() {
       )}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Account</Text>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="log-out-outline" size={18} color="#475569" />
+          <Text style={styles.cardTitle}>Account</Text>
+        </View>
         <Text style={styles.signOutHint}>Sign out to switch account.</Text>
         <Text style={styles.signOutLink} onPress={handleSignOut}>Sign out</Text>
       </View>
@@ -122,6 +135,7 @@ export function ParentSettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
   subtitle: { fontSize: 14, color: '#64748b', marginTop: 4, marginBottom: 20 },
   card: {
@@ -132,7 +146,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: '#475569', marginBottom: 12 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  cardTitle: { fontSize: 14, fontWeight: '600', color: '#475569' },
   childName: { fontSize: 18, fontWeight: '600', color: '#1e293b' },
   row: { fontSize: 14, color: '#64748b', marginTop: 4 },
   label: { fontSize: 12, fontWeight: '600', color: '#475569', marginTop: 12, marginBottom: 4 },

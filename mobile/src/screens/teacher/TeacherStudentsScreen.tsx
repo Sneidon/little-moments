@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -68,16 +69,23 @@ export function TeacherStudentsScreen({
       style={styles.card}
       onPress={() => navigation.navigate('Reports', { childId: item.id })}
     >
-      <Text style={styles.name}>{item.name}</Text>
-      {item.allergies?.length ? (
-        <Text style={styles.allergies}>Allergies: {item.allergies.join(', ')}</Text>
-      ) : null}
+      <Ionicons name="person-circle-outline" size={28} color="#6366f1" style={styles.cardIcon} />
+      <View style={styles.cardContent}>
+        <Text style={styles.name}>{item.name}</Text>
+        {item.allergies?.length ? (
+          <Text style={styles.allergies}>Allergies: {item.allergies.join(', ')}</Text>
+        ) : null}
+      </View>
+      <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My students</Text>
+      <View style={styles.titleRow}>
+        <Ionicons name="people-outline" size={24} color="#1e293b" />
+        <Text style={styles.title}>My students</Text>
+      </View>
       <FlatList
         data={children}
         keyExtractor={(item) => item.id}
@@ -93,8 +101,11 @@ export function TeacherStudentsScreen({
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 16, color: '#1e293b' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
@@ -102,6 +113,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  cardIcon: { marginRight: 12 },
+  cardContent: { flex: 1 },
   name: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
   allergies: { fontSize: 12, color: '#64748b', marginTop: 4 },
   empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },

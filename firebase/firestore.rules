@@ -18,7 +18,10 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.role == 'teacher' && request.auth.token.schoolId == schoolId;
     }
     function isParentOf(childDoc) {
-      return isAuthenticated() && request.auth.token.role == 'parent' && request.auth.uid in childDoc.data.parentIds;
+      return isAuthenticated() && request.auth.uid in childDoc.data.parentIds;
+    }
+    function isParentOfChildId(schoolId, childId) {
+      return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)/children/$(childId)).data.parentIds;
     }
 
     match /users/{userId} {
@@ -31,29 +34,29 @@ service cloud.firestore {
     }
 
     match /schools/{schoolId} {
-      allow read: if isAuthenticated() && (isSuperAdmin() || request.auth.token.schoolId == schoolId);
+      allow read: if isAuthenticated();
       allow write: if isSuperAdmin();
       match /classes/{classId} {
-        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow read: if isAuthenticated();
         allow create, update, delete: if isTeacher(schoolId) || isPrincipal(schoolId);
       }
       match /children/{childId} {
-        allow read: if isTeacher(schoolId) || isPrincipal(schoolId) || isParentOf(get(/databases/$(database)/documents/schools/$(schoolId)/children/$(childId)));
+        allow read: if isTeacher(schoolId) || isPrincipal(schoolId) || (isAuthenticated() && request.auth.uid in resource.data.parentIds);
         allow create, update: if isTeacher(schoolId) || isPrincipal(schoolId);
         allow delete: if isPrincipal(schoolId) || isSuperAdmin();
         match /reports/{reportId} {
-          allow read: if isTeacher(schoolId) || isPrincipal(schoolId) || isParentOf(get(/databases/$(database)/documents/schools/$(schoolId)/children/$(childId)));
+          allow read: if isTeacher(schoolId) || isPrincipal(schoolId) || isParentOfChildId(schoolId, childId);
           allow create, update: if isTeacher(schoolId);
           allow delete: if isTeacher(schoolId) || isPrincipal(schoolId);
         }
       }
       match /announcements/{annId} {
-        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow read: if isAuthenticated();
         allow create: if isPrincipal(schoolId) || isTeacher(schoolId);
         allow update, delete: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid;
       }
       match /events/{eventId} {
-        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow read: if isAuthenticated();
         allow create: if isPrincipal(schoolId) || isTeacher(schoolId);
         allow update: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid || (hasRole('parent') && request.auth.token.schoolId == schoolId);
         allow delete: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid;

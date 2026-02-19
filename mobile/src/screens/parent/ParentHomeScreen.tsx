@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -11,11 +10,23 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { collection, query, where, getDocs, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import type { Child } from '../../../../shared/types';
 import type { DailyReport } from '../../../../shared/types';
+import type { ClassRoom } from '../../../../shared/types';
+
+function getInitials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || '?';
+}
 
 function getAge(dateOfBirth: string): string {
   const dob = new Date(dateOfBirth);
@@ -39,6 +50,7 @@ export function ParentHomeScreen({
 }: {
   navigation: { navigate: (a: string, b?: { childId: string; schoolId: string }) => void };
 }) {
+  const insets = useSafeAreaInsets();
   const { profile, selectedChildId, setSelectedChildId } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
@@ -49,6 +61,7 @@ export function ParentHomeScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [className, setClassName] = useState<string | null>(null);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -80,6 +93,19 @@ export function ParentHomeScreen({
   }, [profile?.uid, setSelectedChildId, refreshTrigger]);
 
   const selectedChild = children.find((c) => c.id === selectedChildId) ?? children[0];
+
+  useEffect(() => {
+    if (!selectedChild?.schoolId || !selectedChild?.classId) {
+      setClassName(null);
+      return;
+    }
+    getDoc(doc(db, 'schools', selectedChild.schoolId, 'classes', selectedChild.classId)).then(
+      (snap) => {
+        if (snap.exists()) setClassName((snap.data() as ClassRoom).name);
+        else setClassName(null);
+      }
+    );
+  }, [selectedChild?.schoolId, selectedChild?.classId]);
 
   useEffect(() => {
     if (!selectedChild?.schoolId || !selectedChild?.id) return;
@@ -127,187 +153,302 @@ export function ParentHomeScreen({
     return 'sparkles-outline';
   };
 
-  const renderReport = ({ item }: { item: DailyReport }) => (
-    <View style={styles.updateCard}>
-      <Ionicons name={reportTypeIcon(item.type) as any} size={22} color="#6366f1" style={styles.updateCardIcon} />
-      <View style={styles.updateCardContent}>
-        <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
-        <Text style={styles.updateType}>{item.type.replace('_', ' ')}</Text>
-        {item.notes ? <Text style={styles.updateNotes}>{item.notes}</Text> : null}
-      </View>
-    </View>
-  );
+  const displayDate = isToday
+    ? 'Today'
+    : new Date(selectedDate).toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Home</Text>
-        {children.length > 1 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.childChips}>
-            {children.map((c) => (
-              <TouchableOpacity
-                key={c.id}
-                style={[styles.childChip, selectedChildId === c.id && styles.childChipActive]}
-                onPress={() => setSelectedChildId(c.id)}
-              >
-                <Text style={[styles.childChipText, selectedChildId === c.id && styles.childChipTextActive]}>
-                  {c.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        ) : selectedChild ? (
-          <TouchableOpacity
-            style={styles.childHeader}
-            onPress={() => navigation.navigate('ChildProfile', { childId: selectedChild.id, schoolId: selectedChild.schoolId })}
-          >
-            <Text style={styles.childName}>{selectedChild.name}</Text>
-            <Text style={styles.childMeta}>{getAge(selectedChild.dateOfBirth)}</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      <View style={styles.dateBar}>
-        <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-          <Ionicons name="chevron-back" size={24} color="#6366f1" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dateCenter}
-          onPress={() => setShowDatePicker(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.dateText}>{isToday ? 'Today' : new Date(selectedDate).toLocaleDateString()}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-          <Ionicons name="chevron-forward" size={24} color="#6366f1" />
-        </TouchableOpacity>
-      </View>
-
-      {showDatePicker && (
-        <>
-          <DateTimePicker
-            value={new Date(selectedDate + 'T12:00:00')}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'calendar' : 'default'}
-            onChange={onDatePickerChange}
-            maximumDate={new Date()}
-          />
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity
-              style={styles.datePickerDone}
-              onPress={() => setShowDatePicker(false)}
-            >
-              <Text style={styles.datePickerDoneText}>Done</Text>
-            </TouchableOpacity>
-          )}
-        </>
-      )}
-
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Ionicons name="restaurant-outline" size={18} color="#6366f1" style={styles.statIcon} />
-          <Text style={styles.statValue}>{meals}</Text>
-          <Text style={styles.statLabel}>Meals</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="bed-outline" size={18} color="#6366f1" style={styles.statIcon} />
-          <Text style={styles.statValue}>{naps}</Text>
-          <Text style={styles.statLabel}>Nap</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="water-outline" size={18} color="#6366f1" style={styles.statIcon} />
-          <Text style={styles.statValue}>{nappy}</Text>
-          <Text style={styles.statLabel}>Nappy</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="sparkles-outline" size={18} color="#6366f1" style={styles.statIcon} />
-          <Text style={styles.statValue}>{activities}</Text>
-          <Text style={styles.statLabel}>Activities</Text>
-        </View>
-      </View>
-
-      <View style={styles.sectionTitleRow}>
-        <Ionicons name="list-outline" size={20} color="#475569" />
-        <Text style={styles.sectionTitle}>{isToday ? "Today's updates" : 'Updates'}</Text>
-      </View>
-      <FlatList
-        data={reports}
-        keyExtractor={(item) => item.id}
-        renderItem={renderReport}
-        ListEmptyComponent={<Text style={styles.empty}>No updates for this day.</Text>}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-      />
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Announcements')}>
-        <Ionicons name="megaphone-outline" size={20} color="#fff" style={styles.fabIcon} />
-        <Text style={styles.fabText}>Announcements</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={[styles.fab, styles.fabSecondary]} onPress={() => navigation.navigate('Events')}>
-        <Ionicons name="calendar-outline" size={20} color="#fff" style={styles.fabIcon} />
-        <Text style={styles.fabText}>Events</Text>
-      </TouchableOpacity>
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header: purple, child-focused (like Teacher header but for child) */}
+        <View style={[styles.header, { paddingTop: Math.max(56, insets.top + 12) }]}>
+          <TouchableOpacity
+            style={styles.headerProfile}
+            onPress={() =>
+              selectedChild &&
+              navigation.navigate('ChildProfile', {
+                childId: selectedChild.id,
+                schoolId: selectedChild.schoolId,
+              })
+            }
+            activeOpacity={selectedChild ? 0.8 : 1}
+            disabled={!selectedChild}
+          >
+            <View style={styles.avatarLarge}>
+              <Text style={styles.avatarLargeText}>
+                {selectedChild ? getInitials(selectedChild.name) : '…'}
+              </Text>
+            </View>
+            <View style={styles.headerText}>
+              <Text style={styles.headerName}>{selectedChild?.name ?? 'Loading…'}</Text>
+              <Text style={styles.headerClass}>
+                {selectedChild ? getAge(selectedChild.dateOfBirth) : ''}
+                {className ? ` · ${className}` : ''}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <View style={styles.roleTag}>
+            <Text style={styles.roleTagText}>Parent</Text>
+          </View>
+        </View>
+        {children.length > 1 ? (
+          <View style={styles.childChipsWrap}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.childChipsContent}
+            >
+              {children.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.childChip, selectedChildId === c.id && styles.childChipActive]}
+                  onPress={() => setSelectedChildId(c.id)}
+                >
+                  <Text
+                    style={[
+                      styles.childChipText,
+                      selectedChildId === c.id && styles.childChipTextActive,
+                    ]}
+                  >
+                    {c.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {/* Date bar - same as Teacher */}
+        <View style={styles.dateBar}>
+          <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
+            <Ionicons name="chevron-back" size={24} color="#475569" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.dateCenter}
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="calendar-outline" size={20} color="#475569" />
+            <Text style={styles.dateText}>{displayDate}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
+            <Ionicons name="chevron-forward" size={24} color="#475569" />
+          </TouchableOpacity>
+        </View>
+
+        {showDatePicker && (
+          <>
+            <DateTimePicker
+              value={new Date(selectedDate + 'T12:00:00')}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'calendar' : 'default'}
+              onChange={onDatePickerChange}
+              maximumDate={new Date()}
+            />
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.datePickerDone}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.datePickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
+        {/* Today's Overview - same as Teacher (no Quick Actions) */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
+            <TouchableOpacity
+              style={styles.previewBtn}
+              onPress={() => navigation.navigate('Announcements')}
+            >
+              <Text style={styles.previewBtnText}>Announcements</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, styles.statMeals]}>
+              <Text style={[styles.statValue, styles.statMealsValue]}>{meals}</Text>
+              <Text style={styles.statLabel}>Meals</Text>
+            </View>
+            <View style={[styles.statCard, styles.statNap]}>
+              <Text style={[styles.statValue, styles.statNapValue]}>{naps}</Text>
+              <Text style={styles.statLabel}>Nap</Text>
+            </View>
+            <View style={[styles.statCard, styles.statNappy]}>
+              <Text style={[styles.statValue, styles.statNappyValue]}>{nappy}</Text>
+              <Text style={styles.statLabel}>Nappy</Text>
+            </View>
+            <View style={[styles.statCard, styles.statActivities]}>
+              <Text style={[styles.statValue, styles.statActivitiesValue]}>{activities}</Text>
+              <Text style={styles.statLabel}>Activities</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Today's Updates - like My Students section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {isToday ? "Today's Updates" : 'Updates'}
+          </Text>
+          {reports.length === 0 ? (
+            <Text style={styles.empty}>No updates for this day.</Text>
+          ) : (
+            reports.map((item) => (
+              <View key={item.id} style={styles.updateCard}>
+                <Ionicons
+                  name={reportTypeIcon(item.type) as keyof typeof Ionicons.glyphMap}
+                  size={22}
+                  color="#6366f1"
+                  style={styles.updateCardIcon}
+                />
+                <View style={styles.updateCardContent}>
+                  <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+                  <Text style={styles.updateType}>{item.type.replace('_', ' ')}</Text>
+                  {item.notes ? (
+                    <Text style={styles.updateNotes}>{item.notes}</Text>
+                  ) : null}
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.bottomPad} />
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  header: { marginBottom: 12 },
-  title: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
-  childChips: { marginTop: 8 },
+  container: { flex: 1, backgroundColor: '#f1f5f9' },
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 24 },
+  bottomPad: { height: 24 },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#6d28d9',
+  },
+  headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  avatarLarge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLargeText: { fontSize: 18, fontWeight: '700', color: '#fff' },
+  headerText: { marginLeft: 14 },
+  headerName: { fontSize: 20, fontWeight: '700', color: '#fff' },
+  headerClass: { fontSize: 14, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
+  roleTag: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  roleTagText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+
+  childChipsWrap: { backgroundColor: '#6d28d9', paddingBottom: 12, paddingHorizontal: 4 },
+  childChipsContent: { paddingHorizontal: 16 },
   childChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#fff',
+    borderColor: 'rgba(255,255,255,0.4)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     marginRight: 8,
   },
-  childChipActive: { borderColor: '#6366f1', backgroundColor: '#eef2ff' },
-  childChipText: { fontSize: 14, color: '#64748b' },
-  childChipTextActive: { color: '#6366f1', fontWeight: '600' },
-  childHeader: { marginTop: 8 },
-  childName: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
-  childMeta: { fontSize: 13, color: '#64748b', marginTop: 2 },
+  childChipActive: { borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.35)' },
+  childChipText: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
+  childChipTextActive: { color: '#fff', fontWeight: '600' },
+
   dateBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
-    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderRadius: 12,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
   dateArrow: { padding: 4 },
-  dateCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
-  dateText: { fontSize: 14, fontWeight: '600', color: '#1e293b' },
+  dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dateText: { fontSize: 15, fontWeight: '600', color: '#334155' },
   datePickerDone: {
-    marginBottom: 16,
+    marginTop: 8,
+    marginHorizontal: 16,
     paddingVertical: 10,
     alignItems: 'center',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#6d28d9',
     borderRadius: 8,
-    marginHorizontal: 16,
   },
   datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 12,
+
+  section: { marginTop: 24, paddingHorizontal: 16 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#334155', marginBottom: 12 },
+  previewBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  statIcon: { marginBottom: 4 },
-  statValue: { fontSize: 18, fontWeight: '700', color: '#6366f1' },
-  statLabel: { fontSize: 11, color: '#64748b', marginTop: 2 },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#475569' },
+  previewBtnText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+
+  statsRow: { flexDirection: 'row', gap: 10 },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+  },
+  statValue: { fontSize: 26, fontWeight: '800', color: '#334155' },
+  statLabel: { fontSize: 12, color: '#64748b', marginTop: 4 },
+  statMeals: {},
+  statMealsValue: { color: '#ea580c' },
+  statNap: {},
+  statNapValue: { color: '#7c3aed' },
+  statNappy: {},
+  statNappyValue: { color: '#0d9488' },
+  statActivities: {},
+  statActivitiesValue: { color: '#2563eb' },
+
   updateCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -323,17 +464,5 @@ const styles = StyleSheet.create({
   updateTime: { fontSize: 12, color: '#64748b' },
   updateType: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 4 },
   updateNotes: { fontSize: 14, color: '#475569', marginTop: 4 },
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },
-  fab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6366f1',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  fabIcon: { marginRight: 8 },
-  fabSecondary: { backgroundColor: '#94a3b8' },
-  fabText: { color: '#fff', fontWeight: '600' },
+  empty: { color: '#64748b', textAlign: 'center', marginTop: 8 },
 });

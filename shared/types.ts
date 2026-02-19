@@ -54,6 +54,8 @@ export interface DailyReport {
   mealType?: 'breakfast' | 'lunch' | 'snack';
   incidentDetails?: string;
   medicationName?: string;
+  /** URL of photo uploaded to Storage (for photo/incident reports). */
+  imageUrl?: string;
 }
 
 export interface Announcement {

@@ -11,7 +11,16 @@
       "resizeMode": "contain",
       "backgroundColor": "#6366f1"
     },
-    "plugins": ["expo-notifications"],
+    "plugins": [
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Little Moments to access your photos to attach to updates.",
+          "cameraPermission": "Allow Little Moments to use the camera to take photos for updates."
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mylittlemoments.app"

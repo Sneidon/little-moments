@@ -203,7 +203,7 @@ export function TeacherHomeScreen({
       label: 'Add Photo',
       icon: 'camera' as const,
       color: '#db2777',
-      onPress: () => {},
+      onPress: () => (navigation.getParent() as any)?.navigate('AddUpdate', { initialType: 'incident' }),
     },
     {
       id: 'message',

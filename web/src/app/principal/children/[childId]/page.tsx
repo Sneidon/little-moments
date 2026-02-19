@@ -5,11 +5,15 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db, app } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 import type { DailyReport } from 'shared/types';
+import type { UserProfile } from 'shared/types';
+
+const MAX_PARENTS = 4;
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
   nappy_change: 'Nappy change',
@@ -27,8 +31,13 @@ export default function ChildDetailPage() {
   const [child, setChild] = useState<Child | null>(null);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
+  const [parents, setParents] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDay, setFilterDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [showInviteParent, setShowInviteParent] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ parentEmail: '', parentDisplayName: '', parentPassword: '' });
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState('');
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -58,6 +67,66 @@ export default function ChildDetailPage() {
     })();
     return () => { cancelled = true; };
   }, [profile?.schoolId, childId, router]);
+
+  useEffect(() => {
+    const ids = child?.parentIds ?? [];
+    if (ids.length === 0) {
+      setParents([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const snaps = await Promise.all(ids.map((uid) => getDoc(doc(db, 'users', uid))));
+      if (cancelled) return;
+      setParents(
+        snaps
+          .filter((s) => s.exists())
+          .map((s) => ({ uid: s.id, ...s.data() } as UserProfile))
+      );
+    })();
+    return () => { cancelled = true; };
+  }, [child?.parentIds]);
+
+  const handleInviteParent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteError('');
+    if (!child || !inviteForm.parentEmail?.trim() || !inviteForm.parentPassword || inviteForm.parentPassword.length < 6) {
+      setInviteError('Email and password (min 6 characters) are required.');
+      return;
+    }
+    if ((child.parentIds?.length ?? 0) >= MAX_PARENTS) {
+      setInviteError(`Maximum ${MAX_PARENTS} parents allowed.`);
+      return;
+    }
+    setInviteSubmitting(true);
+    try {
+      const functions = getFunctions(app);
+      const invite = httpsCallable<
+        { childId: string; parentEmail: string; parentDisplayName?: string; parentPassword: string },
+        { parentUid: string }
+      >(functions, 'inviteParentToChild');
+      await invite({
+        childId: child.id,
+        parentEmail: inviteForm.parentEmail.trim(),
+        parentDisplayName: inviteForm.parentDisplayName.trim() || undefined,
+        parentPassword: inviteForm.parentPassword,
+      });
+      const childSnap = await getDoc(doc(db, 'schools', profile!.schoolId!, 'children', child.id));
+      if (childSnap.exists()) setChild({ id: childSnap.id, ...childSnap.data() } as Child);
+      setInviteForm({ parentEmail: '', parentDisplayName: '', parentPassword: '' });
+      setShowInviteParent(false);
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : err && typeof err === 'object' && 'details' in err
+            ? String((err as { details: unknown }).details)
+            : 'Failed to invite parent';
+      setInviteError(message);
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
 
   const classDisplay = (id: string | null | undefined) =>
     id ? formatClassDisplay(classes.find((c) => c.id === id)) || id : '—';
@@ -148,6 +217,97 @@ export default function ChildDetailPage() {
           </Link>
         </div>
       </div>
+
+      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-slate-800">Parents</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Maximum {MAX_PARENTS} parents per child. Invited parents can sign in and view this child&apos;s reports.
+        </p>
+        {parents.length > 0 && (
+          <ul className="mb-4 space-y-2">
+            {parents.map((p) => (
+              <li
+                key={p.uid}
+                className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3"
+              >
+                <div>
+                  <span className="font-medium text-slate-800">{p.displayName ?? '—'}</span>
+                  <span className="ml-2 text-slate-600">{p.email}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {(child.parentIds?.length ?? 0) < MAX_PARENTS && (
+          <>
+            {!showInviteParent ? (
+              <button
+                type="button"
+                onClick={() => setShowInviteParent(true)}
+                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+              >
+                Invite parent
+              </button>
+            ) : (
+              <form onSubmit={handleInviteParent} className="max-w-md space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+                <h3 className="font-medium text-slate-800">Invite parent</h3>
+                {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+                  <input
+                    type="email"
+                    value={inviteForm.parentEmail}
+                    onChange={(e) => setInviteForm((f) => ({ ...f, parentEmail: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Display name</label>
+                  <input
+                    type="text"
+                    value={inviteForm.parentDisplayName}
+                    onChange={(e) => setInviteForm((f) => ({ ...f, parentDisplayName: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+                  <input
+                    type="password"
+                    value={inviteForm.parentPassword}
+                    onChange={(e) => setInviteForm((f) => ({ ...f, parentPassword: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Min 6 characters"
+                    minLength={6}
+                    required
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={inviteSubmitting}
+                    className="rounded-lg bg-primary-600 px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
+                  >
+                    {inviteSubmitting ? 'Inviting…' : 'Invite parent'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowInviteParent(false); setInviteError(''); setInviteForm({ parentEmail: '', parentDisplayName: '', parentPassword: '' }); }}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
+        )}
+        {(child.parentIds?.length ?? 0) >= MAX_PARENTS && parents.length >= MAX_PARENTS && (
+          <p className="text-sm text-slate-500">Maximum number of parents reached.</p>
+        )}
+      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-slate-800">Day-to-day activities</h2>

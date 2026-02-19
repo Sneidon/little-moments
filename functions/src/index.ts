@@ -211,6 +211,84 @@ export const createTeacher = functions.https.onCall(async (data, context) => {
   return { teacherUid };
 });
 
+const MAX_PARENTS_PER_CHILD = 4;
+
+// Invite a parent to a child. Callable by principal only. Creates Auth user + users doc (role=parent)
+// and adds the parent's uid to the child's parentIds (max 4 parents per child).
+export const inviteParentToChild = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can invite parents.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const { childId, parentEmail, parentDisplayName, parentPassword } = data as {
+    childId?: string;
+    parentEmail?: string;
+    parentDisplayName?: string;
+    parentPassword?: string;
+  };
+
+  if (!childId || typeof childId !== 'string' || !childId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Child ID is required.');
+  }
+  if (!parentEmail || typeof parentEmail !== 'string' || !parentEmail.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Parent email is required.');
+  }
+  if (!parentPassword || typeof parentPassword !== 'string' || parentPassword.length < 6) {
+    throw new functions.https.HttpsError('invalid-argument', 'Parent password must be at least 6 characters.');
+  }
+
+  const childRef = db.collection('schools').doc(schoolId).collection('children').doc(childId);
+  const childSnap = await childRef.get();
+  if (!childSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Child not found.');
+  }
+  const parentIds = (childSnap.data() as { parentIds?: string[] })?.parentIds ?? [];
+  if (parentIds.length >= MAX_PARENTS_PER_CHILD) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      `This child already has the maximum of ${MAX_PARENTS_PER_CHILD} parents.`
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  const userRecord = await admin.auth().createUser({
+    email: parentEmail.trim(),
+    password: parentPassword,
+    displayName: (parentDisplayName && typeof parentDisplayName === 'string')
+      ? parentDisplayName.trim()
+      : parentEmail.trim(),
+  });
+  const parentUid = userRecord.uid;
+
+  await db.collection('users').doc(parentUid).set({
+    email: parentEmail.trim(),
+    displayName: (parentDisplayName && typeof parentDisplayName === 'string')
+      ? parentDisplayName.trim()
+      : parentEmail.trim(),
+    role: 'parent',
+    schoolId,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const newParentIds = [...parentIds, parentUid];
+  await childRef.update({
+    parentIds: newParentIds,
+    updatedAt: now,
+  });
+
+  return { parentUid };
+});
+
 // Scheduled event reminders (one day before). Proposal: "Schedule event reminders one day
 // before using Cloud Scheduler, delivering via FCM and SendGrid."
 // Use a callable or HTTP function triggered by Cloud Scheduler (cron).

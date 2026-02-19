@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   collection,
@@ -206,11 +207,22 @@ export default function ClassesPage() {
             <tbody>
               {classes.map((c) => (
                 <tr key={c.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-800">{formatClassDisplay(c)}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    <Link href={`/principal/classes/${c.id}`} className="text-primary-600 hover:underline">
+                      {formatClassDisplay(c)}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-slate-600">
                     {c.assignedTeacherId ? teacherName(c.assignedTeacherId) : '—'}
                   </td>
                   <td className="px-4 py-3">
+                    <Link
+                      href={`/principal/classes/${c.id}`}
+                      className="text-primary-600 hover:underline"
+                    >
+                      View activities
+                    </Link>
+                    {' · '}
                     <button
                       type="button"
                       onClick={() => {

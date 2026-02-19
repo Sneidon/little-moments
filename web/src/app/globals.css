@@ -3,12 +3,19 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
   }
+  /* Clear focus ring for keyboard nav */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
 }
 
-/* Primary brand – align with existing primary-600 */
+/* Primary brand */
 :root {
   --color-primary-500: #7c3aed;
   --color-primary-600: #6d28d9;

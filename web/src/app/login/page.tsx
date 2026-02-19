@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
+import { HeartIcon } from '@/components/HeartIcon';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -37,20 +38,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-primary-50/30 to-slate-100 px-4">
       <form
         onSubmit={handleLogin}
-        className="w-full max-w-sm rounded-xl bg-white p-8 shadow-lg"
+        className="w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white p-8 shadow-soft ring-1 ring-slate-900/5"
       >
-        <h1 className="mb-2 text-xl font-bold text-slate-800">My Little Moments</h1>
-        <p className="mb-6 text-sm text-slate-500">Admin sign in</p>
+        <div className="mb-6 flex flex-col items-center">
+          <HeartIcon size={48} className="text-primary-600" aria-label="Logo" />
+          <h1 className="mt-3 text-xl font-bold tracking-tight text-slate-800">
+            My Little Moments
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">Admin sign in</p>
+        </div>
         <div className="space-y-4">
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             autoComplete="email"
           />
           <input
@@ -58,19 +64,23 @@ export default function LoginPage() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             autoComplete="current-password"
           />
         </div>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {error && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
           disabled={loading}
-          className="mt-6 w-full rounded-lg bg-primary-600 py-2 font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+          className="mt-6 w-full rounded-xl bg-primary-600 py-2.5 font-medium text-white shadow-sm transition hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
         >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
-        <p className="mt-4 text-center text-sm text-slate-500">
+        <p className="mt-5 text-center text-xs text-slate-500">
           For principals and super admins only.
         </p>
       </form>

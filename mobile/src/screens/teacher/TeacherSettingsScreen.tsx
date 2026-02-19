@@ -30,12 +30,6 @@ export function TeacherSettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.titleRow}>
-        <Ionicons name="settings-outline" size={24} color="#1e293b" />
-        <Text style={styles.title}>Settings</Text>
-      </View>
-      <Text style={styles.subtitle}>Manage your account</Text>
-
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Ionicons name="person-outline" size={18} color="#475569" />

@@ -54,7 +54,7 @@ export default function AdminDashboard() {
       <p className="mb-6 text-slate-600">Welcome, {profile?.displayName ?? 'Super Admin'}.</p>
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-2xl bg-slate-200/80" />
       ) : (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {cards.map((c) =>
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
               <Link
                 key={c.to}
                 href={c.to}
-                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400 hover:shadow"
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition hover:border-slate-300 hover:shadow-soft"
               >
                 <p className="text-2xl font-bold text-slate-800">{c.value}</p>
                 <h2 className="font-semibold text-slate-700">{c.label}</h2>
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
             ) : (
               <div
                 key={c.label}
-                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
               >
                 <p className="text-2xl font-bold text-slate-800">{c.value}</p>
                 <h2 className="font-semibold text-slate-700">{c.label}</h2>
@@ -80,24 +80,24 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-2 font-semibold text-slate-800">Quick links</h2>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
+        <h2 className="mb-3 font-semibold text-slate-800">Quick links</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/schools"
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
           >
             Manage schools
           </Link>
           <Link
             href="/admin/users"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Manage users
           </Link>
           <Link
             href="/admin/usage"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Usage & analytics
           </Link>

@@ -46,7 +46,7 @@ export function LoginScreen({ navigation }: Props) {
       <View style={styles.form}>
         <View style={styles.logoRow}>
           <Ionicons name="heart" size={48} color="#6366f1" />
-          <Text style={styles.appTitle}>Little Moments</Text>
+          <Text style={styles.appTitle}>My Little Moments</Text>
         </View>
         <TextInput
           style={styles.input}

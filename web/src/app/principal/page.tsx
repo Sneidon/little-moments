@@ -81,14 +81,14 @@ export default function PrincipalDashboard() {
       <p className="mb-6 text-slate-600">Welcome, {profile?.displayName ?? 'Principal'}.</p>
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-2xl bg-slate-200/80" />
       ) : (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map(({ to, label, value, desc }) => (
             <Link
               key={to}
               href={to}
-              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-primary-500 hover:shadow"
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition hover:border-primary-200 hover:shadow-soft"
             >
               <p className="text-2xl font-bold text-slate-800">{value}</p>
               <h2 className="font-semibold text-slate-800">{label}</h2>
@@ -104,7 +104,7 @@ export default function PrincipalDashboard() {
           <Link
             key={to}
             href={to}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-primary-500 hover:bg-primary-50"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-card transition hover:border-primary-200 hover:bg-primary-50/50 hover:shadow-soft"
           >
             {label}
           </Link>

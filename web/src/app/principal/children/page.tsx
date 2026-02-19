@@ -2,6 +2,8 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   collection,
   getDocs,
@@ -17,6 +19,7 @@ import type { ClassRoom } from 'shared/types';
 
 export default function ChildrenPage() {
   const { profile } = useAuth();
+  const searchParams = useSearchParams();
   const [children, setChildren] = useState<Child[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +56,28 @@ export default function ChildrenPage() {
       setLoading(false);
     })();
   }, [profile?.schoolId]);
+
+  const editIdFromUrl = searchParams?.get('edit');
+  useEffect(() => {
+    if (!editIdFromUrl || loading || children.length === 0) return;
+    const c = children.find((ch) => ch.id === editIdFromUrl);
+    if (c) {
+      setEditingId(c.id);
+      setForm({
+        name: c.name,
+        preferredName: c.preferredName ?? '',
+        dateOfBirth: c.dateOfBirth?.slice(0, 10) ?? '',
+        allergies: c.allergies ?? [],
+        allergyInput: '',
+        medicalNotes: c.medicalNotes ?? '',
+        enrollmentDate: c.enrollmentDate?.slice(0, 10) ?? '',
+        emergencyContact: c.emergencyContact ?? '',
+        emergencyContactName: c.emergencyContactName ?? '',
+        classId: c.classId ?? '',
+      });
+      setShowForm(true);
+    }
+  }, [editIdFromUrl, loading, children]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,7 +363,11 @@ export default function ChildrenPage() {
             <tbody>
               {children.map((c) => (
                 <tr key={c.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    <Link href={`/principal/children/${c.id}`} className="text-primary-600 hover:underline">
+                      {c.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{c.preferredName ?? '—'}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
@@ -351,6 +380,13 @@ export default function ChildrenPage() {
                     ) : '—'}
                   </td>
                   <td className="px-4 py-3">
+                    <Link
+                      href={`/principal/children/${c.id}`}
+                      className="text-primary-600 hover:underline"
+                    >
+                      View
+                    </Link>
+                    {' · '}
                     <button
                       type="button"
                       onClick={() => startEdit(c)}

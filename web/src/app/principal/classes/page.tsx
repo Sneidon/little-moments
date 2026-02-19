@@ -23,8 +23,19 @@ export default function ClassesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
+  const [minAgeMonths, setMinAgeMonths] = useState<string>('');
+  const [maxAgeMonths, setMaxAgeMonths] = useState<string>('');
   const [assignedTeacherId, setAssignedTeacherId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  /** Display age in months or years (2 years or more = yr). */
+  const formatAgeMonths = (months: number | null | undefined): string => {
+    if (months == null) return '—';
+    const m = Number(months);
+    if (Number.isNaN(m)) return '—';
+    if (m >= 24) return `${Math.round(m / 12)} yr`;
+    return `${m} mo`;
+  };
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -51,13 +62,22 @@ export default function ClassesPage() {
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
-      const data = {
+      const teacherId = assignedTeacherId?.trim() || null;
+      const minMonths = minAgeMonths.trim() ? parseInt(minAgeMonths, 10) : null;
+      const maxMonths = maxAgeMonths.trim() ? parseInt(maxAgeMonths, 10) : null;
+      const data: Record<string, unknown> = {
         schoolId,
         name: name.trim(),
-        assignedTeacherId: assignedTeacherId || undefined,
+        minAgeMonths: minMonths ?? null,
+        maxAgeMonths: maxMonths ?? null,
         createdAt: now,
         updatedAt: now,
       };
+      if (teacherId) {
+        data.assignedTeacherId = teacherId;
+      } else if (editingId) {
+        data.assignedTeacherId = null;
+      }
       if (editingId) {
         await updateDoc(doc(db, 'schools', schoolId, 'classes', editingId), data);
         setClasses((prev) => prev.map((c) => (c.id === editingId ? { ...c, ...data } : c)));
@@ -67,6 +87,8 @@ export default function ClassesPage() {
         setClasses((prev) => [...prev, { id: ref.id, ...data } as ClassRoom]);
       }
       setName('');
+      setMinAgeMonths('');
+      setMaxAgeMonths('');
       setAssignedTeacherId('');
       setShowForm(false);
     } finally {
@@ -74,7 +96,10 @@ export default function ClassesPage() {
     }
   };
 
-  const teacherName = (uid: string) => teachers.find((t) => t.uid === uid)?.displayName ?? uid;
+  const teacherName = (uid: string) => {
+    const t = teachers.find((t) => t.uid === uid);
+    return t ? (t.preferredName || t.displayName) : uid;
+  };
 
   return (
     <div>
@@ -86,6 +111,8 @@ export default function ClassesPage() {
             setShowForm(true);
             setEditingId(null);
             setName('');
+            setMinAgeMonths('');
+            setMaxAgeMonths('');
             setAssignedTeacherId('');
           }}
           className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
@@ -112,6 +139,31 @@ export default function ClassesPage() {
                 placeholder="e.g. Rainbow Room"
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Min age (months)</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={minAgeMonths}
+                onChange={(e) => setMinAgeMonths(e.target.value)}
+                placeholder="e.g. 24 or 48"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+              <p className="mt-0.5 text-xs text-slate-500">Use months (e.g. 24). 2 yr+ shown as years (24 mo = 2 yr)</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Max age (months)</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={maxAgeMonths}
+                onChange={(e) => setMaxAgeMonths(e.target.value)}
+                placeholder="e.g. 36 or 60"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -155,6 +207,7 @@ export default function ClassesPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700">Class name</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Age range</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Assigned teacher</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Actions</th>
               </tr>
@@ -164,6 +217,11 @@ export default function ClassesPage() {
                 <tr key={c.id} className="border-t border-slate-100">
                   <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
                   <td className="px-4 py-3 text-slate-600">
+                    {c.minAgeMonths != null || c.maxAgeMonths != null
+                      ? `${formatAgeMonths(c.minAgeMonths)} – ${formatAgeMonths(c.maxAgeMonths)}`
+                      : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
                     {c.assignedTeacherId ? teacherName(c.assignedTeacherId) : '—'}
                   </td>
                   <td className="px-4 py-3">
@@ -172,6 +230,8 @@ export default function ClassesPage() {
                       onClick={() => {
                         setEditingId(c.id);
                         setName(c.name);
+                        setMinAgeMonths(c.minAgeMonths != null ? String(c.minAgeMonths) : '');
+                        setMaxAgeMonths(c.maxAgeMonths != null ? String(c.maxAgeMonths) : '');
                         setAssignedTeacherId(c.assignedTeacherId ?? '');
                         setShowForm(true);
                       }}

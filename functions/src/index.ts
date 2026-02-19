@@ -152,6 +152,65 @@ export const createSchoolWithPrincipal = functions.https.onCall(async (data, con
   return { schoolId, principalUid };
 });
 
+// Create a teacher for the principal's school. Callable by principal only.
+// Creates Auth user + users/{uid} profile with role=teacher, schoolId=principal's schoolId.
+export const createTeacher = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can add teachers to their school.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const { teacherEmail, teacherDisplayName, teacherPreferredName, teacherPassword } = data as {
+    teacherEmail?: string;
+    teacherDisplayName?: string;
+    teacherPreferredName?: string;
+    teacherPassword?: string;
+  };
+
+  if (!teacherEmail || typeof teacherEmail !== 'string' || !teacherEmail.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Teacher email is required.');
+  }
+  if (!teacherPassword || typeof teacherPassword !== 'string' || teacherPassword.length < 6) {
+    throw new functions.https.HttpsError('invalid-argument', 'Teacher password must be at least 6 characters.');
+  }
+
+  const now = new Date().toISOString();
+
+  const userRecord = await admin.auth().createUser({
+    email: teacherEmail.trim(),
+    password: teacherPassword,
+    displayName: (teacherDisplayName && typeof teacherDisplayName === 'string')
+      ? teacherDisplayName.trim()
+      : teacherEmail.trim(),
+  });
+  const teacherUid = userRecord.uid;
+
+  const displayName = (teacherDisplayName && typeof teacherDisplayName === 'string')
+    ? teacherDisplayName.trim()
+    : teacherEmail.trim();
+  const preferredName = (teacherPreferredName && typeof teacherPreferredName === 'string')
+    ? teacherPreferredName.trim()
+    : null;
+  await db.collection('users').doc(teacherUid).set({
+    email: teacherEmail.trim(),
+    displayName,
+    ...(preferredName ? { preferredName } : {}),
+    role: 'teacher',
+    schoolId,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return { teacherUid };
+});
+
 // Scheduled event reminders (one day before). Proposal: "Schedule event reminders one day
 // before using Cloud Scheduler, delivering via FCM and SendGrid."
 // Use a callable or HTTP function triggered by Cloud Scheduler (cron).

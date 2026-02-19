@@ -61,18 +61,27 @@ export default function ChildrenPage() {
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
-      const base = {
+      // Firestore rejects undefined; only include defined values or null
+      const base: Record<string, unknown> = {
         name: form.name.trim(),
-        preferredName: form.preferredName.trim() || undefined,
         dateOfBirth: form.dateOfBirth,
         allergies: form.allergies.filter(Boolean),
-        medicalNotes: form.medicalNotes.trim() || undefined,
-        enrollmentDate: form.enrollmentDate || undefined,
         emergencyContact: form.emergencyContact.trim() || null,
-        emergencyContactName: form.emergencyContactName.trim() || undefined,
         classId: form.classId || null,
         updatedAt: now,
       };
+      const preferredName = form.preferredName.trim();
+      const medicalNotes = form.medicalNotes.trim();
+      const enrollmentDate = form.enrollmentDate || null;
+      const emergencyContactName = form.emergencyContactName.trim();
+      if (preferredName) base.preferredName = preferredName;
+      else base.preferredName = null;
+      if (medicalNotes) base.medicalNotes = medicalNotes;
+      else base.medicalNotes = null;
+      if (enrollmentDate) base.enrollmentDate = enrollmentDate;
+      else base.enrollmentDate = null;
+      if (emergencyContactName) base.emergencyContactName = emergencyContactName;
+      else base.emergencyContactName = null;
       if (editingId) {
         const existing = children.find((c) => c.id === editingId);
         const updateData = { ...base, parentIds: existing?.parentIds ?? [], createdAt: existing?.createdAt ?? now };

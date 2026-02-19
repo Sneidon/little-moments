@@ -9,6 +9,7 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
+  preferredName?: string;
   role: UserRole;
   schoolId?: string; // teachers, principals
   fcmTokens?: string[];
@@ -98,11 +99,15 @@ export interface School {
   updatedAt: string;
 }
 
-/** Class/room within a school (e.g. Rainbow Room). */
+/** Class/room within a school (e.g. Rainbow Room). Age range in months. */
 export interface ClassRoom {
   id: string;
   schoolId: string;
   name: string;
+  /** Minimum age in months. Display as years when 2 yr+ (≥24 mo). */
+  minAgeMonths?: number | null;
+  /** Maximum age in months. Display as years when 2 yr+ (≥24 mo). */
+  maxAgeMonths?: number | null;
   assignedTeacherId?: string;
   createdAt: string;
   updatedAt: string;

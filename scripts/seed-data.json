@@ -1,0 +1,80 @@
+{
+  "_comment": "Replace SUPER_ADMIN_UID, PRINCIPAL_UID, TEACHER_UID, PARENT_UID with Firebase Auth UIDs. Replace SCHOOL_ID, CLASS_ID, CHILD_ID with Firestore doc IDs (or leave as-is and use generated IDs).",
+  "users": {
+    "SUPER_ADMIN_UID": {
+      "email": "superadmin@test.com",
+      "displayName": "Super Admin",
+      "role": "super_admin",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    "PRINCIPAL_UID": {
+      "email": "principal@test.com",
+      "displayName": "Principal User",
+      "role": "principal",
+      "schoolId": "SCHOOL_ID",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    "TEACHER_UID": {
+      "email": "teacher@test.com",
+      "displayName": "Ms. Sarah Johnson",
+      "role": "teacher",
+      "schoolId": "SCHOOL_ID",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    "PARENT_UID": {
+      "email": "parent@test.com",
+      "displayName": "Maria Rodriguez",
+      "role": "parent",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  },
+  "schools": {
+    "SCHOOL_ID": {
+      "name": "Sunshine Daycare",
+      "address": "123 Main St",
+      "contactEmail": "office@sunshine.com",
+      "contactPhone": "+1 555 123 4567",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  },
+  "schools.SCHOOL_ID.classes": {
+    "CLASS_ID": {
+      "schoolId": "SCHOOL_ID",
+      "name": "Rainbow Room",
+      "assignedTeacherId": "TEACHER_UID",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  },
+  "schools.SCHOOL_ID.children": {
+    "CHILD_ID": {
+      "schoolId": "SCHOOL_ID",
+      "name": "Emma Rodriguez",
+      "dateOfBirth": "2022-06-15",
+      "allergies": ["Peanuts", "Tree nuts"],
+      "emergencyContact": "+1 555 987 6543",
+      "assignedTeacherId": "TEACHER_UID",
+      "classId": "CLASS_ID",
+      "parentIds": ["PARENT_UID"],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  },
+  "schools.SCHOOL_ID.children.CHILD_ID.reports": {
+    "REPORT_ID": {
+      "childId": "CHILD_ID",
+      "schoolId": "SCHOOL_ID",
+      "type": "meal",
+      "mealType": "lunch",
+      "reportedBy": "TEACHER_UID",
+      "notes": "Ate well",
+      "timestamp": "2025-01-15T12:00:00.000Z",
+      "createdAt": "2025-01-15T12:00:00.000Z"
+    }
+  }
+}

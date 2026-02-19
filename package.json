@@ -1,0 +1,10 @@
+{
+  "name": "my-little-moments",
+  "private": true,
+  "scripts": {
+    "seed": "node scripts/seed-firebase.js"
+  },
+  "devDependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

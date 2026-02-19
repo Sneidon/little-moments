@@ -1,0 +1,67 @@
+rules_version = '2';
+// My Little Moments - Firestore security rules (role-based access per proposal)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function hasRole(role) {
+      return isAuthenticated() && request.auth.token.role == role;
+    }
+    function isSuperAdmin() { return hasRole('super_admin'); }
+    function isPrincipal(schoolId) {
+      return isAuthenticated() && request.auth.token.role == 'principal' && request.auth.token.schoolId == schoolId;
+    }
+    function isTeacher(schoolId) {
+      return isAuthenticated() && request.auth.token.role == 'teacher' && request.auth.token.schoolId == schoolId;
+    }
+    function isParentOf(childDoc) {
+      return isAuthenticated() && request.auth.token.role == 'parent' && request.auth.uid in childDoc.data.parentIds;
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == userId
+        || isSuperAdmin()
+        || ((request.auth.token.role == 'principal' || request.auth.token.role == 'teacher') && request.auth.token.schoolId == resource.data.schoolId)
+      );
+      allow write: if request.auth != null && (request.auth.uid == userId || isSuperAdmin());
+    }
+
+    match /schools/{schoolId} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || request.auth.token.schoolId == schoolId);
+      allow write: if isSuperAdmin();
+      match /classes/{classId} {
+        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow create, update, delete: if isTeacher(schoolId) || isPrincipal(schoolId);
+      }
+      match /children/{childId} {
+        allow read: if isTeacher(schoolId) || isPrincipal(schoolId) || isParentOf(get(/databases/$(database)/documents/schools/$(schoolId)/children/$(childId)));
+        allow create, update: if isTeacher(schoolId) || isPrincipal(schoolId);
+        allow delete: if isPrincipal(schoolId) || isSuperAdmin();
+        match /reports/{reportId} {
+          allow read: if isTeacher(schoolId) || isPrincipal(schoolId) || isParentOf(get(/databases/$(database)/documents/schools/$(schoolId)/children/$(childId)));
+          allow create, update: if isTeacher(schoolId);
+          allow delete: if isTeacher(schoolId) || isPrincipal(schoolId);
+        }
+      }
+      match /announcements/{annId} {
+        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow create: if isPrincipal(schoolId) || isTeacher(schoolId);
+        allow update, delete: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid;
+      }
+      match /events/{eventId} {
+        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow create: if isPrincipal(schoolId) || isTeacher(schoolId);
+        allow update: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid || (hasRole('parent') && request.auth.token.schoolId == schoolId);
+        allow delete: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid;
+      }
+      match /foodMenus/{menuId} {
+        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow write: if isPrincipal(schoolId) || isSuperAdmin();
+      }
+    }
+  }
+}

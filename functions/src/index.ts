@@ -89,16 +89,23 @@ export const getOrCreateChat = functions.https.onCall(async (data, context) => {
   if (!childSnap.exists) {
     throw new functions.https.HttpsError('not-found', 'Child not found.');
   }
-  const child = childSnap.data() as { parentIds?: string[]; assignedTeacherId?: string; schoolId?: string };
+  const child = childSnap.data() as { parentIds?: string[]; assignedTeacherId?: string; schoolId?: string; classId?: string };
   const parentIds = child.parentIds ?? [];
-  const assignedTeacherId = child.assignedTeacherId;
+  const childAssignedTeacherId = child.assignedTeacherId;
+  // Teacher may be assigned on the child or on the child's class
+  let isTeacherForChild = childAssignedTeacherId === callerUid;
+  if (callerRole === 'teacher' && !isTeacherForChild && child.classId) {
+    const classSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(child.classId).get();
+    const classData = classSnap.exists ? (classSnap.data() as { assignedTeacherId?: string }) : null;
+    isTeacherForChild = classData?.assignedTeacherId === callerUid;
+  }
   let teacherId: string;
   let parentId: string;
   if (callerRole === 'teacher') {
     if (callerData?.schoolId !== schoolId) {
       throw new functions.https.HttpsError('permission-denied', 'You are not a teacher at this school.');
     }
-    if (assignedTeacherId !== callerUid) {
+    if (!isTeacherForChild) {
       throw new functions.https.HttpsError('permission-denied', 'You are not the assigned teacher for this child.');
     }
     if (!parentIds.includes(otherParticipantId)) {
@@ -110,7 +117,13 @@ export const getOrCreateChat = functions.https.onCall(async (data, context) => {
     if (!parentIds.includes(callerUid)) {
       throw new functions.https.HttpsError('permission-denied', 'You are not a parent of this child.');
     }
-    if (assignedTeacherId !== otherParticipantId) {
+    let isTeacherForChildParent = childAssignedTeacherId === otherParticipantId;
+    if (!isTeacherForChildParent && child.classId) {
+      const classSnapP = await db.collection('schools').doc(schoolId).collection('classes').doc(child.classId).get();
+      const classDataP = classSnapP.exists ? (classSnapP.data() as { assignedTeacherId?: string }) : null;
+      isTeacherForChildParent = classDataP?.assignedTeacherId === otherParticipantId;
+    }
+    if (!isTeacherForChildParent) {
       throw new functions.https.HttpsError('permission-denied', 'The other participant is not the assigned teacher for this child.');
     }
     teacherId = otherParticipantId;

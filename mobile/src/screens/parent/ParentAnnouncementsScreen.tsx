@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, Image, TouchableOpacity, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -56,6 +56,18 @@ export function ParentAnnouncementsScreen() {
       <View style={styles.cardContent}>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.body}>{item.body}</Text>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.announcementImage} resizeMode="cover" />
+        ) : null}
+        {item.documents && item.documents.length > 0 ? (
+          <View style={styles.documents}>
+            {item.documents.map((d, i) => (
+              <TouchableOpacity key={i} onPress={() => d.url && Linking.openURL(d.url)}>
+                <Text style={styles.docLink}>{d.label || d.name || d.url}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
         <Text style={styles.meta}>{new Date(item.createdAt).toLocaleDateString()}</Text>
       </View>
     </View>
@@ -96,6 +108,9 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1 },
   title: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
   body: { fontSize: 14, color: '#475569', marginTop: 8 },
+  announcementImage: { width: '100%', height: 160, borderRadius: 8, marginTop: 8 },
+  documents: { marginTop: 8, gap: 4 },
+  docLink: { fontSize: 14, color: '#6366f1', textDecorationLine: 'underline' },
   meta: { fontSize: 12, color: '#94a3b8', marginTop: 8 },
   empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },
 });

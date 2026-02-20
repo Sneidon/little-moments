@@ -66,6 +66,10 @@ export interface Announcement {
   schoolId: string;
   title: string;
   body: string;
+  /** Optional image URL (uploaded to Storage). */
+  imageUrl?: string;
+  /** Optional document uploads (label + URL). */
+  documents?: EventDocumentLink[];
   createdBy: string;
   createdAt: string;
   targetRole?: UserRole; // optional filter

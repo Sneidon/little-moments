@@ -49,3 +49,36 @@ export async function uploadEventDocument(
   await uploadBytes(storageRef, file, { contentType: file.type || 'application/octet-stream' });
   return getDownloadURL(storageRef);
 }
+
+/**
+ * Upload an announcement image to Firebase Storage and return the download URL.
+ * Path: schools/{schoolId}/announcements/{announcementId}.{ext}
+ */
+export async function uploadAnnouncementImage(
+  file: File,
+  schoolId: string,
+  announcementId: string
+): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `schools/${schoolId}/announcements/${announcementId}.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type || 'image/jpeg' });
+  return getDownloadURL(storageRef);
+}
+
+/**
+ * Upload an announcement document (PDF, etc.) to Firebase Storage and return the download URL.
+ * Path: schools/{schoolId}/announcements/{announcementId}/documents/{docId}.{ext}
+ */
+export async function uploadAnnouncementDocument(
+  file: File,
+  schoolId: string,
+  announcementId: string,
+  docId: string
+): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+  const path = `schools/${schoolId}/announcements/${announcementId}/documents/${docId}.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type || 'application/octet-stream' });
+  return getDownloadURL(storageRef);
+}

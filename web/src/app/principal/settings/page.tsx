@@ -60,76 +60,77 @@ export default function PrincipalSettingsPage() {
   };
 
   if (loading) {
-    return <div className="h-32 animate-pulse rounded-xl bg-slate-200" />;
+    return <div className="card h-40 animate-pulse bg-slate-100" />;
   }
 
   if (!school) {
     return (
-      <div>
-        <h1 className="mb-6 text-2xl font-bold text-slate-800">School settings</h1>
-        <p className="text-slate-500">School not found.</p>
+      <div className="animate-fade-in">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">School settings</h1>
+        <p className="mt-4 text-slate-500">School not found.</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">School settings</h1>
-      <form
-        onSubmit={save}
-        className="max-w-xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-      >
+    <div className="animate-fade-in">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">School settings</h1>
+        <p className="mt-1 text-sm text-slate-500">Update your school details</p>
+      </div>
+      <form onSubmit={save} className="card max-w-xl p-6">
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">School name</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">School name</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="input-base"
               required
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Address</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Address</label>
             <input
               type="text"
               value={form.address}
               onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
               placeholder="Optional"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="input-base"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Contact email</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Contact email</label>
             <input
               type="email"
               value={form.contactEmail}
               onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))}
               placeholder="Optional"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="input-base"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Contact phone</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Contact phone</label>
             <input
               type="text"
               value={form.contactPhone}
               onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))}
               placeholder="Optional"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="input-base"
             />
           </div>
         </div>
-        <div className="mt-6 flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
-          >
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <button type="submit" disabled={submitting} className="btn-primary">
             {submitting ? 'Saving…' : 'Save changes'}
           </button>
-          {saved && <span className="text-sm text-green-600">Saved.</span>}
+          {saved && (
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700" role="status">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden />
+              Saved
+            </span>
+          )}
         </div>
       </form>
     </div>

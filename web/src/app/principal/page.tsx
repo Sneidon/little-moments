@@ -76,22 +76,28 @@ export default function PrincipalDashboard() {
   ];
 
   return (
-    <div>
-      <h1 className="mb-2 text-2xl font-bold text-slate-800">Dashboard</h1>
-      <p className="mb-6 text-slate-600">Welcome, {profile?.displayName ?? 'Principal'}.</p>
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Dashboard</h1>
+        <p className="mt-1 text-slate-600">Welcome back, {profile?.displayName ?? 'Principal'}.</p>
+      </div>
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-2xl bg-slate-200/80" />
-      ) : (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="card h-36 animate-pulse bg-slate-100" />
+          ))}
+        </div>
+      ) : (
+        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map(({ to, label, value, desc }) => (
             <Link
               key={to}
               href={to}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition hover:border-primary-200 hover:shadow-soft"
+              className="card-hover block p-6"
             >
-              <p className="text-2xl font-bold text-slate-800">{value}</p>
-              <h2 className="font-semibold text-slate-800">{label}</h2>
+              <p className="text-3xl font-bold tabular-nums text-slate-900">{value}</p>
+              <h2 className="mt-1 font-semibold text-slate-800">{label}</h2>
               <p className="mt-1 text-sm text-slate-500">{desc}</p>
             </Link>
           ))}
@@ -104,7 +110,7 @@ export default function PrincipalDashboard() {
           <Link
             key={to}
             href={to}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-card transition hover:border-primary-200 hover:bg-primary-50/50 hover:shadow-soft"
+            className="card-hover flex items-center px-5 py-3.5 text-sm font-medium text-slate-700"
           >
             {label}
           </Link>

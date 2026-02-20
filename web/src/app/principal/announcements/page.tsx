@@ -47,49 +47,58 @@ export default function AnnouncementsPage() {
   };
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">Announcements</h1>
-      <form
-        onSubmit={submit}
-        className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-      >
+    <div className="animate-fade-in">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Announcements</h1>
+        <p className="mt-1 text-sm text-slate-500">Post updates for parents and staff</p>
+      </div>
+      <form onSubmit={submit} className="card mb-8 p-6">
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">New announcement</label>
         <input
           type="text"
           placeholder="Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-slate-200 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="input-base mb-3"
         />
         <textarea
-          placeholder="Body"
+          placeholder="Body (optional)"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
-          className="mb-3 w-full rounded-lg border border-slate-200 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="input-base mb-4 resize-y"
         />
         <button
           type="submit"
           disabled={submitting || !title.trim()}
-          className="rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
+          className="btn-primary"
         >
           {submitting ? 'Posting…' : 'Post announcement'}
         </button>
       </form>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800">Recent announcements</h2>
       <div className="space-y-4">
         {list.map((a) => (
-          <div
+          <article
             key={a.id}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            className="card p-5"
           >
-            <h2 className="font-semibold text-slate-800">{a.title}</h2>
-            <p className="mt-1 text-slate-600 whitespace-pre-wrap">{a.body}</p>
-            <p className="mt-2 text-xs text-slate-400">
+            <h3 className="font-semibold text-slate-800">{a.title}</h3>
+            {a.body ? (
+              <p className="mt-2 whitespace-pre-wrap text-slate-600">{a.body}</p>
+            ) : null}
+            <p className="mt-3 text-xs text-slate-400">
               {new Date(a.createdAt).toLocaleString()}
             </p>
-          </div>
+          </article>
         ))}
       </div>
-      {list.length === 0 && <p className="text-slate-500">No announcements yet.</p>}
+      {list.length === 0 && (
+        <div className="card py-12 text-center">
+          <p className="text-slate-500">No announcements yet.</p>
+          <p className="mt-1 text-sm text-slate-400">Post one above to get started.</p>
+        </div>
+      )}
     </div>
   );
 }

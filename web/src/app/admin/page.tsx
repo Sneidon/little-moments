@@ -49,55 +49,58 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div>
-      <h1 className="mb-2 text-2xl font-bold text-slate-800">Super Admin Dashboard</h1>
-      <p className="mb-6 text-slate-600">Welcome, {profile?.displayName ?? 'Super Admin'}.</p>
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Super Admin Dashboard</h1>
+        <p className="mt-1 text-slate-600">Welcome back, {profile?.displayName ?? 'Super Admin'}.</p>
+      </div>
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-2xl bg-slate-200/80" />
-      ) : (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="card h-32 animate-pulse bg-slate-100" />
+          ))}
+        </div>
+      ) : (
+        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {cards.map((c) =>
             c.to ? (
               <Link
                 key={c.to}
                 href={c.to}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition hover:border-slate-300 hover:shadow-soft"
+                className="card-hover block p-6"
               >
-                <p className="text-2xl font-bold text-slate-800">{c.value}</p>
-                <h2 className="font-semibold text-slate-700">{c.label}</h2>
+                <p className="text-3xl font-bold tabular-nums text-slate-900">{c.value}</p>
+                <h2 className="mt-1 font-semibold text-slate-700">{c.label}</h2>
               </Link>
             ) : (
-              <div
-                key={c.label}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
-              >
-                <p className="text-2xl font-bold text-slate-800">{c.value}</p>
-                <h2 className="font-semibold text-slate-700">{c.label}</h2>
+              <div key={c.label} className="card p-6">
+                <p className="text-3xl font-bold tabular-nums text-slate-900">{c.value}</p>
+                <h2 className="mt-1 font-semibold text-slate-700">{c.label}</h2>
               </div>
             )
           )}
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
-        <h2 className="mb-3 font-semibold text-slate-800">Quick links</h2>
+      <div className="card p-6">
+        <h2 className="mb-4 font-semibold text-slate-800">Quick links</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/schools"
-            className="rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+            className="btn-primary inline-flex py-2.5"
           >
             Manage schools
           </Link>
           <Link
             href="/admin/users"
-            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="btn-secondary inline-flex"
           >
             Manage users
           </Link>
           <Link
             href="/admin/usage"
-            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="btn-secondary inline-flex"
           >
             Usage & analytics
           </Link>

@@ -127,7 +127,7 @@ export default function ChildrenPage() {
           collection(db, 'schools', schoolId, 'children'),
           data
         );
-        setChildren((prev) => [...prev, { id: ref.id, ...data } as Child]);
+        setChildren((prev) => [...prev, { id: ref.id, ...data } as unknown as Child]);
       }
       setForm({
         name: '',
@@ -177,9 +177,12 @@ export default function ChildrenPage() {
   const classDisplay = (id: string) => formatClassDisplay(classes.find((r) => r.id === id)) || id;
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">Children</h1>
+    <div className="animate-fade-in">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Children</h1>
+          <p className="mt-1 text-sm text-slate-500">Enrolled children at your school</p>
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -198,7 +201,7 @@ export default function ChildrenPage() {
               classId: '',
             });
           }}
-          className="rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+          className="btn-primary shrink-0"
         >
           Add child
         </button>
@@ -207,57 +210,57 @@ export default function ChildrenPage() {
       {showForm && (
         <form
           onSubmit={save}
-          className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="card mb-8 p-6"
         >
-          <h2 className="mb-4 font-semibold text-slate-800">
+          <h2 className="mb-5 text-lg font-semibold text-slate-800">
             {editingId ? 'Edit child' : 'New child'}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Name</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Preferred name</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Preferred name</label>
               <input
                 type="text"
                 value={form.preferredName}
                 onChange={(e) => setForm((f) => ({ ...f, preferredName: e.target.value }))}
                 placeholder="Optional"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Date of birth</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Date of birth</label>
               <input
                 type="date"
                 value={form.dateOfBirth}
                 onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Enrollment date</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Enrollment date</label>
               <input
                 type="date"
                 value={form.enrollmentDate}
                 onChange={(e) => setForm((f) => ({ ...f, enrollmentDate: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Class / room</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Class / room</label>
               <select
                 value={form.classId}
                 onChange={(e) => setForm((f) => ({ ...f, classId: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
               >
                 <option value="">—</option>
                 {classes.map((r) => (
@@ -266,7 +269,7 @@ export default function ChildrenPage() {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Allergies</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Allergies</label>
               <div className="flex flex-wrap gap-2 items-center">
                 <input
                   type="text"
@@ -274,12 +277,12 @@ export default function ChildrenPage() {
                   onChange={(e) => setForm((f) => ({ ...f, allergyInput: e.target.value }))}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAllergy())}
                   placeholder="Add allergy (e.g. Peanuts)"
-                  className="flex-1 min-w-[120px] rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="input-base min-w-[140px] flex-1"
                 />
                 <button
                   type="button"
                   onClick={addAllergy}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  className="btn-secondary"
                 >
                   Add
                 </button>
@@ -296,49 +299,41 @@ export default function ChildrenPage() {
               )}
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Medical notes</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Medical notes</label>
               <textarea
                 value={form.medicalNotes}
                 onChange={(e) => setForm((f) => ({ ...f, medicalNotes: e.target.value }))}
                 rows={2}
                 placeholder="Optional medical or care notes"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base resize-y"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Emergency contact name</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Emergency contact name</label>
               <input
                 type="text"
                 value={form.emergencyContactName}
                 onChange={(e) => setForm((f) => ({ ...f, emergencyContactName: e.target.value }))}
                 placeholder="e.g. Parent name"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Emergency contact phone</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Emergency contact phone</label>
               <input
                 type="text"
                 value={form.emergencyContact}
                 onChange={(e) => setForm((f) => ({ ...f, emergencyContact: e.target.value }))}
                 placeholder="Phone number"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
               />
             </div>
           </div>
-          <div className="mt-4 flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
-            >
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button type="submit" disabled={submitting} className="btn-primary">
               {submitting ? 'Saving…' : editingId ? 'Save' : 'Add child'}
             </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
-            >
+            <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
               Cancel
             </button>
           </div>
@@ -346,62 +341,68 @@ export default function ChildrenPage() {
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="card h-48 animate-pulse bg-slate-100" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 font-medium text-slate-700">Name</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Preferred</th>
-                <th className="px-4 py-3 font-medium text-slate-700">DOB</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Class</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Allergies</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Emergency</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {children.map((c) => (
-                <tr key={c.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-800">
-                    <Link href={`/principal/children/${c.id}`} className="text-primary-600 hover:underline">
-                      {c.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{c.preferredName ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{c.classId ? classDisplay(c.classId) : '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{c.allergies?.length ? c.allergies.join(', ') : '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {c.emergencyContactName || c.emergencyContact ? (
-                      <span title={c.emergencyContact ?? ''}>{c.emergencyContactName ?? c.emergencyContact ?? '—'}</span>
-                    ) : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/principal/children/${c.id}`}
-                      className="text-primary-600 hover:underline"
-                    >
-                      View
-                    </Link>
-                    {' · '}
-                    <button
-                      type="button"
-                      onClick={() => startEdit(c)}
-                      className="text-primary-600 hover:underline"
-                    >
-                      Edit
-                    </button>
-                  </td>
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/80">
+                <tr>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Name</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Preferred</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">DOB</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Class</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Allergies</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Emergency</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {children.map((c) => (
+                  <tr key={c.id} className="border-t border-slate-100 transition hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-medium text-slate-800">
+                      <Link href={`/principal/children/${c.id}`} className="text-primary-600 hover:text-primary-700 hover:underline">
+                        {c.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{c.preferredName ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{c.classId ? classDisplay(c.classId) : '—'}</td>
+                    <td className="px-4 py-3 text-slate-600">{c.allergies?.length ? c.allergies.join(', ') : '—'}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {c.emergencyContactName || c.emergencyContact ? (
+                        <span title={c.emergencyContact ?? ''}>{c.emergencyContactName ?? c.emergencyContact ?? '—'}</span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex gap-2">
+                        <Link
+                          href={`/principal/children/${c.id}`}
+                          className="text-primary-600 hover:text-primary-700 hover:underline"
+                        >
+                          View
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(c)}
+                          className="text-primary-600 hover:text-primary-700 hover:underline"
+                        >
+                          Edit
+                        </button>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {children.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500">No children yet. Add a child to get started.</p>
+            <div className="px-4 py-12 text-center">
+              <p className="text-slate-500">No children yet.</p>
+              <p className="mt-1 text-sm text-slate-400">Add a child to get started.</p>
+            </div>
           )}
         </div>
       )}

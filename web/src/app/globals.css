@@ -9,15 +9,42 @@
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
   }
-  /* Clear focus ring for keyboard nav */
   *:focus-visible {
     @apply outline-none ring-2 ring-primary-500 ring-offset-2;
   }
+  /* Consistent form control focus */
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  button:focus-visible {
+    @apply outline-none;
+  }
 }
 
-/* Primary brand */
 :root {
   --color-primary-500: #7c3aed;
   --color-primary-600: #6d28d9;
   --color-primary-700: #5b21b6;
+}
+
+/* Reusable input style for consistency */
+@layer components {
+  .input-base {
+    @apply w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-slate-900 placeholder:text-slate-400
+           transition-colors focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20;
+  }
+  .btn-primary {
+    @apply rounded-xl bg-primary-600 px-4 py-2.5 font-medium text-white shadow-sm transition
+           hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-secondary {
+    @apply rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700
+           transition hover:border-slate-300 hover:bg-slate-50 focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-2;
+  }
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-card transition;
+  }
+  .card-hover {
+    @apply card hover:border-primary-200 hover:shadow-card-hover;
+  }
 }

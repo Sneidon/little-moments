@@ -55,30 +55,30 @@ export default function EventsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">Events</h1>
+      <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-slate-100">Events</h1>
       <form
         onSubmit={submit}
-        className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
       >
         <input
           type="text"
           placeholder="Event title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-slate-200 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="mb-3 w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
         />
         <textarea
           placeholder="Description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="mb-3 w-full rounded-lg border border-slate-200 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="mb-3 w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
         />
         <input
           type="datetime-local"
           value={startAt}
           onChange={(e) => setStartAt(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-slate-200 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="mb-3 w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
         />
         <button
           type="submit"
@@ -89,37 +89,37 @@ export default function EventsPage() {
         </button>
       </form>
 
-      <h2 className="mb-3 font-semibold text-slate-800">Upcoming events</h2>
+      <h2 className="mb-3 font-semibold text-slate-800 dark:text-slate-200">Upcoming events</h2>
       <div className="mb-8 space-y-4">
         {upcoming.map((ev) => (
           <div
             key={ev.id}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm"
           >
-            <h3 className="font-semibold text-slate-800">{ev.title}</h3>
-            {ev.description && <p className="mt-1 text-slate-600">{ev.description}</p>}
-            <p className="mt-2 text-sm text-slate-500">
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100">{ev.title}</h3>
+            {ev.description && <p className="mt-1 text-slate-600 dark:text-slate-300">{ev.description}</p>}
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               {new Date(ev.startAt).toLocaleString()}
             </p>
           </div>
         ))}
-        {upcoming.length === 0 && <p className="text-slate-500">No upcoming events.</p>}
+        {upcoming.length === 0 && <p className="text-slate-500 dark:text-slate-400">No upcoming events.</p>}
       </div>
 
-      <h2 className="mb-3 font-semibold text-slate-800">Past events</h2>
+      <h2 className="mb-3 font-semibold text-slate-800 dark:text-slate-200">Past events</h2>
       <div className="space-y-4">
         {past.slice(0, 20).map((ev) => (
           <div
             key={ev.id}
-            className="rounded-xl border border-slate-100 bg-slate-50 p-4"
+            className="rounded-xl border border-slate-100 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 p-4"
           >
-            <h3 className="font-medium text-slate-700">{ev.title}</h3>
-            <p className="mt-1 text-sm text-slate-500">
+            <h3 className="font-medium text-slate-700 dark:text-slate-200">{ev.title}</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {new Date(ev.startAt).toLocaleString()}
             </p>
           </div>
         ))}
-        {past.length === 0 && <p className="text-slate-500">No past events.</p>}
+        {past.length === 0 && <p className="text-slate-500 dark:text-slate-400">No past events.</p>}
       </div>
     </div>
   );

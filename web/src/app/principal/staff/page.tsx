@@ -127,7 +127,7 @@ export default function StaffPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">Staff & teachers</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Staff & teachers</h1>
         <button
           type="button"
           onClick={() => {
@@ -140,56 +140,56 @@ export default function StaffPage() {
           Add teacher
         </button>
       </div>
-      <p className="mb-6 text-slate-600">
+      <p className="mb-6 text-slate-600 dark:text-slate-300">
         Teachers and principals at your school. Assign teachers to classes from the Classes page.
       </p>
 
       {showForm && (
         <form
           onSubmit={addTeacher}
-          className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
         >
-          <h2 className="mb-4 font-semibold text-slate-800">Add teacher</h2>
-          {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+          <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">Add teacher</h2>
+          {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
               <input
                 type="email"
                 value={form.teacherEmail}
                 onChange={(e) => setForm((f) => ({ ...f, teacherEmail: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="teacher@school.com"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Display name</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Display name</label>
               <input
                 type="text"
                 value={form.teacherDisplayName}
                 onChange={(e) => setForm((f) => ({ ...f, teacherDisplayName: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="e.g. Jane Smith"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Preferred name</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Preferred name</label>
               <input
                 type="text"
                 value={form.teacherPreferredName}
                 onChange={(e) => setForm((f) => ({ ...f, teacherPreferredName: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="e.g. What children call them"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
               <input
                 type="password"
                 value={form.teacherPassword}
                 onChange={(e) => setForm((f) => ({ ...f, teacherPassword: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="Min 6 characters"
                 minLength={6}
                 required
@@ -207,7 +207,7 @@ export default function StaffPage() {
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -218,28 +218,28 @@ export default function StaffPage() {
       {editingUid && (
         <form
           onSubmit={updateTeacher}
-          className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
         >
-          <h2 className="mb-4 font-semibold text-slate-800">Edit teacher</h2>
-          {editError && <p className="mb-4 text-sm text-red-600">{editError}</p>}
+          <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">Edit teacher</h2>
+          {editError && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{editError}</p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Display name</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Display name</label>
               <input
                 type="text"
                 value={editForm.displayName}
                 onChange={(e) => setEditForm((f) => ({ ...f, displayName: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Preferred name</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Preferred name</label>
               <input
                 type="text"
                 value={editForm.preferredName}
                 onChange={(e) => setEditForm((f) => ({ ...f, preferredName: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="Optional"
               />
             </div>
@@ -249,9 +249,9 @@ export default function StaffPage() {
                 id="editIsActive"
                 checked={editForm.isActive}
                 onChange={(e) => setEditForm((f) => ({ ...f, isActive: e.target.checked }))}
-                className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                className="rounded border-slate-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500"
               />
-              <label htmlFor="editIsActive" className="text-sm font-medium text-slate-700">Active (inactive teachers cannot be assigned to new classes)</label>
+              <label htmlFor="editIsActive" className="text-sm font-medium text-slate-700 dark:text-slate-300">Active (inactive teachers cannot be assigned to new classes)</label>
             </div>
           </div>
           <div className="mt-4 flex gap-2">
@@ -265,7 +265,7 @@ export default function StaffPage() {
             <button
               type="button"
               onClick={() => { setEditingUid(null); setEditError(''); }}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -274,35 +274,35 @@ export default function StaffPage() {
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
-                <th className="px-4 py-3 font-medium text-slate-700">Name</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Preferred name</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Email</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Role</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Status</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Assigned class</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Added</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Updated</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Actions</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Name</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Preferred name</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Email</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Role</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Status</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Assigned class</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Added</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Updated</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Actions</th>
               </tr>
             </thead>
             <tbody>
               {staff.map((u) => (
-                <tr key={u.uid} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-800">{u.displayName ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{u.preferredName ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600">
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{u.displayName ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.preferredName ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                         u.role === 'principal'
-                          ? 'bg-primary-100 text-primary-800'
-                          : 'bg-slate-100 text-slate-700'
+                          ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-200'
+                          : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                       }`}
                     >
                       {u.role}
@@ -312,7 +312,7 @@ export default function StaffPage() {
                     {u.role === 'teacher' ? (
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          u.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                          u.isActive !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
                         }`}
                       >
                         {u.isActive !== false ? 'Active' : 'Inactive'}
@@ -321,15 +321,15 @@ export default function StaffPage() {
                       '—'
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{classForTeacher(u.uid) ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(u.createdAt)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(u.updatedAt)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{classForTeacher(u.uid) ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{formatDate(u.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{formatDate(u.updatedAt)}</td>
                   <td className="px-4 py-3">
                     {u.role === 'teacher' && (
                       <button
                         type="button"
                         onClick={() => startEditTeacher(u)}
-                        className="text-primary-600 hover:underline"
+                        className="text-primary-600 dark:text-primary-400 hover:underline"
                       >
                         Edit
                       </button>
@@ -340,7 +340,7 @@ export default function StaffPage() {
             </tbody>
           </table>
           {staff.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500">No staff in this school yet. Use Add teacher to add teachers.</p>
+            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No staff in this school yet. Use Add teacher to add teachers.</p>
           )}
         </div>
       )}

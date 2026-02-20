@@ -37,25 +37,25 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">Users</h1>
+      <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-slate-100">Users</h1>
 
-      <div className="mb-6 flex flex-wrap gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-6 flex flex-wrap gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
         <div className="min-w-[200px] flex-1">
-          <label className="mb-1 block text-xs font-medium text-slate-500">Search</label>
+          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Search</label>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Name or email"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">Role</label>
+          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Role</label>
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
           >
             <option value="">All roles</option>
             <option value="super_admin">Super Admin</option>
@@ -65,11 +65,11 @@ export default function AdminUsersPage() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">School</label>
+          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">School</label>
           <select
             value={schoolFilter}
             onChange={(e) => setSchoolFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
           >
             <option value="">All schools</option>
             {schools.map((s) => (
@@ -80,38 +80,38 @@ export default function AdminUsersPage() {
       </div>
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <th className="px-4 py-3 font-medium text-slate-700">Name</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Email</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Role</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">School</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Name</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Email</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Role</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">School</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((u) => (
-                  <tr key={u.uid} className="border-t border-slate-100">
-                    <td className="px-4 py-3 font-medium text-slate-800">{u.displayName ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                  <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600">
+                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{u.displayName ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           u.role === 'super_admin'
-                            ? 'bg-slate-700 text-white'
+                            ? 'bg-slate-700 text-white dark:bg-slate-600'
                             : u.role === 'principal'
-                            ? 'bg-primary-100 text-primary-800'
-                            : 'bg-slate-100 text-slate-700'
+                            ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-200'
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                         }`}
                       >
                         {u.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {schools.find((s) => s.id === u.schoolId)?.name ?? u.schoolId ?? '—'}
                     </td>
                   </tr>
@@ -120,7 +120,7 @@ export default function AdminUsersPage() {
             </table>
           </div>
           {filtered.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500">No users match the filters.</p>
+            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No users match the filters.</p>
           )}
         </div>
       )}

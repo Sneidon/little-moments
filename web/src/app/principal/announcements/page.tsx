@@ -49,11 +49,11 @@ export default function AnnouncementsPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Announcements</h1>
-        <p className="mt-1 text-sm text-slate-500">Post updates for parents and staff</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Announcements</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Post updates for parents and staff</p>
       </div>
       <form onSubmit={submit} className="card mb-8 p-6">
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">New announcement</label>
+        <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">New announcement</label>
         <input
           type="text"
           placeholder="Title"
@@ -76,18 +76,18 @@ export default function AnnouncementsPage() {
           {submitting ? 'Posting…' : 'Post announcement'}
         </button>
       </form>
-      <h2 className="mb-3 text-lg font-semibold text-slate-800">Recent announcements</h2>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">Recent announcements</h2>
       <div className="space-y-4">
         {list.map((a) => (
           <article
             key={a.id}
             className="card p-5"
           >
-            <h3 className="font-semibold text-slate-800">{a.title}</h3>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100">{a.title}</h3>
             {a.body ? (
-              <p className="mt-2 whitespace-pre-wrap text-slate-600">{a.body}</p>
+              <p className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{a.body}</p>
             ) : null}
-            <p className="mt-3 text-xs text-slate-400">
+            <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
               {new Date(a.createdAt).toLocaleString()}
             </p>
           </article>
@@ -95,8 +95,8 @@ export default function AnnouncementsPage() {
       </div>
       {list.length === 0 && (
         <div className="card py-12 text-center">
-          <p className="text-slate-500">No announcements yet.</p>
-          <p className="mt-1 text-sm text-slate-400">Post one above to get started.</p>
+          <p className="text-slate-500 dark:text-slate-400">No announcements yet.</p>
+          <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">Post one above to get started.</p>
         </div>
       )}
     </div>

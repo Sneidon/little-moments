@@ -60,14 +60,14 @@ export default function PrincipalSettingsPage() {
   };
 
   if (loading) {
-    return <div className="card h-40 animate-pulse bg-slate-100" />;
+    return <div className="card h-40 animate-pulse bg-slate-100 dark:bg-slate-700" />;
   }
 
   if (!school) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">School settings</h1>
-        <p className="mt-4 text-slate-500">School not found.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">School settings</h1>
+        <p className="mt-4 text-slate-500 dark:text-slate-400">School not found.</p>
       </div>
     );
   }
@@ -75,13 +75,13 @@ export default function PrincipalSettingsPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">School settings</h1>
-        <p className="mt-1 text-sm text-slate-500">Update your school details</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">School settings</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Update your school details</p>
       </div>
       <form onSubmit={save} className="card max-w-xl p-6">
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">School name</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">School name</label>
             <input
               type="text"
               value={form.name}
@@ -91,7 +91,7 @@ export default function PrincipalSettingsPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Address</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Address</label>
             <input
               type="text"
               value={form.address}
@@ -101,7 +101,7 @@ export default function PrincipalSettingsPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Contact email</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Contact email</label>
             <input
               type="email"
               value={form.contactEmail}
@@ -111,7 +111,7 @@ export default function PrincipalSettingsPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Contact phone</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Contact phone</label>
             <input
               type="text"
               value={form.contactPhone}
@@ -126,7 +126,7 @@ export default function PrincipalSettingsPage() {
             {submitting ? 'Saving…' : 'Save changes'}
           </button>
           {saved && (
-            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700" role="status">
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 dark:text-green-400" role="status">
               <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden />
               Saved
             </span>

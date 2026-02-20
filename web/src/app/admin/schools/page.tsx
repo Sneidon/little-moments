@@ -125,7 +125,7 @@ export default function SchoolsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">Schools</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Schools</h1>
         <button
           type="button"
           onClick={() => {
@@ -143,77 +143,77 @@ export default function SchoolsPage() {
       {showForm && (
         <form
           onSubmit={save}
-          className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
         >
-          <h2 className="mb-4 font-semibold text-slate-800">
+          <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
             {editingId ? 'Edit school' : 'New school'}
           </h2>
-          {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+          {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Name</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Address</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Address</label>
               <input
                 type="text"
                 value={form.address}
                 onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Contact email</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Contact email</label>
               <input
                 type="email"
                 value={form.contactEmail}
                 onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Contact phone</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Contact phone</label>
               <input
                 type="text"
                 value={form.contactPhone}
                 onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 rows={2}
                 placeholder="Short description of the school"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Website</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Website</label>
               <input
                 type="url"
                 value={form.website}
                 onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
                 placeholder="https://..."
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               />
             </div>
             {editingId && (
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-slate-700">Subscription</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Subscription</label>
                 <select
                   value={form.subscriptionStatus}
                   onChange={(e) => setForm((f) => ({ ...f, subscriptionStatus: e.target.value as SubscriptionStatus }))}
-                  className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  className="w-full max-w-xs rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                 >
                   <option value="active">Active</option>
                   <option value="suspended">Suspended</option>
@@ -222,36 +222,36 @@ export default function SchoolsPage() {
             )}
             {!editingId && (
               <>
-                <div className="sm:col-span-2 mt-2 pt-2 border-t border-slate-200">
-                  <p className="text-sm font-medium text-slate-700 mb-3">Principal (direct add)</p>
+                <div className="sm:col-span-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-600">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Principal (direct add)</p>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Principal email</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Principal email</label>
                   <input
                     type="email"
                     value={form.principalEmail}
                     onChange={(e) => setForm((f) => ({ ...f, principalEmail: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                     placeholder="principal@school.com"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Principal display name</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Principal display name</label>
                   <input
                     type="text"
                     value={form.principalDisplayName}
                     onChange={(e) => setForm((f) => ({ ...f, principalDisplayName: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                     placeholder="Jane Smith"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Principal password</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Principal password</label>
                   <input
                     type="password"
                     value={form.principalPassword}
                     onChange={(e) => setForm((f) => ({ ...f, principalPassword: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                     placeholder="Min 6 characters"
                     minLength={6}
                   />
@@ -270,7 +270,7 @@ export default function SchoolsPage() {
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -279,44 +279,44 @@ export default function SchoolsPage() {
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
-                <th className="px-4 py-3 font-medium text-slate-700">Name</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Subscription</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Address</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Contact</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Website</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Actions</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Name</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Subscription</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Address</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Contact</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Website</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Actions</th>
               </tr>
             </thead>
             <tbody>
               {schools.map((s) => (
-                <tr key={s.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-800">{s.name}</td>
+                <tr key={s.id} className="border-t border-slate-100 dark:border-slate-600">
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{s.name}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                         (s.subscriptionStatus ?? 'active') === 'active'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-amber-100 text-amber-800'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                          : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
                       }`}
                     >
                       {s.subscriptionStatus ?? 'active'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-600 max-w-[180px] truncate" title={s.address}>{s.address ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300 max-w-[180px] truncate" title={s.address}>{s.address ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     <span title={[s.contactEmail, s.contactPhone].filter(Boolean).join(' · ')}>
                       {s.contactEmail ?? s.contactPhone ?? '—'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {s.website ? (
-                      <a href={s.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline truncate max-w-[120px] block">
+                      <a href={s.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline truncate max-w-[120px] block">
                         {s.website}
                       </a>
                     ) : '—'}

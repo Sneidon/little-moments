@@ -180,8 +180,8 @@ export default function ChildrenPage() {
     <div className="animate-fade-in">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Children</h1>
-          <p className="mt-1 text-sm text-slate-500">Enrolled children at your school</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Children</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Enrolled children at your school</p>
         </div>
         <button
           type="button"
@@ -212,12 +212,12 @@ export default function ChildrenPage() {
           onSubmit={save}
           className="card mb-8 p-6"
         >
-          <h2 className="mb-5 text-lg font-semibold text-slate-800">
+          <h2 className="mb-5 text-lg font-semibold text-slate-800 dark:text-slate-100">
             {editingId ? 'Edit child' : 'New child'}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Name</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Name</label>
               <input
                 type="text"
                 value={form.name}
@@ -227,7 +227,7 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Preferred name</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Preferred name</label>
               <input
                 type="text"
                 value={form.preferredName}
@@ -237,7 +237,7 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Date of birth</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Date of birth</label>
               <input
                 type="date"
                 value={form.dateOfBirth}
@@ -247,7 +247,7 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Enrollment date</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Enrollment date</label>
               <input
                 type="date"
                 value={form.enrollmentDate}
@@ -256,7 +256,7 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Class / room</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Class / room</label>
               <select
                 value={form.classId}
                 onChange={(e) => setForm((f) => ({ ...f, classId: e.target.value }))}
@@ -269,7 +269,7 @@ export default function ChildrenPage() {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Allergies</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Allergies</label>
               <div className="flex flex-wrap gap-2 items-center">
                 <input
                   type="text"
@@ -290,16 +290,16 @@ export default function ChildrenPage() {
               {form.allergies.length > 0 && (
                 <ul className="mt-2 flex flex-wrap gap-2">
                   {form.allergies.map((a, idx) => (
-                    <li key={idx} className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-sm text-primary-800">
+                    <li key={idx} className="inline-flex items-center gap-1 rounded-full bg-primary-50 dark:bg-primary-900/50 px-3 py-1 text-sm text-primary-800 dark:text-primary-200">
                       {a}
-                      <button type="button" onClick={() => removeAllergy(idx)} className="text-primary-600 hover:text-primary-800" aria-label="Remove">×</button>
+                      <button type="button" onClick={() => removeAllergy(idx)} className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200" aria-label="Remove">×</button>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Medical notes</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Medical notes</label>
               <textarea
                 value={form.medicalNotes}
                 onChange={(e) => setForm((f) => ({ ...f, medicalNotes: e.target.value }))}
@@ -309,7 +309,7 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Emergency contact name</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Emergency contact name</label>
               <input
                 type="text"
                 value={form.emergencyContactName}
@@ -319,7 +319,7 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Emergency contact phone</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Emergency contact phone</label>
               <input
                 type="text"
                 value={form.emergencyContact}
@@ -341,37 +341,37 @@ export default function ChildrenPage() {
       )}
 
       {loading ? (
-        <div className="card h-48 animate-pulse bg-slate-100" />
+        <div className="card h-48 animate-pulse bg-slate-100 dark:bg-slate-700" />
       ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/80">
+              <thead className="bg-slate-50/80 dark:bg-slate-700">
                 <tr>
-                  <th className="px-4 py-3 font-semibold text-slate-700">Name</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">Preferred</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">DOB</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">Class</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">Allergies</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">Emergency</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Preferred</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">DOB</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Class</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Allergies</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Emergency</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {children.map((c) => (
-                  <tr key={c.id} className="border-t border-slate-100 transition hover:bg-slate-50/50">
-                    <td className="px-4 py-3 font-medium text-slate-800">
-                      <Link href={`/principal/children/${c.id}`} className="text-primary-600 hover:text-primary-700 hover:underline">
+                  <tr key={c.id} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
+                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                      <Link href={`/principal/children/${c.id}`} className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline">
                         {c.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{c.preferredName ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.preferredName ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{c.classId ? classDisplay(c.classId) : '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{c.allergies?.length ? c.allergies.join(', ') : '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.classId ? classDisplay(c.classId) : '—'}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.allergies?.length ? c.allergies.join(', ') : '—'}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {c.emergencyContactName || c.emergencyContact ? (
                         <span title={c.emergencyContact ?? ''}>{c.emergencyContactName ?? c.emergencyContact ?? '—'}</span>
                       ) : '—'}

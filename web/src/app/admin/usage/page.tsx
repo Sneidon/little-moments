@@ -57,39 +57,39 @@ export default function UsagePage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">Usage & analytics</h1>
-      <p className="mb-6 text-slate-600">
+      <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-slate-100">Usage & analytics</h1>
+      <p className="mb-6 text-slate-600 dark:text-slate-300">
         Overview of activity per school.
       </p>
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
-                <th className="px-4 py-3 font-medium text-slate-700">School</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Children</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Reports</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Announcements</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Events</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">School</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Children</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Reports</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Announcements</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Events</th>
               </tr>
             </thead>
             <tbody>
               {stats.map((s) => (
-                <tr key={s.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-800">{s.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{s.children}</td>
-                  <td className="px-4 py-3 text-slate-600">{s.reportsCount}</td>
-                  <td className="px-4 py-3 text-slate-600">{s.announcements}</td>
-                  <td className="px-4 py-3 text-slate-600">{s.events}</td>
+                <tr key={s.id} className="border-t border-slate-100 dark:border-slate-600">
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{s.name}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.children}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.reportsCount}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.announcements}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.events}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {stats.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500">No data yet.</p>
+            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No data yet.</p>
           )}
         </div>
       )}

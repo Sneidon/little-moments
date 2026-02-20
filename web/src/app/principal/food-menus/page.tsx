@@ -33,7 +33,7 @@ function MealItems({
 }) {
   return (
     <div className="mb-4">
-      <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
+      <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
       <div className="flex flex-wrap gap-2 items-center">
         <input
           type="text"
@@ -41,12 +41,12 @@ function MealItems({
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
           placeholder={`Add ${label.toLowerCase()} item`}
-          className="flex-1 min-w-[140px] rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="flex-1 min-w-[140px] rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
         />
         <button
           type="button"
           onClick={onAdd}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          className="rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
         >
           Add
         </button>
@@ -56,13 +56,13 @@ function MealItems({
           {items.map((item, idx) => (
             <li
               key={idx}
-              className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-sm text-primary-800"
+              className="inline-flex items-center gap-1 rounded-full bg-primary-50 dark:bg-primary-900/50 px-3 py-1 text-sm text-primary-800 dark:text-primary-200"
             >
               {item}
               <button
                 type="button"
                 onClick={() => onRemove(idx)}
-                className="text-primary-600 hover:text-primary-800"
+                className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200"
                 aria-label="Remove"
               >
                 ×
@@ -167,7 +167,7 @@ export default function FoodMenusPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">Food menus</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Food menus</h1>
         <button
           type="button"
           onClick={() => {
@@ -185,20 +185,20 @@ export default function FoodMenusPage() {
       {showForm && (
         <form
           onSubmit={submit}
-          className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
         >
-          <h2 className="mb-4 font-semibold text-slate-800">
+          <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
             {editingId ? 'Edit menu' : 'New menu'}
           </h2>
           <div className="mb-4">
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Week start (Monday)
             </label>
             <input
               type="date"
               value={form.weekStart}
               onChange={(e) => setForm((f) => ({ ...f, weekStart: e.target.value }))}
-              className="w-full max-w-xs rounded-lg border border-slate-200 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full max-w-xs rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               required
             />
           </div>
@@ -237,7 +237,7 @@ export default function FoodMenusPage() {
             <button
               type="button"
               onClick={resetForm}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -249,31 +249,31 @@ export default function FoodMenusPage() {
         {menus.map((m) => (
           <div
             key={m.id}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm"
           >
             <div className="flex items-center justify-between">
-              <p className="font-medium text-slate-800">
+              <p className="font-medium text-slate-800 dark:text-slate-100">
                 Week of {new Date(m.weekStart).toLocaleDateString()}
               </p>
               <button
                 type="button"
                 onClick={() => startEdit(m)}
-                className="text-primary-600 hover:underline text-sm"
+                className="text-primary-600 dark:text-primary-400 hover:underline text-sm"
               >
                 Edit
               </button>
             </div>
-            <ul className="mt-2 text-sm text-slate-600 space-y-1">
+            <ul className="mt-2 text-sm text-slate-600 dark:text-slate-300 space-y-1">
               <li>
-                <span className="font-medium text-slate-700">Breakfast:</span>{' '}
+                <span className="font-medium text-slate-700 dark:text-slate-200">Breakfast:</span>{' '}
                 {m.breakfast?.length ? m.breakfast.join(', ') : '—'}
               </li>
               <li>
-                <span className="font-medium text-slate-700">Lunch:</span>{' '}
+                <span className="font-medium text-slate-700 dark:text-slate-200">Lunch:</span>{' '}
                 {m.lunch?.length ? m.lunch.join(', ') : '—'}
               </li>
               <li>
-                <span className="font-medium text-slate-700">Snack:</span>{' '}
+                <span className="font-medium text-slate-700 dark:text-slate-200">Snack:</span>{' '}
                 {m.snack?.length ? m.snack.join(', ') : '—'}
               </li>
             </ul>
@@ -281,7 +281,7 @@ export default function FoodMenusPage() {
         ))}
       </div>
       {menus.length === 0 && !showForm && (
-        <p className="text-slate-500">No menus yet. Add a menu to get started.</p>
+        <p className="text-slate-500 dark:text-slate-400">No menus yet. Add a menu to get started.</p>
       )}
     </div>
   );

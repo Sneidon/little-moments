@@ -114,36 +114,36 @@ export default function ClassActivitiesPage() {
   return (
     <div>
       <div className="mb-6 flex items-center gap-4">
-        <Link href="/principal/classes" className="text-slate-600 hover:text-slate-900">
+        <Link href="/principal/classes" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100">
           ← Back to classes
         </Link>
       </div>
 
-      <div className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="mb-2 text-2xl font-bold text-slate-800">{formatClassDisplay(classRoom)}</h1>
-        <p className="text-slate-600">
+      <div className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
+        <h1 className="mb-2 text-2xl font-bold text-slate-800 dark:text-slate-100">{formatClassDisplay(classRoom)}</h1>
+        <p className="text-slate-600 dark:text-slate-300">
           Assigned teacher: {classRoom.assignedTeacherId ? teacherName(classRoom.assignedTeacherId) : '—'}
         </p>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {children.length} child{children.length !== 1 ? 'ren' : ''} in this class
         </p>
       </div>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">Class activities by day</h2>
+      <section className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Class activities by day</h2>
 
         <div className="mb-6 flex flex-wrap items-end gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">View day</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">View day</label>
             <input
               type="date"
               value={filterDay}
               onChange={(e) => setFilterDay(e.target.value)}
-              className="rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
           <div>
-            <p className="mb-1 text-sm font-medium text-slate-700">Jump to a day with activity</p>
+            <p className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">Jump to a day with activity</p>
             <div className="flex flex-wrap gap-2">
               {daysWithActivity.map((d) => (
                 <button
@@ -151,20 +151,20 @@ export default function ClassActivitiesPage() {
                   type="button"
                   onClick={() => setFilterDay(d!)}
                   className={`rounded-lg px-3 py-1.5 text-sm ${
-                    filterDay === d ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    filterDay === d ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
                   }`}
                 >
                   {new Date(d!).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                 </button>
               ))}
               {daysWithActivity.length === 0 && (
-                <span className="text-sm text-slate-500">No activity recorded yet</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400">No activity recorded yet</span>
               )}
             </div>
           </div>
         </div>
 
-        <p className="mb-3 text-sm text-slate-600">
+        <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
           Activities on{' '}
           <strong>
             {new Date(filterDay + 'T12:00:00').toLocaleDateString(undefined, {
@@ -177,36 +177,36 @@ export default function ClassActivitiesPage() {
         </p>
 
         {reportsForDay.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 py-8 text-center text-slate-500">
+          <p className="rounded-lg bg-slate-50 dark:bg-slate-700/50 py-8 text-center text-slate-500 dark:text-slate-400">
             No activities recorded for this class on this day.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-slate-200">
+          <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-600">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <th className="px-4 py-3 font-medium text-slate-700">Child</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Type</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Time</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Details</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Notes</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Child</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Type</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Time</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Details</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {reportsForDay.map((r) => (
-                  <tr key={r.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 font-medium text-slate-800">
+                  <tr key={r.id} className="border-t border-slate-100 dark:border-slate-600">
+                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
                       <Link
                         href={`/principal/children/${r.childId}`}
-                        className="text-primary-600 hover:underline"
+                        className="text-primary-600 dark:text-primary-400 hover:underline"
                       >
                         {r.childName}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {REPORT_TYPE_LABELS[r.type ?? ''] ?? r.type ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {r.timestamp
                         ? new Date(r.timestamp).toLocaleTimeString(undefined, {
                             hour: '2-digit',
@@ -214,10 +214,10 @@ export default function ClassActivitiesPage() {
                           })
                         : '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {r.mealType ?? r.medicationName ?? r.incidentDetails ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{r.notes ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.notes ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -226,26 +226,26 @@ export default function ClassActivitiesPage() {
         )}
       </section>
 
-      <section className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">Children in this class</h2>
+      <section className="mt-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Children in this class</h2>
         {children.length === 0 ? (
-          <p className="text-slate-500">No children assigned to this class yet.</p>
+          <p className="text-slate-500 dark:text-slate-400">No children assigned to this class yet.</p>
         ) : (
           <ul className="space-y-2">
             {children.map((child) => (
-              <li key={child.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3">
+              <li key={child.id} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 px-4 py-3">
                 <div>
                   <Link
                     href={`/principal/children/${child.id}`}
-                    className="font-medium text-primary-600 hover:underline"
+                    className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
                   >
                     {child.name}
                   </Link>
                   {child.preferredName && (
-                    <span className="ml-2 text-slate-600">({child.preferredName})</span>
+                    <span className="ml-2 text-slate-600 dark:text-slate-300">({child.preferredName})</span>
                   )}
                 </div>
-                <div className="text-sm text-slate-500">
+                <div className="text-sm text-slate-500 dark:text-slate-400">
                   {child.dateOfBirth ? new Date(child.dateOfBirth).toLocaleDateString() : '—'}
                   {child.allergies?.length ? ` · ${child.allergies.length} allerg${child.allergies.length !== 1 ? 'ies' : 'y'}` : ''}
                 </div>

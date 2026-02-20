@@ -97,7 +97,7 @@ export default function ClassesPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">Classes / rooms</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Classes / rooms</h1>
         <button
           type="button"
           onClick={() => {
@@ -117,25 +117,25 @@ export default function ClassesPage() {
       {showForm && (
         <form
           onSubmit={save}
-          className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
         >
-          <h2 className="mb-4 font-semibold text-slate-800">
+          <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
             {editingId ? 'Edit class' : 'New class'}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Class name</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Class name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Rainbow Room"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Min age (months)</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Min age (months)</label>
               <input
                 type="number"
                 min={0}
@@ -143,12 +143,12 @@ export default function ClassesPage() {
                 value={minAgeMonths}
                 onChange={(e) => setMinAgeMonths(e.target.value)}
                 placeholder="e.g. 24 or 48"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
-              <p className="mt-0.5 text-xs text-slate-500">Use months (e.g. 24). 2 yr+ shown as years (24 mo = 2 yr)</p>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Use months (e.g. 24). 2 yr+ shown as years (24 mo = 2 yr)</p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Max age (months)</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Max age (months)</label>
               <input
                 type="number"
                 min={0}
@@ -156,15 +156,15 @@ export default function ClassesPage() {
                 value={maxAgeMonths}
                 onChange={(e) => setMaxAgeMonths(e.target.value)}
                 placeholder="e.g. 36 or 60"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Assigned teacher</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Assigned teacher</label>
               <select
                 value={assignedTeacherId}
                 onChange={(e) => setAssignedTeacherId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">—</option>
                 {teachers
@@ -186,7 +186,7 @@ export default function ClassesPage() {
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -195,32 +195,32 @@ export default function ClassesPage() {
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
-                <th className="px-4 py-3 font-medium text-slate-700">Class</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Assigned teacher</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Actions</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Class</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Assigned teacher</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Actions</th>
               </tr>
             </thead>
             <tbody>
               {classes.map((c) => (
-                <tr key={c.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-800">
-                    <Link href={`/principal/classes/${c.id}`} className="text-primary-600 hover:underline">
+                <tr key={c.id} className="border-t border-slate-100 dark:border-slate-600">
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                    <Link href={`/principal/classes/${c.id}`} className="text-primary-600 dark:text-primary-400 hover:underline">
                       {formatClassDisplay(c)}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {c.assignedTeacherId ? teacherName(c.assignedTeacherId) : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/principal/classes/${c.id}`}
-                      className="text-primary-600 hover:underline"
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
                     >
                       View activities
                     </Link>
@@ -235,7 +235,7 @@ export default function ClassesPage() {
                         setAssignedTeacherId(c.assignedTeacherId ?? '');
                         setShowForm(true);
                       }}
-                      className="text-primary-600 hover:underline"
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
                     >
                       Edit
                     </button>
@@ -245,7 +245,7 @@ export default function ClassesPage() {
             </tbody>
           </table>
           {classes.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500">No classes yet. Add a class/room to organize children.</p>
+            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No classes yet. Add a class/room to organize children.</p>
           )}
         </div>
       )}

@@ -92,15 +92,15 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">Reports</h1>
+      <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-slate-100">Reports</h1>
 
-      <div className="mb-6 flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-6 flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">Class</label>
+          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Class</label>
           <select
             value={filterClassId}
             onChange={(e) => setFilterClassId(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           >
             <option value="">All classes</option>
             {classes.map((c) => (
@@ -109,51 +109,51 @@ export default function ReportsPage() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">Day</label>
+          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Day</label>
           <div className="flex items-center gap-1">
             <input
               type="date"
               value={filterDay}
               onChange={(e) => setFilterDay(e.target.value)}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               title="View activities for this day"
             />
             {filterDay && (
               <button
                 type="button"
                 onClick={() => setFilterDay('')}
-                className="text-xs text-slate-500 hover:text-slate-700"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 Clear
               </button>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-slate-400">Activities for this day</p>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Activities for this day</p>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">Or date range</label>
-          <span className="text-xs text-slate-400">From</span>
+          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Or date range</label>
+          <span className="text-xs text-slate-400 dark:text-slate-500">From</span>
           <input
             type="date"
             value={filterDateFrom}
             onChange={(e) => { setFilterDateFrom(e.target.value); setFilterDay(''); }}
-            className="ml-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="ml-1 rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-2 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          <span className="mx-1 text-xs text-slate-400">to</span>
+          <span className="mx-1 text-xs text-slate-400 dark:text-slate-500">to</span>
           <input
             type="date"
             value={filterDateTo}
             onChange={(e) => { setFilterDateTo(e.target.value); setFilterDay(''); }}
-            className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-2 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          <p className="mt-0.5 text-xs text-slate-400">Clear Day to use range</p>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Clear Day to use range</p>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">Type</label>
+          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Type</label>
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           >
             {reportTypes.map((t) => (
               <option key={t.value || 'all'} value={t.value}>{t.label}</option>
@@ -163,36 +163,36 @@ export default function ReportsPage() {
       </div>
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <th className="px-4 py-3 font-medium text-slate-700">Child</th>
-                  {!filterClassId && <th className="px-4 py-3 font-medium text-slate-700">Class</th>}
-                  <th className="px-4 py-3 font-medium text-slate-700">Type</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Time</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Details</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Notes</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Child</th>
+                  {!filterClassId && <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Class</th>}
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Type</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Time</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Details</th>
+                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 font-medium text-slate-800">{r.childName}</td>
+                  <tr key={r.id} className="border-t border-slate-100 dark:border-slate-600">
+                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{r.childName}</td>
                     {!filterClassId && (
-                      <td className="px-4 py-3 text-slate-600">{r.childClassId ? classDisplay(r.childClassId) : '—'}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.childClassId ? classDisplay(r.childClassId) : '—'}</td>
                     )}
-                    <td className="px-4 py-3 text-slate-600">{r.type?.replace('_', ' ')}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.type?.replace('_', ' ')}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {r.timestamp ? new Date(r.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {r.mealType ? `${r.mealType}` : r.medicationName ? r.medicationName : r.incidentDetails ? r.incidentDetails : '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{r.notes ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.notes ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

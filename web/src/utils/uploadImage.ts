@@ -16,3 +16,36 @@ export async function uploadMealOptionImage(
   await uploadBytes(storageRef, file, { contentType: file.type || 'image/jpeg' });
   return getDownloadURL(storageRef);
 }
+
+/**
+ * Upload an event image to Firebase Storage and return the download URL.
+ * Path: schools/{schoolId}/events/{eventId}.{ext}
+ */
+export async function uploadEventImage(
+  file: File,
+  schoolId: string,
+  eventId: string
+): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `schools/${schoolId}/events/${eventId}.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type || 'image/jpeg' });
+  return getDownloadURL(storageRef);
+}
+
+/**
+ * Upload an event document (PDF, etc.) to Firebase Storage and return the download URL.
+ * Path: schools/{schoolId}/events/{eventId}/documents/{docId}.{ext}
+ */
+export async function uploadEventDocument(
+  file: File,
+  schoolId: string,
+  eventId: string,
+  docId: string
+): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+  const path = `schools/${schoolId}/events/${eventId}/documents/${docId}.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type || 'application/octet-stream' });
+  return getDownloadURL(storageRef);
+}

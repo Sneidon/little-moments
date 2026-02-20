@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Image, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -42,6 +42,18 @@ export function EventsScreen() {
       <View style={styles.cardContent}>
         <Text style={styles.title}>{item.title}</Text>
         {item.description ? <Text style={styles.desc}>{item.description}</Text> : null}
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.eventImage} resizeMode="cover" />
+        ) : null}
+        {item.documents && item.documents.length > 0 ? (
+          <View style={styles.documents}>
+            {item.documents.map((d, i) => (
+              <TouchableOpacity key={i} onPress={() => d.url && Linking.openURL(d.url)}>
+                <Text style={styles.docLink}>{d.label || d.name || d.url}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
         <Text style={styles.meta}>{new Date(item.startAt).toLocaleString()}</Text>
         {profile?.role === 'parent' && (
           <View style={styles.actions}>
@@ -96,6 +108,9 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1 },
   title: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
   desc: { fontSize: 14, color: '#475569', marginTop: 8 },
+  eventImage: { width: '100%', height: 160, borderRadius: 8, marginTop: 8 },
+  documents: { marginTop: 8, gap: 4 },
+  docLink: { fontSize: 14, color: '#6366f1', textDecorationLine: 'underline' },
   meta: { fontSize: 12, color: '#94a3b8', marginTop: 8 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   acceptBtn: {

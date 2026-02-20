@@ -71,11 +71,24 @@ export interface Announcement {
   targetRole?: UserRole; // optional filter
 }
 
+/** A document link shown on an event; optional label for display. */
+export interface EventDocumentLink {
+  /** Optional display label (e.g. "Permission slip", "Programme"). */
+  label?: string;
+  /** Fallback name/title if no label. */
+  name?: string;
+  url: string;
+}
+
 export interface Event {
   id: string;
   schoolId: string;
   title: string;
   description?: string;
+  /** Optional image URL (uploaded to Storage). */
+  imageUrl?: string;
+  /** Optional document links (name + URL). */
+  documents?: EventDocumentLink[];
   startAt: string;
   endAt?: string;
   createdBy: string;

@@ -354,7 +354,6 @@ export default function ChildrenPage() {
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Class</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Allergies</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Emergency</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -375,23 +374,6 @@ export default function ChildrenPage() {
                       {c.emergencyContactName || c.emergencyContact ? (
                         <span title={c.emergencyContact ?? ''}>{c.emergencyContactName ?? c.emergencyContact ?? '—'}</span>
                       ) : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex gap-2">
-                        <Link
-                          href={`/principal/children/${c.id}`}
-                          className="text-primary-600 hover:text-primary-700 hover:underline"
-                        >
-                          View
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => startEdit(c)}
-                          className="text-primary-600 hover:text-primary-700 hover:underline"
-                        >
-                          Edit
-                        </button>
-                      </span>
                     </td>
                   </tr>
                 ))}

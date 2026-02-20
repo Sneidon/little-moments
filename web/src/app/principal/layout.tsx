@@ -48,6 +48,7 @@ export default function PrincipalLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, profile, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -71,8 +72,6 @@ export default function PrincipalLayout({
   }
 
   if (!user || !profile) return null;
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">

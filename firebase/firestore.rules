@@ -65,6 +65,10 @@ service cloud.firestore {
         allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
         allow write: if isPrincipal(schoolId) || isSuperAdmin();
       }
+      match /mealOptions/{optionId} {
+        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow write: if isPrincipal(schoolId) || isSuperAdmin();
+      }
       match /chats/{chatId} {
         allow create: if isAuthenticated() && (
           (isTeacher(schoolId) && request.resource.data.teacherId == request.auth.uid && request.resource.data.schoolId == schoolId)

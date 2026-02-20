@@ -19,6 +19,7 @@ import { uploadPhotoAsync } from '../../utils/uploadPhoto';
 import { useAuth } from '../../context/AuthContext';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
+import type { MealOption } from '../../../../shared/types';
 import type { ReportType } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -134,6 +135,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     if (id && children.some((c) => c.id === id)) setSelectedChildId(id);
   }, [route.params?.initialChildId, children]);
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'snack'>('lunch');
+  const [mealOptions, setMealOptions] = useState<MealOption[]>([]);
+  const [selectedMealOptionId, setSelectedMealOptionId] = useState<string | null>(null);
   const [mealAmount, setMealAmount] = useState('most');
   const [notes, setNotes] = useState('');
   const [mealTime, setMealTime] = useState(() => formatTime(new Date()));
@@ -193,6 +196,22 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     };
   }, [profile?.schoolId, profile?.uid]);
 
+  // Load meal options (principal-defined) for teacher to select when logging meals
+  useEffect(() => {
+    const schoolId = profile?.schoolId;
+    if (!schoolId) return;
+    const unsub = onSnapshot(
+      collection(db, 'schools', schoolId, 'mealOptions'),
+      (snap) => {
+        setMealOptions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as MealOption)));
+      }
+    );
+    return () => unsub();
+  }, [profile?.schoolId]);
+
+  const mealOptionsForCategory = mealOptions.filter((o) => o.category === mealType);
+  const selectedMealOption = mealOptions.find((o) => o.id === selectedMealOptionId);
+
   const selectedChild = children.find((c) => c.id === selectedChildId);
 
   const parseTime = (s: string): Date => {
@@ -233,6 +252,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       if (type === 'meal') {
         payload.mealType = mealType;
         payload.mealAmount = mealAmount;
+        if (selectedMealOptionId && selectedMealOption) {
+          payload.mealOptionId = selectedMealOptionId;
+          payload.mealOptionName = selectedMealOption.name;
+        }
       }
       if (type === 'nappy_change') {
         payload.nappyType = nappyType;
@@ -354,7 +377,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   <TouchableOpacity
                     key={m.value}
                     style={[styles.optionChip, mealType === m.value && styles.optionChipActive]}
-                    onPress={() => setMealType(m.value)}
+                    onPress={() => {
+                      setMealType(m.value);
+                      setSelectedMealOptionId(null);
+                    }}
                   >
                     <Text style={[styles.optionChipText, mealType === m.value && styles.optionChipTextActive]}>
                       {m.label}
@@ -363,20 +389,49 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 ))}
               </View>
 
-              <Text style={styles.label}>What did they eat?</Text>
+              <Text style={styles.label}>Select meal (optional)</Text>
+              {mealOptionsForCategory.length === 0 ? (
+                <Text style={styles.helperText}>
+                  No options defined for {mealType}. Principal can add options in Meal options.
+                </Text>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mealOptionsScroll}>
+                  {mealOptionsForCategory.map((opt: MealOption) => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[
+                        styles.mealOptionCard,
+                        selectedMealOptionId === opt.id && styles.mealOptionCardActive,
+                      ]}
+                      onPress={() => setSelectedMealOptionId(selectedMealOptionId === opt.id ? null : opt.id)}
+                    >
+                      {opt.imageUrl ? (
+                        <Image source={{ uri: opt.imageUrl }} style={styles.mealOptionImage} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.mealOptionImage, styles.mealOptionImagePlaceholder]}>
+                          <Ionicons name="restaurant-outline" size={24} color="#94a3b8" />
+                        </View>
+                      )}
+                      <Text style={styles.mealOptionName} numberOfLines={2}>{opt.name}</Text>
+                      {opt.description ? (
+                        <Text style={styles.mealOptionDesc} numberOfLines={1}>{opt.description}</Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
+              <Text style={styles.label}>Notes (optional)</Text>
               <TextInput
                 style={[styles.input, styles.inputMultiline]}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="e.g., Chicken nuggets, carrots, apple slices"
+                placeholder="Any extra details"
                 placeholderTextColor="#94a3b8"
                 multiline
-                numberOfLines={3}
+                numberOfLines={2}
                 editable={!loading}
               />
-              <TouchableOpacity style={styles.previewBtn}>
-                <Text style={styles.previewBtnText}>Preview</Text>
-              </TouchableOpacity>
 
               <Text style={styles.label}>How much did they eat?</Text>
               <View style={styles.optionsRow}>
@@ -863,6 +918,27 @@ const styles = StyleSheet.create({
   optionChipActive: { borderColor: '#6366f1', backgroundColor: '#eef2ff' },
   optionChipText: { fontSize: 14, color: '#64748b' },
   optionChipTextActive: { color: '#6366f1', fontWeight: '600' },
+
+  helperText: { fontSize: 13, color: '#64748b', marginBottom: 8 },
+  mealOptionsScroll: { marginBottom: 8, marginHorizontal: -16 },
+  mealOptionCard: {
+    width: 120,
+    marginRight: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    overflow: 'hidden',
+  },
+  mealOptionCardActive: { borderColor: '#6366f1', backgroundColor: '#eef2ff' },
+  mealOptionImage: { width: '100%', height: 72 },
+  mealOptionImagePlaceholder: {
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealOptionName: { fontSize: 12, fontWeight: '600', color: '#334155', padding: 6 },
+  mealOptionDesc: { fontSize: 11, color: '#64748b', paddingHorizontal: 6, paddingBottom: 6 },
 
   input: {
     borderWidth: 1,

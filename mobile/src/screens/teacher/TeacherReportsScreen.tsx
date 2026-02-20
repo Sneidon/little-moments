@@ -56,6 +56,7 @@ type ReportWithExtras = DailyReport & {
   activityTitle?: string;
   activityType?: string;
   mealType?: 'breakfast' | 'lunch' | 'snack';
+  mealOptionName?: string;
 };
 
 function formatTime(iso: string) {
@@ -71,7 +72,8 @@ function formatTime(iso: string) {
 
 function getReportTitle(item: ReportWithExtras): string {
   if (item.type === 'meal')
-    return (item.mealType || 'Meal').charAt(0).toUpperCase() + (item.mealType || 'meal').slice(1);
+    return (item.mealOptionName || item.mealType || 'Meal').charAt(0).toUpperCase()
+      + (item.mealOptionName || item.mealType || 'meal').slice(1);
   if (item.type === 'nap_time') return 'Nap Time';
   if (item.type === 'nappy_change') return 'Nappy Change';
   if (item.type === 'medication') return item.activityTitle || 'Activity';

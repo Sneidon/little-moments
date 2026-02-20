@@ -7,156 +7,157 @@ import {
   addDoc,
   doc,
   updateDoc,
+  deleteDoc,
   query,
-  orderBy,
   onSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { FoodMenu } from 'shared/types';
+import { uploadMealOptionImage } from '@/utils/uploadImage';
+import type { MealOption } from 'shared/types';
 
-type MealKey = 'breakfast' | 'lunch' | 'snack';
+type MealCategory = 'breakfast' | 'lunch' | 'snack';
 
-function MealItems({
-  label,
-  items,
-  onAdd,
-  onRemove,
-  inputValue,
-  onInputChange,
+const CATEGORY_LABELS: Record<MealCategory, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  snack: 'Snacks',
+};
+
+function OptionCard({
+  option,
+  onEdit,
+  onDelete,
 }: {
-  label: string;
-  items: string[];
-  onAdd: () => void;
-  onRemove: (idx: number) => void;
-  inputValue: string;
-  onInputChange: (v: string) => void;
+  option: MealOption;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   return (
-    <div className="mb-4">
-      <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
-      <div className="flex flex-wrap gap-2 items-center">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
-          placeholder={`Add ${label.toLowerCase()} item`}
-          className="flex-1 min-w-[140px] rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-        />
+    <div className="flex gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
+      {option.imageUrl ? (
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-700">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={option.imageUrl}
+            alt={option.name}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-400">
+          No image
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-slate-800 dark:text-slate-100">{option.name}</p>
+        {option.description && (
+          <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300 line-clamp-2">
+            {option.description}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 gap-2">
         <button
           type="button"
-          onClick={onAdd}
-          className="rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+          onClick={onEdit}
+          className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
         >
-          Add
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="text-sm text-red-600 dark:text-red-400 hover:underline"
+        >
+          Delete
         </button>
       </div>
-      {items.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-2 list-none">
-          {items.map((item, idx) => (
-            <li
-              key={idx}
-              className="inline-flex items-center gap-1 rounded-full bg-primary-50 dark:bg-primary-900/50 px-3 py-1 text-sm text-primary-800 dark:text-primary-200"
-            >
-              {item}
-              <button
-                type="button"
-                onClick={() => onRemove(idx)}
-                className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200"
-                aria-label="Remove"
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
 
 export default function FoodMenusPage() {
   const { profile } = useAuth();
-  const [menus, setMenus] = useState<FoodMenu[]>([]);
+  const [options, setOptions] = useState<MealOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    weekStart: '',
-    breakfast: [] as string[],
-    lunch: [] as string[],
-    snack: [] as string[],
-  });
-  const [mealInputs, setMealInputs] = useState({ breakfast: '', lunch: '', snack: '' });
+  const [formCategory, setFormCategory] = useState<MealCategory>('breakfast');
+  const [form, setForm] = useState({ name: '', description: '', imageFile: null as File | null });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
     if (!schoolId) return;
-    const q = query(
-      collection(db, 'schools', schoolId, 'foodMenus'),
-      orderBy('weekStart', 'desc')
-    );
+    const q = query(collection(db, 'schools', schoolId, 'mealOptions'));
     const unsub = onSnapshot(q, (snap) => {
-      setMenus(snap.docs.map((d) => ({ id: d.id, ...d.data() } as FoodMenu)));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MealOption));
+      list.sort((a, b) => {
+        if (a.category !== b.category) return a.category.localeCompare(b.category);
+        return (a.order ?? 0) - (b.order ?? 0) || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
+      setOptions(list);
     });
     return () => unsub();
   }, [profile?.schoolId]);
 
-  const addMealItem = (meal: MealKey) => {
-    const v = mealInputs[meal].trim();
-    if (!v) return;
-    setForm((f) => ({ ...f, [meal]: [...f[meal], v] }));
-    setMealInputs((m) => ({ ...m, [meal]: '' }));
-  };
-
-  const removeMealItem = (meal: MealKey, idx: number) => {
-    setForm((f) => ({ ...f, [meal]: f[meal].filter((_, i) => i !== idx) }));
-  };
+  const optionsByCategory = (category: MealCategory) =>
+    options.filter((o) => o.category === category);
 
   const resetForm = () => {
-    setForm({ weekStart: '', breakfast: [], lunch: [], snack: [] });
-    setMealInputs({ breakfast: '', lunch: '', snack: '' });
+    setForm({ name: '', description: '', imageFile: null });
     setEditingId(null);
     setShowForm(false);
   };
 
-  const startEdit = (m: FoodMenu) => {
-    setEditingId(m.id);
+  const startAdd = (category: MealCategory) => {
+    setFormCategory(category);
+    setForm({ name: '', description: '', imageFile: null });
+    setEditingId(null);
+    setShowForm(true);
+  };
+
+  const startEdit = (option: MealOption) => {
+    setFormCategory(option.category);
     setForm({
-      weekStart: m.weekStart?.slice(0, 10) ?? '',
-      breakfast: m.breakfast ?? [],
-      lunch: m.lunch ?? [],
-      snack: m.snack ?? [],
+      name: option.name,
+      description: option.description || '',
+      imageFile: null,
     });
-    setMealInputs({ breakfast: '', lunch: '', snack: '' });
+    setEditingId(option.id);
     setShowForm(true);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const schoolId = profile?.schoolId;
-    if (!schoolId || !form.weekStart) return;
+    if (!schoolId || !form.name.trim()) return;
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
-      const data = {
-        schoolId,
-        weekStart: form.weekStart,
-        breakfast: form.breakfast.filter(Boolean),
-        lunch: form.lunch.filter(Boolean),
-        snack: form.snack.filter(Boolean),
-        updatedAt: now,
-      };
       if (editingId) {
-        await updateDoc(
-          doc(db, 'schools', schoolId, 'foodMenus', editingId),
-          data
-        );
-        setMenus((prev) =>
-          prev.map((m) => (m.id === editingId ? { ...m, ...data } : m))
-        );
+        const data: Record<string, unknown> = {
+          name: form.name.trim(),
+          description: (form.description || '').trim(),
+          updatedAt: now,
+        };
+        if (form.imageFile) {
+          data.imageUrl = await uploadMealOptionImage(form.imageFile, schoolId, editingId);
+        }
+        await updateDoc(doc(db, 'schools', schoolId, 'mealOptions', editingId), data);
       } else {
-        await addDoc(collection(db, 'schools', schoolId, 'foodMenus'), data);
+        const ref = await addDoc(collection(db, 'schools', schoolId, 'mealOptions'), {
+          schoolId,
+          category: formCategory,
+          name: form.name.trim(),
+          description: (form.description || '').trim(),
+          order: optionsByCategory(formCategory).length,
+          createdAt: now,
+          updatedAt: now,
+        });
+        if (form.imageFile) {
+          const imageUrl = await uploadMealOptionImage(form.imageFile, schoolId, ref.id);
+          await updateDoc(ref, { imageUrl, updatedAt: new Date().toISOString() });
+        }
       }
       resetForm();
     } finally {
@@ -164,22 +165,21 @@ export default function FoodMenusPage() {
     }
   };
 
+  const deleteOption = async (option: MealOption) => {
+    const schoolId = profile?.schoolId;
+    if (!schoolId || !confirm(`Delete "${option.name}"?`)) return;
+    await deleteDoc(doc(db, 'schools', schoolId, 'mealOptions', option.id));
+    if (editingId === option.id) resetForm();
+  };
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Food menus</h1>
-        <button
-          type="button"
-          onClick={() => {
-            setEditingId(null);
-            setForm({ weekStart: '', breakfast: [], lunch: [], snack: [] });
-            setMealInputs({ breakfast: '', lunch: '', snack: '' });
-            setShowForm(true);
-          }}
-          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-        >
-          Add menu
-        </button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Meal options</h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          Define options for breakfast, lunch and snacks. Teachers will select from this list when
+          logging meals.
+        </p>
       </div>
 
       {showForm && (
@@ -188,51 +188,60 @@ export default function FoodMenusPage() {
           className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
         >
           <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
-            {editingId ? 'Edit menu' : 'New menu'}
+            {editingId ? 'Edit option' : `New ${CATEGORY_LABELS[formCategory]} option`}
           </h2>
-          <div className="mb-4">
-            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Week start (Monday)
-            </label>
-            <input
-              type="date"
-              value={form.weekStart}
-              onChange={(e) => setForm((f) => ({ ...f, weekStart: e.target.value }))}
-              className="w-full max-w-xs rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              required
-            />
+          {!editingId && (
+            <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+              Category: <strong>{CATEGORY_LABELS[formCategory]}</strong>
+            </p>
+          )}
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Name
+              </label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Scrambled eggs & toast"
+                className="w-full max-w-md rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Description (optional)
+              </label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Short description of the meal"
+                rows={2}
+                className="w-full max-w-md rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Image (optional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, imageFile: e.target.files?.[0] ?? null }))
+                }
+                className="block w-full max-w-md text-sm text-slate-600 dark:text-slate-400 file:mr-4 file:rounded-lg file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-primary-700 dark:file:bg-primary-900/50 dark:file:text-primary-200"
+              />
+            </div>
           </div>
-          <MealItems
-            label="Breakfast"
-            items={form.breakfast}
-            onAdd={() => addMealItem('breakfast')}
-            onRemove={(idx) => removeMealItem('breakfast', idx)}
-            inputValue={mealInputs.breakfast}
-            onInputChange={(v) => setMealInputs((m) => ({ ...m, breakfast: v }))}
-          />
-          <MealItems
-            label="Lunch"
-            items={form.lunch}
-            onAdd={() => addMealItem('lunch')}
-            onRemove={(idx) => removeMealItem('lunch', idx)}
-            inputValue={mealInputs.lunch}
-            onInputChange={(v) => setMealInputs((m) => ({ ...m, lunch: v }))}
-          />
-          <MealItems
-            label="Snack"
-            items={form.snack}
-            onAdd={() => addMealItem('snack')}
-            onRemove={(idx) => removeMealItem('snack', idx)}
-            inputValue={mealInputs.snack}
-            onInputChange={(v) => setMealInputs((m) => ({ ...m, snack: v }))}
-          />
-          <div className="flex gap-2">
+          <div className="mt-4 flex gap-2">
             <button
               type="submit"
-              disabled={submitting || !form.weekStart}
+              disabled={submitting || !form.name.trim()}
               className="rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              {submitting ? 'Saving…' : editingId ? 'Save' : 'Add menu'}
+              {submitting ? 'Saving…' : editingId ? 'Save' : 'Add option'}
             </button>
             <button
               type="button"
@@ -245,44 +254,40 @@ export default function FoodMenusPage() {
         </form>
       )}
 
-      <div className="space-y-4">
-        {menus.map((m) => (
-          <div
-            key={m.id}
-            className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm"
-          >
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-slate-800 dark:text-slate-100">
-                Week of {new Date(m.weekStart).toLocaleDateString()}
-              </p>
+      <div className="space-y-8">
+        {(['breakfast', 'lunch', 'snack'] as const).map((category) => (
+          <section key={category}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                {CATEGORY_LABELS[category]}
+              </h2>
               <button
                 type="button"
-                onClick={() => startEdit(m)}
-                className="text-primary-600 dark:text-primary-400 hover:underline text-sm"
+                onClick={() => startAdd(category)}
+                className="rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
               >
-                Edit
+                Add option
               </button>
             </div>
-            <ul className="mt-2 text-sm text-slate-600 dark:text-slate-300 space-y-1">
-              <li>
-                <span className="font-medium text-slate-700 dark:text-slate-200">Breakfast:</span>{' '}
-                {m.breakfast?.length ? m.breakfast.join(', ') : '—'}
-              </li>
-              <li>
-                <span className="font-medium text-slate-700 dark:text-slate-200">Lunch:</span>{' '}
-                {m.lunch?.length ? m.lunch.join(', ') : '—'}
-              </li>
-              <li>
-                <span className="font-medium text-slate-700 dark:text-slate-200">Snack:</span>{' '}
-                {m.snack?.length ? m.snack.join(', ') : '—'}
-              </li>
-            </ul>
-          </div>
+            <div className="space-y-3">
+              {optionsByCategory(category).length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  No options yet. Add options so teachers can select them when logging meals.
+                </p>
+              ) : (
+                optionsByCategory(category).map((opt) => (
+                  <OptionCard
+                    key={opt.id}
+                    option={opt}
+                    onEdit={() => startEdit(opt)}
+                    onDelete={() => deleteOption(opt)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
         ))}
       </div>
-      {menus.length === 0 && !showForm && (
-        <p className="text-slate-500 dark:text-slate-400">No menus yet. Add a menu to get started.</p>
-      )}
     </div>
   );
 }

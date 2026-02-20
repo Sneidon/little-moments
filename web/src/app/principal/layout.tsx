@@ -28,7 +28,7 @@ const navSections: { title: string; links: { href: string; label: string }[] }[]
     links: [
       { href: '/principal/announcements', label: 'Announcements' },
       { href: '/principal/events', label: 'Events' },
-      { href: '/principal/food-menus', label: 'Food menus' },
+      { href: '/principal/food-menus', label: 'Meal options' },
     ],
   },
   {

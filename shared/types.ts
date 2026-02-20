@@ -52,6 +52,9 @@ export interface DailyReport {
   createdAt: string;
   // type-specific fields
   mealType?: 'breakfast' | 'lunch' | 'snack';
+  /** Selected meal option (from principal's list). */
+  mealOptionId?: string;
+  mealOptionName?: string;
   incidentDetails?: string;
   medicationName?: string;
   /** URL of photo uploaded to Storage (for photo/incident reports). */
@@ -80,6 +83,20 @@ export interface Event {
   parentResponses?: Record<string, 'accepted' | 'declined'>;
 }
 
+/** A single meal option (breakfast, lunch, or snack) defined by the principal for teachers to select when logging meals. */
+export interface MealOption {
+  id: string;
+  schoolId: string;
+  category: 'breakfast' | 'lunch' | 'snack';
+  name: string;
+  description: string;
+  imageUrl?: string;
+  order?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** @deprecated Use meal options (MealOption) per category instead. Kept for migration. */
 export interface FoodMenu {
   id: string;
   schoolId: string;

@@ -511,9 +511,9 @@ export default function ChildDetailPage() {
                 <span className="text-sm text-slate-600 dark:text-slate-300">
                   {r.timestamp ? new Date(r.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </span>
-                {(r.mealType || r.medicationName || r.incidentDetails) && (
+                {(r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails) && (
                   <span className="text-sm text-slate-700 dark:text-slate-200">
-                    {r.mealType ?? r.medicationName ?? r.incidentDetails}
+                    {r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails}
                   </span>
                 )}
                 {r.notes && (

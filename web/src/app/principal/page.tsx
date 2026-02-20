@@ -70,7 +70,7 @@ export default function PrincipalDashboard() {
 
   const quickLinks = [
     { to: '/principal/announcements', label: 'Announcements' },
-    { to: '/principal/food-menus', label: 'Food menus' },
+    { to: '/principal/food-menus', label: 'Meal options' },
     { to: '/principal/classes', label: 'Classes' },
     { to: '/principal/settings', label: 'School settings' },
   ];

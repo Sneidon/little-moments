@@ -215,7 +215,7 @@ export default function ClassActivitiesPage() {
                         : '—'}
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                      {r.mealType ?? r.medicationName ?? r.incidentDetails ?? '—'}
+                      {r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.notes ?? '—'}</td>
                   </tr>

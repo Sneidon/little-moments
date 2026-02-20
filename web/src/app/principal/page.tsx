@@ -78,14 +78,14 @@ export default function PrincipalDashboard() {
   return (
     <div className="animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Dashboard</h1>
-        <p className="mt-1 text-slate-600">Welcome back, {profile?.displayName ?? 'Principal'}.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">Dashboard</h1>
+        <p className="mt-1 text-slate-600 dark:text-slate-400">Welcome back, {profile?.displayName ?? 'Principal'}.</p>
       </div>
 
       {loading ? (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card h-36 animate-pulse bg-slate-100" />
+            <div key={i} className="card h-36 animate-pulse bg-slate-100 dark:bg-slate-700" />
           ))}
         </div>
       ) : (
@@ -96,21 +96,21 @@ export default function PrincipalDashboard() {
               href={to}
               className="card-hover block p-6"
             >
-              <p className="text-3xl font-bold tabular-nums text-slate-900">{value}</p>
-              <h2 className="mt-1 font-semibold text-slate-800">{label}</h2>
-              <p className="mt-1 text-sm text-slate-500">{desc}</p>
+              <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{value}</p>
+              <h2 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{label}</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{desc}</p>
             </Link>
           ))}
         </div>
       )}
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-800">Quick actions</h2>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">Quick actions</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {quickLinks.map(({ to, label }) => (
           <Link
             key={to}
             href={to}
-            className="card-hover flex items-center px-5 py-3.5 text-sm font-medium text-slate-700"
+            className="card-hover flex items-center px-5 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-200"
           >
             {label}
           </Link>

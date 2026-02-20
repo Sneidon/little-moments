@@ -11,7 +11,7 @@ export function LoadingScreen({ message, variant = 'primary' }: LoadingScreenPro
 
   return (
     <div
-      className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-50 px-4"
+      className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-50 px-4 dark:bg-slate-900"
       role="status"
       aria-live="polite"
       aria-label={message ?? 'Loading'}
@@ -21,7 +21,7 @@ export function LoadingScreen({ message, variant = 'primary' }: LoadingScreenPro
         aria-hidden
       />
       {message && (
-        <p className="text-sm font-medium text-slate-600 animate-fade-in">{message}</p>
+        <p className="text-sm font-medium text-slate-600 animate-fade-in dark:text-slate-400">{message}</p>
       )}
     </div>
   );

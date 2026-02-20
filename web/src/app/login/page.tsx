@@ -6,6 +6,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { HeartIcon } from '@/components/HeartIcon';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -38,25 +39,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-primary-50/40 to-slate-100 px-4 py-8">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-primary-50/40 to-slate-100 px-4 py-8 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm animate-fade-in-up">
         <form
           onSubmit={handleLogin}
-          className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-soft ring-1 ring-slate-900/5"
+          className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-soft ring-1 ring-slate-900/5 dark:border-slate-600 dark:bg-slate-800 dark:ring-slate-700"
           noValidate
         >
           <div className="mb-8 flex flex-col items-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-100">
-              <HeartIcon size={32} className="text-primary-600" aria-hidden />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-100 dark:bg-primary-900/50">
+              <HeartIcon size={32} className="text-primary-600 dark:text-primary-400" aria-hidden />
             </div>
-            <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-800">
+            <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
               My Little Moments
             </h1>
-            <p className="mt-1.5 text-sm text-slate-500">Admin sign in</p>
+            <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">Admin sign in</p>
           </div>
           <div className="space-y-4">
             <div>
-              <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Email
               </label>
               <input
@@ -73,7 +77,7 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Password
               </label>
               <input
@@ -92,7 +96,7 @@ export default function LoginPage() {
           {error && (
             <p
               id="login-error"
-              className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100"
+              className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800"
               role="alert"
             >
               {error}
@@ -105,7 +109,7 @@ export default function LoginPage() {
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
-          <p className="mt-6 text-center text-xs text-slate-500">
+          <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
             For principals and super admins only.
           </p>
         </form>

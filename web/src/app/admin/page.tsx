@@ -51,14 +51,14 @@ export default function AdminDashboard() {
   return (
     <div className="animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Super Admin Dashboard</h1>
-        <p className="mt-1 text-slate-600">Welcome back, {profile?.displayName ?? 'Super Admin'}.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">Super Admin Dashboard</h1>
+        <p className="mt-1 text-slate-600 dark:text-slate-400">Welcome back, {profile?.displayName ?? 'Super Admin'}.</p>
       </div>
 
       {loading ? (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="card h-32 animate-pulse bg-slate-100" />
+            <div key={i} className="card h-32 animate-pulse bg-slate-100 dark:bg-slate-700" />
           ))}
         </div>
       ) : (
@@ -70,13 +70,13 @@ export default function AdminDashboard() {
                 href={c.to}
                 className="card-hover block p-6"
               >
-                <p className="text-3xl font-bold tabular-nums text-slate-900">{c.value}</p>
-                <h2 className="mt-1 font-semibold text-slate-700">{c.label}</h2>
+                <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{c.value}</p>
+                <h2 className="mt-1 font-semibold text-slate-700 dark:text-slate-200">{c.label}</h2>
               </Link>
             ) : (
               <div key={c.label} className="card p-6">
-                <p className="text-3xl font-bold tabular-nums text-slate-900">{c.value}</p>
-                <h2 className="mt-1 font-semibold text-slate-700">{c.label}</h2>
+                <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{c.value}</p>
+                <h2 className="mt-1 font-semibold text-slate-700 dark:text-slate-200">{c.label}</h2>
               </div>
             )
           )}
@@ -84,7 +84,7 @@ export default function AdminDashboard() {
       )}
 
       <div className="card p-6">
-        <h2 className="mb-4 font-semibold text-slate-800">Quick links</h2>
+        <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-200">Quick links</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/schools"

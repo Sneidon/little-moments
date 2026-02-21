@@ -19,3 +19,16 @@ export function formatClassDisplay(c: ClassRoom | null | undefined): string {
   if (max) return `${c.name} (up to ${max})`;
   return c.name;
 }
+
+/** Format age from date of birth (ISO string). Returns "—" if invalid or missing. */
+export function ageFromDob(dateOfBirth: string | undefined): string {
+  if (!dateOfBirth) return '—';
+  try {
+    const dob = new Date(dateOfBirth);
+    const now = new Date();
+    const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+    return formatAgeMonths(months);
+  } catch {
+    return '—';
+  }
+}

@@ -21,6 +21,7 @@ const navSections: { title: string; links: { href: string; label: string }[] }[]
       { href: '/principal/children', label: 'Children' },
       { href: '/principal/classes', label: 'Classes' },
       { href: '/principal/staff', label: 'Staff' },
+      { href: '/principal/parents', label: 'Parents' },
     ],
   },
   {

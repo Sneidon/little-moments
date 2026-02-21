@@ -40,11 +40,8 @@ export default function StaffPage() {
   } = useStaffPage();
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <StaffPageHeader onExportPdf={handleExportPdf} onAddTeacher={openAddForm} />
-      <p className="mb-8 text-slate-600 dark:text-slate-300">
-        Teachers and principals at your school. Assign teachers to classes from the Classes page. Parents are managed on the Parents page.
-      </p>
 
       {showAddForm && (
         <AddTeacherForm
@@ -69,7 +66,7 @@ export default function StaffPage() {
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <div className="card h-48 animate-pulse bg-slate-100 dark:bg-slate-700" />
       ) : (
         <>
           <StaffFilters
@@ -77,6 +74,8 @@ export default function StaffPage() {
             onRoleFilterChange={setStaffRoleFilter}
             search={staffSearch}
             onSearchChange={setStaffSearch}
+            filteredCount={filteredStaff.length}
+            totalCount={staffMembers.length}
           />
           <StaffTable
             staff={filteredStaff}

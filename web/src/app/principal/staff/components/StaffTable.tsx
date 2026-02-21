@@ -18,24 +18,25 @@ export function StaffTable({
   onEditTeacher,
 }: StaffTableProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 dark:bg-slate-700">
-          <tr>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Name</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Preferred name</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Email</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Role</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Status</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Assigned class</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Added</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Updated</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {staff.map((u) => (
-            <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600">
+    <div className="card overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50/80 dark:bg-slate-700">
+            <tr>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Preferred name</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Email</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Role</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Assigned class</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Added</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Updated</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {staff.map((u) => (
+              <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
               <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{u.displayName ?? '—'}</td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.preferredName ?? '—'}</td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email}</td>
@@ -82,12 +83,16 @@ export function StaffTable({
         </tbody>
       </table>
       {staff.length === 0 && (
-        <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
-          {totalCount === 0
-            ? 'No staff in this school yet. Use Add teacher to add teachers.'
-            : 'No staff match the current filters.'}
-        </p>
+        <div className="px-4 py-12 text-center">
+          <p className="text-slate-500 dark:text-slate-400">
+            {totalCount === 0 ? 'No staff yet.' : 'No staff match the current filters.'}
+          </p>
+          <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
+            {totalCount === 0 ? 'Add a teacher to get started.' : 'Try changing the filter or search.'}
+          </p>
+        </div>
       )}
+      </div>
     </div>
   );
 }

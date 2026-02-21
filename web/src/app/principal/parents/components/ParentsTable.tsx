@@ -10,20 +10,21 @@ export interface ParentsTableProps {
 
 export function ParentsTable({ parents, totalCount }: ParentsTableProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 dark:bg-slate-700">
-          <tr>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Name</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Email</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Phone</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Status</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Linked children</th>
-          </tr>
-        </thead>
-        <tbody>
-          {parents.map((p) => (
-            <tr key={p.uid} className="border-t border-slate-100 dark:border-slate-600">
+    <div className="card overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50/80 dark:bg-slate-700">
+            <tr>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Email</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Phone</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Linked children</th>
+            </tr>
+          </thead>
+          <tbody>
+            {parents.map((p) => (
+              <tr key={p.uid} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
               <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{p.displayName ?? '—'}</td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.email ?? '—'}</td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.phone ?? '—'}</td>
@@ -60,12 +61,16 @@ export function ParentsTable({ parents, totalCount }: ParentsTableProps) {
         </tbody>
       </table>
       {parents.length === 0 && (
-        <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
-          {totalCount === 0
-            ? "No parents linked to children in this school yet. Invite parents from a child's profile."
-            : 'No parents match the current filters.'}
-        </p>
+        <div className="px-4 py-12 text-center">
+          <p className="text-slate-500 dark:text-slate-400">
+            {totalCount === 0 ? 'No parents yet.' : 'No parents match the current filters.'}
+          </p>
+          <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
+            {totalCount === 0 ? 'Invite parents from a child\'s profile to get started.' : 'Try changing the filter or search.'}
+          </p>
+        </div>
       )}
+      </div>
     </div>
   );
 }

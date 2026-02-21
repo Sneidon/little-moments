@@ -18,18 +18,15 @@ export default function ParentsPage() {
   } = useParentsPage();
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <ParentsPageHeader
         onExportPdf={handleExportPdf}
         exportDisabled={exportingPdf || filteredParents.length === 0}
         exporting={exportingPdf}
       />
-      <p className="mb-8 text-slate-600 dark:text-slate-300">
-        Parents linked to children at your school. Invite and manage parents from each child&apos;s profile page.
-      </p>
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <div className="card h-48 animate-pulse bg-slate-100 dark:bg-slate-700" />
       ) : (
         <>
           <ParentsFilters
@@ -38,6 +35,8 @@ export default function ParentsPage() {
             childFilter={parentChildFilter}
             onChildFilterChange={setParentChildFilter}
             children={children}
+            filteredCount={filteredParents.length}
+            totalCount={parents.length}
           />
           <ParentsTable parents={filteredParents} totalCount={parents.length} />
         </>

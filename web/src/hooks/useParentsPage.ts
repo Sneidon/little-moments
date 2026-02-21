@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { exportStaffPageToPdf, type ParentWithChildren } from '@/lib/exportStaffPagePdf';
+import { requestPasswordResetEmail } from '@/lib/auth';
 import type { UserProfile } from 'shared/types';
 import type { Child } from 'shared/types';
 
@@ -22,6 +23,11 @@ export interface UseParentsPageResult {
   exportingPdf: boolean;
   handleExportPdf: () => void;
   refetch: () => Promise<void>;
+  passwordResetLoadingUid: string | null;
+  passwordResetError: string;
+  passwordResetSuccess: string | null;
+  handleRequestPasswordReset: (user: UserProfile) => Promise<void>;
+  clearPasswordResetFeedback: () => void;
 }
 
 export function useParentsPage(): UseParentsPageResult {
@@ -33,6 +39,9 @@ export function useParentsPage(): UseParentsPageResult {
   const [parentSearch, setParentSearch] = useState('');
   const [parentChildFilter, setParentChildFilter] = useState('');
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
+  const [passwordResetError, setPasswordResetError] = useState('');
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const schoolId = profile?.schoolId;
@@ -104,6 +113,29 @@ export function useParentsPage(): UseParentsPageResult {
     }
   }, [schoolName, filteredParents]);
 
+  const handleRequestPasswordReset = useCallback(async (user: UserProfile) => {
+    const email = user.email?.trim();
+    if (!email) return;
+    setPasswordResetError('');
+    setPasswordResetSuccess(null);
+    setPasswordResetLoadingUid(user.uid);
+    try {
+      await requestPasswordResetEmail(email);
+      setPasswordResetSuccess(email);
+      setPasswordResetError('');
+      setTimeout(() => setPasswordResetSuccess(null), 5000);
+    } catch (err: unknown) {
+      setPasswordResetError(err instanceof Error ? err.message : 'Failed to send reset email.');
+    } finally {
+      setPasswordResetLoadingUid(null);
+    }
+  }, []);
+
+  const clearPasswordResetFeedback = useCallback(() => {
+    setPasswordResetError('');
+    setPasswordResetSuccess(null);
+  }, []);
+
   return {
     loading,
     schoolName,
@@ -118,5 +150,10 @@ export function useParentsPage(): UseParentsPageResult {
     exportingPdf,
     handleExportPdf,
     refetch,
+    passwordResetLoadingUid,
+    passwordResetError,
+    passwordResetSuccess,
+    handleRequestPasswordReset,
+    clearPasswordResetFeedback,
   };
 }

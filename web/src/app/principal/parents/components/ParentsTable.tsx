@@ -2,13 +2,21 @@
 
 import Link from 'next/link';
 import type { ParentWithChildren } from '@/lib/exportStaffPagePdf';
+import type { UserProfile } from 'shared/types';
 
 export interface ParentsTableProps {
   parents: ParentWithChildren[];
   totalCount: number;
+  onRequestPasswordReset?: (user: UserProfile) => void;
+  passwordResetLoadingUid?: string | null;
 }
 
-export function ParentsTable({ parents, totalCount }: ParentsTableProps) {
+export function ParentsTable({
+  parents,
+  totalCount,
+  onRequestPasswordReset,
+  passwordResetLoadingUid,
+}: ParentsTableProps) {
   return (
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
@@ -20,6 +28,7 @@ export function ParentsTable({ parents, totalCount }: ParentsTableProps) {
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Phone</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Linked children</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -61,6 +70,21 @@ export function ParentsTable({ parents, totalCount }: ParentsTableProps) {
                   </span>
                 ) : (
                   <span className="text-slate-500 dark:text-slate-400">—</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                {p.email && onRequestPasswordReset ? (
+                  <button
+                    type="button"
+                    onClick={() => onRequestPasswordReset(p)}
+                    disabled={passwordResetLoadingUid === p.uid}
+                    className="text-slate-600 dark:text-slate-400 hover:underline disabled:opacity-50"
+                    title="Send password reset email to this parent"
+                  >
+                    {passwordResetLoadingUid === p.uid ? 'Sending…' : 'Send reset email'}
+                  </button>
+                ) : (
+                  '—'
                 )}
               </td>
             </tr>

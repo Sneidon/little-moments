@@ -8,6 +8,8 @@ export interface StaffTableProps {
   classForTeacher: (uid: string) => string | undefined;
   formatDate: (s: string | undefined) => string;
   onEditTeacher: (u: UserProfile) => void;
+  onRequestPasswordReset?: (u: UserProfile) => void;
+  passwordResetLoadingUid?: string | null;
 }
 
 export function StaffTable({
@@ -16,6 +18,8 @@ export function StaffTable({
   classForTeacher,
   formatDate,
   onEditTeacher,
+  onRequestPasswordReset,
+  passwordResetLoadingUid,
 }: StaffTableProps) {
   return (
     <div className="card overflow-hidden">
@@ -68,15 +72,28 @@ export function StaffTable({
               <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{formatDate(u.createdAt)}</td>
               <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{formatDate(u.updatedAt)}</td>
               <td className="px-4 py-3">
-                {u.role === 'teacher' && (
-                  <button
-                    type="button"
-                    onClick={() => onEditTeacher(u)}
-                    className="text-primary-600 dark:text-primary-400 hover:underline"
-                  >
-                    Edit
-                  </button>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {u.role === 'teacher' && (
+                    <button
+                      type="button"
+                      onClick={() => onEditTeacher(u)}
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {(u.role === 'teacher' || u.role === 'principal') && u.email && onRequestPasswordReset && (
+                    <button
+                      type="button"
+                      onClick={() => onRequestPasswordReset(u)}
+                      disabled={passwordResetLoadingUid === u.uid}
+                      className="text-slate-600 dark:text-slate-400 hover:underline disabled:opacity-50"
+                      title="Send password reset email to this user"
+                    >
+                      {passwordResetLoadingUid === u.uid ? 'Sending…' : 'Send reset email'}
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}

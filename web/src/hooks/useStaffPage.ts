@@ -7,6 +7,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
 import { exportStaffPageToPdf, type StaffRowForPdf } from '@/lib/exportStaffPagePdf';
+import { requestPasswordResetEmail } from '@/lib/auth';
 import type { UserProfile } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
@@ -74,6 +75,11 @@ export interface UseStaffPageResult {
   cancelEditTeacher: () => void;
   handleExportPdf: () => void;
   refetch: () => Promise<void>;
+  passwordResetLoadingUid: string | null;
+  passwordResetError: string;
+  passwordResetSuccess: string | null;
+  handleRequestPasswordReset: (user: UserProfile) => Promise<void>;
+  clearPasswordResetFeedback: () => void;
 }
 
 export function useStaffPage(): UseStaffPageResult {
@@ -96,6 +102,9 @@ export function useStaffPage(): UseStaffPageResult {
   });
   const [editError, setEditError] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
+  const [passwordResetError, setPasswordResetError] = useState('');
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const schoolId = profile?.schoolId;
@@ -246,6 +255,29 @@ export function useStaffPage(): UseStaffPageResult {
     });
   }, [filteredStaff, classForTeacher, schoolName]);
 
+  const handleRequestPasswordReset = useCallback(async (user: UserProfile) => {
+    const email = user.email?.trim();
+    if (!email) return;
+    setPasswordResetError('');
+    setPasswordResetSuccess(null);
+    setPasswordResetLoadingUid(user.uid);
+    try {
+      await requestPasswordResetEmail(email);
+      setPasswordResetSuccess(email);
+      setPasswordResetError('');
+      setTimeout(() => setPasswordResetSuccess(null), 5000);
+    } catch (err: unknown) {
+      setPasswordResetError(err instanceof Error ? err.message : 'Failed to send reset email.');
+    } finally {
+      setPasswordResetLoadingUid(null);
+    }
+  }, []);
+
+  const clearPasswordResetFeedback = useCallback(() => {
+    setPasswordResetError('');
+    setPasswordResetSuccess(null);
+  }, []);
+
   return {
     loading,
     schoolName,
@@ -276,5 +308,10 @@ export function useStaffPage(): UseStaffPageResult {
     cancelEditTeacher,
     handleExportPdf,
     refetch,
+    passwordResetLoadingUid,
+    passwordResetError,
+    passwordResetSuccess,
+    handleRequestPasswordReset,
+    clearPasswordResetFeedback,
   };
 }

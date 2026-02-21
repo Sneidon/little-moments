@@ -6,9 +6,16 @@ import type { UserProfile } from 'shared/types';
 export interface ParentDetailHeaderProps {
   parent: UserProfile;
   childrenCount: number;
+  onRequestPasswordReset?: () => void;
+  passwordResetSending?: boolean;
 }
 
-export function ParentDetailHeader({ parent, childrenCount }: ParentDetailHeaderProps) {
+export function ParentDetailHeader({
+  parent,
+  childrenCount,
+  onRequestPasswordReset,
+  passwordResetSending,
+}: ParentDetailHeaderProps) {
   return (
     <>
       <div className="mb-6 flex items-center gap-4 border-b border-slate-200 dark:border-slate-600 pb-4">
@@ -31,6 +38,19 @@ export function ParentDetailHeader({ parent, childrenCount }: ParentDetailHeader
               {childrenCount} linked {childrenCount === 1 ? 'child' : 'children'}
             </p>
           </div>
+          {parent.email && onRequestPasswordReset && (
+            <div className="shrink-0">
+              <button
+                type="button"
+                onClick={onRequestPasswordReset}
+                disabled={passwordResetSending}
+                className="btn-secondary disabled:opacity-50"
+                title="Send password reset email to this parent"
+              >
+                {passwordResetSending ? 'Sending…' : 'Send password reset email'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </>

@@ -9,11 +9,18 @@ import { exportChildDetailsToPdf } from '@/lib/exportChildDetailsPdf';
 import { useChildDetail } from '@/hooks/useChildDetail';
 import { useChildParents } from '@/hooks/useChildParents';
 import { useParentsManagement } from '@/hooks/useParentsManagement';
+import { ExportPdfOptionsDialog } from '@/components/ExportPdfOptionsDialog';
 import {
   ChildDetailHeader,
   ParentsSection,
   ActivityList,
 } from './components';
+
+const CHILD_EXPORT_SECTIONS = [
+  { id: 'profile', label: 'Profile' },
+  { id: 'parents', label: 'Parents' },
+  { id: 'activitySummary', label: 'Activity summary' },
+] as const;
 
 export default function ChildDetailPage() {
   const { profile } = useAuth();
@@ -27,6 +34,7 @@ export default function ChildDetailPage() {
   const [filterDay, setFilterDay] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
+  const [exportPdfOpen, setExportPdfOpen] = useState(false);
 
   const parentManagement = useParentsManagement({
     child,
@@ -48,16 +56,27 @@ export default function ChildDetailPage() {
   const yesterdayIso = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
   const activitySummaryText = getActivitySummaryText(reportsForDay);
 
-  const handleExportPdf = useCallback(() => {
-    if (!child) return;
-    exportChildDetailsToPdf({
-      child,
-      classes,
-      parents,
-      reports,
-      classDisplay,
-    });
-  }, [child, classes, parents, reports, classDisplay]);
+  const openExportPdf = useCallback(() => setExportPdfOpen(true), []);
+
+  const handleExportPdfWithOptions = useCallback(
+    (selectedIds: string[]) => {
+      if (!child) return;
+      const set = new Set(selectedIds);
+      exportChildDetailsToPdf({
+        child,
+        classes,
+        parents,
+        reports,
+        classDisplay,
+        include: {
+          profile: set.has('profile'),
+          parents: set.has('parents'),
+          activitySummary: set.has('activitySummary'),
+        },
+      });
+    },
+    [child, classes, parents, reports, classDisplay]
+  );
 
   if (loading || !child) {
     return (
@@ -69,13 +88,20 @@ export default function ChildDetailPage() {
 
   return (
     <div className="animate-fade-in">
+      <ExportPdfOptionsDialog
+        open={exportPdfOpen}
+        onClose={() => setExportPdfOpen(false)}
+        title="Export child details to PDF"
+        sections={CHILD_EXPORT_SECTIONS}
+        onExport={handleExportPdfWithOptions}
+      />
       <ChildDetailHeader
         child={child}
         ageText={ageFromDob(child.dateOfBirth)}
         classDisplay={classDisplay(child.classId)}
         reportsCount={reports.length}
         lastReportTimestamp={reports[0]?.timestamp}
-        onExportPdf={handleExportPdf}
+        onExportPdf={openExportPdf}
       />
 
       <ParentsSection

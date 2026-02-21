@@ -6,22 +6,33 @@ export interface ClassDetailHeaderProps {
   classRoom: ClassRoom;
   assignedTeacherName: string;
   childrenCount: number;
+  onExportPdf?: () => void;
 }
 
 export function ClassDetailHeader({
   classRoom,
   assignedTeacherName,
   childrenCount,
+  onExportPdf,
 }: ClassDetailHeaderProps) {
   return (
     <>
-      <div className="mb-6 flex items-center gap-4">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <Link
           href="/principal/classes"
           className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"
         >
           ← Back to classes
         </Link>
+        {onExportPdf && (
+          <button
+            type="button"
+            onClick={onExportPdf}
+            className="btn-secondary shrink-0"
+          >
+            Export PDF
+          </button>
+        )}
       </div>
 
       <div className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">

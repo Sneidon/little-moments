@@ -6,11 +6,19 @@ import { useState, useCallback } from 'react';
 import { useClassDetail, type ClassReportRow } from '@/hooks/useClassDetail';
 import { getTeacherDisplayName } from '@/lib/teachers';
 import { getReportsForDay, getDaysWithActivity } from '@/lib/reports';
+import { formatClassDisplay } from '@/lib/formatClass';
+import { exportClassDetailToPdf } from '@/lib/exportClassDetailPdf';
+import { ExportPdfOptionsDialog } from '@/components/ExportPdfOptionsDialog';
 import {
   ClassDetailHeader,
   ClassActivitiesSection,
   ChildrenInClassList,
 } from './components';
+
+const CLASS_EXPORT_SECTIONS = [
+  { id: 'children', label: 'Children in this class' },
+  { id: 'activities', label: 'Activities for selected day' },
+] as const;
 
 export default function ClassActivitiesPage() {
   const { profile } = useAuth();
@@ -23,6 +31,7 @@ export default function ClassActivitiesPage() {
   const [filterDay, setFilterDay] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
+  const [exportPdfOpen, setExportPdfOpen] = useState(false);
 
   const teacherName = useCallback(
     (uid: string) => getTeacherDisplayName(uid, teachers),
@@ -31,6 +40,31 @@ export default function ClassActivitiesPage() {
 
   const reportsForDay = getReportsForDay(reports, filterDay) as ClassReportRow[];
   const daysWithActivity = getDaysWithActivity(reports);
+
+  const openExportPdf = useCallback(() => setExportPdfOpen(true), []);
+
+  const handleExportPdfWithOptions = useCallback(
+    (selectedIds: string[]) => {
+      if (!classRoom) return;
+      const set = new Set(selectedIds);
+      exportClassDetailToPdf({
+        classRoom,
+        assignedTeacherName:
+          classRoom.assignedTeacherId
+            ? teacherName(classRoom.assignedTeacherId)
+            : '—',
+        children,
+        filterDay,
+        reportsForDay,
+        classDisplayName: formatClassDisplay(classRoom),
+        include: {
+          children: set.has('children'),
+          activities: set.has('activities'),
+        },
+      });
+    },
+    [classRoom, children, filterDay, reportsForDay, teacherName]
+  );
 
   if (loading || !classRoom) {
     return (
@@ -42,6 +76,13 @@ export default function ClassActivitiesPage() {
 
   return (
     <div>
+      <ExportPdfOptionsDialog
+        open={exportPdfOpen}
+        onClose={() => setExportPdfOpen(false)}
+        title="Export class to PDF"
+        sections={CLASS_EXPORT_SECTIONS}
+        onExport={handleExportPdfWithOptions}
+      />
       <ClassDetailHeader
         classRoom={classRoom}
         assignedTeacherName={
@@ -50,6 +91,7 @@ export default function ClassActivitiesPage() {
             : '—'
         }
         childrenCount={children.length}
+        onExportPdf={openExportPdf}
       />
 
       <ClassActivitiesSection

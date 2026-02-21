@@ -22,16 +22,31 @@ import { ageFromDob } from '@/lib/formatClass';
 
 export type ClassDisplayFn = (classId: string | null | undefined) => string;
 
+export interface ExportChildDetailsInclude {
+  profile?: boolean;
+  parents?: boolean;
+  activitySummary?: boolean;
+}
+
 export interface ExportChildDetailsOptions {
   child: Child;
   classes: ClassRoom[];
   parents: UserProfile[];
   reports: DailyReport[];
   classDisplay: ClassDisplayFn;
+  /** Which sections to include. Defaults to all true. */
+  include?: ExportChildDetailsInclude;
 }
+
+const DEFAULT_CHILD_INCLUDE: Required<ExportChildDetailsInclude> = {
+  profile: true,
+  parents: true,
+  activitySummary: true,
+};
 
 export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): void {
   const { child, classes, parents, reports, classDisplay } = options;
+  const inc = { ...DEFAULT_CHILD_INCLUDE, ...options.include };
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const margin = PDF_MARGIN.portrait;
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -46,6 +61,7 @@ export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): voi
     startY: margin,
   });
 
+  if (inc.profile) {
   y = pdfAddSectionTitle(doc, 'Profile', margin, y);
   doc.setFontSize(PDF_FONT.bodySize);
   const profileRows: [string, string][] = [
@@ -78,8 +94,9 @@ export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): voi
     columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 'auto' } },
   });
   y = (doc as DocWithAutoTable).lastAutoTable.finalY + 10;
+  }
 
-  if (parents.length > 0) {
+  if (inc.parents && parents.length > 0) {
     if (y > 240) {
       pdfAddFooter(doc, margin, pageHeight, footerRight);
       doc.addPage();
@@ -104,6 +121,7 @@ export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): voi
     y = (doc as DocWithAutoTable).lastAutoTable.finalY + 10;
   }
 
+  if (inc.activitySummary) {
   if (y > 250) {
     pdfAddFooter(doc, margin, pageHeight, footerRight);
     doc.addPage();
@@ -120,6 +138,7 @@ export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): voi
       margin,
       y
     );
+  }
   }
 
   pdfAddFooter(doc, margin, pageHeight, footerRight);

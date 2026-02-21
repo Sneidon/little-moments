@@ -70,6 +70,8 @@ export interface Announcement {
   imageUrl?: string;
   /** Optional document uploads (label + URL). */
   documents?: EventDocumentLink[];
+  /** Optional manual links (label + URL). */
+  links?: EventDocumentLink[];
   createdBy: string;
   createdAt: string;
   targetRole?: UserRole; // optional filter
@@ -95,6 +97,8 @@ export interface Event {
   imageUrl?: string;
   /** Optional document links (name + URL). */
   documents?: EventDocumentLink[];
+  /** Optional manual links (label + URL). */
+  links?: EventDocumentLink[];
   startAt: string;
   endAt?: string;
   createdBy: string;

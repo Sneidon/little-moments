@@ -7,6 +7,12 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
   incident: 'Incident',
 };
 
+/** Options for report type filter (value + label). */
+export const REPORT_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'All types' },
+  ...Object.entries(REPORT_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+];
+
 /** Tailwind class names for report type badges. */
 export const REPORT_TYPE_STYLES: Record<string, string> = {
   nappy_change: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',

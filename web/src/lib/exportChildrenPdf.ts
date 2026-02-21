@@ -4,11 +4,16 @@
  */
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  pdfAddHeader,
+  pdfAddFooter,
+  PDF_MARGIN,
+  PDF_TABLE_HEAD_STYLES_COMPACT,
+  PDF_TABLE_BODY_STYLES_COMPACT,
+  PDF_TABLE_ALTERNATE_ROW,
+} from '@/lib/pdfDesign';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
-
-const FONT_SIZE = 8;
-const BRAND = 'My Little Moments';
 
 export type ClassDisplayFn = (classId: string) => string;
 
@@ -48,9 +53,8 @@ export function exportChildrenToPdf(
   onProgress('Preparing PDF…');
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 10;
+  const margin = PDF_MARGIN.landscape;
 
   const head = [['Name', 'Preferred', 'DOB', 'Class', 'Allergies', 'Emergency']];
   const body = children.map((c) => [
@@ -62,36 +66,22 @@ export function exportChildrenToPdf(
     c.emergencyContactName || c.emergencyContact ? safeStr(c.emergencyContactName || c.emergencyContact) : '—',
   ]);
 
-  // Branding and title (first page)
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text(BRAND, margin, 12);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(14);
-  doc.text('Children roster', margin, 18);
-  doc.setFontSize(10);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Exported ${new Date().toLocaleDateString()} · ${children.length} children`, margin, 24);
-  doc.setTextColor(0, 0, 0);
+  const startY = pdfAddHeader(doc, {
+    title: 'Children roster',
+    meta: `Exported ${new Date().toLocaleDateString()} · ${children.length} children`,
+    margin,
+    startY: 12,
+  });
 
   autoTable(doc, {
     head,
     body,
-    startY: 28,
+    startY,
     margin: { left: margin, right: margin },
     tableWidth: 'auto',
-    styles: {
-      fontSize: FONT_SIZE,
-      cellPadding: 2,
-    },
-    headStyles: {
-      fillColor: [71, 85, 105],
-      textColor: 255,
-      fontStyle: 'bold',
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
+    styles: PDF_TABLE_BODY_STYLES_COMPACT,
+    headStyles: PDF_TABLE_HEAD_STYLES_COMPACT,
+    alternateRowStyles: PDF_TABLE_ALTERNATE_ROW,
     columnStyles: {
       0: { cellWidth: 32 },
       1: { cellWidth: 28 },
@@ -101,17 +91,8 @@ export function exportChildrenToPdf(
       5: { cellWidth: 38 },
     },
     didDrawPage: () => {
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(BRAND, margin, pageHeight - 6);
-      doc.text(
-        `${children.length} children`,
-        pageWidth - margin,
-        pageHeight - 6,
-        { align: 'right' }
-      );
+      pdfAddFooter(doc, margin, pageHeight, `${children.length} children`);
     },
-    // Ensure header row repeats on each new page (default in autoTable)
     showHead: 'everyPage',
   });
 

@@ -13,7 +13,8 @@ export interface InviteParentParams {
   parentEmail: string;
   parentDisplayName?: string;
   parentPhone?: string;
-  parentPassword: string;
+  /** Required only for new accounts; leave empty to link an existing parent by email. */
+  parentPassword?: string;
 }
 
 export interface UpdateParentParams {
@@ -34,6 +35,14 @@ export function getCallableErrorMessage(err: unknown): string {
   return 'Something went wrong';
 }
 
+/** Check if a user with this email already exists. Principal only. Used before invite to choose link vs create. */
+export async function checkParentEmail(email: string): Promise<{ exists: boolean }> {
+  const functions = getFunctions(app);
+  const check = httpsCallable<{ email: string }, { exists: boolean }>(functions, 'checkParentEmail');
+  const result = await check({ email: email.trim() });
+  return result.data;
+}
+
 /** Invite a new parent to a child. Returns updated child if you refetched from Firestore. */
 export async function inviteParentToChild(params: InviteParentParams): Promise<void> {
   const functions = getFunctions(app);
@@ -43,16 +52,16 @@ export async function inviteParentToChild(params: InviteParentParams): Promise<v
       parentEmail: string;
       parentDisplayName?: string;
       parentPhone?: string;
-      parentPassword: string;
+      parentPassword?: string;
     },
-    { parentUid: string }
+    { parentUid: string; linked?: boolean }
   >(functions, 'inviteParentToChild');
   await invite({
     childId: params.childId,
     parentEmail: params.parentEmail.trim(),
     parentDisplayName: params.parentDisplayName?.trim() || undefined,
     parentPhone: params.parentPhone?.trim() || undefined,
-    parentPassword: params.parentPassword,
+    parentPassword: params.parentPassword || undefined,
   });
 }
 

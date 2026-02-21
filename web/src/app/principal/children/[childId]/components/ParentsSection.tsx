@@ -1,7 +1,8 @@
 import type { UserProfile } from 'shared/types';
-import type { InviteFormState, EditFormState } from '@/hooks/useParentsManagement';
+import type { InviteFormState, EditFormState, InviteStep } from '@/hooks/useParentsManagement';
 
 export interface ParentsSectionProps {
+  childName?: string;
   maxParents: number;
   parents: UserProfile[];
   canInviteMore: boolean;
@@ -9,6 +10,11 @@ export interface ParentsSectionProps {
   setShowInviteParent: (show: boolean) => void;
   inviteForm: InviteFormState;
   setInviteForm: React.Dispatch<React.SetStateAction<InviteFormState>>;
+  inviteStep: InviteStep;
+  inviteCheckLoading: boolean;
+  inviteCheckError: string;
+  onCheckEmail: (e: React.FormEvent) => Promise<void>;
+  resetInviteToStep1: () => void;
   inviteSubmitting: boolean;
   inviteError: string;
   setInviteError: (msg: string) => void;
@@ -24,6 +30,7 @@ export interface ParentsSectionProps {
 }
 
 export function ParentsSection({
+  childName,
   maxParents,
   parents,
   canInviteMore,
@@ -31,6 +38,11 @@ export function ParentsSection({
   setShowInviteParent,
   inviteForm,
   setInviteForm,
+  inviteStep,
+  inviteCheckLoading,
+  inviteCheckError,
+  onCheckEmail,
+  resetInviteToStep1,
   inviteSubmitting,
   inviteError,
   setInviteError,
@@ -54,6 +66,8 @@ export function ParentsSection({
       parentPassword: '',
     });
   };
+
+  const childLabel = childName ? ` to ${childName}` : ' to this child';
 
   return (
     <section className="card mb-8 p-6">
@@ -181,14 +195,17 @@ export function ParentsSection({
             <button type="button" onClick={() => setShowInviteParent(true)} className="btn-primary">
               Invite parent
             </button>
-          ) : (
+          ) : inviteStep === 'email' ? (
             <form
-              onSubmit={onInviteSubmit}
+              onSubmit={onCheckEmail}
               className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
             >
-              <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent</h3>
-              {inviteError ? (
-                <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
+              <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Step 1</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Enter the parent&apos;s email. We&apos;ll check if they already have an account.
+              </p>
+              {inviteCheckError ? (
+                <p className="text-sm text-red-600 dark:text-red-400">{inviteCheckError}</p>
               ) : null}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
@@ -197,7 +214,84 @@ export function ParentsSection({
                   value={inviteForm.parentEmail}
                   onChange={(e) => setInviteForm((f) => ({ ...f, parentEmail: e.target.value }))}
                   className="input-base"
+                  placeholder="parent@example.com"
                   required
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={inviteCheckLoading} className="btn-primary">
+                  {inviteCheckLoading ? 'Checking…' : 'Check for account'}
+                </button>
+                <button type="button" onClick={resetInviteForm} className="btn-secondary">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : inviteStep === 'link' ? (
+            <form
+              onSubmit={onInviteSubmit}
+              className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
+            >
+              <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Link existing account</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                <strong>{inviteForm.parentEmail}</strong> already has an account. Link them{childLabel}?
+              </p>
+              {inviteError ? (
+                <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
+              ) : null}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Display name
+                </label>
+                <input
+                  type="text"
+                  value={inviteForm.parentDisplayName}
+                  onChange={(e) => setInviteForm((f) => ({ ...f, parentDisplayName: e.target.value }))}
+                  className="input-base"
+                  placeholder="Optional — update how they appear"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
+                <input
+                  type="tel"
+                  value={inviteForm.parentPhone}
+                  onChange={(e) => setInviteForm((f) => ({ ...f, parentPhone: e.target.value }))}
+                  className="input-base"
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={inviteSubmitting} className="btn-primary">
+                  {inviteSubmitting ? 'Linking…' : 'Link parent'}
+                </button>
+                <button type="button" onClick={resetInviteToStep1} className="btn-secondary">
+                  Back
+                </button>
+                <button type="button" onClick={resetInviteForm} className="btn-secondary">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form
+              onSubmit={onInviteSubmit}
+              className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
+            >
+              <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Create account</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                No account found for this email. Create one and link them{childLabel}.
+              </p>
+              {inviteError ? (
+                <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
+              ) : null}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+                <input
+                  type="email"
+                  value={inviteForm.parentEmail}
+                  readOnly
+                  className="input-base bg-slate-100 dark:bg-slate-700 cursor-not-allowed"
                 />
               </div>
               <div>
@@ -238,7 +332,10 @@ export function ParentsSection({
               </div>
               <div className="flex gap-2">
                 <button type="submit" disabled={inviteSubmitting} className="btn-primary">
-                  {inviteSubmitting ? 'Inviting…' : 'Invite parent'}
+                  {inviteSubmitting ? 'Creating…' : 'Create account & link'}
+                </button>
+                <button type="button" onClick={resetInviteToStep1} className="btn-secondary">
+                  Back
                 </button>
                 <button type="button" onClick={resetInviteForm} className="btn-secondary">
                   Cancel

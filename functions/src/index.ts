@@ -491,8 +491,38 @@ export const updateTeacher = functions.https.onCall(async (data, context) => {
 
 const MAX_PARENTS_PER_CHILD = 4;
 
-// Invite a parent to a child. Callable by principal only. Creates Auth user + users doc (role=parent)
-// and adds the parent's uid to the child's parentIds (max 4 parents per child).
+// Check whether a user with this email already exists. Callable by principal only.
+// Used to decide whether to "link existing" or "create & link" when inviting a parent.
+export const checkParentEmail = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can check parent email.');
+  }
+  const { email } = data as { email?: string };
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Email is required.');
+  }
+  try {
+    await admin.auth().getUserByEmail(email.trim());
+    return { exists: true };
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+    if (code === 'auth/user-not-found') {
+      return { exists: false };
+    }
+    throw err;
+  }
+});
+
+// Invite a parent to a child. Callable by principal only.
+// If a user with that email already exists, links them to the child (adds to parentIds).
+// Otherwise creates Auth user + users doc (role=parent) and adds to parentIds. Max 4 parents per child.
 export const inviteParentToChild = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
@@ -520,9 +550,6 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
   if (!parentEmail || typeof parentEmail !== 'string' || !parentEmail.trim()) {
     throw new functions.https.HttpsError('invalid-argument', 'Parent email is required.');
   }
-  if (!parentPassword || typeof parentPassword !== 'string' || parentPassword.length < 6) {
-    throw new functions.https.HttpsError('invalid-argument', 'Parent password must be at least 6 characters.');
-  }
 
   const childRef = db.collection('schools').doc(schoolId).collection('children').doc(childId);
   const childSnap = await childRef.get();
@@ -538,37 +565,83 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
   }
 
   const now = new Date().toISOString();
-
-  const userRecord = await admin.auth().createUser({
-    email: parentEmail.trim(),
-    password: parentPassword,
-    displayName: (parentDisplayName && typeof parentDisplayName === 'string')
-      ? parentDisplayName.trim()
-      : parentEmail.trim(),
-  });
-  const parentUid = userRecord.uid;
-
+  const emailTrim = parentEmail.trim();
   const phone = (parentPhone && typeof parentPhone === 'string') ? parentPhone.trim() || undefined : undefined;
-  await db.collection('users').doc(parentUid).set({
-    email: parentEmail.trim(),
-    displayName: (parentDisplayName && typeof parentDisplayName === 'string')
-      ? parentDisplayName.trim()
-      : parentEmail.trim(),
-    ...(phone ? { phone } : {}),
-    role: 'parent',
-    schoolId,
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  });
+  const displayName = (parentDisplayName && typeof parentDisplayName === 'string') ? parentDisplayName.trim() : undefined;
 
-  const newParentIds = [...parentIds, parentUid];
-  await childRef.update({
-    parentIds: newParentIds,
-    updatedAt: now,
-  });
+  let parentUid: string;
+  let linked = false;
 
-  return { parentUid };
+  try {
+    const existingUser = await admin.auth().getUserByEmail(emailTrim);
+    parentUid = existingUser.uid;
+    linked = true;
+
+    if (parentIds.includes(parentUid)) {
+      throw new functions.https.HttpsError('failed-precondition', 'This parent is already linked to this child.');
+    }
+
+    const userRef = db.collection('users').doc(parentUid);
+    const userSnap = await userRef.get();
+    const updates: Record<string, unknown> = { updatedAt: now, schoolId };
+    if (displayName) updates.displayName = displayName;
+    if (phone !== undefined) updates.phone = phone;
+
+    if (userSnap.exists) {
+      await userRef.update(updates);
+    } else {
+      await userRef.set({
+        email: emailTrim,
+        displayName: displayName ?? emailTrim,
+        ...(phone ? { phone } : {}),
+        role: 'parent',
+        schoolId,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    const newParentIds = [...parentIds, parentUid];
+    await childRef.update({
+      parentIds: newParentIds,
+      updatedAt: now,
+    });
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+    if (code === 'auth/user-not-found') {
+      if (!parentPassword || typeof parentPassword !== 'string' || parentPassword.length < 6) {
+        throw new functions.https.HttpsError('invalid-argument', 'Password (min 6 characters) is required for new accounts.');
+      }
+      const userRecord = await admin.auth().createUser({
+        email: emailTrim,
+        password: parentPassword,
+        displayName: displayName ?? emailTrim,
+      });
+      parentUid = userRecord.uid;
+      await db.collection('users').doc(parentUid).set({
+        email: emailTrim,
+        displayName: displayName ?? emailTrim,
+        ...(phone ? { phone } : {}),
+        role: 'parent',
+        schoolId,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const newParentIds = [...parentIds, parentUid];
+      await childRef.update({
+        parentIds: newParentIds,
+        updatedAt: now,
+      });
+    } else if (err && typeof err === 'object' && 'message' in err && (err as { message: string }).message?.includes('already linked')) {
+      throw err;
+    } else {
+      throw err;
+    }
+  }
+
+  return { parentUid, linked };
 });
 
 // Update a parent's name, phone, or active status. Callable by principal only (for parents in their school).

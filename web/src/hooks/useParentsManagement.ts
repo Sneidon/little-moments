@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { Child } from 'shared/types';
 import type { UserProfile } from 'shared/types';
-import { inviteParentToChild, updateParent, refetchChild, getCallableErrorMessage } from '@/services/parents';
+import { checkParentEmail, inviteParentToChild, updateParent, refetchChild, getCallableErrorMessage } from '@/services/parents';
 import { MAX_PARENTS } from '@/constants/parents';
 
 export interface InviteFormState {
@@ -27,11 +27,18 @@ export interface UseParentsManagementOptions {
   setChild: (c: Child | null) => void;
 }
 
+export type InviteStep = 'email' | 'link' | 'create';
+
 export interface UseParentsManagementResult {
   showInviteParent: boolean;
   setShowInviteParent: (show: boolean) => void;
   inviteForm: InviteFormState;
   setInviteForm: React.Dispatch<React.SetStateAction<InviteFormState>>;
+  inviteStep: InviteStep;
+  inviteCheckLoading: boolean;
+  inviteCheckError: string;
+  handleCheckEmail: (e: React.FormEvent) => Promise<void>;
+  resetInviteToStep1: () => void;
   inviteSubmitting: boolean;
   inviteError: string;
   setInviteError: React.Dispatch<React.SetStateAction<string>>;
@@ -59,9 +66,27 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
   const { child, schoolId, parents, refetchParents, setChild } = options;
   const [showInviteParent, setShowInviteParent] = useState(false);
   const [inviteForm, setInviteForm] = useState<InviteFormState>(INITIAL_INVITE_FORM);
+  const [inviteStep, setInviteStep] = useState<InviteStep>('email');
+  const [inviteCheckLoading, setInviteCheckLoading] = useState(false);
+  const [inviteCheckError, setInviteCheckError] = useState('');
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [editingParentUid, setEditingParentUid] = useState<string | null>(null);
+
+  const setShowInviteParentWithReset = useCallback((show: boolean) => {
+    setShowInviteParent(show);
+    if (show) {
+      setInviteStep('email');
+      setInviteCheckError('');
+      setInviteError('');
+    }
+  }, []);
+
+  const resetInviteToStep1 = useCallback(() => {
+    setInviteStep('email');
+    setInviteCheckError('');
+    setInviteError('');
+  }, []);
   const [editParentForm, setEditParentForm] = useState<EditFormState>({
     displayName: '',
     phone: '',
@@ -109,16 +134,41 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
     [editingParentUid, editParentForm, refetchParents]
   );
 
+  const handleCheckEmail = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setInviteCheckError('');
+      if (!inviteForm.parentEmail?.trim()) {
+        setInviteCheckError('Email is required.');
+        return;
+      }
+      setInviteCheckLoading(true);
+      try {
+        const { exists } = await checkParentEmail(inviteForm.parentEmail.trim());
+        setInviteStep(exists ? 'link' : 'create');
+      } catch (err) {
+        setInviteCheckError(getCallableErrorMessage(err));
+      } finally {
+        setInviteCheckLoading(false);
+      }
+    },
+    [inviteForm.parentEmail]
+  );
+
   const handleInviteParent = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
       setInviteError('');
-      if (!child || !inviteForm.parentEmail?.trim() || !inviteForm.parentPassword || inviteForm.parentPassword.length < 6) {
-        setInviteError('Email and password (min 6 characters) are required.');
+      if (!child || !inviteForm.parentEmail?.trim()) {
+        setInviteError('Email is required.');
         return;
       }
       if ((child.parentIds?.length ?? 0) >= MAX_PARENTS) {
         setInviteError(`Maximum ${MAX_PARENTS} parents allowed.`);
+        return;
+      }
+      if (inviteStep === 'create' && (!inviteForm.parentPassword || inviteForm.parentPassword.length < 6)) {
+        setInviteError('Password (min 6 characters) is required for new accounts.');
         return;
       }
       setInviteSubmitting(true);
@@ -128,7 +178,7 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
           parentEmail: inviteForm.parentEmail.trim(),
           parentDisplayName: inviteForm.parentDisplayName.trim() || undefined,
           parentPhone: inviteForm.parentPhone.trim() || undefined,
-          parentPassword: inviteForm.parentPassword,
+          parentPassword: inviteStep === 'create' ? inviteForm.parentPassword?.trim() : undefined,
         });
         if (schoolId) {
           const updated = await refetchChild(schoolId, child.id);
@@ -142,7 +192,7 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
         setInviteSubmitting(false);
       }
     },
-    [child, schoolId, inviteForm, setChild]
+    [child, schoolId, inviteForm, inviteStep, setChild]
   );
 
   const parentCount = child?.parentIds?.length ?? 0;
@@ -150,9 +200,14 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
 
   return {
     showInviteParent,
-    setShowInviteParent,
+    setShowInviteParent: setShowInviteParentWithReset,
     inviteForm,
     setInviteForm,
+    inviteStep,
+    inviteCheckLoading,
+    inviteCheckError,
+    handleCheckEmail,
+    resetInviteToStep1,
     inviteSubmitting,
     inviteError,
     setInviteError,

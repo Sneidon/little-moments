@@ -105,6 +105,7 @@ export default function ChildDetailPage() {
       />
 
       <ParentsSection
+        childName={child?.name}
         maxParents={parentManagement.maxParents}
         parents={parents}
         canInviteMore={parentManagement.canInviteMore}
@@ -112,6 +113,11 @@ export default function ChildDetailPage() {
         setShowInviteParent={parentManagement.setShowInviteParent}
         inviteForm={parentManagement.inviteForm}
         setInviteForm={parentManagement.setInviteForm}
+        inviteStep={parentManagement.inviteStep}
+        inviteCheckLoading={parentManagement.inviteCheckLoading}
+        inviteCheckError={parentManagement.inviteCheckError}
+        onCheckEmail={parentManagement.handleCheckEmail}
+        resetInviteToStep1={parentManagement.resetInviteToStep1}
         inviteSubmitting={parentManagement.inviteSubmitting}
         inviteError={parentManagement.inviteError}
         setInviteError={parentManagement.setInviteError}

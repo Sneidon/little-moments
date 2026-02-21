@@ -290,7 +290,7 @@ export default function SchoolsPage() {
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Address</th>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Contact</th>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Website</th>
-                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Actions</th>
+                <th className="w-0 px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-200">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -321,11 +321,11 @@ export default function SchoolsPage() {
                       </a>
                     ) : '—'}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
                     <button
                       type="button"
                       onClick={() => startEdit(s)}
-                      className="text-slate-600 hover:underline"
+                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     >
                       Edit
                     </button>

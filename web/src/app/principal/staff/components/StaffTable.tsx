@@ -35,7 +35,7 @@ export function StaffTable({
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Assigned class</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Added</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Updated</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Actions</th>
+              <th className="w-0 px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -71,13 +71,13 @@ export function StaffTable({
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{classForTeacher(u.uid) ?? '—'}</td>
               <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{formatDate(u.createdAt)}</td>
               <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{formatDate(u.updatedAt)}</td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap items-center gap-2">
+              <td className="whitespace-nowrap px-4 py-3 text-right">
+                <div className="flex flex-nowrap items-center justify-end gap-2">
                   {u.role === 'teacher' && (
                     <button
                       type="button"
                       onClick={() => onEditTeacher(u)}
-                      className="text-primary-600 dark:text-primary-400 hover:underline"
+                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     >
                       Edit
                     </button>
@@ -87,11 +87,14 @@ export function StaffTable({
                       type="button"
                       onClick={() => onRequestPasswordReset(u)}
                       disabled={passwordResetLoadingUid === u.uid}
-                      className="text-slate-600 dark:text-slate-400 hover:underline disabled:opacity-50"
+                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                       title="Send password reset email to this user"
                     >
-                      {passwordResetLoadingUid === u.uid ? 'Sending…' : 'Send reset email'}
+                      {passwordResetLoadingUid === u.uid ? '…' : 'Reset'}
                     </button>
+                  )}
+                  {u.role === 'principal' && (!u.email || !onRequestPasswordReset) && (
+                    <span className="text-slate-400">—</span>
                   )}
                 </div>
               </td>

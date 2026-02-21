@@ -20,7 +20,7 @@ export function ClassesTable({
           <tr>
             <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Class</th>
             <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Assigned teacher</th>
-            <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Actions</th>
+            <th className="w-0 px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-200">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -37,11 +37,11 @@ export function ClassesTable({
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                 {c.assignedTeacherId ? teacherDisplayName(c.assignedTeacherId) : '—'}
               </td>
-              <td className="px-4 py-3">
+              <td className="whitespace-nowrap px-4 py-3 text-right">
                 <button
                   type="button"
                   onClick={() => onEdit(c)}
-                  className="text-primary-600 dark:text-primary-400 hover:underline"
+                  className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   Edit
                 </button>

@@ -28,7 +28,7 @@ export function ParentsTable({
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Phone</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Linked children</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Actions</th>
+              <th className="w-0 px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -72,19 +72,19 @@ export function ParentsTable({
                   <span className="text-slate-500 dark:text-slate-400">—</span>
                 )}
               </td>
-              <td className="px-4 py-3">
+              <td className="whitespace-nowrap px-4 py-3 text-right">
                 {p.email && onRequestPasswordReset ? (
                   <button
                     type="button"
                     onClick={() => onRequestPasswordReset(p)}
                     disabled={passwordResetLoadingUid === p.uid}
-                    className="text-slate-600 dark:text-slate-400 hover:underline disabled:opacity-50"
+                    className="btn-secondary inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     title="Send password reset email to this parent"
                   >
-                    {passwordResetLoadingUid === p.uid ? 'Sending…' : 'Send reset email'}
+                    {passwordResetLoadingUid === p.uid ? '…' : 'Reset'}
                   </button>
                 ) : (
-                  '—'
+                  <span className="text-slate-400">—</span>
                 )}
               </td>
             </tr>

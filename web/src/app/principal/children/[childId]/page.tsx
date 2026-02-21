@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/config/firebase';
-import { formatClassDisplay } from '@/lib/formatClass';
+import { formatClassDisplay, formatAgeMonths } from '@/lib/formatClass';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 import type { DailyReport } from 'shared/types';
@@ -22,6 +22,26 @@ const REPORT_TYPE_LABELS: Record<string, string> = {
   medication: 'Medication',
   incident: 'Incident',
 };
+
+const REPORT_TYPE_STYLES: Record<string, string> = {
+  nappy_change: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',
+  meal: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200',
+  nap_time: 'bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200',
+  medication: 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-200',
+  incident: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
+};
+
+function ageFromDob(dateOfBirth: string | undefined): string {
+  if (!dateOfBirth) return '—';
+  try {
+    const dob = new Date(dateOfBirth);
+    const now = new Date();
+    const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+    return formatAgeMonths(months);
+  } catch {
+    return '—';
+  }
+}
 
 export default function ChildDetailPage() {
   const { profile } = useAuth();
@@ -205,33 +225,74 @@ export default function ChildDetailPage() {
     )
   ).sort((a, b) => (b || '').localeCompare(a || '')).slice(0, 14);
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const yesterdayIso = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  const lastReportTimestamp = reports[0]?.timestamp;
+  const activitySummaryByType = reportsForDay.reduce<Record<string, number>>((acc, r) => {
+    const t = r.type ?? 'other';
+    acc[t] = (acc[t] || 0) + 1;
+    return acc;
+  }, {});
+  const activitySummaryText = Object.entries(activitySummaryByType)
+    .map(([type, count]) => `${count} ${REPORT_TYPE_LABELS[type] ?? type}`)
+    .join(', ');
+
   if (loading || !child) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+      <div className="flex items-center justify-center py-16">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
       </div>
     );
   }
 
+  const hasAllergies = child.allergies?.length;
+  const hasCareInfo = hasAllergies || child.medicalNotes || child.emergencyContact || child.emergencyContactName;
+
   return (
-    <div>
-      <div className="mb-6 flex items-center gap-4">
+    <div className="animate-fade-in">
+      <nav className="mb-6 flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
           href="/principal/children"
-          className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"
+          className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          aria-label="Back to children list"
         >
-          ← Back to children
+          Children
         </Link>
-      </div>
+        <span className="text-slate-400 dark:text-slate-500" aria-hidden>/</span>
+        <span className="font-medium text-slate-800 dark:text-slate-100 truncate max-w-[200px] sm:max-w-none">
+          {child.preferredName || child.name}
+        </span>
+      </nav>
 
-      <div className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
-        <h1 className="mb-4 text-2xl font-bold text-slate-800 dark:text-slate-100">
-          {child.name}
-          {child.preferredName && (
-            <span className="ml-2 text-lg font-normal text-slate-600 dark:text-slate-300">({child.preferredName})</span>
-          )}
-        </h1>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="card mb-8 p-6">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {child.name}
+            {child.preferredName && (
+              <span className="ml-2 text-lg font-normal text-slate-600 dark:text-slate-300">“{child.preferredName}”</span>
+            )}
+          </h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {reports.length} {reports.length === 1 ? 'activity' : 'activities'} total
+              {lastReportTimestamp && (
+                <> · Last activity {new Date(lastReportTimestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</>
+              )}
+            </p>
+          </div>
+          <Link
+            href={`/principal/children?edit=${child.id}`}
+            className="btn-secondary w-fit shrink-0"
+          >
+            Edit details
+          </Link>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Age</p>
+            <p className="text-slate-800 dark:text-slate-200">{ageFromDob(child.dateOfBirth)}</p>
+          </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Date of birth</p>
             <p className="text-slate-800 dark:text-slate-200">
@@ -243,56 +304,75 @@ export default function ChildDetailPage() {
             <p className="text-slate-800 dark:text-slate-200">{classDisplay(child.classId)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Enrollment date</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Enrollment</p>
             <p className="text-slate-800 dark:text-slate-200">
               {child.enrollmentDate ? new Date(child.enrollmentDate).toLocaleDateString() : '—'}
             </p>
           </div>
-          <div className="sm:col-span-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Allergies</p>
-            <p className="text-slate-800 dark:text-slate-200">{child.allergies?.length ? child.allergies.join(', ') : '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Medical notes</p>
-            <p className="text-slate-800 dark:text-slate-200">{child.medicalNotes || '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Emergency contact</p>
-            <p className="text-slate-800 dark:text-slate-200">
-              {child.emergencyContactName || child.emergencyContact || '—'}
-              {child.emergencyContact && child.emergencyContactName && (
-                <span className="text-slate-600 dark:text-slate-400"> · {child.emergencyContact}</span>
+        </div>
+
+        {hasCareInfo && (
+          <div className="mt-6 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-800/80 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Care information</h3>
+            <div className="space-y-3">
+              {hasAllergies && (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Allergies</p>
+                  <p className="rounded-md bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
+                    {child.allergies!.join(', ')}
+                  </p>
+                </div>
               )}
-            </p>
+              {child.medicalNotes && (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Medical notes</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{child.medicalNotes}</p>
+                </div>
+              )}
+              {(child.emergencyContactName || child.emergencyContact) && (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Emergency contact</p>
+                  <p className="text-sm text-slate-800 dark:text-slate-200">
+                    {child.emergencyContactName || '—'}
+                    {child.emergencyContact && (
+                      <a href={`tel:${child.emergencyContact}`} className="ml-2 text-primary-600 dark:text-primary-400 hover:underline">
+                        {child.emergencyContact}
+                      </a>
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="mt-4 border-t border-slate-100 dark:border-slate-600 pt-4">
-          <Link
-            href={`/principal/children?edit=${child.id}`}
-            className="text-primary-600 dark:text-primary-400 hover:underline"
-          >
-            Edit child details
-          </Link>
-        </div>
+        )}
       </div>
 
-      <section className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Parents</h2>
+      <section className="card mb-8 p-6">
+        <h2 className="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">Parents</h2>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          Maximum {MAX_PARENTS} parents per child. Invited parents can sign in and view this child&apos;s reports.
+          Up to {MAX_PARENTS} parents per child. Invited parents can sign in and view this child&apos;s reports.
         </p>
+        {parents.length === 0 && !showInviteParent && (child.parentIds?.length ?? 0) < MAX_PARENTS && (
+          <div className="mb-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/30 py-8 px-4 text-center">
+            <p className="text-slate-600 dark:text-slate-300">No parents linked yet.</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Invite a parent so they can sign in and view this child&apos;s daily activities.</p>
+            <button type="button" onClick={() => setShowInviteParent(true)} className="btn-primary mt-4">
+              Invite parent
+            </button>
+          </div>
+        )}
         {parents.length > 0 && (
-          <ul className="mb-4 space-y-2">
+          <ul className="mb-6 space-y-3">
             {parents.map((p) => (
               <li
                 key={p.uid}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-slate-800 dark:text-slate-100">{p.displayName ?? '—'}</span>
-                  <span className="text-slate-600 dark:text-slate-300">{p.email}</span>
+                  <span className="text-slate-600 dark:text-slate-300 text-sm">{p.email}</span>
                   <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       p.isActive !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
                     }`}
                   >
@@ -300,17 +380,15 @@ export default function ChildDetailPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-slate-600 dark:text-slate-300">
-                    {p.phone ? (
-                      <a href={`tel:${p.phone}`} className="hover:underline">{p.phone}</a>
-                    ) : (
-                      <span className="text-slate-400 dark:text-slate-500">No phone</span>
-                    )}
-                  </span>
+                  {p.phone ? (
+                    <a href={`tel:${p.phone}`} className="text-sm text-primary-600 dark:text-primary-400 hover:underline">{p.phone}</a>
+                  ) : (
+                    <span className="text-sm text-slate-400 dark:text-slate-500">No phone</span>
+                  )}
                   <button
                     type="button"
                     onClick={() => startEditParent(p)}
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                    className="btn-secondary text-sm py-1.5 px-3"
                   >
                     Edit
                   </button>
@@ -320,26 +398,26 @@ export default function ChildDetailPage() {
           </ul>
         )}
         {editingParentUid && (
-          <form onSubmit={handleUpdateParent} className="mb-4 max-w-md space-y-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 p-4">
+          <form onSubmit={handleUpdateParent} className="mb-6 max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4">
             <h3 className="font-medium text-slate-800 dark:text-slate-100">Edit parent</h3>
             {editParentError && <p className="text-sm text-red-600 dark:text-red-400">{editParentError}</p>}
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Display name</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Display name</label>
               <input
                 type="text"
                 value={editParentForm.displayName}
                 onChange={(e) => setEditParentForm((f) => ({ ...f, displayName: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
               <input
                 type="tel"
                 value={editParentForm.phone}
                 onChange={(e) => setEditParentForm((f) => ({ ...f, phone: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="input-base"
                 placeholder="Optional"
               />
             </div>
@@ -354,91 +432,79 @@ export default function ChildDetailPage() {
               <label htmlFor="editParentIsActive" className="text-sm font-medium text-slate-700 dark:text-slate-300">Active</label>
             </div>
             <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={editParentSubmitting}
-                className="rounded-lg bg-primary-600 px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
-              >
+              <button type="submit" disabled={editParentSubmitting} className="btn-primary">
                 {editParentSubmitting ? 'Saving…' : 'Save'}
               </button>
               <button
                 type="button"
                 onClick={() => { setEditingParentUid(null); setEditParentError(''); }}
-                className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                className="btn-secondary"
               >
                 Cancel
               </button>
             </div>
           </form>
         )}
-        {(child.parentIds?.length ?? 0) < MAX_PARENTS && (
+        {(child.parentIds?.length ?? 0) < MAX_PARENTS && (parents.length > 0 || showInviteParent) && (
           <>
             {!showInviteParent ? (
-              <button
-                type="button"
-                onClick={() => setShowInviteParent(true)}
-                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-              >
+              <button type="button" onClick={() => setShowInviteParent(true)} className="btn-primary">
                 Invite parent
               </button>
             ) : (
-              <form onSubmit={handleInviteParent} className="max-w-md space-y-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 p-4">
+              <form onSubmit={handleInviteParent} className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4">
                 <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent</h3>
                 {inviteError && <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>}
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
                   <input
                     type="email"
                     value={inviteForm.parentEmail}
                     onChange={(e) => setInviteForm((f) => ({ ...f, parentEmail: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="input-base"
                     required
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Display name</label>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Display name</label>
                   <input
                     type="text"
                     value={inviteForm.parentDisplayName}
                     onChange={(e) => setInviteForm((f) => ({ ...f, parentDisplayName: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="input-base"
                     placeholder="Optional"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
                   <input
                     type="tel"
                     value={inviteForm.parentPhone}
                     onChange={(e) => setInviteForm((f) => ({ ...f, parentPhone: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="input-base"
                     placeholder="Optional"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
                   <input
                     type="password"
                     value={inviteForm.parentPassword}
                     onChange={(e) => setInviteForm((f) => ({ ...f, parentPassword: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="input-base"
                     placeholder="Min 6 characters"
                     minLength={6}
                     required
                   />
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={inviteSubmitting}
-                    className="rounded-lg bg-primary-600 px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
-                  >
+                  <button type="submit" disabled={inviteSubmitting} className="btn-primary">
                     {inviteSubmitting ? 'Inviting…' : 'Invite parent'}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setShowInviteParent(false); setInviteError(''); setInviteForm({ parentEmail: '', parentDisplayName: '', parentPhone: '', parentPassword: '' }); }}
-                    className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className="btn-secondary"
                   >
                     Cancel
                   </button>
@@ -452,36 +518,65 @@ export default function ChildDetailPage() {
         )}
       </section>
 
-      <section className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Day-to-day activities</h2>
+      <section className="card p-6">
+        <h2 className="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">Day-to-day activities</h2>
+        <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
+          View and filter by date. Jump to recent days that have recorded activity.
+        </p>
 
-        <div className="mb-6 flex flex-wrap items-end gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">View day</label>
-            <input
-              type="date"
-              value={filterDay}
-              onChange={(e) => setFilterDay(e.target.value)}
-              className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            />
+        <div className="mb-6 flex flex-wrap items-end gap-6">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">View day</label>
+              <input
+                type="date"
+                value={filterDay}
+                onChange={(e) => setFilterDay(e.target.value)}
+                className="input-base"
+                aria-label="Select date"
+              />
+            </div>
+            <div className="flex gap-2 pb-0.5">
+              <button
+                type="button"
+                onClick={() => setFilterDay(todayIso)}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  filterDay === todayIso ? 'bg-primary-600 text-white shadow-sm' : 'btn-secondary'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterDay(yesterdayIso)}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  filterDay === yesterdayIso ? 'bg-primary-600 text-white shadow-sm' : 'btn-secondary'
+                }`}
+              >
+                Yesterday
+              </button>
+            </div>
           </div>
-          <div>
-            <p className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">Jump to a day with activity</p>
+          <div className="flex-1 min-w-0">
+            <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Recent days with activity</p>
             <div className="flex flex-wrap gap-2">
-              {daysWithActivity.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setFilterDay(d!)}
-                  className={`rounded-lg px-3 py-1.5 text-sm ${
-                    filterDay === d
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
-                  }`}
-                >
-                  {new Date(d!).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                </button>
-              ))}
+              {daysWithActivity.map((d) => {
+                const label = d === todayIso ? 'Today' : d === yesterdayIso ? 'Yesterday' : new Date(d!).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setFilterDay(d!)}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      filterDay === d
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
               {daysWithActivity.length === 0 && (
                 <span className="text-sm text-slate-500 dark:text-slate-400">No activity recorded yet</span>
               )}
@@ -489,36 +584,64 @@ export default function ChildDetailPage() {
           </div>
         </div>
 
-        <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
-          {filterDay === new Date().toISOString().slice(0, 10) ? "Today's" : ''} activities on{' '}
-          <strong>{new Date(filterDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
-        </p>
+        <div className="mb-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 px-4 py-3">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            {filterDay === todayIso ? "Today's" : filterDay === yesterdayIso ? "Yesterday's" : ''} activities on{' '}
+            <strong className="text-slate-800 dark:text-slate-100">
+              {new Date(filterDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            </strong>
+            {reportsForDay.length > 0 && (
+              <span className="ml-2 text-slate-500 dark:text-slate-400">· {reportsForDay.length} {reportsForDay.length === 1 ? 'activity' : 'activities'} ({activitySummaryText})</span>
+            )}
+          </p>
+        </div>
 
         {reportsForDay.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 dark:bg-slate-700/50 py-8 text-center text-slate-500 dark:text-slate-400">
-            No activities recorded for this day.
-          </p>
+          <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/30 py-12 text-center">
+            <p className="text-slate-500 dark:text-slate-400">No activities recorded for this day.</p>
+            <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">Activities are added by teachers from the app.</p>
+          </div>
         ) : (
           <ul className="space-y-3">
             {reportsForDay.map((r) => (
               <li
                 key={r.id}
-                className="flex flex-wrap items-start gap-3 rounded-lg border border-slate-100 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 p-3"
+                className="flex flex-wrap items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 p-4"
               >
-                <span className="inline-flex rounded-full bg-primary-100 dark:bg-primary-900/50 px-2.5 py-0.5 text-xs font-medium text-primary-800 dark:text-primary-200">
+                <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${REPORT_TYPE_STYLES[r.type ?? ''] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'}`}>
                   {REPORT_TYPE_LABELS[r.type ?? ''] ?? r.type ?? '—'}
                 </span>
-                <span className="text-sm text-slate-600 dark:text-slate-300">
+                <span className="shrink-0 text-sm font-medium text-slate-600 dark:text-slate-300 tabular-nums">
                   {r.timestamp ? new Date(r.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </span>
-                {(r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails) && (
-                  <span className="text-sm text-slate-700 dark:text-slate-200">
-                    {r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails}
-                  </span>
-                )}
-                {r.notes && (
-                  <span className="w-full text-sm text-slate-600 dark:text-slate-300">{r.notes}</span>
-                )}
+                <div className="min-w-0 flex-1 space-y-1">
+                  {(r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails) && (
+                    <p className="text-sm text-slate-800 dark:text-slate-200">
+                      {r.type === 'meal' && r.mealType && (
+                        <span className="capitalize text-slate-500 dark:text-slate-400">{r.mealType}</span>
+                      )}
+                      {r.type === 'meal' && r.mealType && (r.mealOptionName ?? r.notes) && ' · '}
+                      {r.mealOptionName ?? r.medicationName ?? r.incidentDetails ?? (r.type === 'meal' ? r.mealType : r.mealType)}
+                    </p>
+                  )}
+                  {r.notes && (
+                    <p className="text-sm text-slate-600 dark:text-slate-300">{r.notes}</p>
+                  )}
+                  {r.imageUrl && (
+                    <a
+                      href={r.imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-2 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                    >
+                      <img
+                        src={r.imageUrl}
+                        alt="Report attachment"
+                        className="h-20 w-auto object-cover"
+                      />
+                    </a>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

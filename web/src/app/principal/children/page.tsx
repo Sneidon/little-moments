@@ -420,7 +420,21 @@ export default function ChildrenPage() {
                       {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.classId ? classDisplay(c.classId) : '—'}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.allergies?.length ? c.allergies.join(', ') : '—'}</td>
+                    <td className="px-4 py-3">
+                      {c.allergies?.length ? (
+                        <ul className="flex flex-wrap gap-1.5" role="list">
+                          {c.allergies.map((a, idx) => (
+                            <li key={idx}>
+                              <span className="inline-flex rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/40 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                                {a.trim()}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-slate-500 dark:text-slate-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {c.emergencyContactName || c.emergencyContact ? (
                         <span title={c.emergencyContact ?? ''}>{c.emergencyContactName ?? c.emergencyContact ?? '—'}</span>

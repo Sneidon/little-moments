@@ -246,23 +246,19 @@ export default function ChildDetailPage() {
   }
 
   const hasAllergies = child.allergies?.length;
-  const hasCareInfo = hasAllergies || child.medicalNotes || child.emergencyContact || child.emergencyContactName;
+  const hasCareInfo = child.medicalNotes || child.emergencyContact || child.emergencyContactName;
 
   return (
     <div className="animate-fade-in">
-      <nav className="mb-6 flex items-center gap-2 text-sm" aria-label="Breadcrumb">
+      <div className="mb-6 flex items-center gap-4 border-b border-slate-200 dark:border-slate-600 pb-4">
         <Link
           href="/principal/children"
-          className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium"
           aria-label="Back to children list"
         >
-          Children
+          ← Back to children
         </Link>
-        <span className="text-slate-400 dark:text-slate-500" aria-hidden>/</span>
-        <span className="font-medium text-slate-800 dark:text-slate-100 truncate max-w-[200px] sm:max-w-none">
-          {child.preferredName || child.name}
-        </span>
-      </nav>
+      </div>
 
       <div className="card mb-8 p-6">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
@@ -311,18 +307,28 @@ export default function ChildDetailPage() {
           </div>
         </div>
 
+        {hasAllergies && (
+          <div className="mt-6 rounded-xl border-2 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 p-4">
+            <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-100">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 text-xs" aria-hidden>!</span>
+              Allergies
+            </p>
+            <ul className="flex flex-wrap gap-2" role="list">
+              {child.allergies!.map((allergy, idx) => (
+                <li key={idx}>
+                  <span className="inline-flex items-center rounded-full border border-amber-300 dark:border-amber-700 bg-amber-100 dark:bg-amber-900/60 px-3 py-1.5 text-sm font-medium text-amber-900 dark:text-amber-100">
+                    {allergy.trim()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {hasCareInfo && (
           <div className="mt-6 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-800/80 p-4">
             <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Care information</h3>
             <div className="space-y-3">
-              {hasAllergies && (
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Allergies</p>
-                  <p className="rounded-md bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
-                    {child.allergies!.join(', ')}
-                  </p>
-                </div>
-              )}
               {child.medicalNotes && (
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Medical notes</p>
@@ -524,63 +530,59 @@ export default function ChildDetailPage() {
           View and filter by date. Jump to recent days that have recorded activity.
         </p>
 
-        <div className="mb-6 flex flex-wrap items-end gap-6">
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">View day</label>
-              <input
-                type="date"
-                value={filterDay}
-                onChange={(e) => setFilterDay(e.target.value)}
-                className="input-base"
-                aria-label="Select date"
-              />
-            </div>
-            <div className="flex gap-2 pb-0.5">
-              <button
-                type="button"
-                onClick={() => setFilterDay(todayIso)}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  filterDay === todayIso ? 'bg-primary-600 text-white shadow-sm' : 'btn-secondary'
-                }`}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterDay(yesterdayIso)}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  filterDay === yesterdayIso ? 'bg-primary-600 text-white shadow-sm' : 'btn-secondary'
-                }`}
-              >
-                Yesterday
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Recent days with activity</p>
-            <div className="flex flex-wrap gap-2">
-              {daysWithActivity.map((d) => {
-                const label = d === todayIso ? 'Today' : d === yesterdayIso ? 'Yesterday' : new Date(d!).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setFilterDay(d!)}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      filterDay === d
-                        ? 'bg-primary-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-              {daysWithActivity.length === 0 && (
-                <span className="text-sm text-slate-500 dark:text-slate-400">No activity recorded yet</span>
-              )}
-            </div>
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Filter by date</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={filterDay}
+              onChange={(e) => setFilterDay(e.target.value)}
+              className="input-base h-10 w-[10.5rem] min-w-0"
+              aria-label="Select date"
+            />
+            <button
+              type="button"
+              onClick={() => setFilterDay(todayIso)}
+              className={`h-10 min-w-[5.5rem] flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                filterDay === todayIso
+                  ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-700'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterDay(yesterdayIso)}
+              className={`h-10 min-w-[5.5rem] flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                filterDay === yesterdayIso
+                  ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-700'
+              }`}
+            >
+              Yesterday
+            </button>
+            {daysWithActivity.map((d) => {
+              const label = d === todayIso ? 'Today' : d === yesterdayIso ? 'Yesterday' : new Date(d!).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+              const isSelected = filterDay === d;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setFilterDay(d!)}
+                  className={`h-10 min-w-[5.5rem] flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                    isSelected
+                      ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {daysWithActivity.length === 0 && (
+              <span className="text-sm text-slate-500 dark:text-slate-400">No activity recorded yet</span>
+            )}
           </div>
         </div>
 

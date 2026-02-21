@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
+import { exportChildrenToPdf } from '@/lib/exportChildrenPdf';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
@@ -39,6 +40,8 @@ export default function ChildrenPage() {
     classId: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [filterClassId, setFilterClassId] = useState<string>('');
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -176,6 +179,24 @@ export default function ChildrenPage() {
 
   const classDisplay = (id: string) => formatClassDisplay(classes.find((r) => r.id === id)) || id;
 
+  const filteredChildren = filterClassId
+    ? children.filter((c) => c.classId === filterClassId)
+    : children;
+
+  const handleExportPdf = () => {
+    setExportingPdf(true);
+    try {
+      exportChildrenToPdf(filteredChildren, classes, classDisplay, {
+        onProgress: (msg) => {
+          if (!msg) setExportingPdf(false);
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      setExportingPdf(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -183,28 +204,39 @@ export default function ChildrenPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Children</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Enrolled children at your school</p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setShowForm(true);
-            setEditingId(null);
-            setForm({
-              name: '',
-              preferredName: '',
-              dateOfBirth: '',
-              allergies: [],
-              allergyInput: '',
-              medicalNotes: '',
-              enrollmentDate: '',
-              emergencyContact: '',
-              emergencyContactName: '',
-              classId: '',
-            });
-          }}
-          className="btn-primary shrink-0"
-        >
-          Add child
-        </button>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={exportingPdf || loading || filteredChildren.length === 0}
+            className="btn-secondary"
+            title={filteredChildren.length === 0 ? 'No children to export' : 'Export roster to PDF (supports hundreds of records)'}
+          >
+            {exportingPdf ? 'Exporting…' : 'Export to PDF'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm(true);
+              setEditingId(null);
+              setForm({
+                name: '',
+                preferredName: '',
+                dateOfBirth: '',
+                allergies: [],
+                allergyInput: '',
+                medicalNotes: '',
+                enrollmentDate: '',
+                emergencyContact: '',
+                emergencyContactName: '',
+                classId: '',
+              });
+            }}
+            className="btn-primary"
+          >
+            Add child
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -343,7 +375,26 @@ export default function ChildrenPage() {
       {loading ? (
         <div className="card h-48 animate-pulse bg-slate-100 dark:bg-slate-700" />
       ) : (
-        <div className="card overflow-hidden">
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3 shadow-sm">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Filter by class</label>
+            <select
+              value={filterClassId}
+              onChange={(e) => setFilterClassId(e.target.value)}
+              className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">All classes</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{formatClassDisplay(c)}</option>
+              ))}
+            </select>
+            {filterClassId && (
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {filteredChildren.length} of {children.length} children
+              </span>
+            )}
+          </div>
+          <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50/80 dark:bg-slate-700">
@@ -357,7 +408,7 @@ export default function ChildrenPage() {
                 </tr>
               </thead>
               <tbody>
-                {children.map((c) => (
+                {filteredChildren.map((c) => (
                   <tr key={c.id} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
                     <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
                       <Link href={`/principal/children/${c.id}`} className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline">
@@ -380,13 +431,18 @@ export default function ChildrenPage() {
               </tbody>
             </table>
           </div>
-          {children.length === 0 && (
+          {filteredChildren.length === 0 && (
             <div className="px-4 py-12 text-center">
-              <p className="text-slate-500">No children yet.</p>
-              <p className="mt-1 text-sm text-slate-400">Add a child to get started.</p>
+              <p className="text-slate-500">
+                {filterClassId ? 'No children in this class.' : 'No children yet.'}
+              </p>
+              <p className="mt-1 text-sm text-slate-400">
+                {filterClassId ? 'Try another class or clear the filter.' : 'Add a child to get started.'}
+              </p>
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   );

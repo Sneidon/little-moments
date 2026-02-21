@@ -1,6 +1,7 @@
 'use client';
 
 import type { PendingDocument, PendingLink, UseEventFormResult } from '@/hooks/useEventForm';
+import type { ClassRoom } from 'shared/types';
 
 const inputBase =
   'rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100';
@@ -9,6 +10,7 @@ const inputFile =
 
 export interface EventFormProps {
   form: UseEventFormResult;
+  classes: ClassRoom[];
 }
 
 function DocumentRow({
@@ -95,7 +97,7 @@ function LinkRow({
   );
 }
 
-export function EventForm({ form }: EventFormProps) {
+export function EventForm({ form, classes }: EventFormProps) {
   const {
     title,
     setTitle,
@@ -115,6 +117,10 @@ export function EventForm({ form }: EventFormProps) {
     removeLink,
     setLinkLabel,
     setLinkUrl,
+    targetType,
+    setTargetType,
+    targetClassIds,
+    toggleTargetClass,
     submitting,
     submit,
     canSubmit,
@@ -200,6 +206,49 @@ export function EventForm({ form }: EventFormProps) {
             onRemove={removeLink}
           />
         ))}
+      </div>
+
+      <div className="mb-4">
+        <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+          Target audience
+        </label>
+        <div className="flex flex-col gap-2">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="eventTarget"
+              checked={targetType === 'everyone'}
+              onChange={() => setTargetType('everyone')}
+              className="text-primary-600"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Everyone</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="eventTarget"
+              checked={targetType === 'classes'}
+              onChange={() => setTargetType('classes')}
+              className="text-primary-600"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Specific classes</span>
+          </label>
+          {targetType === 'classes' && classes.length > 0 && (
+            <div className="ml-6 mt-1 flex flex-wrap gap-3">
+              {classes.map((c) => (
+                <label key={c.id} className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={targetClassIds.includes(c.id)}
+                    onChange={() => toggleTargetClass(c.id)}
+                    className="rounded border-slate-300 text-primary-600"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">{c.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mb-4">

@@ -74,7 +74,11 @@ export interface Announcement {
   links?: EventDocumentLink[];
   createdBy: string;
   createdAt: string;
-  targetRole?: UserRole; // optional filter
+  /** Who sees this: everyone or specific classes. */
+  targetType?: 'everyone' | 'classes';
+  /** Class IDs when targetType is 'classes'. */
+  targetClassIds?: string[];
+  targetRole?: UserRole; // optional filter (legacy)
   /** Set by Cloud Function when reminder notification has been sent. */
   reminderSentAt?: string;
 }
@@ -103,6 +107,10 @@ export interface Event {
   endAt?: string;
   createdBy: string;
   createdAt: string;
+  /** Who sees this: everyone or specific classes. */
+  targetType?: 'everyone' | 'classes';
+  /** Class IDs when targetType is 'classes'. */
+  targetClassIds?: string[];
   parentResponses?: Record<string, 'accepted' | 'declined'>;
 }
 

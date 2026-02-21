@@ -1,6 +1,7 @@
 'use client';
 
 import type { PendingDocument, PendingLink, UseAnnouncementFormResult } from '@/hooks/useAnnouncementForm';
+import type { ClassRoom } from 'shared/types';
 
 const inputBase =
   'rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100';
@@ -9,6 +10,7 @@ const inputFile =
 
 export interface AnnouncementFormProps {
   form: UseAnnouncementFormResult;
+  classes: ClassRoom[];
 }
 
 function DocumentRow({
@@ -95,7 +97,7 @@ function LinkRow({
   );
 }
 
-export function AnnouncementForm({ form }: AnnouncementFormProps) {
+export function AnnouncementForm({ form, classes }: AnnouncementFormProps) {
   const {
     title,
     setTitle,
@@ -113,6 +115,10 @@ export function AnnouncementForm({ form }: AnnouncementFormProps) {
     removeLink,
     setLinkLabel,
     setLinkUrl,
+    targetType,
+    setTargetType,
+    targetClassIds,
+    toggleTargetClass,
     submitting,
     submit,
     canSubmit,
@@ -198,6 +204,49 @@ export function AnnouncementForm({ form }: AnnouncementFormProps) {
             onRemove={removeLink}
           />
         ))}
+      </div>
+
+      <div className="mb-4">
+        <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+          Target audience
+        </label>
+        <div className="flex flex-col gap-2">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="target"
+              checked={targetType === 'everyone'}
+              onChange={() => setTargetType('everyone')}
+              className="text-primary-600"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Everyone</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="target"
+              checked={targetType === 'classes'}
+              onChange={() => setTargetType('classes')}
+              className="text-primary-600"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Specific classes</span>
+          </label>
+          {targetType === 'classes' && classes.length > 0 && (
+            <div className="ml-6 mt-1 flex flex-wrap gap-3">
+              {classes.map((c) => (
+                <label key={c.id} className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={targetClassIds.includes(c.id)}
+                    onChange={() => toggleTargetClass(c.id)}
+                    className="rounded border-slate-300 text-primary-600"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">{c.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <button type="submit" disabled={submitting || !canSubmit} className="btn-primary">

@@ -41,6 +41,11 @@ export interface UseEventFormResult {
   removeLink: (i: number) => void;
   setLinkLabel: (i: number, label: string) => void;
   setLinkUrl: (i: number, url: string) => void;
+  targetType: 'everyone' | 'classes';
+  setTargetType: (v: 'everyone' | 'classes') => void;
+  targetClassIds: string[];
+  setTargetClassIds: (ids: string[]) => void;
+  toggleTargetClass: (classId: string) => void;
   submitting: boolean;
   submit: (e: React.FormEvent) => Promise<void>;
   canSubmit: boolean;
@@ -57,7 +62,15 @@ export function useEventForm({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<PendingDocument[]>([]);
   const [links, setLinks] = useState<PendingLink[]>([]);
+  const [targetType, setTargetType] = useState<'everyone' | 'classes'>('everyone');
+  const [targetClassIds, setTargetClassIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const toggleTargetClass = useCallback((classId: string) => {
+    setTargetClassIds((prev) =>
+      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
+    );
+  }, []);
 
   const addDocument = useCallback(() => {
     setDocuments((d) => [...d, { label: '', file: null }]);
@@ -105,6 +118,10 @@ export function useEventForm({
           createdAt: new Date().toISOString(),
         };
         if (description.trim()) eventData.description = description.trim();
+        eventData.targetType = targetType;
+        if (targetType === 'classes' && targetClassIds.length > 0) {
+          eventData.targetClassIds = targetClassIds;
+        }
 
         const ref = await addDoc(
           collection(db, 'schools', schoolId, 'events'),
@@ -156,12 +173,14 @@ export function useEventForm({
         setImageFile(null);
         setDocuments([]);
         setLinks([]);
+        setTargetType('everyone');
+        setTargetClassIds([]);
         onSuccess?.();
       } finally {
         setSubmitting(false);
       }
     },
-    [schoolId, title, description, startAt, imageFile, documents, links, createdBy, onSuccess]
+    [schoolId, title, description, startAt, imageFile, documents, links, targetType, targetClassIds, createdBy, onSuccess]
   );
 
   return {
@@ -183,6 +202,11 @@ export function useEventForm({
     removeLink,
     setLinkLabel,
     setLinkUrl,
+    targetType,
+    setTargetType,
+    targetClassIds,
+    setTargetClassIds,
+    toggleTargetClass,
     submitting,
     submit,
     canSubmit: !!title.trim() && !!startAt,

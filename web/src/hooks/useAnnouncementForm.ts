@@ -39,6 +39,11 @@ export interface UseAnnouncementFormResult {
   removeLink: (i: number) => void;
   setLinkLabel: (i: number, label: string) => void;
   setLinkUrl: (i: number, url: string) => void;
+  targetType: 'everyone' | 'classes';
+  setTargetType: (v: 'everyone' | 'classes') => void;
+  targetClassIds: string[];
+  setTargetClassIds: (ids: string[]) => void;
+  toggleTargetClass: (classId: string) => void;
   submitting: boolean;
   submit: (e: React.FormEvent) => Promise<void>;
   canSubmit: boolean;
@@ -54,7 +59,15 @@ export function useAnnouncementForm({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<PendingDocument[]>([]);
   const [links, setLinks] = useState<PendingLink[]>([]);
+  const [targetType, setTargetType] = useState<'everyone' | 'classes'>('everyone');
+  const [targetClassIds, setTargetClassIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const toggleTargetClass = useCallback((classId: string) => {
+    setTargetClassIds((prev) =>
+      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
+    );
+  }, []);
 
   const addDocument = useCallback(() => {
     setDocuments((d) => [...d, { label: '', file: null }]);
@@ -101,6 +114,10 @@ export function useAnnouncementForm({
           createdAt: new Date().toISOString(),
         };
         if (body.trim()) announcementData.body = body.trim();
+        announcementData.targetType = targetType;
+        if (targetType === 'classes' && targetClassIds.length > 0) {
+          announcementData.targetClassIds = targetClassIds;
+        }
 
         const ref = await addDoc(
           collection(db, 'schools', schoolId, 'announcements'),
@@ -151,12 +168,14 @@ export function useAnnouncementForm({
         setImageFile(null);
         setDocuments([]);
         setLinks([]);
+        setTargetType('everyone');
+        setTargetClassIds([]);
         onSuccess?.();
       } finally {
         setSubmitting(false);
       }
     },
-    [schoolId, title, body, imageFile, documents, links, createdBy, onSuccess]
+    [schoolId, title, body, imageFile, documents, links, targetType, targetClassIds, createdBy, onSuccess]
   );
 
   return {
@@ -176,6 +195,11 @@ export function useAnnouncementForm({
     removeLink,
     setLinkLabel,
     setLinkUrl,
+    targetType,
+    setTargetType,
+    targetClassIds,
+    setTargetClassIds,
+    toggleTargetClass,
     submitting,
     submit,
     canSubmit: !!title.trim(),

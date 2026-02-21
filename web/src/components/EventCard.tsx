@@ -8,6 +8,30 @@ const EVENT_IMAGE_CLASS = 'mt-2 aspect-square w-64 rounded-lg object-cover';
 export interface EventCardProps {
   event: Event;
   variant?: 'upcoming' | 'past';
+  /** Optional map of class id -> name for target audience display */
+  classNamesMap?: Record<string, string>;
+}
+
+function TargetBadge({
+  targetType,
+  targetClassIds,
+  classNamesMap,
+}: {
+  targetType?: 'everyone' | 'classes';
+  targetClassIds?: string[];
+  classNamesMap?: Record<string, string>;
+}) {
+  if (!targetType || targetType === 'everyone') return null;
+  if (!targetClassIds?.length) return null;
+  const names = classNamesMap
+    ? targetClassIds.map((id) => classNamesMap[id] || id).filter(Boolean)
+    : [];
+  if (names.length === 0) return null;
+  return (
+    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+      For: {names.join(', ')}
+    </p>
+  );
 }
 
 function LinkList({
@@ -43,7 +67,7 @@ function LinkList({
   );
 }
 
-export function EventCard({ event, variant = 'upcoming' }: EventCardProps) {
+export function EventCard({ event, variant = 'upcoming', classNamesMap }: EventCardProps) {
   const ev = event;
   const hasDocuments = ev.documents && ev.documents.length > 0;
   const hasLinks = ev.links && ev.links.length > 0;
@@ -55,15 +79,29 @@ export function EventCard({ event, variant = 'upcoming' }: EventCardProps) {
 
   return (
     <article className={cardClass}>
-      <h3
-        className={
-          isPast
-            ? 'font-medium text-slate-700 dark:text-slate-200'
-            : 'font-semibold text-slate-800 dark:text-slate-100'
-        }
-      >
-        {ev.title}
-      </h3>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3
+          className={
+            isPast
+              ? 'font-medium text-slate-700 dark:text-slate-200'
+              : 'font-semibold text-slate-800 dark:text-slate-100'
+          }
+        >
+          {ev.title}
+        </h3>
+        {(ev.targetType === 'everyone' || !ev.targetType) && (
+          <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-600 dark:text-slate-400">
+            Everyone
+          </span>
+        )}
+      </div>
+      {ev.targetType === 'classes' && (
+        <TargetBadge
+          targetType={ev.targetType}
+          targetClassIds={ev.targetClassIds}
+          classNamesMap={classNamesMap}
+        />
+      )}
       {ev.description && (
         <p
           className={

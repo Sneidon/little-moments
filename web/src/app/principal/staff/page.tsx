@@ -41,6 +41,8 @@ export default function StaffPage() {
     handleUpdateTeacher,
     cancelEditTeacher,
     handleExportPdf,
+    handleExportCsv,
+    handleExportExcel,
     passwordResetLoadingUid,
     passwordResetError,
     passwordResetSuccess,
@@ -69,7 +71,12 @@ export default function StaffPage() {
         confirmLabel="Send reset email"
         onConfirm={handleConfirmPasswordReset}
       />
-      <StaffPageHeader onExportPdf={handleExportPdf} onAddTeacher={openAddForm} />
+      <StaffPageHeader
+        onExportPdf={handleExportPdf}
+        onExportCsv={handleExportCsv}
+        onExportExcel={handleExportExcel}
+        onAddTeacher={openAddForm}
+      />
 
       {showAddForm && (
         <AddTeacherForm

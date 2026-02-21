@@ -19,6 +19,8 @@ export default function ParentsPage() {
     setParentChildFilter,
     exportingPdf,
     handleExportPdf,
+    handleExportCsv,
+    handleExportExcel,
     passwordResetLoadingUid,
     passwordResetError,
     passwordResetSuccess,
@@ -49,6 +51,8 @@ export default function ParentsPage() {
       />
       <ParentsPageHeader
         onExportPdf={handleExportPdf}
+        onExportCsv={handleExportCsv}
+        onExportExcel={handleExportExcel}
         exportDisabled={exportingPdf || filteredParents.length === 0}
         exporting={exportingPdf}
       />

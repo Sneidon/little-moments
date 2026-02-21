@@ -5,6 +5,8 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { exportStaffPageToPdf, type ParentWithChildren } from '@/lib/exportStaffPagePdf';
+import { exportStaffPageToCsv } from '@/lib/exportStaffPageCsv';
+import { exportStaffPageToExcel } from '@/lib/exportStaffPageExcel';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import type { UserProfile } from 'shared/types';
 import type { Child } from 'shared/types';
@@ -22,6 +24,8 @@ export interface UseParentsPageResult {
   setParentChildFilter: (v: string) => void;
   exportingPdf: boolean;
   handleExportPdf: () => void;
+  handleExportCsv: () => void;
+  handleExportExcel: () => void;
   refetch: () => Promise<void>;
   passwordResetLoadingUid: string | null;
   passwordResetError: string;
@@ -113,6 +117,22 @@ export function useParentsPage(): UseParentsPageResult {
     }
   }, [schoolName, filteredParents]);
 
+  const handleExportCsv = useCallback(() => {
+    exportStaffPageToCsv({
+      schoolName: schoolName || undefined,
+      parents: filteredParents,
+      include: { staff: false, parents: true },
+    });
+  }, [schoolName, filteredParents]);
+
+  const handleExportExcel = useCallback(() => {
+    exportStaffPageToExcel({
+      schoolName: schoolName || undefined,
+      parents: filteredParents,
+      include: { staff: false, parents: true },
+    });
+  }, [schoolName, filteredParents]);
+
   const handleRequestPasswordReset = useCallback(async (user: UserProfile) => {
     const email = user.email?.trim();
     if (!email) return;
@@ -149,6 +169,8 @@ export function useParentsPage(): UseParentsPageResult {
     setParentChildFilter,
     exportingPdf,
     handleExportPdf,
+    handleExportCsv,
+    handleExportExcel,
     refetch,
     passwordResetLoadingUid,
     passwordResetError,

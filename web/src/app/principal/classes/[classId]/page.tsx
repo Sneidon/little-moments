@@ -8,6 +8,8 @@ import { getTeacherDisplayName } from '@/lib/teachers';
 import { getReportsForDay, getDaysWithActivity } from '@/lib/reports';
 import { formatClassDisplay } from '@/lib/formatClass';
 import { exportClassDetailToPdf } from '@/lib/exportClassDetailPdf';
+import { exportClassDetailToCsv } from '@/lib/exportClassDetailCsv';
+import { exportClassDetailToExcel } from '@/lib/exportClassDetailExcel';
 import { ExportPdfOptionsDialog } from '@/components/ExportPdfOptionsDialog';
 import {
   ClassDetailHeader,
@@ -43,28 +45,55 @@ export default function ClassActivitiesPage() {
 
   const openExportPdf = useCallback(() => setExportPdfOpen(true), []);
 
+  const classDisplayName = classRoom ? formatClassDisplay(classRoom) : '';
+  const assignedTeacherNameStr =
+    classRoom?.assignedTeacherId
+      ? teacherName(classRoom.assignedTeacherId)
+      : '—';
+
   const handleExportPdfWithOptions = useCallback(
     (selectedIds: string[]) => {
       if (!classRoom) return;
       const set = new Set(selectedIds);
       exportClassDetailToPdf({
         classRoom,
-        assignedTeacherName:
-          classRoom.assignedTeacherId
-            ? teacherName(classRoom.assignedTeacherId)
-            : '—',
+        assignedTeacherName: assignedTeacherNameStr,
         children,
         filterDay,
         reportsForDay,
-        classDisplayName: formatClassDisplay(classRoom),
+        classDisplayName,
         include: {
           children: set.has('children'),
           activities: set.has('activities'),
         },
       });
     },
-    [classRoom, children, filterDay, reportsForDay, teacherName]
+    [classRoom, children, filterDay, reportsForDay, teacherName, assignedTeacherNameStr, classDisplayName]
   );
+
+  const handleExportCsv = useCallback(() => {
+    if (!classRoom) return;
+    exportClassDetailToCsv({
+      classRoom,
+      assignedTeacherName: assignedTeacherNameStr,
+      children,
+      filterDay,
+      reportsForDay,
+      classDisplayName,
+    });
+  }, [classRoom, children, filterDay, reportsForDay, assignedTeacherNameStr, classDisplayName]);
+
+  const handleExportExcel = useCallback(() => {
+    if (!classRoom) return;
+    exportClassDetailToExcel({
+      classRoom,
+      assignedTeacherName: assignedTeacherNameStr,
+      children,
+      filterDay,
+      reportsForDay,
+      classDisplayName,
+    });
+  }, [classRoom, children, filterDay, reportsForDay, assignedTeacherNameStr, classDisplayName]);
 
   if (loading || !classRoom) {
     return (
@@ -85,13 +114,11 @@ export default function ClassActivitiesPage() {
       />
       <ClassDetailHeader
         classRoom={classRoom}
-        assignedTeacherName={
-          classRoom.assignedTeacherId
-            ? teacherName(classRoom.assignedTeacherId)
-            : '—'
-        }
+        assignedTeacherName={assignedTeacherNameStr}
         childrenCount={children.length}
         onExportPdf={openExportPdf}
+        onExportCsv={handleExportCsv}
+        onExportExcel={handleExportExcel}
       />
 
       <ClassActivitiesSection

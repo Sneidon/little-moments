@@ -6,6 +6,8 @@ import { useState, useCallback } from 'react';
 import { formatClassDisplay, ageFromDob } from '@/lib/formatClass';
 import { getReportsForDay, getDaysWithActivity, getActivitySummaryText } from '@/lib/reports';
 import { exportChildDetailsToPdf } from '@/lib/exportChildDetailsPdf';
+import { exportChildDetailsToCsv } from '@/lib/exportChildDetailsCsv';
+import { exportChildDetailsToExcel } from '@/lib/exportChildDetailsExcel';
 import { useChildDetail } from '@/hooks/useChildDetail';
 import { useChildParents } from '@/hooks/useChildParents';
 import { useParentsManagement } from '@/hooks/useParentsManagement';
@@ -78,6 +80,16 @@ export default function ChildDetailPage() {
     [child, classes, parents, reports, classDisplay]
   );
 
+  const handleExportCsv = useCallback(() => {
+    if (!child) return;
+    exportChildDetailsToCsv({ child, classes, parents, reports, classDisplay });
+  }, [child, classes, parents, reports, classDisplay]);
+
+  const handleExportExcel = useCallback(() => {
+    if (!child) return;
+    exportChildDetailsToExcel({ child, classes, parents, reports, classDisplay });
+  }, [child, classes, parents, reports, classDisplay]);
+
   if (loading || !child) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -102,6 +114,8 @@ export default function ChildDetailPage() {
         reportsCount={reports.length}
         lastReportTimestamp={reports[0]?.timestamp}
         onExportPdf={openExportPdf}
+        onExportCsv={handleExportCsv}
+        onExportExcel={handleExportExcel}
       />
 
       <ParentsSection

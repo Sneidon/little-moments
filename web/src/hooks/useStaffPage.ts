@@ -7,6 +7,8 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
 import { exportStaffPageToPdf, type StaffRowForPdf } from '@/lib/exportStaffPagePdf';
+import { exportStaffPageToCsv } from '@/lib/exportStaffPageCsv';
+import { exportStaffPageToExcel } from '@/lib/exportStaffPageExcel';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import type { UserProfile } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
@@ -74,6 +76,8 @@ export interface UseStaffPageResult {
   handleUpdateTeacher: (e: React.FormEvent) => Promise<void>;
   cancelEditTeacher: () => void;
   handleExportPdf: () => void;
+  handleExportCsv: () => void;
+  handleExportExcel: () => void;
   refetch: () => Promise<void>;
   passwordResetLoadingUid: string | null;
   passwordResetError: string;
@@ -243,17 +247,38 @@ export function useStaffPage(): UseStaffPageResult {
     setEditError('');
   }, []);
 
+  const staffForExport: StaffRowForPdf[] = useMemo(
+    () =>
+      filteredStaff.map((u) => ({
+        ...u,
+        assignedClass: classForTeacher(u.uid) ?? undefined,
+      })),
+    [filteredStaff, classForTeacher]
+  );
+
   const handleExportPdf = useCallback(() => {
-    const staffForPdf: StaffRowForPdf[] = filteredStaff.map((u) => ({
-      ...u,
-      assignedClass: classForTeacher(u.uid) ?? undefined,
-    }));
     exportStaffPageToPdf({
       schoolName: schoolName || undefined,
-      staff: staffForPdf,
+      staff: staffForExport,
       include: { staff: true, parents: false },
     });
-  }, [filteredStaff, classForTeacher, schoolName]);
+  }, [schoolName, staffForExport]);
+
+  const handleExportCsv = useCallback(() => {
+    exportStaffPageToCsv({
+      schoolName: schoolName || undefined,
+      staff: staffForExport,
+      include: { staff: true, parents: false },
+    });
+  }, [schoolName, staffForExport]);
+
+  const handleExportExcel = useCallback(() => {
+    exportStaffPageToExcel({
+      schoolName: schoolName || undefined,
+      staff: staffForExport,
+      include: { staff: true, parents: false },
+    });
+  }, [schoolName, staffForExport]);
 
   const handleRequestPasswordReset = useCallback(async (user: UserProfile) => {
     const email = user.email?.trim();
@@ -307,6 +332,8 @@ export function useStaffPage(): UseStaffPageResult {
     handleUpdateTeacher,
     cancelEditTeacher,
     handleExportPdf,
+    handleExportCsv,
+    handleExportExcel,
     refetch,
     passwordResetLoadingUid,
     passwordResetError,

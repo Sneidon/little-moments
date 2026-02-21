@@ -70,7 +70,7 @@ export function ReportsPageHeader({
           Reports
         </h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Daily activity logs: meals, naps, nappy changes, medication, and incidents. Filter and export to CSV, Excel, or PDF.
+          Daily activity logs
         </p>
       </div>
       <div className="relative shrink-0" ref={menuRef}>

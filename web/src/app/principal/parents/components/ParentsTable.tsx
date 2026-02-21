@@ -25,7 +25,14 @@ export function ParentsTable({ parents, totalCount }: ParentsTableProps) {
           <tbody>
             {parents.map((p) => (
               <tr key={p.uid} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
-              <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{p.displayName ?? '—'}</td>
+              <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                <Link
+                  href={`/principal/parents/${p.uid}`}
+                  className="text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  {p.displayName ?? '—'}
+                </Link>
+              </td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.email ?? '—'}</td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.phone ?? '—'}</td>
               <td className="px-4 py-3">

@@ -24,15 +24,23 @@ export function ClassDetailHeader({
         >
           ← Back to classes
         </Link>
-        {onExportPdf && (
-          <button
-            type="button"
-            onClick={onExportPdf}
-            className="btn-secondary shrink-0"
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Link
+            href={`/principal/classes?edit=${classRoom.id}`}
+            className="btn-secondary"
           >
-            Export PDF
-          </button>
-        )}
+            Edit details
+          </Link>
+          {onExportPdf && (
+            <button
+              type="button"
+              onClick={onExportPdf}
+              className="btn-secondary"
+            >
+              Export PDF
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">

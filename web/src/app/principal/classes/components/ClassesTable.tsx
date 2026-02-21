@@ -38,13 +38,6 @@ export function ClassesTable({
                 {c.assignedTeacherId ? teacherDisplayName(c.assignedTeacherId) : '—'}
               </td>
               <td className="px-4 py-3">
-                <Link
-                  href={`/principal/classes/${c.id}`}
-                  className="text-primary-600 dark:text-primary-400 hover:underline"
-                >
-                  View activities
-                </Link>
-                {' · '}
                 <button
                   type="button"
                   onClick={() => onEdit(c)}

@@ -1,7 +1,8 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useState, useCallback, useEffect } from 'react';
 import { useClasses } from '@/hooks/useClasses';
 import { useSchoolTeachers } from '@/hooks/useSchoolTeachers';
 import { getTeacherDisplayName } from '@/lib/teachers';
@@ -23,12 +24,24 @@ const INITIAL_FORM: ClassFormData = {
 
 export default function ClassesPage() {
   const { profile } = useAuth();
+  const searchParams = useSearchParams();
   const { classes, loading, setClasses } = useClasses(profile?.schoolId);
   const { teachers } = useSchoolTeachers(profile?.schoolId);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ClassFormData>(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
+
+  const editIdFromUrl = searchParams?.get('edit');
+  useEffect(() => {
+    if (!editIdFromUrl || loading || classes.length === 0) return;
+    const c = classes.find((x) => x.id === editIdFromUrl);
+    if (c) {
+      setEditingId(c.id);
+      setForm(toClassFormData(c));
+      setShowForm(true);
+    }
+  }, [editIdFromUrl, loading, classes]);
 
   const teacherName = useCallback(
     (uid: string) => getTeacherDisplayName(uid, teachers),

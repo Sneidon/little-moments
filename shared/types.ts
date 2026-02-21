@@ -73,6 +73,8 @@ export interface Announcement {
   createdBy: string;
   createdAt: string;
   targetRole?: UserRole; // optional filter
+  /** Set by Cloud Function when reminder notification has been sent. */
+  reminderSentAt?: string;
 }
 
 /** A document link shown on an event; optional label for display. */

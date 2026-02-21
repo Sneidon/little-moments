@@ -46,6 +46,128 @@ export const onReportCreated = functions.firestore
     return null;
   });
 
+// Collect all FCM tokens for users who should receive school notifications (staff + parents with children at school).
+async function getFcmTokensForSchool(db: admin.firestore.Firestore, schoolId: string): Promise<string[]> {
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+
+  // Staff: users with this schoolId (principal, teachers)
+  const staffSnap = await db.collection('users').where('schoolId', '==', schoolId).get();
+  staffSnap.docs.forEach((d) => {
+    const data = d.data() as { fcmTokens?: string[]; isActive?: boolean };
+    if (data.isActive === false) return;
+    (data.fcmTokens || []).forEach((t: string) => {
+      if (t && !seen.has(t)) { seen.add(t); tokens.push(t); }
+    });
+  });
+
+  // Parents: uids from children at this school
+  const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
+  const parentIds = new Set<string>();
+  childrenSnap.docs.forEach((d) => {
+    const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+    parentIdsArr.forEach((uid: string) => parentIds.add(uid));
+  });
+  for (const uid of parentIds) {
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) continue;
+    const data = userSnap.data() as { fcmTokens?: string[]; isActive?: boolean };
+    if (data.isActive === false) continue;
+    (data.fcmTokens || []).forEach((t: string) => {
+      if (t && !seen.has(t)) { seen.add(t); tokens.push(t); }
+    });
+  }
+  return tokens;
+}
+
+// When an announcement is created, send push notifications to all school staff and parents.
+export const onAnnouncementCreated = functions.firestore
+  .document('schools/{schoolId}/announcements/{announcementId}')
+  .onCreate(async (snap, context) => {
+    const { schoolId } = context.params;
+    const data = snap.data() as { title?: string; body?: string };
+    const title = (data.title && String(data.title).trim()) || 'New announcement';
+    const body = (data.body && String(data.body).trim()) ? String(data.body).trim().slice(0, 150) : '';
+
+    const db = admin.firestore();
+    const tokens = await getFcmTokensForSchool(db, schoolId);
+    if (tokens.length === 0) {
+      functions.logger.info('onAnnouncementCreated: no FCM tokens for school', schoolId);
+      return null;
+    }
+
+    const message: admin.messaging.MulticastMessage = {
+      tokens,
+      notification: {
+        title: `New: ${title}`,
+        body: body ? (body.length >= 150 ? `${body}…` : body) : 'Tap to view.',
+      },
+      data: { type: 'announcement', schoolId, announcementId: context.params.announcementId },
+      android: { priority: 'high' as const },
+      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+    };
+    try {
+      const res = await admin.messaging().sendEachForMulticast(message);
+      functions.logger.info('onAnnouncementCreated: sent', res.successCount, 'failed', res.failureCount, 'schoolId', schoolId);
+    } catch (e) {
+      functions.logger.error('onAnnouncementCreated: send failed', e);
+    }
+    return null;
+  });
+
+// Daily job: send reminder push notifications for announcements posted 24–48h ago.
+export const sendAnnouncementReminders = functions.pubsub
+  .schedule('0 9 * * *') // 9 AM daily
+  .timeZone('Africa/Johannesburg')
+  .onRun(async () => {
+    const db = admin.firestore();
+    const now = new Date();
+    const to = new Date(now);
+    to.setTime(to.getTime() - 24 * 60 * 60 * 1000); // 24h ago
+    const from = new Date(to);
+    from.setTime(from.getTime() - 24 * 60 * 60 * 1000); // 48h ago
+
+    const fromIso = from.toISOString();
+    const toIso = to.toISOString();
+
+    const schoolsSnap = await db.collection('schools').get();
+    for (const schoolDoc of schoolsSnap.docs) {
+      const schoolId = schoolDoc.id;
+      const annSnap = await db.collection('schools').doc(schoolId).collection('announcements')
+        .where('createdAt', '>=', fromIso)
+        .where('createdAt', '<', toIso)
+        .get();
+
+      for (const annDoc of annSnap.docs) {
+        const ann = annDoc.data() as { reminderSentAt?: string; title?: string };
+        if (ann.reminderSentAt) continue;
+
+        const tokens = await getFcmTokensForSchool(db, schoolId);
+        if (tokens.length === 0) continue;
+
+        const title = (ann.title && String(ann.title).trim()) || 'Announcement';
+        const message: admin.messaging.MulticastMessage = {
+          tokens,
+          notification: {
+            title: `Reminder: ${title}`,
+            body: 'Tap to view this announcement.',
+          },
+          data: { type: 'announcement_reminder', schoolId, announcementId: annDoc.id },
+          android: { priority: 'high' as const },
+          apns: { payload: { aps: { sound: 'default' } } },
+        };
+        try {
+          await admin.messaging().sendEachForMulticast(message);
+          await annDoc.ref.update({ reminderSentAt: new Date().toISOString() });
+          functions.logger.info('sendAnnouncementReminders: sent reminder for', annDoc.id, schoolId);
+        } catch (e) {
+          functions.logger.error('sendAnnouncementReminders: failed', annDoc.id, e);
+        }
+      }
+    }
+    return null;
+  });
+
 // Sync custom claims from the caller's Firestore user document to their Auth token.
 // Call this after login so Firestore rules (which use request.auth.token.role) work.
 export const syncClaims = functions.https.onCall(async (_data, context) => {
@@ -63,6 +185,29 @@ export const syncClaims = functions.https.onCall(async (_data, context) => {
   if (data.role) claims.role = data.role;
   if (data.schoolId) claims.schoolId = data.schoolId;
   await admin.auth().setCustomUserClaims(uid, claims);
+  return { ok: true };
+});
+
+// Register FCM token for push notifications (announcements, reminders, etc.). Call from mobile after getting the token.
+export const saveFcmToken = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const token = data?.token && typeof data.token === 'string' ? data.token.trim() : null;
+  if (!token) {
+    throw new functions.https.HttpsError('invalid-argument', 'token is required.');
+  }
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const userRef = db.collection('users').doc(uid);
+  const snap = await userRef.get();
+  if (!snap.exists) {
+    throw new functions.https.HttpsError('failed-precondition', 'No user profile.');
+  }
+  const current = (snap.data() as { fcmTokens?: string[] }).fcmTokens || [];
+  if (current.includes(token)) return { ok: true };
+  const updated = [...current, token].slice(-20); // keep last 20 tokens per user
+  await userRef.update({ fcmTokens: updated, updatedAt: new Date().toISOString() });
   return { ok: true };
 });
 

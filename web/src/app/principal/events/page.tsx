@@ -26,16 +26,27 @@ export default function EventsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-          Events
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Create and manage school events
-        </p>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Events
+          </h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Create and manage school events
+          </p>
+        </div>
+        {!form.showForm && (
+          <button
+            type="button"
+            onClick={form.openFormForNew}
+            className="btn-primary shrink-0"
+          >
+            Add event
+          </button>
+        )}
       </div>
 
-      <EventForm form={form} classes={classes} />
+      {form.showForm && <EventForm form={form} classes={classes} />}
 
       <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
         Upcoming events
@@ -51,6 +62,7 @@ export default function EventsPage() {
                 event={ev}
                 variant="upcoming"
                 classNamesMap={classNamesMap}
+                onEdit={() => form.openFormForEdit(ev)}
               />
             ))}
             {upcoming.length === 0 && (
@@ -68,6 +80,7 @@ export default function EventsPage() {
                 event={ev}
                 variant="past"
                 classNamesMap={classNamesMap}
+                onEdit={() => form.openFormForEdit(ev)}
               />
             ))}
             {past.length === 0 && (

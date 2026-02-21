@@ -44,6 +44,11 @@ export interface UseAnnouncementFormResult {
   targetClassIds: string[];
   setTargetClassIds: (ids: string[]) => void;
   toggleTargetClass: (classId: string) => void;
+  showForm: boolean;
+  editingId: string | null;
+  openFormForNew: () => void;
+  openFormForEdit: (announcement: Announcement) => void;
+  closeForm: () => void;
   submitting: boolean;
   submit: (e: React.FormEvent) => Promise<void>;
   canSubmit: boolean;
@@ -61,7 +66,46 @@ export function useAnnouncementForm({
   const [links, setLinks] = useState<PendingLink[]>([]);
   const [targetType, setTargetType] = useState<'everyone' | 'classes'>('everyone');
   const [targetClassIds, setTargetClassIds] = useState<string[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const closeForm = useCallback(() => {
+    setEditingId(null);
+    setTitle('');
+    setBody('');
+    setImageFile(null);
+    setDocuments([]);
+    setLinks([]);
+    setTargetType('everyone');
+    setTargetClassIds([]);
+    setShowForm(false);
+    onSuccess?.();
+  }, [onSuccess]);
+
+  const openFormForNew = useCallback(() => {
+    setEditingId(null);
+    setTitle('');
+    setBody('');
+    setImageFile(null);
+    setDocuments([]);
+    setLinks([]);
+    setTargetType('everyone');
+    setTargetClassIds([]);
+    setShowForm(true);
+  }, []);
+
+  const openFormForEdit = useCallback((announcement: Announcement) => {
+    setEditingId(announcement.id);
+    setTitle(announcement.title);
+    setBody(announcement.body || '');
+    setTargetType(announcement.targetType || 'everyone');
+    setTargetClassIds(announcement.targetClassIds || []);
+    setImageFile(null);
+    setDocuments([]);
+    setLinks([]);
+    setShowForm(true);
+  }, []);
 
   const toggleTargetClass = useCallback((classId: string) => {
     setTargetClassIds((prev) =>
@@ -107,6 +151,21 @@ export function useAnnouncementForm({
       if (!schoolId || !title.trim()) return;
       setSubmitting(true);
       try {
+        if (editingId) {
+          const updates: Partial<Announcement> = {
+            title: title.trim(),
+            body: body.trim(),
+            targetType,
+            targetClassIds: targetType === 'classes' ? targetClassIds : [],
+          };
+          if (imageFile) {
+            updates.imageUrl = await uploadAnnouncementImage(imageFile, schoolId, editingId);
+          }
+          await updateDoc(doc(db, 'schools', schoolId, 'announcements', editingId), updates);
+          closeForm();
+          return;
+        }
+
         const announcementData: Record<string, unknown> = {
           schoolId,
           title: title.trim(),
@@ -163,19 +222,12 @@ export function useAnnouncementForm({
           await updateDoc(doc(db, 'schools', schoolId, 'announcements', ref.id), updates);
         }
 
-        setTitle('');
-        setBody('');
-        setImageFile(null);
-        setDocuments([]);
-        setLinks([]);
-        setTargetType('everyone');
-        setTargetClassIds([]);
-        onSuccess?.();
+        closeForm();
       } finally {
         setSubmitting(false);
       }
     },
-    [schoolId, title, body, imageFile, documents, links, targetType, targetClassIds, createdBy, onSuccess]
+    [schoolId, editingId, title, body, imageFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
   );
 
   return {
@@ -200,6 +252,11 @@ export function useAnnouncementForm({
     targetClassIds,
     setTargetClassIds,
     toggleTargetClass,
+    showForm,
+    editingId,
+    openFormForNew,
+    openFormForEdit,
+    closeForm,
     submitting,
     submit,
     canSubmit: !!title.trim(),

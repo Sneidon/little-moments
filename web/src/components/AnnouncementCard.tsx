@@ -6,6 +6,7 @@ export interface AnnouncementCardProps {
   announcement: Announcement;
   /** Optional map of class id -> name for target audience display */
   classNamesMap?: Record<string, string>;
+  onEdit?: () => void;
 }
 
 function LinkList({
@@ -63,7 +64,7 @@ function TargetBadge({
   );
 }
 
-export function AnnouncementCard({ announcement, classNamesMap }: AnnouncementCardProps) {
+export function AnnouncementCard({ announcement, classNamesMap, onEdit }: AnnouncementCardProps) {
   const a = announcement;
   const hasDocuments = a.documents && a.documents.length > 0;
   const hasLinks = a.links && a.links.length > 0;
@@ -72,11 +73,22 @@ export function AnnouncementCard({ announcement, classNamesMap }: AnnouncementCa
     <article className="card p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="font-semibold text-slate-800 dark:text-slate-100">{a.title}</h3>
-        {(a.targetType === 'everyone' || !a.targetType) && (
-          <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-600 dark:text-slate-400">
-            Everyone
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {(a.targetType === 'everyone' || !a.targetType) && (
+            <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-600 dark:text-slate-400">
+              Everyone
+            </span>
+          )}
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              Edit
+            </button>
+          )}
+        </div>
       </div>
       {a.targetType === 'classes' && (
         <TargetBadge

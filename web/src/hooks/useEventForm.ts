@@ -46,6 +46,11 @@ export interface UseEventFormResult {
   targetClassIds: string[];
   setTargetClassIds: (ids: string[]) => void;
   toggleTargetClass: (classId: string) => void;
+  showForm: boolean;
+  editingId: string | null;
+  openFormForNew: () => void;
+  openFormForEdit: (event: Event) => void;
+  closeForm: () => void;
   submitting: boolean;
   submit: (e: React.FormEvent) => Promise<void>;
   canSubmit: boolean;
@@ -64,7 +69,50 @@ export function useEventForm({
   const [links, setLinks] = useState<PendingLink[]>([]);
   const [targetType, setTargetType] = useState<'everyone' | 'classes'>('everyone');
   const [targetClassIds, setTargetClassIds] = useState<string[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const closeForm = useCallback(() => {
+    setEditingId(null);
+    setTitle('');
+    setDescription('');
+    setStartAt('');
+    setImageFile(null);
+    setDocuments([]);
+    setLinks([]);
+    setTargetType('everyone');
+    setTargetClassIds([]);
+    setShowForm(false);
+    onSuccess?.();
+  }, [onSuccess]);
+
+  const openFormForNew = useCallback(() => {
+    setEditingId(null);
+    setTitle('');
+    setDescription('');
+    setStartAt('');
+    setImageFile(null);
+    setDocuments([]);
+    setLinks([]);
+    setTargetType('everyone');
+    setTargetClassIds([]);
+    setShowForm(true);
+  }, []);
+
+  const openFormForEdit = useCallback((event: Event) => {
+    setEditingId(event.id);
+    setTitle(event.title);
+    setDescription(event.description || '');
+    const start = event.startAt ? new Date(event.startAt) : null;
+    setStartAt(start && !isNaN(start.getTime()) ? start.toISOString().slice(0, 16) : '');
+    setTargetType(event.targetType || 'everyone');
+    setTargetClassIds(event.targetClassIds || []);
+    setImageFile(null);
+    setDocuments([]);
+    setLinks([]);
+    setShowForm(true);
+  }, []);
 
   const toggleTargetClass = useCallback((classId: string) => {
     setTargetClassIds((prev) =>
@@ -110,6 +158,22 @@ export function useEventForm({
       if (!schoolId || !title.trim() || !startAt) return;
       setSubmitting(true);
       try {
+        if (editingId) {
+          const updates: Partial<Event> = {
+            title: title.trim(),
+            description: description.trim(),
+            startAt: new Date(startAt).toISOString(),
+            targetType,
+            targetClassIds: targetType === 'classes' ? targetClassIds : [],
+          };
+          if (imageFile) {
+            updates.imageUrl = await uploadEventImage(imageFile, schoolId, editingId);
+          }
+          await updateDoc(doc(db, 'schools', schoolId, 'events', editingId), updates);
+          closeForm();
+          return;
+        }
+
         const eventData: Record<string, unknown> = {
           schoolId,
           title: title.trim(),
@@ -167,20 +231,12 @@ export function useEventForm({
           await updateDoc(doc(db, 'schools', schoolId, 'events', ref.id), updates);
         }
 
-        setTitle('');
-        setDescription('');
-        setStartAt('');
-        setImageFile(null);
-        setDocuments([]);
-        setLinks([]);
-        setTargetType('everyone');
-        setTargetClassIds([]);
-        onSuccess?.();
+        closeForm();
       } finally {
         setSubmitting(false);
       }
     },
-    [schoolId, title, description, startAt, imageFile, documents, links, targetType, targetClassIds, createdBy, onSuccess]
+    [schoolId, editingId, title, description, startAt, imageFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
   );
 
   return {
@@ -207,6 +263,11 @@ export function useEventForm({
     targetClassIds,
     setTargetClassIds,
     toggleTargetClass,
+    showForm,
+    editingId,
+    openFormForNew,
+    openFormForEdit,
+    closeForm,
     submitting,
     submit,
     canSubmit: !!title.trim() && !!startAt,

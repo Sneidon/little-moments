@@ -119,6 +119,8 @@ export function AnnouncementForm({ form, classes }: AnnouncementFormProps) {
     setTargetType,
     targetClassIds,
     toggleTargetClass,
+    editingId,
+    closeForm,
     submitting,
     submit,
     canSubmit,
@@ -126,9 +128,9 @@ export function AnnouncementForm({ form, classes }: AnnouncementFormProps) {
 
   return (
     <form onSubmit={submit} className="card mb-8 p-6">
-      <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-        New announcement
-      </label>
+      <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
+        {editingId ? 'Edit announcement' : 'New announcement'}
+      </h2>
       <input
         type="text"
         placeholder="Title"
@@ -249,9 +251,18 @@ export function AnnouncementForm({ form, classes }: AnnouncementFormProps) {
         </div>
       </div>
 
-      <button type="submit" disabled={submitting || !canSubmit} className="btn-primary">
-        {submitting ? 'Posting…' : 'Post announcement'}
-      </button>
+      <div className="flex gap-2">
+        <button type="submit" disabled={submitting || !canSubmit} className="btn-primary">
+          {submitting ? (editingId ? 'Saving…' : 'Posting…') : editingId ? 'Save changes' : 'Post announcement'}
+        </button>
+        <button
+          type="button"
+          onClick={closeForm}
+          className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

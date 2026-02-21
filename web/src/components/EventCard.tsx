@@ -10,6 +10,7 @@ export interface EventCardProps {
   variant?: 'upcoming' | 'past';
   /** Optional map of class id -> name for target audience display */
   classNamesMap?: Record<string, string>;
+  onEdit?: () => void;
 }
 
 function TargetBadge({
@@ -67,7 +68,7 @@ function LinkList({
   );
 }
 
-export function EventCard({ event, variant = 'upcoming', classNamesMap }: EventCardProps) {
+export function EventCard({ event, variant = 'upcoming', classNamesMap, onEdit }: EventCardProps) {
   const ev = event;
   const hasDocuments = ev.documents && ev.documents.length > 0;
   const hasLinks = ev.links && ev.links.length > 0;
@@ -89,11 +90,22 @@ export function EventCard({ event, variant = 'upcoming', classNamesMap }: EventC
         >
           {ev.title}
         </h3>
-        {(ev.targetType === 'everyone' || !ev.targetType) && (
-          <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-600 dark:text-slate-400">
-            Everyone
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {(ev.targetType === 'everyone' || !ev.targetType) && (
+            <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-600 dark:text-slate-400">
+              Everyone
+            </span>
+          )}
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              Edit
+            </button>
+          )}
+        </div>
       </div>
       {ev.targetType === 'classes' && (
         <TargetBadge

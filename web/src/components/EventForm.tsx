@@ -121,6 +121,8 @@ export function EventForm({ form, classes }: EventFormProps) {
     setTargetType,
     targetClassIds,
     toggleTargetClass,
+    editingId,
+    closeForm,
     submitting,
     submit,
     canSubmit,
@@ -128,9 +130,9 @@ export function EventForm({ form, classes }: EventFormProps) {
 
   return (
     <form onSubmit={submit} className="card mb-8 p-6">
-      <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-        New event
-      </label>
+      <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
+        {editingId ? 'Edit event' : 'New event'}
+      </h2>
       <input
         type="text"
         placeholder="Event title"
@@ -263,9 +265,18 @@ export function EventForm({ form, classes }: EventFormProps) {
         />
       </div>
 
-      <button type="submit" disabled={submitting || !canSubmit} className="btn-primary">
-        {submitting ? 'Creating…' : 'Create event'}
-      </button>
+      <div className="flex gap-2">
+        <button type="submit" disabled={submitting || !canSubmit} className="btn-primary">
+          {submitting ? (editingId ? 'Saving…' : 'Creating…') : editingId ? 'Save changes' : 'Create event'}
+        </button>
+        <button
+          type="button"
+          onClick={closeForm}
+          className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

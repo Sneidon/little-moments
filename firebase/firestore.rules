@@ -41,11 +41,11 @@ service cloud.firestore {
         allow create, update, delete: if isTeacher(schoolId) || isPrincipal(schoolId);
       }
       match /children/{childId} {
-        allow read: if isTeacher(schoolId) || isPrincipal(schoolId) || (isAuthenticated() && request.auth.uid in resource.data.parentIds);
+        allow read: if isSuperAdmin() || isTeacher(schoolId) || isPrincipal(schoolId) || (isAuthenticated() && request.auth.uid in resource.data.parentIds);
         allow create, update: if isTeacher(schoolId) || isPrincipal(schoolId);
         allow delete: if isPrincipal(schoolId) || isSuperAdmin();
         match /reports/{reportId} {
-          allow read: if isTeacher(schoolId) || isPrincipal(schoolId) || isParentOfChildId(schoolId, childId);
+          allow read: if isSuperAdmin() || isTeacher(schoolId) || isPrincipal(schoolId) || isParentOfChildId(schoolId, childId);
           allow create, update: if isTeacher(schoolId);
           allow delete: if isTeacher(schoolId) || isPrincipal(schoolId);
         }

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -296,7 +297,14 @@ export default function SchoolsPage() {
             <tbody>
               {schools.map((s) => (
                 <tr key={s.id} className="border-t border-slate-100 dark:border-slate-600">
-                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{s.name}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                    <Link
+                      href={`/admin/schools/${s.id}`}
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      {s.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${

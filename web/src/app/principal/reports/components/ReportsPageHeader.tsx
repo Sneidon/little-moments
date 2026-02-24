@@ -63,6 +63,11 @@ export function ReportsPageHeader({
     setExportOpen(false);
   };
 
+  const exportCount = filteredReports.length;
+  const exportLabel = exportCount === 0
+    ? 'Export (no data)'
+    : `Export ${exportCount} ${exportCount === 1 ? 'report' : 'reports'}`;
+
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
@@ -73,56 +78,96 @@ export function ReportsPageHeader({
           Daily activity logs
         </p>
       </div>
-      <div className="relative shrink-0" ref={menuRef}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="sr-only">{exportLabel}</span>
         <button
           type="button"
-          onClick={() => setExportOpen((o) => !o)}
-          className="btn-secondary inline-flex items-center gap-2"
-          aria-expanded={exportOpen}
-          aria-haspopup="true"
+          onClick={handleExportCsv}
+          disabled={exportCount === 0}
+          className="btn-secondary inline-flex items-center gap-1.5 text-sm"
+          title="Download as CSV"
         >
-          <span>Export</span>
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.152a2 2 0 012 2v11a2 2 0 01-2 2z" />
           </svg>
+          CSV
         </button>
-        {exportOpen && (
-          <div
-            className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-1.5 shadow-xl"
-            role="menu"
+        <button
+          type="button"
+          onClick={handleExportExcel}
+          disabled={exportCount === 0}
+          className="btn-secondary inline-flex items-center gap-1.5 text-sm"
+          title="Download as Excel"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.152a2 2 0 012 2v11a2 2 0 01-2 2z" />
+          </svg>
+          Excel
+        </button>
+        <button
+          type="button"
+          onClick={handleExportPdf}
+          disabled={exportCount === 0}
+          className="btn-secondary inline-flex items-center gap-1.5 text-sm"
+          title="Download as PDF"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+          PDF
+        </button>
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setExportOpen((o) => !o)}
+            className="btn-secondary inline-flex items-center gap-2"
+            aria-expanded={exportOpen}
+            aria-haspopup="true"
+            title="More export options"
           >
-            <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Download as
+            <span>More</span>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {exportOpen && (
+            <div
+              className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-1.5 shadow-xl"
+              role="menu"
+            >
+              <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Download as
+              </div>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleExportCsv}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <span className="rounded bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 font-mono text-xs">CSV</span>
+                Spreadsheet (CSV)
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleExportExcel}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <span className="rounded bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 font-mono text-xs text-emerald-800 dark:text-emerald-200">XLSX</span>
+                Excel
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleExportPdf}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <span className="rounded bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 font-mono text-xs text-red-800 dark:text-red-200">PDF</span>
+                PDF document
+              </button>
             </div>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleExportCsv}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-            >
-              <span className="rounded bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 font-mono text-xs">CSV</span>
-              Spreadsheet (CSV)
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleExportExcel}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-            >
-              <span className="rounded bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 font-mono text-xs text-emerald-800 dark:text-emerald-200">XLSX</span>
-              Excel
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleExportPdf}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-            >
-              <span className="rounded bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 font-mono text-xs text-red-800 dark:text-red-200">PDF</span>
-              PDF document
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

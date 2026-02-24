@@ -12,6 +12,12 @@ export interface ClassDetailHeaderProps {
   onExportPdf?: () => void;
   onExportCsv?: () => void;
   onExportExcel?: () => void;
+  /** Back link href. Default: /principal/classes */
+  backHref?: string;
+  /** Back link label. Default: Back to classes */
+  backLabel?: string;
+  /** Show "Edit details" link. Default: true */
+  showEditLink?: boolean;
 }
 
 export function ClassDetailHeader({
@@ -21,6 +27,9 @@ export function ClassDetailHeader({
   onExportPdf,
   onExportCsv,
   onExportExcel,
+  backHref = '/principal/classes',
+  backLabel = 'Back to classes',
+  showEditLink = true,
 }: ClassDetailHeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -54,18 +63,20 @@ export function ClassDetailHeader({
     <>
       <div className="mb-6 flex items-center justify-between gap-4">
         <Link
-          href="/principal/classes"
+          href={backHref}
           className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"
         >
-          ← Back to classes
+          ← {backLabel}
         </Link>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Link
-            href={`/principal/classes?edit=${classRoom.id}`}
-            className="btn-secondary"
-          >
-            Edit details
-          </Link>
+          {showEditLink && (
+            <Link
+              href={`/principal/classes?edit=${classRoom.id}`}
+              className="btn-secondary"
+            >
+              Edit details
+            </Link>
+          )}
           {showExport && (
             <div className="relative" ref={menuRef}>
               <button

@@ -2,8 +2,14 @@ import { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { getCached, setCached, LIST_TTL_MS } from '../utils/cache';
 import type { Child } from '../../../shared/types';
 import type { ClassRoom } from '../../../shared/types';
+
+const cacheKeyChildren = (schoolId: string, uid: string) =>
+  `teacher:children:${schoolId}:${uid}`;
+const cacheKeyClassName = (schoolId: string, uid: string) =>
+  `teacher:className:${schoolId}:${uid}`;
 
 export function useTeacherClassChildren(refreshTrigger: number) {
   const { profile } = useAuth();
@@ -23,13 +29,23 @@ export function useTeacherClassChildren(refreshTrigger: number) {
     let unsub: (() => void) | null = null;
 
     (async () => {
+      const [cachedChildren, cachedClassName] = await Promise.all([
+        getCached<Child[]>(cacheKeyChildren(schoolId, uid)),
+        getCached<string | null>(cacheKeyClassName(schoolId, uid)),
+      ]);
+      if (cancelled) return;
+      if (cachedChildren) setChildren(cachedChildren);
+      if (cachedClassName != null) setClassName(cachedClassName);
+
       const classesSnap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
       if (cancelled) return;
       const myClasses = classesSnap.docs.filter(
         (d) => (d.data() as ClassRoom).assignedTeacherId === uid
       );
       const classIds = myClasses.map((d) => d.id).slice(0, 10);
-      setClassName(myClasses[0] ? (myClasses[0].data() as ClassRoom).name : null);
+      const name = myClasses[0] ? (myClasses[0].data() as ClassRoom).name : null;
+      setClassName(name);
+      await setCached(cacheKeyClassName(schoolId, uid), name, LIST_TTL_MS);
 
       if (classIds.length === 0) {
         setChildren([]);
@@ -44,7 +60,9 @@ export function useTeacherClassChildren(refreshTrigger: number) {
         ),
         (snap) => {
           if (cancelled) return;
-          setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
+          setChildren(list);
+          setCached(cacheKeyChildren(schoolId, uid), list, LIST_TTL_MS);
           setLoading(false);
         }
       );

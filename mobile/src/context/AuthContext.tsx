@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
+import { getCached, setCached, removeCached, PROFILE_TTL_MS } from '../utils/cache';
 import type { UserProfile, UserRole } from '../../../shared/types';
 
 interface AuthContextValue {
@@ -29,15 +30,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
+      const cacheKey = `profile:${u.uid}`;
       try {
+        const cached = await getCached<UserProfile>(cacheKey);
+        if (cached) setProfile(cached);
         const snap = await getDoc(doc(db, 'users', u.uid));
         if (snap.exists()) {
-          setProfile({ uid: u.uid, ...snap.data() } as UserProfile);
+          const profileData = { uid: u.uid, ...snap.data() } as UserProfile;
+          setProfile(profileData);
+          await setCached(cacheKey, profileData, PROFILE_TTL_MS);
         } else {
           setProfile(null);
+          await removeCached(cacheKey);
         }
       } catch {
         setProfile(null);
+        await removeCached(cacheKey);
       }
       setLoading(false);
     });

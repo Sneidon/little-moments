@@ -30,6 +30,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton } from '../../components/Skeleton';
 import { getAge, getInitials, formatTime } from '../../utils';
+import { getCached, setCached, LIST_TTL_MS } from '../../utils/cache';
 
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -92,6 +93,15 @@ export function ParentHomeScreen({
     const uid = profile?.uid;
     if (!uid) return;
     (async () => {
+      const cacheKey = `parent:children:${uid}`;
+      const cached = await getCached<Child[]>(cacheKey);
+      if (cached?.length) {
+        setChildren(cached);
+        setSelectedChildId((prev) => {
+          if (!prev || !cached.some((c) => c.id === prev)) return cached[0].id;
+          return prev;
+        });
+      }
       const schoolsSnap = await getDocs(collection(db, 'schools'));
       const list: Child[] = [];
       for (const schoolDoc of schoolsSnap.docs) {
@@ -104,6 +114,7 @@ export function ParentHomeScreen({
       }
       setChildren(list);
       if (list.length > 0) {
+        await setCached(cacheKey, list, LIST_TTL_MS);
         setSelectedChildId((prev) => {
           if (!prev || !list.some((c) => c.id === prev)) return list[0].id;
           return prev;
@@ -119,12 +130,20 @@ export function ParentHomeScreen({
       setClassName(null);
       return;
     }
-    getDoc(doc(db, 'schools', selectedChild.schoolId, 'classes', selectedChild.classId)).then(
-      (snap) => {
-        if (snap.exists()) setClassName((snap.data() as ClassRoom).name);
-        else setClassName(null);
+    const { schoolId, classId } = selectedChild;
+    const cacheKey = `parent:class:${schoolId}:${classId}`;
+    (async () => {
+      const cached = await getCached<string | null>(cacheKey);
+      if (cached != null) setClassName(cached);
+      const snap = await getDoc(doc(db, 'schools', schoolId, 'classes', classId));
+      if (snap.exists()) {
+        const name = (snap.data() as ClassRoom).name;
+        setClassName(name);
+        await setCached(cacheKey, name, LIST_TTL_MS);
+      } else {
+        setClassName(null);
       }
-    );
+    })();
   }, [selectedChild?.schoolId, selectedChild?.classId]);
 
   useEffect(() => {

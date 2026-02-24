@@ -16,11 +16,21 @@ export interface UseChildDetailResult {
   loading: boolean;
 }
 
+export interface UseChildDetailOptions {
+  /** When child is not found, redirect here. Default: /principal/children */
+  redirectPathIfNotFound?: string;
+}
+
 /**
- * Load child, classes, and reports for a school/child. Redirects to /principal/children if child not found.
+ * Load child, classes, and reports for a school/child. Redirects if child not found.
  */
-export function useChildDetail(schoolId: string | undefined, childId: string | undefined): UseChildDetailResult {
+export function useChildDetail(
+  schoolId: string | undefined,
+  childId: string | undefined,
+  options?: UseChildDetailOptions
+): UseChildDetailResult {
   const router = useRouter();
+  const redirectPath = options?.redirectPathIfNotFound ?? '/principal/children';
   const [child, setChild] = useState<Child | null>(null);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
@@ -45,7 +55,7 @@ export function useChildDetail(schoolId: string | undefined, childId: string | u
       ]);
       if (cancelled) return;
       if (!childSnap.exists()) {
-        router.replace('/principal/children');
+        router.replace(redirectPath);
         return;
       }
       setChild({ id: childSnap.id, ...childSnap.data() } as Child);
@@ -56,7 +66,7 @@ export function useChildDetail(schoolId: string | undefined, childId: string | u
     return () => {
       cancelled = true;
     };
-  }, [schoolId, childId, router]);
+  }, [schoolId, childId, router, redirectPath]);
 
   return { child, setChild, classes, reports, loading };
 }

@@ -36,6 +36,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, profile, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -55,42 +56,42 @@ export default function AdminLayout({
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading…" variant="slate" />;
+    return <LoadingScreen message="Loading…" variant="primary" />;
   }
 
   if (!user || !profile) return null;
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <button
           type="button"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm dark:bg-slate-900/40 lg:hidden"
           aria-label="Close menu"
         />
       )}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-700 bg-slate-800 shadow-xl
+          fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white shadow-card
+          dark:border-slate-700 dark:bg-slate-800
           transition-transform duration-200 ease-out lg:static lg:translate-x-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-700 px-4">
+        <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4 dark:border-slate-700">
           <div className="flex min-w-0 items-center gap-2">
-            <HeartIcon size={28} className="shrink-0 text-white" aria-hidden />
+            <HeartIcon size={28} className="shrink-0 text-primary-500 dark:text-primary-400" aria-hidden />
             <div className="min-w-0">
-              <span className="block truncate font-semibold text-white">My Little Moments</span>
-              <span className="block text-[10px] text-slate-400">Super Admin</span>
+              <span className="block truncate font-semibold text-slate-800 dark:text-slate-100">My Little Moments</span>
+              <span className="block text-[10px] text-slate-500 dark:text-slate-400">Super Admin</span>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white lg:hidden"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200 lg:hidden"
             aria-label="Close menu"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -102,7 +103,7 @@ export default function AdminLayout({
           <div className="flex flex-col gap-4">
             {navSections.map((section) => (
               <div key={section.title}>
-                <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {section.title}
                 </p>
                 <div className="flex flex-col gap-0.5">
@@ -117,8 +118,8 @@ export default function AdminLayout({
                         onClick={() => setSidebarOpen(false)}
                         className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                           isActive
-                            ? 'bg-slate-600 text-white ring-1 ring-slate-500'
-                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                            ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-200 dark:bg-primary-700/40 dark:text-primary-100 dark:ring-primary-500'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'
                         }`}
                       >
                         {label}
@@ -130,21 +131,21 @@ export default function AdminLayout({
             ))}
           </div>
         </nav>
-        <div className="shrink-0 border-t border-slate-700 p-2">
-          <p className="truncate px-3 py-2 text-xs text-slate-400" title={profile.displayName ?? ''}>
+        <div className="shrink-0 border-t border-slate-200 p-2 dark:border-slate-700">
+          <p className="truncate px-3 py-2 text-xs text-slate-500 dark:text-slate-400" title={profile.displayName ?? ''}>
             {profile.displayName}
           </p>
           <button
             type="button"
             onClick={handleSignOut}
-            className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-700 hover:text-white"
+            className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
           >
             Sign out
           </button>
         </div>
       </aside>
       <div className="flex flex-1 flex-col min-h-screen">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:px-6 lg:px-6">
           <div className="flex items-center gap-2">
             <button
               type="button"

@@ -5,36 +5,39 @@ export interface ParentsSectionProps {
   childName?: string;
   maxParents: number;
   parents: UserProfile[];
-  canInviteMore: boolean;
-  showInviteParent: boolean;
-  setShowInviteParent: (show: boolean) => void;
-  inviteForm: InviteFormState;
-  setInviteForm: React.Dispatch<React.SetStateAction<InviteFormState>>;
-  inviteStep: InviteStep;
-  inviteCheckLoading: boolean;
-  inviteCheckError: string;
-  onCheckEmail: (e: React.FormEvent) => Promise<void>;
-  resetInviteToStep1: () => void;
-  inviteSubmitting: boolean;
-  inviteError: string;
-  setInviteError: (msg: string) => void;
-  onInviteSubmit: (e: React.FormEvent) => Promise<void>;
-  onStartEditParent: (p: UserProfile) => void;
-  editingParentUid: string | null;
-  editParentForm: EditFormState;
-  setEditParentForm: React.Dispatch<React.SetStateAction<EditFormState>>;
-  editParentSubmitting: boolean;
-  editParentError: string;
-  onUpdateParentSubmit: (e: React.FormEvent) => Promise<void>;
-  onCancelEdit: () => void;
+  /** When true, only show the list of parents (no invite/edit). Used for admin read-only view. */
+  readOnly?: boolean;
+  canInviteMore?: boolean;
+  showInviteParent?: boolean;
+  setShowInviteParent?: (show: boolean) => void;
+  inviteForm?: InviteFormState;
+  setInviteForm?: React.Dispatch<React.SetStateAction<InviteFormState>>;
+  inviteStep?: InviteStep;
+  inviteCheckLoading?: boolean;
+  inviteCheckError?: string;
+  onCheckEmail?: (e: React.FormEvent) => Promise<void>;
+  resetInviteToStep1?: () => void;
+  inviteSubmitting?: boolean;
+  inviteError?: string;
+  setInviteError?: (msg: string) => void;
+  onInviteSubmit?: (e: React.FormEvent) => Promise<void>;
+  onStartEditParent?: (p: UserProfile) => void;
+  editingParentUid?: string | null;
+  editParentForm?: EditFormState;
+  setEditParentForm?: React.Dispatch<React.SetStateAction<EditFormState>>;
+  editParentSubmitting?: boolean;
+  editParentError?: string;
+  onUpdateParentSubmit?: (e: React.FormEvent) => Promise<void>;
+  onCancelEdit?: () => void;
 }
 
 export function ParentsSection({
   childName,
   maxParents,
   parents,
-  canInviteMore,
-  showInviteParent,
+  readOnly = false,
+  canInviteMore = false,
+  showInviteParent = false,
   setShowInviteParent,
   inviteForm,
   setInviteForm,
@@ -57,9 +60,9 @@ export function ParentsSection({
   onCancelEdit,
 }: ParentsSectionProps) {
   const resetInviteForm = () => {
-    setShowInviteParent(false);
-    setInviteError('');
-    setInviteForm({
+    setShowInviteParent?.(false);
+    setInviteError?.('');
+    setInviteForm?.({
       parentEmail: '',
       parentDisplayName: '',
       parentPhone: '',
@@ -68,6 +71,53 @@ export function ParentsSection({
   };
 
   const childLabel = childName ? ` to ${childName}` : ' to this child';
+
+  if (readOnly) {
+    return (
+      <section className="card mb-8 p-6">
+        <h2 className="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">Parents</h2>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Up to {maxParents} parents per child.
+        </p>
+        {parents.length === 0 ? (
+          <p className="text-slate-500 dark:text-slate-400">No parents linked.</p>
+        ) : (
+          <ul className="space-y-3">
+            {parents.map((p) => (
+              <li
+                key={p.uid}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{p.displayName ?? '—'}</span>
+                  <span className="text-slate-600 dark:text-slate-300 text-sm">{p.email}</span>
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      p.isActive !== false
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+                    }`}
+                  >
+                    {p.isActive !== false ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                {p.phone ? (
+                  <a
+                    href={`tel:${p.phone}`}
+                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    {p.phone}
+                  </a>
+                ) : (
+                  <span className="text-sm text-slate-400 dark:text-slate-500">No phone</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section className="card mb-8 p-6">

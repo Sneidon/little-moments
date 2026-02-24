@@ -14,6 +14,12 @@ export interface ChildDetailHeaderProps {
   onExportPdf: () => void;
   onExportCsv?: () => void;
   onExportExcel?: () => void;
+  /** Back link href. Default: /principal/children */
+  backHref?: string;
+  /** Back link label. Default: Back to children */
+  backLabel?: string;
+  /** Show "Edit details" link. Default: true */
+  showEditLink?: boolean;
 }
 
 export function ChildDetailHeader({
@@ -25,6 +31,9 @@ export function ChildDetailHeader({
   onExportPdf,
   onExportCsv,
   onExportExcel,
+  backHref = '/principal/children',
+  backLabel = 'Back to children',
+  showEditLink = true,
 }: ChildDetailHeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -56,11 +65,11 @@ export function ChildDetailHeader({
     <>
       <div className="mb-6 flex items-center gap-4 border-b border-slate-200 dark:border-slate-600 pb-4">
         <Link
-          href="/principal/children"
+          href={backHref}
           className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium"
-          aria-label="Back to children list"
+          aria-label={backLabel}
         >
-          ← Back to children
+          ← {backLabel}
         </Link>
       </div>
 
@@ -142,9 +151,11 @@ export function ChildDetailHeader({
                 </div>
               )}
             </div>
-            <Link href={`/principal/children?edit=${child.id}`} className="btn-secondary">
-              Edit details
-            </Link>
+            {showEditLink && (
+              <Link href={`/principal/children?edit=${child.id}`} className="btn-secondary">
+                Edit details
+              </Link>
+            )}
           </div>
         </div>
         <ChildProfileCard child={child} ageText={ageText} classDisplay={classDisplay} />

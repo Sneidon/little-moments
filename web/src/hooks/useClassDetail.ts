@@ -27,15 +27,22 @@ export interface UseClassDetailResult {
   loading: boolean;
 }
 
+export interface UseClassDetailOptions {
+  /** When class is not found, redirect here. Default: /principal/classes */
+  redirectPathIfNotFound?: string;
+}
+
 /**
  * Load class, children in class, school teachers, and all reports for those children.
- * Redirects to /principal/classes if class not found.
+ * Redirects if class not found.
  */
 export function useClassDetail(
   schoolId: string | undefined,
-  classId: string | undefined
+  classId: string | undefined,
+  options?: UseClassDetailOptions
 ): UseClassDetailResult {
   const router = useRouter();
+  const redirectPath = options?.redirectPathIfNotFound ?? '/principal/classes';
   const [classRoom, setClassRoom] = useState<ClassRoom | null>(null);
   const [children, setChildren] = useState<Child[]>([]);
   const [teachers, setTeachers] = useState<UserProfile[]>([]);
@@ -53,7 +60,7 @@ export function useClassDetail(
         doc(db, 'schools', schoolId, 'classes', classId)
       );
       if (!cancelled && !classSnap.exists()) {
-        router.replace('/principal/classes');
+        router.replace(redirectPath);
         return;
       }
       if (!cancelled && classSnap.exists()) {
@@ -109,7 +116,7 @@ export function useClassDetail(
     return () => {
       cancelled = true;
     };
-  }, [schoolId, classId, router]);
+  }, [schoolId, classId, router, redirectPath]);
 
   return { classRoom, children, teachers, reports, loading };
 }

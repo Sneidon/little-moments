@@ -3,9 +3,11 @@ import type { Child } from 'shared/types';
 
 export interface ChildrenInClassListProps {
   children: Child[];
+  /** Link href for each child. Default: /principal/children/{id} */
+  childLinkHref?: (child: Child) => string;
 }
 
-export function ChildrenInClassList({ children }: ChildrenInClassListProps) {
+export function ChildrenInClassList({ children, childLinkHref = (child) => `/principal/children/${child.id}` }: ChildrenInClassListProps) {
   return (
     <section className="mt-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
       <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">
@@ -24,7 +26,7 @@ export function ChildrenInClassList({ children }: ChildrenInClassListProps) {
             >
               <div>
                 <Link
-                  href={`/principal/children/${child.id}`}
+                  href={childLinkHref(child)}
                   className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
                 >
                   {child.name}

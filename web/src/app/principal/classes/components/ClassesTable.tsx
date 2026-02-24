@@ -5,12 +5,16 @@ import type { ClassRoom } from 'shared/types';
 export interface ClassesTableProps {
   classes: ClassRoom[];
   teacherDisplayName: (uid: string) => string;
-  onEdit: (c: ClassRoom) => void;
+  /** If provided, class name links here. Default: /principal/classes/{id} */
+  classLinkHref?: (c: ClassRoom) => string;
+  /** If provided, show Edit button. Omit for read-only (e.g. admin). */
+  onEdit?: (c: ClassRoom) => void;
 }
 
 export function ClassesTable({
   classes,
   teacherDisplayName,
+  classLinkHref = (c) => `/principal/classes/${c.id}`,
   onEdit,
 }: ClassesTableProps) {
   return (
@@ -20,7 +24,9 @@ export function ClassesTable({
           <tr>
             <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Class</th>
             <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Assigned teacher</th>
-            <th className="w-0 px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-200">Actions</th>
+            {onEdit != null && (
+              <th className="w-0 px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-200">Actions</th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -28,7 +34,7 @@ export function ClassesTable({
             <tr key={c.id} className="border-t border-slate-100 dark:border-slate-600">
               <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
                 <Link
-                  href={`/principal/classes/${c.id}`}
+                  href={classLinkHref(c)}
                   className="text-primary-600 dark:text-primary-400 hover:underline"
                 >
                   {formatClassDisplay(c)}
@@ -37,15 +43,17 @@ export function ClassesTable({
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                 {c.assignedTeacherId ? teacherDisplayName(c.assignedTeacherId) : '—'}
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-right">
-                <button
-                  type="button"
-                  onClick={() => onEdit(c)}
-                  className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                >
-                  Edit
-                </button>
-              </td>
+              {onEdit != null && (
+                <td className="whitespace-nowrap px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(c)}
+                    className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    Edit
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

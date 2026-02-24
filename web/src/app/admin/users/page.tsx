@@ -1,126 +1,104 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { UserProfile } from 'shared/types';
+
+type SchoolUserCount = {
+  id: string;
+  name: string;
+  userCount: number;
+};
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [schools, setSchools] = useState<SchoolUserCount[]>([]);
+  const [superAdminCount, setSuperAdminCount] = useState(0);
+  const [parentCount, setParentCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('');
-  const [schoolFilter, setSchoolFilter] = useState<string>('');
-  const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [usersSnap, schoolsSnap] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'schools')),
-      ]);
-      setUsers(usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile)));
-      setSchools(schoolsSnap.docs.map((d) => ({ id: d.id, name: (d.data() as { name?: string }).name ?? d.id })));
-      setLoading(false);
+      try {
+        const schoolsSnap = await getDocs(collection(db, 'schools'));
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const users = usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() } as { schoolId?: string; role?: string }));
+
+        const superAdmins = users.filter((u) => u.role === 'super_admin').length;
+        const parents = users.filter((u) => u.role === 'parent').length;
+        setSuperAdminCount(superAdmins);
+        setParentCount(parents);
+
+        const list: SchoolUserCount[] = schoolsSnap.docs.map((doc) => {
+          const schoolId = doc.id;
+          const name = (doc.data() as { name?: string }).name ?? schoolId;
+          const userCount = users.filter((u) => u.schoolId === schoolId).length;
+          return { id: schoolId, name, userCount };
+        });
+        setSchools(list);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
-  const filtered = users.filter((u) => {
-    const matchSearch =
-      !search ||
-      (u.displayName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (u.email ?? '').toLowerCase().includes(search.toLowerCase());
-    const matchRole = !roleFilter || u.role === roleFilter;
-    const matchSchool = !schoolFilter || u.schoolId === schoolFilter;
-    return matchSearch && matchRole && matchSchool;
-  });
-
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-slate-100">Users</h1>
-
-      <div className="mb-6 flex flex-wrap gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
-        <div className="min-w-[200px] flex-1">
-          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Search</label>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Name or email"
-            className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Role</label>
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-          >
-            <option value="">All roles</option>
-            <option value="super_admin">Super Admin</option>
-            <option value="principal">Principal</option>
-            <option value="teacher">Teacher</option>
-            <option value="parent">Parent</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">School</label>
-          <select
-            value={schoolFilter}
-            onChange={(e) => setSchoolFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-          >
-            <option value="">All schools</option>
-            {schools.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Users</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Overview by school. Click a school to view and manage its users.
+        </p>
       </div>
+
+      {(superAdminCount > 0 || parentCount > 0) && (
+        <div className="mb-6 flex flex-wrap gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
+          {superAdminCount > 0 && (
+            <div>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Super admins</span>
+              <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{superAdminCount}</p>
+            </div>
+          )}
+          {parentCount > 0 && (
+            <div>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Parents (all)</span>
+              <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{parentCount}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-700">
-                <tr>
-                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Name</th>
-                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Email</th>
-                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Role</th>
-                  <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">School</th>
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700">
+              <tr>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">School</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Users</th>
+              </tr>
+            </thead>
+            <tbody>
+              {schools.map((s) => (
+                <tr key={s.id} className="border-t border-slate-100 dark:border-slate-600">
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                    <Link
+                      href={`/admin/schools/${s.id}/users`}
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      {s.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.userCount}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.map((u) => (
-                  <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600">
-                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{u.displayName ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          u.role === 'super_admin'
-                            ? 'bg-slate-700 text-white dark:bg-slate-600'
-                            : u.role === 'principal'
-                            ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-200'
-                            : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                        }`}
-                      >
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                      {schools.find((s) => s.id === u.schoolId)?.name ?? u.schoolId ?? '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filtered.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No users match the filters.</p>
+              ))}
+            </tbody>
+          </table>
+          {schools.length === 0 && (
+            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
           )}
         </div>
       )}

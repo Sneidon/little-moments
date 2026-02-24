@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, Image, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, Image, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import { SkeletonCard } from '../../components/Skeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -79,7 +80,11 @@ export function ParentAnnouncementsScreen() {
   return (
     <View style={styles.container}>
       {!schoolId ? (
-        <Text style={styles.empty}>Loading…</Text>
+        <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+          {[1, 2, 3, 4].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </ScrollView>
       ) : (
         <FlatList
           data={list}

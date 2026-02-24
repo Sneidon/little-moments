@@ -24,6 +24,8 @@ export type ColorPalette = {
   tabInactive: string;
   avatarBg: string;
   avatarText: string;
+  skeleton: string;
+  skeletonHighlight: string;
 };
 
 export const lightColors: ColorPalette = {
@@ -52,6 +54,8 @@ export const lightColors: ColorPalette = {
   tabInactive: '#94a3b8',
   avatarBg: '#e0e7ff',
   avatarText: '#6366f1',
+  skeleton: '#e2e8f0',
+  skeletonHighlight: '#f1f5f9',
 };
 
 export const darkColors: ColorPalette = {
@@ -80,4 +84,6 @@ export const darkColors: ColorPalette = {
   tabInactive: '#64748b',
   avatarBg: '#4338ca',
   avatarText: '#c7d2fe',
+  skeleton: '#334155',
+  skeletonHighlight: '#475569',
 };

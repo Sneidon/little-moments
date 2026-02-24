@@ -1,12 +1,6 @@
 import React, { useEffect, useState, useLayoutEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { SkeletonChatRow } from '../../components/Skeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, collectionGroup, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -165,8 +159,10 @@ export function MessagesListScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <SkeletonChatRow key={i} />
+        ))}
       </View>
     );
   }
@@ -196,7 +192,6 @@ export function MessagesListScreen({ navigation }: Props) {
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

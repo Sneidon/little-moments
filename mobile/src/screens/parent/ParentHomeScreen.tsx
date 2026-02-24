@@ -21,6 +21,7 @@ import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '../../../../shared/types';
 import type { DailyReport } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
+import { Skeleton } from '../../components/Skeleton';
 
 function getInitials(name: string): string {
   return name
@@ -225,7 +226,11 @@ export function ParentHomeScreen({
               </Text>
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.headerName}>{selectedChild?.name ?? 'Loading…'}</Text>
+              {selectedChild?.name ? (
+                <Text style={styles.headerName}>{selectedChild.name}</Text>
+              ) : (
+                <Skeleton width={120} height={20} style={{ marginBottom: 4 }} />
+              )}
               <Text style={styles.headerClass}>
                 {selectedChild ? getAge(selectedChild.dateOfBirth) : ''}
                 {className ? ` · ${className}` : ''}

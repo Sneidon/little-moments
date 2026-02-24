@@ -21,6 +21,7 @@ import { getOrCreateChat } from '../../api/chat';
 import type { DailyReport } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
+import { Skeleton } from '../../components/Skeleton';
 
 function getInitials(name: string): string {
   return name
@@ -277,7 +278,11 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
             </Text>
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.headerName}>{child?.name ?? 'Loading…'}</Text>
+            {child?.name ? (
+              <Text style={styles.headerName}>{child.name}</Text>
+            ) : (
+              <Skeleton width={140} height={20} style={{ marginBottom: 4 }} />
+            )}
             <Text style={styles.headerClass}>
               {child ? getAge(child.dateOfBirth) : ''}
               {className ? ` · ${className}` : ''}

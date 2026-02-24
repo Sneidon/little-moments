@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ScrollView } from 'react-native';
+import { SkeletonCard } from '../../components/Skeleton';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -77,7 +78,11 @@ export function ParentCalendarScreen() {
   return (
     <View style={styles.container}>
       {!schoolId ? (
-        <Text style={styles.empty}>Loading…</Text>
+        <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+          {[1, 2, 3].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </ScrollView>
       ) : (
         <FlatList
           data={list}

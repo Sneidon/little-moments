@@ -5,10 +5,10 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   RefreshControl,
 } from 'react-native';
+import { SkeletonChildRow } from '../../components/Skeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -136,8 +136,10 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <SkeletonChildRow key={i} />
+        ))}
       </View>
     );
   }
@@ -160,7 +162,6 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

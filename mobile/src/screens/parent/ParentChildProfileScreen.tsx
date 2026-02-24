@@ -21,6 +21,7 @@ import type { DailyReport } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Skeleton } from '../../components/Skeleton';
 
 type ParentStackParamList = {
   ParentHome: undefined;
@@ -268,7 +269,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
             </Text>
           </View>
         ) : (
-          <Text style={styles.childMeta}>Loading…</Text>
+          <Skeleton width={120} height={14} style={{ marginTop: 2 }} />
         )}
       </View>
 

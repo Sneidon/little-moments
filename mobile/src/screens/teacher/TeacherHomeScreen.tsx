@@ -15,6 +15,7 @@ import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestor
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton, SkeletonCircle, SkeletonStatCard, SkeletonStudentCard } from '../../components/Skeleton';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 
@@ -57,6 +58,7 @@ export function TeacherHomeScreen({
   const [presentChildIds, setPresentChildIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -66,6 +68,11 @@ export function TeacherHomeScreen({
   }, []);
 
   const isToday = selectedDate === new Date().toISOString().slice(0, 10);
+
+  // No profile yet: don't show skeleton
+  useEffect(() => {
+    if (!profile?.schoolId || !profile?.uid) setInitialLoading(false);
+  }, [profile?.schoolId, profile?.uid]);
 
   // Load teacher's class(es) and children
   useEffect(() => {
@@ -88,6 +95,7 @@ export function TeacherHomeScreen({
       if (classIds.length === 0) {
         setChildren([]);
         setRefreshing(false);
+        setInitialLoading(false);
         return;
       }
 
@@ -100,6 +108,7 @@ export function TeacherHomeScreen({
           if (cancelled) return;
           setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
           setRefreshing(false);
+          setInitialLoading(false);
         }
       );
     })();
@@ -239,6 +248,55 @@ export function TeacherHomeScreen({
   ];
 
   const isChildPresentToday = (childId: string): boolean => presentChildIds.has(childId);
+
+  if (initialLoading) {
+    return (
+      <View style={styles.container}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={[styles.header, { paddingTop: Math.max(56, insets.top + 12) }]}>
+            <View style={styles.headerProfile}>
+              <SkeletonCircle size={48} />
+              <View style={{ marginLeft: 14 }}>
+                <Skeleton width={140} height={20} style={{ marginBottom: 6 }} />
+                <Skeleton width={80} height={14} />
+              </View>
+            </View>
+          </View>
+          <View style={styles.dateBar}>
+            <Skeleton width={32} height={24} />
+            <Skeleton width={120} height={20} />
+            <Skeleton width={32} height={24} />
+          </View>
+          <View style={styles.section}>
+            <Skeleton width={160} height={18} style={{ marginBottom: 12 }} />
+            <View style={styles.statsRow}>
+              {[1, 2, 3, 4].map((i) => (
+                <SkeletonStatCard key={i} />
+              ))}
+            </View>
+          </View>
+          <View style={styles.section}>
+            <Skeleton width={120} height={18} style={{ marginBottom: 12 }} />
+            <View style={styles.quickActionsGrid}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <View key={i} style={styles.quickActionBtn}>
+                  <SkeletonCircle size={48} />
+                  <Skeleton width={64} height={12} style={{ marginTop: 8 }} />
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.section}>
+            <Skeleton width={140} height={18} style={{ marginBottom: 12 }} />
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonStudentCard key={i} />
+            ))}
+          </View>
+          <View style={styles.bottomPad} />
+        </ScrollView>
+      </View>
+    );
+  }
 
   const renderChild = ({ item }: { item: Child }) => {
     const present = isChildPresentToday(item.id);

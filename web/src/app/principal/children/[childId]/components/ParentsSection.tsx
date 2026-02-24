@@ -132,7 +132,7 @@ export function ParentsSection({
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Invite a parent so they can sign in and view this child&apos;s daily activities.
           </p>
-          <button type="button" onClick={() => setShowInviteParent(true)} className="btn-primary mt-4">
+          <button type="button" onClick={() => setShowInviteParent?.(true)} className="btn-primary mt-4">
             Invite parent
           </button>
         </div>
@@ -171,7 +171,7 @@ export function ParentsSection({
                 )}
                 <button
                   type="button"
-                  onClick={() => onStartEditParent(p)}
+                  onClick={() => onStartEditParent?.(p)}
                   className="btn-secondary text-sm py-1.5 px-3"
                 >
                   Edit
@@ -184,7 +184,7 @@ export function ParentsSection({
 
       {editingParentUid ? (
         <form
-          onSubmit={onUpdateParentSubmit}
+          onSubmit={(e) => onUpdateParentSubmit?.(e)}
           className="mb-6 max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
         >
           <h3 className="font-medium text-slate-800 dark:text-slate-100">Edit parent</h3>
@@ -197,8 +197,8 @@ export function ParentsSection({
             </label>
             <input
               type="text"
-              value={editParentForm.displayName}
-              onChange={(e) => setEditParentForm((f) => ({ ...f, displayName: e.target.value }))}
+              value={editParentForm?.displayName ?? ''}
+              onChange={(e) => setEditParentForm?.((f) => ({ ...f, displayName: e.target.value }))}
               className="input-base"
               required
             />
@@ -207,8 +207,8 @@ export function ParentsSection({
             <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
             <input
               type="tel"
-              value={editParentForm.phone}
-              onChange={(e) => setEditParentForm((f) => ({ ...f, phone: e.target.value }))}
+              value={editParentForm?.phone ?? ''}
+              onChange={(e) => setEditParentForm?.((f) => ({ ...f, phone: e.target.value }))}
               className="input-base"
               placeholder="Optional"
             />
@@ -217,8 +217,8 @@ export function ParentsSection({
             <input
               type="checkbox"
               id="editParentIsActive"
-              checked={editParentForm.isActive}
-              onChange={(e) => setEditParentForm((f) => ({ ...f, isActive: e.target.checked }))}
+              checked={editParentForm?.isActive ?? false}
+              onChange={(e) => setEditParentForm?.((f) => ({ ...f, isActive: e.target.checked }))}
               className="rounded border-slate-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500"
             />
             <label
@@ -232,7 +232,7 @@ export function ParentsSection({
             <button type="submit" disabled={editParentSubmitting} className="btn-primary">
               {editParentSubmitting ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" onClick={onCancelEdit} className="btn-secondary">
+            <button type="button" onClick={() => onCancelEdit?.()} className="btn-secondary">
               Cancel
             </button>
           </div>
@@ -242,12 +242,12 @@ export function ParentsSection({
       {canInviteMore && (parents.length > 0 || showInviteParent) ? (
         <>
           {!showInviteParent ? (
-            <button type="button" onClick={() => setShowInviteParent(true)} className="btn-primary">
+            <button type="button" onClick={() => setShowInviteParent?.(true)} className="btn-primary">
               Invite parent
             </button>
           ) : inviteStep === 'email' ? (
             <form
-              onSubmit={onCheckEmail}
+              onSubmit={(e) => onCheckEmail?.(e)}
               className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
             >
               <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Step 1</h3>
@@ -261,8 +261,8 @@ export function ParentsSection({
                 <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
                 <input
                   type="email"
-                  value={inviteForm.parentEmail}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, parentEmail: e.target.value }))}
+                  value={inviteForm?.parentEmail ?? ''}
+                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentEmail: e.target.value }))}
                   className="input-base"
                   placeholder="parent@example.com"
                   required
@@ -279,12 +279,12 @@ export function ParentsSection({
             </form>
           ) : inviteStep === 'link' ? (
             <form
-              onSubmit={onInviteSubmit}
+              onSubmit={(e) => onInviteSubmit?.(e)}
               className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
             >
               <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Link existing account</h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                <strong>{inviteForm.parentEmail}</strong> already has an account. Link them{childLabel}?
+                <strong>{inviteForm?.parentEmail}</strong> already has an account. Link them{childLabel}?
               </p>
               {inviteError ? (
                 <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
@@ -295,8 +295,8 @@ export function ParentsSection({
                 </label>
                 <input
                   type="text"
-                  value={inviteForm.parentDisplayName}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, parentDisplayName: e.target.value }))}
+                  value={inviteForm?.parentDisplayName ?? ''}
+                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentDisplayName: e.target.value }))}
                   className="input-base"
                   placeholder="Optional — update how they appear"
                 />
@@ -305,8 +305,8 @@ export function ParentsSection({
                 <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
                 <input
                   type="tel"
-                  value={inviteForm.parentPhone}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, parentPhone: e.target.value }))}
+                  value={inviteForm?.parentPhone ?? ''}
+                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentPhone: e.target.value }))}
                   className="input-base"
                   placeholder="Optional"
                 />
@@ -315,7 +315,7 @@ export function ParentsSection({
                 <button type="submit" disabled={inviteSubmitting} className="btn-primary">
                   {inviteSubmitting ? 'Linking…' : 'Link parent'}
                 </button>
-                <button type="button" onClick={resetInviteToStep1} className="btn-secondary">
+                <button type="button" onClick={() => resetInviteToStep1?.()} className="btn-secondary">
                   Back
                 </button>
                 <button type="button" onClick={resetInviteForm} className="btn-secondary">
@@ -325,7 +325,7 @@ export function ParentsSection({
             </form>
           ) : (
             <form
-              onSubmit={onInviteSubmit}
+              onSubmit={(e) => onInviteSubmit?.(e)}
               className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
             >
               <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Create account</h3>
@@ -339,7 +339,7 @@ export function ParentsSection({
                 <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
                 <input
                   type="email"
-                  value={inviteForm.parentEmail}
+                  value={inviteForm?.parentEmail ?? ''}
                   readOnly
                   className="input-base bg-slate-100 dark:bg-slate-700 cursor-not-allowed"
                 />
@@ -350,8 +350,8 @@ export function ParentsSection({
                 </label>
                 <input
                   type="text"
-                  value={inviteForm.parentDisplayName}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, parentDisplayName: e.target.value }))}
+                  value={inviteForm?.parentDisplayName ?? ''}
+                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentDisplayName: e.target.value }))}
                   className="input-base"
                   placeholder="Optional"
                 />
@@ -360,8 +360,8 @@ export function ParentsSection({
                 <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
                 <input
                   type="tel"
-                  value={inviteForm.parentPhone}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, parentPhone: e.target.value }))}
+                  value={inviteForm?.parentPhone ?? ''}
+                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentPhone: e.target.value }))}
                   className="input-base"
                   placeholder="Optional"
                 />
@@ -372,8 +372,8 @@ export function ParentsSection({
                 </label>
                 <input
                   type="password"
-                  value={inviteForm.parentPassword}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, parentPassword: e.target.value }))}
+                  value={inviteForm?.parentPassword ?? ''}
+                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentPassword: e.target.value }))}
                   className="input-base"
                   placeholder="Min 6 characters"
                   minLength={6}
@@ -384,7 +384,7 @@ export function ParentsSection({
                 <button type="submit" disabled={inviteSubmitting} className="btn-primary">
                   {inviteSubmitting ? 'Creating…' : 'Create account & link'}
                 </button>
-                <button type="button" onClick={resetInviteToStep1} className="btn-secondary">
+                <button type="button" onClick={() => resetInviteToStep1?.()} className="btn-secondary">
                   Back
                 </button>
                 <button type="button" onClick={resetInviteForm} className="btn-secondary">

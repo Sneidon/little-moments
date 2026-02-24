@@ -127,11 +127,11 @@ export default function AdminSchoolOverviewPage() {
         </div>
       </section>
 
-      {/* Links to Teachers, Classes, Children */}
+      {/* Links to Teachers, Classes, Children, Reports */}
       <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
         Details
       </h2>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Link
           href={`/admin/schools/${schoolId}/teachers`}
           className="card-hover block p-6"
@@ -155,6 +155,22 @@ export default function AdminSchoolOverviewPage() {
           <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{children.length}</p>
           <h3 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">Children</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Enrolled children</p>
+        </Link>
+        <Link
+          href={`/admin/schools/${schoolId}/reports`}
+          className="card-hover block p-6"
+        >
+          <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">—</p>
+          <h3 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">Reports</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Daily activity logs</p>
+        </Link>
+        <Link
+          href={`/admin/schools/${schoolId}/usage`}
+          className="card-hover block p-6"
+        >
+          <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">—</p>
+          <h3 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">Usage & analytics</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Activity overview</p>
         </Link>
       </div>
     </div>

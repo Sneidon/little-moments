@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -59,7 +60,7 @@ export default function UsagePage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-slate-100">Usage & analytics</h1>
       <p className="mb-6 text-slate-600 dark:text-slate-300">
-        Overview of activity per school.
+        Overview of activity per school. Click a school to view its analytics.
       </p>
 
       {loading ? (
@@ -79,7 +80,14 @@ export default function UsagePage() {
             <tbody>
               {stats.map((s) => (
                 <tr key={s.id} className="border-t border-slate-100 dark:border-slate-600">
-                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{s.name}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                    <Link
+                      href={`/admin/schools/${s.id}/usage`}
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      {s.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.children}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.reportsCount}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.announcements}</td>
@@ -89,7 +97,7 @@ export default function UsagePage() {
             </tbody>
           </table>
           {stats.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No data yet.</p>
+            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
           )}
         </div>
       )}

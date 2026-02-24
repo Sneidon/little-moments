@@ -34,6 +34,24 @@ type TeacherStackParamList = {
 };
 type Props = NativeStackScreenProps<TeacherStackParamList, 'AddUpdate'>;
 
+/** Per-child overrides for group variations (only set fields that differ from default) */
+export type ChildFormOverrides = Partial<{
+  mealType: 'breakfast' | 'lunch' | 'snack';
+  mealAmount: string;
+  mealOptionId: string | null;
+  mealOptionName: string;
+  nappyType: string;
+  nappyCondition: string;
+  napStartTime: string;
+  napEndTime: string;
+  sleepQuality: string;
+  activityType: string | null;
+  activityTitle: string;
+  activityDescription: string;
+  notes: string;
+  photoCategory: string | null;
+}>;
+
 const MEAL_TYPES = [
   { value: 'breakfast' as const, label: 'Breakfast' },
   { value: 'lunch' as const, label: 'Lunch' },
@@ -132,6 +150,12 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
   const [childPickerOpen, setChildPickerOpen] = useState(false);
+  /** Per-child variations (only children with different values from default) */
+  const [childOverrides, setChildOverrides] = useState<Record<string, ChildFormOverrides>>({});
+  const [variationModalChildId, setVariationModalChildId] = useState<string | null>(null);
+  const [variationDropdown, setVariationDropdown] = useState<string | null>(null);
+  /** Draft form values when editing a child's variation (full effective values for that child) */
+  const [variationDraft, setVariationDraft] = useState<ChildFormOverrides | null>(null);
   const [type, setType] = useState<ReportType>(
     route.params?.initialType ?? 'meal'
   );
@@ -258,10 +282,75 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     setSelectedChildIds((prev) =>
       prev.includes(childId) ? prev.filter((id) => id !== childId) : [...prev, childId]
     );
+    if (selectedChildIds.includes(childId)) {
+      clearOverrideForChild(childId);
+    }
   };
 
   const selectAllChildren = () => setSelectedChildIds(children.map((c) => c.id));
   const clearChildSelection = () => setSelectedChildIds([]);
+
+  /** Get effective form values for a child (defaults + any overrides for this child) */
+  const getValuesForChild = (childId: string) => {
+    const o = childOverrides[childId] ?? {};
+    return {
+      mealType: (o.mealType ?? mealType) as 'breakfast' | 'lunch' | 'snack',
+      mealAmount: o.mealAmount ?? mealAmount,
+      mealOptionId: o.mealOptionId !== undefined ? o.mealOptionId : selectedMealOptionId,
+      mealOptionName: o.mealOptionName ?? selectedMealOption?.name,
+      nappyType: o.nappyType ?? nappyType,
+      nappyCondition: o.nappyCondition ?? nappyCondition,
+      napStartTime: o.napStartTime ?? napStartTime,
+      napEndTime: o.napEndTime ?? napEndTime,
+      sleepQuality: o.sleepQuality ?? sleepQuality,
+      activityType: o.activityType !== undefined ? o.activityType : activityType,
+      activityTitle: (o.activityTitle ?? activityTitle).trim(),
+      activityDescription: (o.activityDescription ?? activityDescription).trim(),
+      notes: (o.notes ?? notes).trim(),
+      photoCategory: o.photoCategory !== undefined ? o.photoCategory : photoCategory,
+    };
+  };
+
+  const setOverrideForChild = (childId: string, overrides: ChildFormOverrides) => {
+    setChildOverrides((prev) => ({ ...prev, [childId]: overrides }));
+  };
+  const clearOverrideForChild = (childId: string) => {
+    setChildOverrides((prev) => {
+      const next = { ...prev };
+      delete next[childId];
+      return next;
+    });
+  };
+
+  const openVariationModal = (childId: string) => {
+    setVariationModalChildId(childId);
+    const v = getValuesForChild(childId);
+    setVariationDraft({
+      mealType: v.mealType,
+      mealAmount: v.mealAmount,
+      mealOptionId: v.mealOptionId,
+      mealOptionName: v.mealOptionName ?? '',
+      nappyType: v.nappyType,
+      nappyCondition: v.nappyCondition,
+      napStartTime: v.napStartTime,
+      napEndTime: v.napEndTime,
+      sleepQuality: v.sleepQuality,
+      activityType: v.activityType,
+      activityTitle: v.activityTitle,
+      activityDescription: v.activityDescription,
+      notes: v.notes,
+      photoCategory: v.photoCategory,
+    });
+  };
+
+  const saveVariation = () => {
+    if (variationModalChildId && variationDraft) {
+      setChildOverrides((prev) => ({ ...prev, [variationModalChildId]: variationDraft }));
+    }
+    setVariationModalChildId(null);
+    setVariationDropdown(null);
+    setVariationDraft(null);
+  };
 
   const submit = async () => {
     const schoolId = profile?.schoolId;
@@ -281,41 +370,42 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         uploadedImageUrl = await uploadPhotoAsync(photoUri, schoolId, selectedChildIds[0]);
       }
       for (const childId of selectedChildIds) {
+        const v = getValuesForChild(childId);
         const payload: Record<string, unknown> = {
           childId,
           schoolId,
           type,
           reportedBy: profile!.uid,
-          notes: notes.trim() || undefined,
+          notes: v.notes || undefined,
           timestamp: now.toISOString(),
           createdAt: now.toISOString(),
         };
         if (type === 'meal') {
-          payload.mealType = mealType;
-          payload.mealAmount = mealAmount;
-          if (selectedMealOptionId && selectedMealOption) {
-            payload.mealOptionId = selectedMealOptionId;
-            payload.mealOptionName = selectedMealOption.name;
+          payload.mealType = v.mealType;
+          payload.mealAmount = v.mealAmount;
+          if (v.mealOptionId && v.mealOptionName) {
+            payload.mealOptionId = v.mealOptionId;
+            payload.mealOptionName = v.mealOptionName;
           }
         }
         if (type === 'nappy_change') {
-          payload.nappyType = nappyType;
-          payload.nappyCondition = nappyCondition;
+          payload.nappyType = v.nappyType;
+          payload.nappyCondition = v.nappyCondition;
         }
         if (type === 'nap_time') {
-          payload.napStartTime = napStartTime;
-          payload.napEndTime = napEndTime;
-          payload.sleepQuality = sleepQuality;
+          payload.napStartTime = v.napStartTime;
+          payload.napEndTime = v.napEndTime;
+          payload.sleepQuality = v.sleepQuality;
         }
         if (type === 'medication') {
-          payload.activityType = activityType || undefined;
-          payload.activityTitle = activityTitle.trim() || undefined;
-          payload.medicationName = activityType || undefined;
-          if (activityDescription.trim()) payload.notes = activityDescription.trim();
+          payload.activityType = v.activityType || undefined;
+          payload.activityTitle = v.activityTitle || undefined;
+          payload.medicationName = v.activityType || undefined;
+          if (v.activityDescription) payload.notes = v.activityDescription;
         }
         if (type === 'incident') {
           if (uploadedImageUrl) payload.imageUrl = uploadedImageUrl;
-          if (photoCategory) payload.photoCategory = photoCategory;
+          if (v.photoCategory) payload.photoCategory = v.photoCategory;
         }
         const sanitized = Object.fromEntries(
           Object.entries(payload).filter(([, v]) => v !== undefined)
@@ -329,6 +419,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       setNotes('');
       setPhotoUri(null);
       setPhotoCategory(null);
+      setChildOverrides({});
+      setVariationModalChildId(null);
       if (type === 'nap_time') {
         setNapTimerStart(null);
         setNapTimerEnd(null);
@@ -409,8 +501,21 @@ export function AddUpdateScreen({ navigation, route }: Props) {
             </View>
             <View style={styles.selectedChildrenChips}>
               {selectedChildren.map((c) => (
-                <View key={c.id} style={styles.selectedChildChip}>
+                <View key={c.id} style={[styles.selectedChildChip, childOverrides[c.id] && styles.selectedChildChipVariation]}>
                   <Text style={styles.selectedChildChipText}>{c.name}</Text>
+                  {selectedChildren.length > 1 && (
+                    <TouchableOpacity
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      onPress={() => openVariationModal(c.id)}
+                      style={styles.selectedChildChipVariationBtn}
+                    >
+                      <Ionicons
+                        name={childOverrides[c.id] ? 'create' : 'create-outline'}
+                        size={16}
+                        color={colors.primary}
+                      />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     onPress={() => toggleChildSelection(c.id)}
@@ -935,6 +1040,175 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         </View>
       )}
 
+      {/* Variation modal: different values for one child */}
+      <Modal
+        visible={variationModalChildId != null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setVariationModalChildId(null); setVariationDropdown(null); setVariationDraft(null); }}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => { setVariationModalChildId(null); setVariationDropdown(null); setVariationDraft(null); }}
+        >
+          <View style={[styles.modalContent, styles.variationModalContent]} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>
+              Variation for {variationModalChildId ? selectedChildren.find((c) => c.id === variationModalChildId)?.name : ''}
+            </Text>
+            <Text style={styles.variationModalHint}>Set different values for this child. Leave as default to match the main form.</Text>
+            {variationDraft && (
+              <ScrollView style={styles.variationModalScroll} keyboardShouldPersistTaps="handled">
+                {type === 'meal' && (
+                  <>
+                    <Text style={styles.label}>How much did they eat?</Text>
+                    <View style={styles.optionsRow}>
+                      {MEAL_AMOUNTS.map((a) => (
+                        <TouchableOpacity
+                          key={a.value}
+                          style={[styles.optionChip, variationDraft.mealAmount === a.value && styles.optionChipActive]}
+                          onPress={() => setVariationDraft((p) => (p ? { ...p, mealAmount: a.value } : null))}
+                        >
+                          <Text style={[styles.optionChipText, variationDraft.mealAmount === a.value && styles.optionChipTextActive]}>{a.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+                {type === 'nappy_change' && (
+                  <>
+                    <Text style={styles.label}>Type</Text>
+                    <View style={styles.optionsRow}>
+                      {NAPPY_TYPES.map((n) => (
+                        <TouchableOpacity
+                          key={n.value}
+                          style={[styles.optionChip, variationDraft.nappyType === n.value && styles.optionChipActive]}
+                          onPress={() => setVariationDraft((p) => (p ? { ...p, nappyType: n.value } : null))}
+                        >
+                          <Text style={[styles.optionChipText, variationDraft.nappyType === n.value && styles.optionChipTextActive]}>{n.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <Text style={styles.label}>Condition</Text>
+                    <View style={styles.optionsRow}>
+                      {NAPPY_CONDITIONS.map((c) => (
+                        <TouchableOpacity
+                          key={c.value}
+                          style={[styles.optionChip, variationDraft.nappyCondition === c.value && styles.optionChipActive]}
+                          onPress={() => setVariationDraft((p) => (p ? { ...p, nappyCondition: c.value } : null))}
+                        >
+                          <Text style={[styles.optionChipText, variationDraft.nappyCondition === c.value && styles.optionChipTextActive]}>{c.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+                {(type === 'nap_time' || type === 'medication' || type === 'meal' || type === 'nappy_change' || type === 'incident') && (
+                  <>
+                    <Text style={styles.label}>Notes (optional)</Text>
+                    <TextInput
+                      style={[styles.input, styles.inputMultiline]}
+                      value={variationDraft.notes ?? ''}
+                      onChangeText={(text) => setVariationDraft((p) => (p ? { ...p, notes: text } : null))}
+                      placeholder="Different notes for this child..."
+                      placeholderTextColor={colors.textMuted}
+                      multiline
+                      numberOfLines={2}
+                    />
+                  </>
+                )}
+                {type === 'nap_time' && (
+                  <>
+                    <Text style={styles.label}>Sleep quality</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownRow}
+                      onPress={() => setVariationDropdown(variationDropdown === 'sleepQuality' ? null : 'sleepQuality')}
+                    >
+                      <Text style={styles.dropdownText}>
+                        {SLEEP_QUALITY_OPTIONS.find((s) => s.value === variationDraft.sleepQuality)?.label ?? 'Good'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {variationDropdown === 'sleepQuality' && (
+                      <View style={styles.dropdownOptions}>
+                        {SLEEP_QUALITY_OPTIONS.map((s) => (
+                          <TouchableOpacity
+                            key={s.value}
+                            style={styles.dropdownOption}
+                            onPress={() => {
+                              setVariationDraft((p) => (p ? { ...p, sleepQuality: s.value } : null));
+                              setVariationDropdown(null);
+                            }}
+                          >
+                            <Text style={styles.dropdownOptionText}>{s.label}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </>
+                )}
+                {type === 'medication' && (
+                  <>
+                    <Text style={styles.label}>Activity title</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={variationDraft.activityTitle ?? ''}
+                      onChangeText={(text) => setVariationDraft((p) => (p ? { ...p, activityTitle: text } : null))}
+                      placeholder="e.g., Watercolor Painting"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  </>
+                )}
+                {type === 'incident' && (
+                  <>
+                    <Text style={styles.label}>Category</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownRow}
+                      onPress={() => setVariationDropdown(variationDropdown === 'photoCategory' ? null : 'photoCategory')}
+                    >
+                      <Text style={[styles.dropdownText, !variationDraft.photoCategory && styles.dropdownPlaceholder]}>
+                        {variationDraft.photoCategory || 'Select category'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {variationDropdown === 'photoCategory' && (
+                      <View style={styles.dropdownOptions}>
+                        {PHOTO_CATEGORIES.map((cat) => (
+                          <TouchableOpacity
+                            key={cat}
+                            style={styles.dropdownOption}
+                            onPress={() => {
+                              setVariationDraft((p) => (p ? { ...p, photoCategory: cat } : null));
+                              setVariationDropdown(null);
+                            }}
+                          >
+                            <Text style={styles.dropdownOptionText}>{cat}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </>
+                )}
+              </ScrollView>
+            )}
+            <View style={styles.variationModalActions}>
+              {variationModalChildId && childOverrides[variationModalChildId] && (
+                <TouchableOpacity style={styles.variationModalClearBtn} onPress={() => { clearOverrideForChild(variationModalChildId); setVariationModalChildId(null); setVariationDropdown(null); setVariationDraft(null); }}>
+                  <Text style={styles.variationModalClearText}>Clear variation</Text>
+                </TouchableOpacity>
+              )}
+              <View style={styles.variationModalPrimaryActions}>
+                <TouchableOpacity style={styles.modalDoneBtn} onPress={saveVariation}>
+                  <Text style={styles.modalDoneBtnText}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.variationModalCancelBtn} onPress={() => { setVariationModalChildId(null); setVariationDropdown(null); setVariationDraft(null); }}>
+                  <Text style={styles.variationModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Child picker modal */}
       <Modal
         visible={childPickerOpen}
@@ -1046,6 +1320,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     },
     selectedChildChipText: { fontSize: 14, fontWeight: '600', color: colors.primary },
     selectedChildChipRemove: { padding: 2 },
+    selectedChildChipVariation: { borderWidth: 1, borderColor: colors.primary },
+    selectedChildChipVariationBtn: { padding: 2 },
 
     avatar: {
       width: 44,
@@ -1279,5 +1555,15 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       borderRadius: 10,
     },
     modalDoneBtnText: { fontSize: 16, fontWeight: '700', color: colors.primaryContrast },
+
+    variationModalContent: { maxHeight: '80%' },
+    variationModalHint: { fontSize: 13, color: colors.textMuted, marginBottom: 12 },
+    variationModalScroll: { maxHeight: 280 },
+    variationModalActions: { marginTop: 16, gap: 10 },
+    variationModalClearBtn: { paddingVertical: 10, alignItems: 'center' },
+    variationModalClearText: { fontSize: 14, color: colors.danger, fontWeight: '600' },
+    variationModalPrimaryActions: { flexDirection: 'row', gap: 12, justifyContent: 'center' },
+    variationModalCancelBtn: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 10, backgroundColor: colors.backgroundSecondary },
+    variationModalCancelText: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
   });
 }

@@ -5,38 +5,26 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Platform,
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
+
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton, SkeletonCircle, SkeletonStatCard, SkeletonStudentCard } from '../../components/Skeleton';
+import { DateBar } from '../../components/DateBar';
+import {
+  Skeleton,
+  SkeletonCircle,
+  SkeletonStatCard,
+  SkeletonStudentCard,
+} from '../../components/Skeleton';
+import { useDateNavigation, useTeacherClassChildren } from '../../hooks';
+import { getAge, getInitials } from '../../utils';
+
 import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
-
-function getAge(dateOfBirth: string): string {
-  const dob = new Date(dateOfBirth);
-  const now = new Date();
-  const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
-  if (months < 12) return `${months} mo`;
-  const years = Math.floor(months / 12);
-  return years === 1 ? '1 year' : `${years} years`;
-}
-
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || '?';
-}
 
 export function TeacherHomeScreen({
   navigation,
@@ -50,74 +38,41 @@ export function TeacherHomeScreen({
   const { profile } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [children, setChildren] = useState<Child[]>([]);
-  const [className, setClassName] = useState<string | null>(null);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [reportsToday, setReportsToday] = useState(0);
   const [mealsToday, setMealsToday] = useState(0);
   const [presentCount, setPresentCount] = useState(0);
   const [presentChildIds, setPresentChildIds] = useState<Set<string>>(new Set());
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const { children, className, loading } = useTeacherClassChildren(refreshTrigger);
+  const {
+    selectedDate,
+    showDatePicker,
+    setShowDatePicker,
+    prevDay,
+    nextDay,
+    onDatePickerChange,
+    displayDate,
+    maxDate,
+  } = useDateNavigation();
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setRefreshTrigger((t) => t + 1);
   }, []);
 
-  const isToday = selectedDate === new Date().toISOString().slice(0, 10);
-
-  // No profile yet: don't show skeleton
   useEffect(() => {
     if (!profile?.schoolId || !profile?.uid) setInitialLoading(false);
   }, [profile?.schoolId, profile?.uid]);
-
-  // Load teacher's class(es) and children
   useEffect(() => {
-    const schoolId = profile?.schoolId;
-    const uid = profile?.uid;
-    if (!schoolId || !uid) return;
-
-    let cancelled = false;
-    let unsub: (() => void) | null = null;
-
-    (async () => {
-      const classesSnap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
-      if (cancelled) return;
-      const myClasses = classesSnap.docs.filter(
-        (d) => (d.data() as ClassRoom).assignedTeacherId === uid
-      );
-      const classIds = myClasses.map((d) => d.id).slice(0, 10);
-      setClassName(myClasses[0] ? (myClasses[0].data() as ClassRoom).name : null);
-
-      if (classIds.length === 0) {
-        setChildren([]);
-        setRefreshing(false);
-        setInitialLoading(false);
-        return;
-      }
-
-      unsub = onSnapshot(
-        query(
-          collection(db, 'schools', schoolId, 'children'),
-          where('classId', 'in', classIds)
-        ),
-        (snap) => {
-          if (cancelled) return;
-          setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
-          setRefreshing(false);
-          setInitialLoading(false);
-        }
-      );
-    })();
-
-    return () => {
-      cancelled = true;
-      if (unsub) unsub();
-    };
-  }, [profile?.schoolId, profile?.uid, refreshTrigger]);
+    if (!loading) setInitialLoading(false);
+  }, [loading]);
+  useEffect(() => {
+    setRefreshing(false);
+  }, [children.length]);
 
   // Today's stats: present count, meals, total reports
   useEffect(() => {
@@ -172,31 +127,6 @@ export function TeacherHomeScreen({
       cancelled = true;
     };
   }, [profile?.schoolId, children, selectedDate, refreshTrigger]);
-
-  const prevDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().slice(0, 10));
-  };
-  const nextDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().slice(0, 10));
-  };
-
-  const displayDate = isToday
-    ? 'Today'
-    : new Date(selectedDate).toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-
-  const onDatePickerChange = (event: { type: string }, date?: Date) => {
-    if (Platform.OS === 'android') setShowDatePicker(false);
-    if (event.type === 'dismissed') return;
-    if (date) setSelectedDate(date.toISOString().slice(0, 10));
-  };
 
   const teacherName = profile?.displayName?.trim() || profile?.email?.split('@')[0] || 'Teacher';
 
@@ -346,43 +276,17 @@ export function TeacherHomeScreen({
           </View>
         </View>
 
-        {/* Date bar */}
-        <View style={styles.dateBar}>
-          <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-back" size={24} color={colors.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.dateCenter}
-            onPress={() => setShowDatePicker(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
-            <Text style={styles.dateText}>{displayDate}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-forward" size={24} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-
-        {showDatePicker && (
-          <>
-            <DateTimePicker
-              value={new Date(selectedDate + 'T12:00:00')}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'calendar' : 'default'}
-              onChange={onDatePickerChange}
-              maximumDate={new Date()}
-            />
-            {Platform.OS === 'ios' && (
-              <TouchableOpacity
-                style={styles.datePickerDone}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.datePickerDoneText}>Done</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
+        <DateBar
+          selectedDate={selectedDate}
+          displayDate={displayDate}
+          onPrevDay={prevDay}
+          onNextDay={nextDay}
+          onOpenPicker={() => setShowDatePicker(true)}
+          showPicker={showDatePicker}
+          onPickerChange={onDatePickerChange}
+          onClosePicker={() => setShowDatePicker(false)}
+          maxDate={maxDate}
+        />
 
         {/* Today's Overview */}
         <View style={styles.section}>
@@ -503,23 +407,6 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
-    dateArrow: { padding: 4 },
-    dateCenter: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
-    datePickerDone: {
-      marginTop: 8,
-      paddingVertical: 10,
-      alignItems: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-      marginHorizontal: 16,
-    },
-    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
-
     section: { marginTop: 24, paddingHorizontal: 16 },
     sectionHeader: {
       flexDirection: 'row',

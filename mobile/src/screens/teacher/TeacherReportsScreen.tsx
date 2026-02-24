@@ -14,33 +14,17 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+
+import { getOrCreateChat } from '../../api/chat';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { getOrCreateChat } from '../../api/chat';
-import type { DailyReport } from '../../../../shared/types';
+import { Skeleton } from '../../components/Skeleton';
+import { getAge, getInitials, formatTime } from '../../utils';
+
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
-import { Skeleton } from '../../components/Skeleton';
-
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || '?';
-}
-
-function getAge(dateOfBirth: string): string {
-  const dob = new Date(dateOfBirth);
-  const now = new Date();
-  const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
-  if (months < 12) return `${months} mo`;
-  const years = Math.floor(months / 12);
-  return years === 1 ? '1 year' : `${years} years`;
-}
+import type { DailyReport } from '../../../../shared/types';
 
 type ReportsRouteParams = { childId: string };
 type Props = { route: { params: ReportsRouteParams }; navigation: { navigate: (name: string, params?: object) => void; getParent: () => unknown } };
@@ -54,17 +38,6 @@ type ReportWithExtras = DailyReport & {
   mealType?: 'breakfast' | 'lunch' | 'snack';
   mealOptionName?: string;
 };
-
-function formatTime(iso: string) {
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function getReportTitle(item: ReportWithExtras): string {
   if (item.type === 'meal')

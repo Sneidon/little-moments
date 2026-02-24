@@ -130,7 +130,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [children, setChildren] = useState<Child[]>([]);
-  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
   const [childPickerOpen, setChildPickerOpen] = useState(false);
   const [type, setType] = useState<ReportType>(
     route.params?.initialType ?? 'meal'
@@ -145,7 +145,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   // When navigating from Daily report with initialChildId, pre-select that child
   useEffect(() => {
     const id = route.params?.initialChildId;
-    if (id && children.some((c) => c.id === id)) setSelectedChildId(id);
+    if (id && children.some((c) => c.id === id)) setSelectedChildIds([id]);
   }, [route.params?.initialChildId, children]);
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'snack'>('lunch');
   const [mealOptions, setMealOptions] = useState<MealOption[]>([]);
@@ -201,7 +201,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           if (cancelled) return;
           const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
           setChildren(list);
-          if (list.length > 0 && !selectedChildId) setSelectedChildId(list[0].id);
+          if (list.length > 0 && selectedChildIds.length === 0) setSelectedChildIds([list[0].id]);
         }
       );
     })();
@@ -252,12 +252,21 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const mealOptionsForCategory = mealOptions.filter((o) => o.category === mealType);
   const selectedMealOption = mealOptions.find((o) => o.id === selectedMealOptionId);
 
-  const selectedChild = children.find((c) => c.id === selectedChildId);
+  const selectedChildren = children.filter((c) => selectedChildIds.includes(c.id));
+
+  const toggleChildSelection = (childId: string) => {
+    setSelectedChildIds((prev) =>
+      prev.includes(childId) ? prev.filter((id) => id !== childId) : [...prev, childId]
+    );
+  };
+
+  const selectAllChildren = () => setSelectedChildIds(children.map((c) => c.id));
+  const clearChildSelection = () => setSelectedChildIds([]);
 
   const submit = async () => {
     const schoolId = profile?.schoolId;
-    if (!schoolId || !selectedChildId) {
-      Alert.alert('Select a child', 'Choose a child first.');
+    if (!schoolId || selectedChildIds.length === 0) {
+      Alert.alert('Select children', 'Choose at least one child.');
       return;
     }
     if (type === 'incident' && !photoUri) {
@@ -267,55 +276,56 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     setLoading(true);
     try {
       const now = new Date();
-      // Use current time as the event time when teacher captures (replaces any explicit time)
-      const payload: Record<string, unknown> = {
-        childId: selectedChildId,
-        schoolId,
-        type,
-        reportedBy: profile!.uid,
-        notes: notes.trim() || undefined,
-        timestamp: now.toISOString(),
-        createdAt: now.toISOString(),
-      };
-      if (type === 'meal') {
-        payload.mealType = mealType;
-        payload.mealAmount = mealAmount;
-        if (selectedMealOptionId && selectedMealOption) {
-          payload.mealOptionId = selectedMealOptionId;
-          payload.mealOptionName = selectedMealOption.name;
+      let uploadedImageUrl: string | null = null;
+      if (type === 'incident' && photoUri && selectedChildIds.length > 0) {
+        uploadedImageUrl = await uploadPhotoAsync(photoUri, schoolId, selectedChildIds[0]);
+      }
+      for (const childId of selectedChildIds) {
+        const payload: Record<string, unknown> = {
+          childId,
+          schoolId,
+          type,
+          reportedBy: profile!.uid,
+          notes: notes.trim() || undefined,
+          timestamp: now.toISOString(),
+          createdAt: now.toISOString(),
+        };
+        if (type === 'meal') {
+          payload.mealType = mealType;
+          payload.mealAmount = mealAmount;
+          if (selectedMealOptionId && selectedMealOption) {
+            payload.mealOptionId = selectedMealOptionId;
+            payload.mealOptionName = selectedMealOption.name;
+          }
         }
-      }
-      if (type === 'nappy_change') {
-        payload.nappyType = nappyType;
-        payload.nappyCondition = nappyCondition;
-      }
-      if (type === 'nap_time') {
-        payload.napStartTime = napStartTime;
-        payload.napEndTime = napEndTime;
-        payload.sleepQuality = sleepQuality;
-      }
-      if (type === 'medication') {
-        payload.activityType = activityType || undefined;
-        payload.activityTitle = activityTitle.trim() || undefined;
-        payload.medicationName = activityType || undefined;
-        if (activityDescription.trim()) payload.notes = activityDescription.trim();
-      }
-      if (type === 'incident') {
-        if (photoUri) {
-          const imageUrl = await uploadPhotoAsync(photoUri, schoolId, selectedChildId);
-          payload.imageUrl = imageUrl;
+        if (type === 'nappy_change') {
+          payload.nappyType = nappyType;
+          payload.nappyCondition = nappyCondition;
         }
-        if (photoCategory) payload.photoCategory = photoCategory;
+        if (type === 'nap_time') {
+          payload.napStartTime = napStartTime;
+          payload.napEndTime = napEndTime;
+          payload.sleepQuality = sleepQuality;
+        }
+        if (type === 'medication') {
+          payload.activityType = activityType || undefined;
+          payload.activityTitle = activityTitle.trim() || undefined;
+          payload.medicationName = activityType || undefined;
+          if (activityDescription.trim()) payload.notes = activityDescription.trim();
+        }
+        if (type === 'incident') {
+          if (uploadedImageUrl) payload.imageUrl = uploadedImageUrl;
+          if (photoCategory) payload.photoCategory = photoCategory;
+        }
+        const sanitized = Object.fromEntries(
+          Object.entries(payload).filter(([, v]) => v !== undefined)
+        ) as Record<string, unknown>;
+        await addDoc(
+          collection(db, 'schools', schoolId, 'children', childId, 'reports'),
+          sanitized
+        );
       }
-      // Firestore does not accept undefined; remove undefined fields
-      const sanitized = Object.fromEntries(
-        Object.entries(payload).filter(([, v]) => v !== undefined)
-      ) as Record<string, unknown>;
-      await addDoc(
-        collection(db, 'schools', schoolId, 'children', selectedChildId, 'reports'),
-        sanitized
-      );
-      Alert.alert('Done', 'Update saved.');
+      Alert.alert('Done', selectedChildIds.length > 1 ? `Update saved for ${selectedChildIds.length} children.` : 'Update saved.');
       setNotes('');
       setPhotoUri(null);
       setPhotoCategory(null);
@@ -370,32 +380,46 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
-      {/* Select Child card */}
+      {/* Select children card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Select Child</Text>
+        <Text style={styles.cardTitle}>Select children</Text>
         <TouchableOpacity
           style={styles.dropdownRow}
           onPress={() => children.length > 0 && setChildPickerOpen(true)}
           disabled={children.length === 0}
         >
-          <Text style={[styles.dropdownText, !selectedChild && styles.dropdownPlaceholder]}>
-            {selectedChild ? selectedChild.name : 'Select a child'}
+          <Text style={[styles.dropdownText, selectedChildIds.length === 0 && styles.dropdownPlaceholder]}>
+            {selectedChildIds.length === 0
+              ? 'Select children for this activity'
+              : selectedChildIds.length === 1
+                ? selectedChildren[0]?.name ?? '1 child'
+                : `${selectedChildIds.length} children selected`}
           </Text>
-          {selectedChild && (
-            <View style={styles.presentTag}>
-              <Text style={styles.presentTagText}>Present</Text>
-            </View>
-          )}
           <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
         </TouchableOpacity>
-        {selectedChild && (
-          <View style={styles.selectedChildProfile}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials(selectedChild.name)}</Text>
+        {selectedChildren.length > 0 && (
+          <View style={styles.selectedChildrenWrap}>
+            <View style={styles.selectedChildrenActions}>
+              <TouchableOpacity onPress={selectAllChildren} style={styles.selectedChildrenActionBtn}>
+                <Text style={styles.selectedChildrenActionText}>Select all</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={clearChildSelection} style={styles.selectedChildrenActionBtn}>
+                <Text style={styles.selectedChildrenActionText}>Clear</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.selectedChildInfo}>
-              <Text style={styles.selectedChildName}>{selectedChild.name}</Text>
-              <Text style={styles.selectedChildAge}>{getAge(selectedChild.dateOfBirth)} old</Text>
+            <View style={styles.selectedChildrenChips}>
+              {selectedChildren.map((c) => (
+                <View key={c.id} style={styles.selectedChildChip}>
+                  <Text style={styles.selectedChildChipText}>{c.name}</Text>
+                  <TouchableOpacity
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => toggleChildSelection(c.id)}
+                    style={styles.selectedChildChipRemove}
+                  >
+                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
           </View>
         )}
@@ -423,7 +447,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         </ScrollView>
       </View>
 
-      {selectedChild && (
+      {selectedChildren.length > 0 && (
         <>
           <View style={styles.timeNoteWrap}>
             <Ionicons name="time-outline" size={16} color={colors.textMuted} />
@@ -919,21 +943,43 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         onRequestClose={() => setChildPickerOpen(false)}
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setChildPickerOpen(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Child</Text>
-            {children.map((c) => (
-              <TouchableOpacity
-                key={c.id}
-                style={styles.modalOption}
-                onPress={() => {
-                  setSelectedChildId(c.id);
-                  setChildPickerOpen(false);
-                }}
-              >
-                <Text style={styles.modalOptionText}>{c.name}</Text>
-                <Text style={styles.modalOptionAge}>{getAge(c.dateOfBirth)} old</Text>
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>Select children</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={selectAllChildren} style={styles.modalActionBtn}>
+                <Text style={styles.modalActionBtnText}>Select all</Text>
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity onPress={clearChildSelection} style={styles.modalActionBtn}>
+                <Text style={styles.modalActionBtnText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+              {children.map((c) => {
+                const isSelected = selectedChildIds.includes(c.id);
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    onPress={() => toggleChildSelection(c.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.modalCheckbox, isSelected && styles.modalCheckboxChecked]}>
+                      {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
+                    </View>
+                    <View style={styles.modalOptionTextWrap}>
+                      <Text style={styles.modalOptionText}>{c.name}</Text>
+                      <Text style={styles.modalOptionAge}>{getAge(c.dateOfBirth)} old</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalDoneBtn}
+              onPress={() => setChildPickerOpen(false)}
+            >
+              <Text style={styles.modalDoneBtnText}>Done</Text>
+            </TouchableOpacity>
           </View>
         </Pressable>
       </Modal>
@@ -979,14 +1025,28 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     },
     presentTagText: { fontSize: 12, fontWeight: '600', color: colors.primaryContrast },
 
-    selectedChildProfile: {
+    selectedChildrenWrap: { marginTop: 12 },
+    selectedChildrenActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 10,
+    },
+    selectedChildrenActionBtn: { paddingVertical: 4, paddingHorizontal: 0 },
+    selectedChildrenActionText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+    selectedChildrenChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    selectedChildChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 12,
-      padding: 12,
-      borderRadius: 10,
       backgroundColor: colors.primaryMuted,
+      paddingVertical: 6,
+      paddingLeft: 10,
+      paddingRight: 4,
+      borderRadius: 20,
+      gap: 4,
     },
+    selectedChildChipText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+    selectedChildChipRemove: { padding: 2 },
+
     avatar: {
       width: 44,
       height: 44,
@@ -1180,13 +1240,44 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       padding: 20,
       maxHeight: '70%',
     },
-    modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 },
+    modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 },
+    modalActions: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+    modalActionBtn: { paddingVertical: 6, paddingHorizontal: 12 },
+    modalActionBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+    modalScroll: { maxHeight: 320 },
     modalOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
       paddingVertical: 14,
+      paddingHorizontal: 4,
       borderBottomWidth: 1,
       borderBottomColor: colors.backgroundSecondary,
+      gap: 12,
     },
+    modalOptionSelected: { backgroundColor: colors.primaryMuted },
+    modalCheckbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalCheckboxChecked: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    modalOptionTextWrap: { flex: 1 },
     modalOptionText: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
     modalOptionAge: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    modalDoneBtn: {
+      marginTop: 16,
+      paddingVertical: 14,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+    },
+    modalDoneBtnText: { fontSize: 16, fontWeight: '700', color: colors.primaryContrast },
   });
 }

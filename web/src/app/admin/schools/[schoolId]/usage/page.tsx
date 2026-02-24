@@ -98,12 +98,14 @@ export default function AdminSchoolUsagePage() {
           Back to {schoolName || 'school'}
         </Link>
       </div>
-      <h1 className="mb-2 text-2xl font-bold text-slate-800 dark:text-slate-100">
-        Usage & analytics
-      </h1>
-      <p className="mb-6 text-slate-600 dark:text-slate-300">
-        {schoolName || 'School'} — activity overview
-      </p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          Usage & analytics
+        </h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          {schoolName || 'School'} — activity overview
+        </p>
+      </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
         <table className="w-full text-left text-sm">

@@ -84,7 +84,7 @@ export default function AdminSchoolChildrenPage() {
           >
             ← Back to {school.name}
           </Link>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
             Children
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

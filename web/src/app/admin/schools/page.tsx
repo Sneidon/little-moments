@@ -126,7 +126,10 @@ export default function SchoolsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Schools</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Schools</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Create and manage schools</p>
+        </div>
         <button
           type="button"
           onClick={() => {

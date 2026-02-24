@@ -58,10 +58,12 @@ export default function UsagePage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-slate-100">Usage & analytics</h1>
-      <p className="mb-6 text-slate-600 dark:text-slate-300">
-        Overview of activity per school. Click a school to view its analytics.
-      </p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Usage & analytics</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Overview of activity per school. Click a school to view its analytics.
+        </p>
+      </div>
 
       {loading ? (
         <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />

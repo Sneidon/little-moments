@@ -1,0 +1,18 @@
+# Firebase App Hosting – Next.js web app
+# https://firebase.google.com/docs/app-hosting/configure
+#
+# Create a backend and connect this repo:
+#   firebase apphosting:backends:create --project YOUR_PROJECT_ID
+# Set "App root directory" to: web
+#
+# Optional: override build/run or add env/secrets below.
+
+# runConfig:
+#   minInstances: 0
+#   maxInstances: 10
+#   memoryMiB: 512
+
+# env:
+#   - variable: NEXT_PUBLIC_APP_URL
+#     value: https://your-app.web.app
+#     availability: [BUILD, RUNTIME]

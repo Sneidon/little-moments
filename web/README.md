@@ -33,6 +33,23 @@ The web app is deployed with **Firebase App Hosting**, which runs the full Next.
 
 3. **Secrets / env**: Use `web/apphosting.yaml` for env vars or Cloud Secret Manager references; see [Configure App Hosting](https://firebase.google.com/docs/app-hosting/configure).
 
+### Fixing `auth/api-key-not-valid` on the deployed site
+
+1. **Set Firebase env vars for App Hosting**  
+   In [Firebase Console](https://console.firebase.google.com) → **Build** → **App Hosting** → your backend → **Environment variables**, add (for both **Build** and **Runtime**):
+   - `NEXT_PUBLIC_FIREBASE_API_KEY`
+   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+   - `NEXT_PUBLIC_FIREBASE_APP_ID`  
+   Use the same values as in your local `web/.env`. Then trigger a new rollout (e.g. redeploy or push a commit).
+
+2. **Allow the deployed domain for the API key**  
+   In [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services** → **Credentials** → open your **Browser key** → under **Application restrictions** choose **HTTP referrers** and add your deployed origin, e.g.:
+   - `https://your-backend-*.run.app/*`
+   - or your custom domain, e.g. `https://yourapp.web.app/*`
+
 ## Roles (web only)
 
 - **Principal** – `/principal`: dashboard, children, classes, staff, reports, announcements, events, food menus, school settings.

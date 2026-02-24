@@ -1,18 +1,34 @@
 # Firebase App Hosting – Next.js web app
 # https://firebase.google.com/docs/app-hosting/configure
 #
-# Create a backend and connect this repo:
-#   firebase apphosting:backends:create --project YOUR_PROJECT_ID
+# Create a backend: firebase apphosting:backends:create --project YOUR_PROJECT_ID
 # Set "App root directory" to: web
 #
-# Optional: override build/run or add env/secrets below.
+# Replace the values below with your real Firebase config (same as web/.env).
+# For secrets use: secret: yourSecretName instead of value: "..." (create via Firebase Console or CLI).
+# Add your deployed URL to the API key's HTTP referrer list in Google Cloud Console.
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyBF8GVFMPdqcG9BDm2Wl0bYj3PpHYPsWFI"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "little-moments-6647f.firebaseapp.com"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "little-moments-6647f"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "little-moments-6647f.firebasestorage.app"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "692778727048"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:692778727048:web:4b37819414bb1ee2be913d"
+    availability: [BUILD, RUNTIME]
 
 # runConfig:
 #   minInstances: 0
 #   maxInstances: 10
 #   memoryMiB: 512
-
-# env:
-#   - variable: NEXT_PUBLIC_APP_URL
-#     value: https://your-app.web.app
-#     availability: [BUILD, RUNTIME]

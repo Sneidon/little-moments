@@ -80,42 +80,7 @@ export function ReportsPageHeader({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="sr-only">{exportLabel}</span>
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          disabled={exportCount === 0}
-          className="btn-secondary inline-flex items-center gap-1.5 text-sm"
-          title="Download as CSV"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.152a2 2 0 012 2v11a2 2 0 01-2 2z" />
-          </svg>
-          CSV
-        </button>
-        <button
-          type="button"
-          onClick={handleExportExcel}
-          disabled={exportCount === 0}
-          className="btn-secondary inline-flex items-center gap-1.5 text-sm"
-          title="Download as Excel"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.152a2 2 0 012 2v11a2 2 0 01-2 2z" />
-          </svg>
-          Excel
-        </button>
-        <button
-          type="button"
-          onClick={handleExportPdf}
-          disabled={exportCount === 0}
-          className="btn-secondary inline-flex items-center gap-1.5 text-sm"
-          title="Download as PDF"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-          PDF
-        </button>
+        
         <div className="relative shrink-0" ref={menuRef}>
           <button
             type="button"

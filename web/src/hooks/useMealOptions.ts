@@ -9,13 +9,19 @@ import type { MealCategory } from '@/constants/mealOptions';
 export interface UseMealOptionsResult {
   options: MealOption[];
   optionsByCategory: (category: MealCategory) => MealOption[];
+  loading: boolean;
 }
 
 export function useMealOptions(schoolId: string | undefined): UseMealOptionsResult {
   const [options, setOptions] = useState<MealOption[]>([]);
+  const [loading, setLoading] = useState(!!schoolId);
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     const q = query(collection(db, 'schools', schoolId, 'mealOptions'));
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MealOption));
@@ -24,6 +30,7 @@ export function useMealOptions(schoolId: string | undefined): UseMealOptionsResu
         return (a.order ?? 0) - (b.order ?? 0) || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
       setOptions(list);
+      setLoading(false);
     });
     return () => unsub();
   }, [schoolId]);
@@ -33,5 +40,5 @@ export function useMealOptions(schoolId: string | undefined): UseMealOptionsResu
     [options]
   );
 
-  return { options, optionsByCategory };
+  return { options, optionsByCategory, loading };
 }

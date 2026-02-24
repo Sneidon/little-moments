@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 
@@ -46,6 +47,8 @@ export function TeacherHomeScreen({
 }) {
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [children, setChildren] = useState<Child[]>([]);
   const [className, setClassName] = useState<string | null>(null);
   const [reportsToday, setReportsToday] = useState(0);
@@ -288,18 +291,18 @@ export function TeacherHomeScreen({
         {/* Date bar */}
         <View style={styles.dateBar}>
           <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-back" size={24} color="#475569" />
+            <Ionicons name="chevron-back" size={24} color={colors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dateCenter}
             onPress={() => setShowDatePicker(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="calendar-outline" size={20} color="#475569" />
+            <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
             <Text style={styles.dateText}>{displayDate}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-forward" size={24} color="#475569" />
+            <Ionicons name="chevron-forward" size={24} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -363,7 +366,7 @@ export function TeacherHomeScreen({
                 activeOpacity={0.7}
               >
                 <View style={[styles.quickActionIcon, { backgroundColor: action.color }]}>
-                  <Ionicons name={action.icon} size={24} color="#fff" />
+                  <Ionicons name={action.icon} size={24} color={colors.primaryContrast} />
                 </View>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
               </TouchableOpacity>
@@ -391,165 +394,167 @@ export function TeacherHomeScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f1f5f9' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 24 },
-  bottomPad: { height: 24 },
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    scroll: { flex: 1 },
+    scrollContent: { paddingBottom: 24 },
+    bottomPad: { height: 24 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#6d28d9',
-  },
-  headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  avatarLarge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 2,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLargeText: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  headerText: { marginLeft: 14 },
-  headerName: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  headerClass: { fontSize: 14, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
-  roleTag: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  roleTagText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      backgroundColor: colors.header,
+    },
+    headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    avatarLarge: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.headerAccent,
+      borderWidth: 2,
+      borderColor: colors.headerText,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarLargeText: { fontSize: 18, fontWeight: '700', color: colors.headerText },
+    headerText: { marginLeft: 14 },
+    headerName: { fontSize: 20, fontWeight: '700', color: colors.headerText },
+    headerClass: { fontSize: 14, color: colors.headerTextMuted, marginTop: 2 },
+    roleTag: {
+      backgroundColor: colors.headerAccent,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    roleTagText: { fontSize: 13, fontWeight: '600', color: colors.headerText },
 
-  dateBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  dateArrow: { padding: 4 },
-  dateCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateText: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  datePickerDone: {
-    marginTop: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#7c3aed',
-    borderRadius: 8,
-    marginHorizontal: 16,
-  },
-  datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    dateBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    dateArrow: { padding: 4 },
+    dateCenter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    datePickerDone: {
+      marginTop: 8,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      marginHorizontal: 16,
+    },
+    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
 
-  section: { marginTop: 24, paddingHorizontal: 16 },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#334155', marginBottom: 12 },
-  previewBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  previewBtnText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+    section: { marginTop: 24, paddingHorizontal: 16 },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
+    previewBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    previewBtnText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
-  statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-  },
-  statValue: { fontSize: 26, fontWeight: '800', color: '#334155' },
-  statLabel: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  statPresent: {},
-  statPresentValue: { color: '#16a34a' },
-  statMeals: {},
-  statMealsValue: { color: '#ea580c' },
-  statPhotos: {},
-  statPhotosValue: { color: '#db2777' },
+    statsRow: { flexDirection: 'row', gap: 10 },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+    },
+    statValue: { fontSize: 26, fontWeight: '800', color: colors.textSecondary },
+    statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+    statPresent: {},
+    statPresentValue: { color: colors.success },
+    statMeals: {},
+    statMealsValue: { color: colors.warning },
+    statPhotos: {},
+    statPhotosValue: { color: '#db2777' },
 
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  quickActionBtn: {
-    width: '31%',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-  },
-  quickActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  quickActionLabel: { fontSize: 12, fontWeight: '600', color: '#334155', textAlign: 'center' },
+    quickActionsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    quickActionBtn: {
+      width: '31%',
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+    },
+    quickActionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    quickActionLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
 
-  studentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#e0e7ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarText: { fontSize: 16, fontWeight: '700', color: '#6366f1' },
-  studentCardContent: { flex: 1 },
-  studentName: { fontSize: 16, fontWeight: '700', color: '#334155' },
-  studentAge: { fontSize: 13, color: '#64748b', marginTop: 2 },
-  presentBadge: {
-    backgroundColor: '#16a34a',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  presentBadgeAbsent: { backgroundColor: '#94a3b8' },
-  presentBadgeText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+    studentCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.avatarBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    avatarText: { fontSize: 16, fontWeight: '700', color: colors.avatarText },
+    studentCardContent: { flex: 1 },
+    studentName: { fontSize: 16, fontWeight: '700', color: colors.textSecondary },
+    studentAge: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    presentBadge: {
+      backgroundColor: colors.success,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    presentBadgeAbsent: { backgroundColor: colors.textMuted },
+    presentBadgeText: { fontSize: 12, fontWeight: '600', color: colors.primaryContrast },
 
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 8 },
-});
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8 },
+  });
+}

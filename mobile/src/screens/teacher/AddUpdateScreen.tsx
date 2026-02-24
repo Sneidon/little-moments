@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { db } from '../../config/firebase';
 import { takePhotoAsync, pickPhotoAsync } from '../../utils/photoPicker';
 import { uploadPhotoAsync } from '../../utils/uploadPhoto';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 import type { MealOption } from '../../../../shared/types';
@@ -116,6 +117,8 @@ function formatTime(date: Date): string {
 
 export function AddUpdateScreen({ navigation, route }: Props) {
   const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [childPickerOpen, setChildPickerOpen] = useState(false);
@@ -328,7 +331,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               <Text style={styles.presentTagText}>Present</Text>
             </View>
           )}
-          <Ionicons name="chevron-down" size={20} color="#64748b" />
+          <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
         </TouchableOpacity>
         {selectedChild && (
           <View style={styles.selectedChildProfile}>
@@ -427,7 +430,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Any extra details"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={2}
                 editable={!loading}
@@ -454,7 +457,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={mealTime}
                 onChangeText={setMealTime}
                 placeholder="12:00"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 editable={!loading}
               />
 
@@ -463,7 +466,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 onPress={submit}
                 disabled={loading}
               >
-                <Ionicons name="send" size={20} color="#fff" style={styles.primaryButtonIcon} />
+                <Ionicons name="send" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
                 <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Log Meal'}</Text>
               </TouchableOpacity>
             </View>
@@ -519,7 +522,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Describe what's happening in the photo..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={2}
                 editable={!loading}
@@ -532,7 +535,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 <Text style={[styles.dropdownText, !photoCategory && styles.dropdownPlaceholder]}>
                   {photoCategory || 'Select category'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#64748b" />
+                <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
               {dropdownOpen === 'photoCategory' && (
                 <View style={styles.dropdownOptions}>
@@ -555,7 +558,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 onPress={submit}
                 disabled={loading}
               >
-                <Ionicons name="cloud-upload-outline" size={20} color="#fff" style={styles.primaryButtonIcon} />
+                <Ionicons name="cloud-upload-outline" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
                 <Text style={styles.primaryButtonText}>{loading ? 'Uploading…' : 'Upload Photo'}</Text>
               </TouchableOpacity>
             </View>
@@ -570,7 +573,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={nappyTime}
                 onChangeText={setNappyTime}
                 placeholder="14:48"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 editable={!loading}
               />
               <Text style={styles.label}>Type</Text>
@@ -581,7 +584,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 <Text style={styles.dropdownText}>
                   {NAPPY_TYPES.find((n) => n.value === nappyType)?.label ?? 'Wet'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#64748b" />
+                <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
               {dropdownOpen === 'nappyType' && (
                 <View style={styles.dropdownOptions}>
@@ -607,7 +610,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 <Text style={styles.dropdownText}>
                   {NAPPY_CONDITIONS.find((c) => c.value === nappyCondition)?.label ?? 'Normal'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#64748b" />
+                <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
               {dropdownOpen === 'nappyCondition' && (
                 <View style={styles.dropdownOptions}>
@@ -631,7 +634,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Any additional observations about the nappy change..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={3}
                 editable={!loading}
@@ -641,7 +644,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 onPress={submit}
                 disabled={loading}
               >
-                <Ionicons name="send" size={20} color="#fff" style={styles.primaryButtonIcon} />
+                <Ionicons name="send" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
                 <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Log Nappy Change'}</Text>
               </TouchableOpacity>
             </View>
@@ -656,7 +659,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={napStartTime}
                 onChangeText={setNapStartTime}
                 placeholder="13:00"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 editable={!loading}
               />
               <Text style={styles.label}>End Time</Text>
@@ -665,7 +668,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={napEndTime}
                 onChangeText={setNapEndTime}
                 placeholder="14:30"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 editable={!loading}
               />
               <Text style={styles.label}>Sleep Quality</Text>
@@ -676,7 +679,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 <Text style={styles.dropdownText}>
                   {SLEEP_QUALITY_OPTIONS.find((s) => s.value === sleepQuality)?.label ?? 'Good - Fell asleep easily'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#64748b" />
+                <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
               {dropdownOpen === 'sleepQuality' && (
                 <View style={styles.dropdownOptions}>
@@ -700,7 +703,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Any additional observations..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={3}
                 editable={!loading}
@@ -710,7 +713,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 onPress={submit}
                 disabled={loading}
               >
-                <Ionicons name="send" size={20} color="#fff" style={styles.primaryButtonIcon} />
+                <Ionicons name="send" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
                 <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Log Nap'}</Text>
               </TouchableOpacity>
             </View>
@@ -727,7 +730,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 <Text style={[styles.dropdownText, !activityType && styles.dropdownPlaceholder]}>
                   {activityType || 'Select activity type'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#64748b" />
+                <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
               {dropdownOpen === 'activityType' && (
                 <View style={styles.dropdownOptions}>
@@ -751,7 +754,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={activityTitle}
                 onChangeText={setActivityTitle}
                 placeholder="e.g., Watercolor Painting"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 editable={!loading}
               />
               <Text style={styles.label}>Description</Text>
@@ -760,7 +763,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 value={activityDescription}
                 onChangeText={setActivityDescription}
                 placeholder="Describe what the child did and how they engaged..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={4}
                 editable={!loading}
@@ -772,7 +775,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   value={activityTime}
                   onChangeText={setActivityTime}
                   placeholder="10:30"
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={colors.textMuted}
                   editable={!loading}
                 />
                 <TouchableOpacity style={styles.previewBtn}>
@@ -784,7 +787,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 onPress={submit}
                 disabled={loading}
               >
-                <Ionicons name="send" size={20} color="#fff" style={styles.primaryButtonIcon} />
+                <Ionicons name="send" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
                 <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Add Activity'}</Text>
               </TouchableOpacity>
             </View>
@@ -794,7 +797,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
       {children.length === 0 && (
         <View style={styles.emptyState}>
-          <Ionicons name="people-outline" size={48} color="#cbd5e1" />
+          <Ionicons name="people-outline" size={48} color={colors.textMuted} />
           <Text style={styles.emptyText}>No children assigned to your class.</Text>
         </View>
       )}
@@ -829,187 +832,190 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f1f5f9' },
-  content: { padding: 16, paddingBottom: 40 },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: '#0f172a' },
-  pageSubtitle: { fontSize: 15, color: '#64748b', marginTop: 4, marginBottom: 24 },
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    content: { padding: 16, paddingBottom: 40 },
+    pageTitle: { fontSize: 28, fontWeight: '800', color: colors.text },
+    pageSubtitle: { fontSize: 15, color: colors.textMuted, marginTop: 4, marginBottom: 24 },
 
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#334155', marginBottom: 12 },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    cardTitle: { fontSize: 16, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
 
-  dropdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-  },
-  dropdownText: { flex: 1, fontSize: 15, color: '#334155', fontWeight: '500' },
-  dropdownPlaceholder: { color: '#94a3b8' },
-  presentTag: {
-    backgroundColor: '#16a34a',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  presentTagText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+    dropdownRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    dropdownText: { flex: 1, fontSize: 15, color: colors.textSecondary, fontWeight: '500' },
+    dropdownPlaceholder: { color: colors.textMuted },
+    presentTag: {
+      backgroundColor: colors.success,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginRight: 8,
+    },
+    presentTagText: { fontSize: 12, fontWeight: '600', color: colors.primaryContrast },
 
-  selectedChildProfile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#e0f2fe',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#0ea5e9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  selectedChildInfo: { flex: 1 },
-  selectedChildName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
-  selectedChildAge: { fontSize: 14, color: '#64748b', marginTop: 2 },
+    selectedChildProfile: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 10,
+      backgroundColor: colors.primaryMuted,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    avatarText: { fontSize: 16, fontWeight: '700', color: colors.primaryContrast },
+    selectedChildInfo: { flex: 1 },
+    selectedChildName: { fontSize: 16, fontWeight: '700', color: colors.text },
+    selectedChildAge: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
 
-  tabsWrapper: { marginBottom: 16 },
-  tabsScroll: { gap: 8, paddingVertical: 4 },
-  tab: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    minWidth: 80,
-  },
-  tabActive: { borderColor: '#6366f1', backgroundColor: '#eef2ff' },
-  tabLabel: { fontSize: 12, fontWeight: '600', color: '#94a3b8', marginTop: 6 },
-  tabLabelActive: { color: '#6366f1' },
+    tabsWrapper: { marginBottom: 16 },
+    tabsScroll: { gap: 8, paddingVertical: 4 },
+    tab: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      minWidth: 80,
+    },
+    tabActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
+    tabLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 6 },
+    tabLabelActive: { color: colors.primary },
 
-  label: { fontSize: 14, fontWeight: '600', color: '#475569', marginBottom: 8, marginTop: 12 },
-  optionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  optionChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-  },
-  optionChipActive: { borderColor: '#6366f1', backgroundColor: '#eef2ff' },
-  optionChipText: { fontSize: 14, color: '#64748b' },
-  optionChipTextActive: { color: '#6366f1', fontWeight: '600' },
+    label: { fontSize: 14, fontWeight: '600', color: colors.textMuted, marginBottom: 8, marginTop: 12 },
+    optionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    optionChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    optionChipActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
+    optionChipText: { fontSize: 14, color: colors.textMuted },
+    optionChipTextActive: { color: colors.primary, fontWeight: '600' },
 
-  helperText: { fontSize: 13, color: '#64748b', marginBottom: 8 },
-  mealOptionsScroll: { marginBottom: 8, marginHorizontal: -16 },
-  mealOptionCard: {
-    width: 120,
-    marginRight: 10,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-    overflow: 'hidden',
-  },
-  mealOptionCardActive: { borderColor: '#6366f1', backgroundColor: '#eef2ff' },
-  mealOptionImage: { width: '100%', height: 72 },
-  mealOptionImagePlaceholder: {
-    backgroundColor: '#e2e8f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mealOptionName: { fontSize: 12, fontWeight: '600', color: '#334155', padding: 6 },
-  mealOptionDesc: { fontSize: 11, color: '#64748b', paddingHorizontal: 6, paddingBottom: 6 },
+    helperText: { fontSize: 13, color: colors.textMuted, marginBottom: 8 },
+    mealOptionsScroll: { marginBottom: 8, marginHorizontal: -16 },
+    mealOptionCard: {
+      width: 120,
+      marginRight: 10,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      overflow: 'hidden',
+    },
+    mealOptionCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
+    mealOptionImage: { width: '100%', height: 72 },
+    mealOptionImagePlaceholder: {
+      backgroundColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    mealOptionName: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, padding: 6 },
+    mealOptionDesc: { fontSize: 11, color: colors.textMuted, paddingHorizontal: 6, paddingBottom: 6 },
 
-  input: {
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 15,
-    backgroundColor: '#fff',
-  },
-  inputMultiline: { minHeight: 88, textAlignVertical: 'top' },
-  previewBtn: { alignSelf: 'flex-start', marginTop: 8 },
-  previewBtnText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: 8,
+      padding: 14,
+      fontSize: 15,
+      backgroundColor: colors.inputBackground,
+      color: colors.text,
+    },
+    inputMultiline: { minHeight: 88, textAlignVertical: 'top' },
+    previewBtn: { alignSelf: 'flex-start', marginTop: 8 },
+    previewBtnText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#334155',
-    padding: 16,
-    borderRadius: 10,
-    marginTop: 20,
-  },
-  primaryButtonIcon: { marginRight: 8 },
-  primaryButtonText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+    primaryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      padding: 16,
+      borderRadius: 10,
+      marginTop: 20,
+    },
+    primaryButtonIcon: { marginRight: 8 },
+    primaryButtonText: { fontSize: 16, fontWeight: '700', color: colors.primaryContrast },
 
-  photoZoneLabel: { fontSize: 14, fontWeight: '600', color: '#475569', marginBottom: 8 },
-  photoUploadZone: {
-    minHeight: 160,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  photoUploadZoneFilled: { padding: 0, minHeight: 0 },
-  photoUploadHint: { fontSize: 14, color: '#64748b', marginTop: 12 },
-  photoUploadFormats: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
-  previewRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  photoPreviewWrap: { position: 'relative', width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' },
-  photoPreviewInZone: { width: '100%', height: '100%', backgroundColor: '#f1f5f9' },
-  removePhotoBtn: { position: 'absolute', top: 8, right: 8 },
-  dropdownOptions: { marginTop: 4, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#fff', maxHeight: 200 },
-  dropdownOption: { paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  dropdownOptionText: { fontSize: 15, color: '#334155' },
-  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  timeInput: { flex: 1 },
+    photoZoneLabel: { fontSize: 14, fontWeight: '600', color: colors.textMuted, marginBottom: 8 },
+    photoUploadZone: {
+      minHeight: 160,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: colors.border,
+      borderRadius: 10,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    photoUploadZoneFilled: { padding: 0, minHeight: 0 },
+    photoUploadHint: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
+    photoUploadFormats: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+    previewRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+    photoPreviewWrap: { position: 'relative', width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' },
+    photoPreviewInZone: { width: '100%', height: '100%', backgroundColor: colors.backgroundSecondary },
+    removePhotoBtn: { position: 'absolute', top: 8, right: 8 },
+    dropdownOptions: { marginTop: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, maxHeight: 200 },
+    dropdownOption: { paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.backgroundSecondary },
+    dropdownOptionText: { fontSize: 15, color: colors.textSecondary },
+    timeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    timeInput: { flex: 1 },
 
-  emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { fontSize: 15, color: '#64748b', marginTop: 12 },
+    emptyState: { alignItems: 'center', paddingVertical: 48 },
+    emptyText: { fontSize: 15, color: colors.textMuted, marginTop: 12 },
 
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    maxHeight: '70%',
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 16 },
-  modalOption: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  modalOptionText: { fontSize: 16, fontWeight: '600', color: '#334155' },
-  modalOptionAge: { fontSize: 13, color: '#64748b', marginTop: 2 },
-});
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    modalContent: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 20,
+      maxHeight: '70%',
+    },
+    modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 },
+    modalOption: {
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.backgroundSecondary,
+    },
+    modalOptionText: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
+    modalOptionAge: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  });
+}

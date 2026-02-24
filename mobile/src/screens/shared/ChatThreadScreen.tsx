@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { collection, doc, addDoc, updateDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import type { ChatMessage } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from './MessagesListScreen';
@@ -32,6 +33,8 @@ function formatTime(iso: string): string {
 export function ChatThreadScreen({ route }: Props) {
   const { chatId, schoolId } = route.params;
   const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -111,7 +114,7 @@ export function ChatThreadScreen({ route }: Props) {
         <TextInput
           style={styles.input}
           placeholder="Type a message…"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={colors.textMuted}
           value={input}
           onChangeText={setInput}
           multiline
@@ -130,59 +133,61 @@ export function ChatThreadScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f1f5f9' },
-  listContent: { padding: 12, paddingBottom: 8 },
-  bubbleWrap: { marginBottom: 8 },
-  bubbleWrapLeft: { alignItems: 'flex-start' },
-  bubbleWrapRight: { alignItems: 'flex-end' },
-  bubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
-  },
-  bubbleMe: {
-    backgroundColor: '#6366f1',
-    borderBottomRightRadius: 4,
-  },
-  bubbleThem: {
-    backgroundColor: '#e2e8f0',
-    borderBottomLeftRadius: 4,
-  },
-  bubbleText: { fontSize: 15 },
-  bubbleTextMe: { color: '#fff' },
-  bubbleTextThem: { color: '#1e293b' },
-  bubbleTime: { fontSize: 11, marginTop: 4 },
-  bubbleTimeMe: { color: 'rgba(255,255,255,0.8)' },
-  bubbleTimeThem: { color: '#64748b' },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-  },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 100,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#1e293b',
-    marginRight: 8,
-  },
-  sendBtn: {
-    backgroundColor: '#6366f1',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
-    justifyContent: 'center',
-  },
-  sendBtnDisabled: { opacity: 0.5 },
-  sendBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-});
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    listContent: { padding: 12, paddingBottom: 8 },
+    bubbleWrap: { marginBottom: 8 },
+    bubbleWrapLeft: { alignItems: 'flex-start' },
+    bubbleWrapRight: { alignItems: 'flex-end' },
+    bubble: {
+      maxWidth: '80%',
+      padding: 12,
+      borderRadius: 16,
+    },
+    bubbleMe: {
+      backgroundColor: colors.primary,
+      borderBottomRightRadius: 4,
+    },
+    bubbleThem: {
+      backgroundColor: colors.border,
+      borderBottomLeftRadius: 4,
+    },
+    bubbleText: { fontSize: 15 },
+    bubbleTextMe: { color: colors.primaryContrast },
+    bubbleTextThem: { color: colors.text },
+    bubbleTime: { fontSize: 11, marginTop: 4 },
+    bubbleTimeMe: { color: 'rgba(255,255,255,0.8)' },
+    bubbleTimeThem: { color: colors.textMuted },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      padding: 12,
+      paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+      backgroundColor: colors.card,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    input: {
+      flex: 1,
+      minHeight: 40,
+      maxHeight: 100,
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      fontSize: 16,
+      color: colors.text,
+      marginRight: 8,
+    },
+    sendBtn: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 20,
+      justifyContent: 'center',
+    },
+    sendBtnDisabled: { opacity: 0.5 },
+    sendBtnText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 15 },
+  });
+}

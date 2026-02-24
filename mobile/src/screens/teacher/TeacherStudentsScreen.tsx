@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -23,6 +24,8 @@ export function TeacherStudentsScreen({
   navigation: { navigate: (a: string, b?: { childId: string }) => void; getParent: () => { navigate: (a: string, b?: object) => void } | undefined };
 }) {
   const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [children, setChildren] = useState<Child[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -111,7 +114,7 @@ export function TeacherStudentsScreen({
         style={styles.card}
         onPress={() => navigation.navigate('Reports', { childId: item.id })}
       >
-        <Ionicons name="person-circle-outline" size={28} color="#6366f1" style={styles.cardIcon} />
+        <Ionicons name="person-circle-outline" size={28} color={colors.primary} style={styles.cardIcon} />
         <View style={styles.cardContent}>
           <Text style={styles.name}>{item.name}</Text>
           {item.allergies?.length ? (
@@ -127,16 +130,16 @@ export function TeacherStudentsScreen({
           disabled={!hasParents || isMessageLoading}
         >
           {isMessageLoading ? (
-            <ActivityIndicator size="small" color="#6366f1" />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <Ionicons
               name="chatbubble-outline"
               size={22}
-              color={hasParents ? '#6366f1' : '#cbd5e1'}
+              color={hasParents ? colors.primary : colors.textMuted}
             />
           )}
         </TouchableOpacity>
-        <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </TouchableOpacity>
     );
   };
@@ -156,24 +159,26 @@ export function TeacherStudentsScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  title: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  cardIcon: { marginRight: 12 },
-  cardContent: { flex: 1, minWidth: 0 },
-  messageBtn: { padding: 8, marginRight: 4 },
-  name: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
-  allergies: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },
-});
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, padding: 16, backgroundColor: colors.background },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+    title: { fontSize: 20, fontWeight: '700', color: colors.text },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    cardIcon: { marginRight: 12 },
+    cardContent: { flex: 1, minWidth: 0 },
+    messageBtn: { padding: 8, marginRight: 4 },
+    name: { fontSize: 16, fontWeight: '600', color: colors.text },
+    allergies: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
+  });
+}

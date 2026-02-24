@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -23,6 +24,8 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'SelectChildToMessag
 
 export function SelectChildToMessageScreen({ navigation }: Props) {
   const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,9 +126,9 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
           </Text>
         </View>
         {isStarting ? (
-          <ActivityIndicator size="small" color="#6366f1" />
+          <ActivityIndicator size="small" color={colors.primary} />
         ) : (
-          <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         )}
       </TouchableOpacity>
     );
@@ -134,7 +137,7 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -154,29 +157,31 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#6366f1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  content: { flex: 1 },
-  name: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
-  subtitle: { fontSize: 13, color: '#64748b', marginTop: 2 },
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
-});
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    avatarText: { fontSize: 16, fontWeight: '600', color: colors.primaryContrast },
+    content: { flex: 1 },
+    name: { fontSize: 16, fontWeight: '600', color: colors.text },
+    subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
+  });
+}

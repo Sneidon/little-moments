@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 import type { UserRole } from '../../../shared/types';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
@@ -85,20 +86,21 @@ function ParentHomeNav() {
   );
 }
 
-const tabIcon = (name: React.ComponentProps<typeof Ionicons>['name'], focused: boolean) => (
-  <Ionicons name={name} size={24} color={focused ? '#6366f1' : '#94a3b8'} />
-);
-
 export function MainTabs({ role }: { role: UserRole }) {
+  const { colors } = useTheme();
+  const tabIcon = (name: React.ComponentProps<typeof Ionicons>['name'], focused: boolean) => (
+    <Ionicons name={name} size={24} color={focused ? colors.tabActive : colors.tabInactive} />
+  );
+
+  const tabScreenOptions = {
+    headerShown: false,
+    tabBarActiveTintColor: colors.tabActive,
+    tabBarInactiveTintColor: colors.tabInactive,
+  };
+
   if (role === 'teacher') {
     return (
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: '#6366f1',
-          tabBarInactiveTintColor: '#94a3b8',
-        }}
-      >
+      <Tab.Navigator screenOptions={tabScreenOptions}>
         <Tab.Screen
           name="Dashboard"
           component={TeacherDashboardNav}
@@ -148,13 +150,7 @@ export function MainTabs({ role }: { role: UserRole }) {
   }
   if (role === 'parent') {
     return (
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: '#6366f1',
-          tabBarInactiveTintColor: '#94a3b8',
-        }}
-      >
+      <Tab.Navigator screenOptions={tabScreenOptions}>
         <Tab.Screen
           name="Home"
           component={ParentHomeNav}

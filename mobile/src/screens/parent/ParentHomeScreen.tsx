@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, where, getDocs, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '../../../../shared/types';
 import type { DailyReport } from '../../../../shared/types';
@@ -58,6 +59,8 @@ export function ParentHomeScreen({
 }) {
   const insets = useSafeAreaInsets();
   const { profile, selectedChildId, setSelectedChildId } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [children, setChildren] = useState<Child[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -271,10 +274,10 @@ export function ParentHomeScreen({
             disabled={messageLoading}
           >
             {messageLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={colors.primaryContrast} />
             ) : (
               <>
-                <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+                <Ionicons name="chatbubble-outline" size={20} color={colors.primaryContrast} />
                 <Text style={styles.messageTeacherBtnText}>Message teacher</Text>
               </>
             )}
@@ -283,18 +286,18 @@ export function ParentHomeScreen({
 
         <View style={styles.dateBar}>
           <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-back" size={24} color="#475569" />
+            <Ionicons name="chevron-back" size={24} color={colors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dateCenter}
             onPress={() => setShowDatePicker(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="calendar-outline" size={20} color="#475569" />
+            <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
             <Text style={styles.dateText}>{displayDate}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-forward" size={24} color="#475569" />
+            <Ionicons name="chevron-forward" size={24} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -360,7 +363,7 @@ export function ParentHomeScreen({
                 <Ionicons
                   name={reportTypeIcon(item.type) as keyof typeof Ionicons.glyphMap}
                   size={22}
-                  color="#6366f1"
+                  color={colors.primary}
                   style={styles.updateCardIcon}
                 />
                 <View style={styles.updateCardContent}>
@@ -381,151 +384,153 @@ export function ParentHomeScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f1f5f9' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 24 },
-  bottomPad: { height: 24 },
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    scroll: { flex: 1 },
+    scrollContent: { paddingBottom: 24 },
+    bottomPad: { height: 24 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#6d28d9',
-  },
-  headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  avatarLarge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 2,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLargeText: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  headerText: { marginLeft: 14 },
-  headerName: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  headerClass: { fontSize: 14, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
-  roleTag: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  roleTagText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      backgroundColor: colors.header,
+    },
+    headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    avatarLarge: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.headerAccent,
+      borderWidth: 2,
+      borderColor: colors.headerText,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarLargeText: { fontSize: 18, fontWeight: '700', color: colors.headerText },
+    headerText: { marginLeft: 14 },
+    headerName: { fontSize: 20, fontWeight: '700', color: colors.headerText },
+    headerClass: { fontSize: 14, color: colors.headerTextMuted, marginTop: 2 },
+    roleTag: {
+      backgroundColor: colors.headerAccent,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    roleTagText: { fontSize: 13, fontWeight: '600', color: colors.headerText },
 
-  childChipsWrap: { backgroundColor: '#6d28d9', paddingBottom: 12, paddingHorizontal: 4 },
-  childChipsContent: { paddingHorizontal: 16 },
-  childChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginRight: 8,
-  },
-  childChipActive: { borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.35)' },
-  childChipText: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
-  childChipTextActive: { color: '#fff', fontWeight: '600' },
+    childChipsWrap: { backgroundColor: colors.header, paddingBottom: 12, paddingHorizontal: 4 },
+    childChipsContent: { paddingHorizontal: 16 },
+    childChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.4)',
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      marginRight: 8,
+    },
+    childChipActive: { borderColor: colors.headerText, backgroundColor: 'rgba(255,255,255,0.35)' },
+    childChipText: { fontSize: 14, color: colors.headerTextMuted },
+    childChipTextActive: { color: colors.headerText, fontWeight: '600' },
 
-  messageTeacherBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#6d28d9',
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  messageTeacherBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    messageTeacherBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.header,
+      marginHorizontal: 16,
+      marginTop: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+    },
+    messageTeacherBtnText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
 
-  dateBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  dateArrow: { padding: 4 },
-  dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dateText: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  datePickerDone: {
-    marginTop: 8,
-    marginHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#6d28d9',
-    borderRadius: 8,
-  },
-  datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    dateBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    dateArrow: { padding: 4 },
+    dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    datePickerDone: {
+      marginTop: 8,
+      marginHorizontal: 16,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+    },
+    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
 
-  section: { marginTop: 24, paddingHorizontal: 16 },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#334155', marginBottom: 12 },
-  previewBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  previewBtnText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+    section: { marginTop: 24, paddingHorizontal: 16 },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
+    previewBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    previewBtnText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
-  statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-  },
-  statValue: { fontSize: 26, fontWeight: '800', color: '#334155' },
-  statLabel: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  statMeals: {},
-  statMealsValue: { color: '#ea580c' },
-  statNap: {},
-  statNapValue: { color: '#7c3aed' },
-  statNappy: {},
-  statNappyValue: { color: '#0d9488' },
-  statActivities: {},
-  statActivitiesValue: { color: '#2563eb' },
+    statsRow: { flexDirection: 'row', gap: 10 },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+    },
+    statValue: { fontSize: 26, fontWeight: '800', color: colors.textSecondary },
+    statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+    statMeals: {},
+    statMealsValue: { color: colors.warning },
+    statNap: {},
+    statNapValue: { color: '#7c3aed' },
+    statNappy: {},
+    statNappyValue: { color: '#0d9488' },
+    statActivities: {},
+    statActivitiesValue: { color: '#2563eb' },
 
-  updateCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  updateCardIcon: { marginRight: 12 },
-  updateCardContent: { flex: 1 },
-  updateTime: { fontSize: 12, color: '#64748b' },
-  updateType: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 4 },
-  updateNotes: { fontSize: 14, color: '#475569', marginTop: 4 },
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 8 },
-});
+    updateCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    updateCardIcon: { marginRight: 12 },
+    updateCardContent: { flex: 1 },
+    updateTime: { fontSize: 12, color: colors.textMuted },
+    updateType: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 4 },
+    updateNotes: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8 },
+  });
+}

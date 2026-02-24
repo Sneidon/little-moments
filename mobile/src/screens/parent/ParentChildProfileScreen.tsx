@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getOrCreateChat } from '../../api/chat';
 import type { DailyReport } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
@@ -107,6 +109,9 @@ function getReportDateStr(r: ReportWithExtras): string {
 
 export function ParentChildProfileScreen({ route, navigation }: Props) {
   const { childId, schoolId } = route.params;
+  const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [reports, setReports] = useState<ReportWithExtras[]>([]);
   const [child, setChild] = useState<Child | null>(null);
   const [className, setClassName] = useState<string | null>(null);
@@ -317,10 +322,10 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
           disabled={messageLoading}
         >
           {messageLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={colors.primaryContrast} />
           ) : (
             <>
-              <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+              <Ionicons name="chatbubble-outline" size={20} color={colors.primaryContrast} />
               <Text style={styles.messageTeacherBtnText}>Message teacher</Text>
             </>
           )}
@@ -394,106 +399,108 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    marginBottom: 4,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
-  childHeader: { marginTop: 8 },
-  childName: { fontSize: 18, fontWeight: '600', color: '#1e293b' },
-  childMeta: { fontSize: 14, color: '#64748b', marginTop: 2 },
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 12,
+      marginBottom: 4,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    headerTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
+    childHeader: { marginTop: 8 },
+    childName: { fontSize: 18, fontWeight: '600', color: colors.text },
+    childMeta: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
 
-  dateBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  dateArrow: { padding: 4 },
-  dateCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
-  dateText: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  datePickerDone: {
-    marginBottom: 16,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#6366f1',
-    borderRadius: 8,
-  },
-  datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    dateBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      marginHorizontal: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    dateArrow: { padding: 4 },
+    dateCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
+    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    datePickerDone: {
+      marginBottom: 16,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+    },
+    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
 
-  messageTeacherBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#6366f1',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  messageTeacherBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    messageTeacherBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      marginHorizontal: 16,
+      marginBottom: 16,
+    },
+    messageTeacherBtnText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
 
-  summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20, marginHorizontal: 16 },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-  },
-  summaryValue: { fontSize: 20, fontWeight: '800' },
-  summaryLabel: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  summaryMeals: {},
-  summaryMealsValue: { color: '#ea580c' },
-  summaryNap: {},
-  summaryNapValue: { color: '#7c3aed' },
-  summaryNappy: {},
-  summaryNappyValue: { color: '#0d9488' },
-  summaryActivities: {},
-  summaryActivitiesValue: { color: '#2563eb' },
+    summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20, marginHorizontal: 16 },
+    summaryCard: {
+      flex: 1,
+      backgroundColor: colors.card,
+      paddingVertical: 14,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+    },
+    summaryValue: { fontSize: 20, fontWeight: '800', color: colors.textSecondary },
+    summaryLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+    summaryMeals: {},
+    summaryMealsValue: { color: colors.warning },
+    summaryNap: {},
+    summaryNapValue: { color: '#7c3aed' },
+    summaryNappy: {},
+    summaryNappyValue: { color: '#0d9488' },
+    summaryActivities: {},
+    summaryActivitiesValue: { color: '#2563eb' },
 
-  section: { marginTop: 4, paddingHorizontal: 0, paddingLeft: 16, paddingRight: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#334155', marginBottom: 12 },
-  empty: { color: '#64748b', textAlign: 'center', paddingVertical: 24 },
-  timelineCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  timelineIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  timelineContent: { flex: 1 },
-  timelineTitle: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  timelineTime: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  timelineNotes: { fontSize: 14, color: '#475569', marginTop: 6 },
-});
+    section: { marginTop: 4, paddingHorizontal: 0, paddingLeft: 16, paddingRight: 16 },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
+    empty: { color: colors.textMuted, textAlign: 'center', paddingVertical: 24 },
+    timelineCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    timelineIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    timelineContent: { flex: 1 },
+    timelineTitle: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    timelineTime: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    timelineNotes: { fontSize: 14, color: colors.textMuted, marginTop: 6 },
+  });
+}

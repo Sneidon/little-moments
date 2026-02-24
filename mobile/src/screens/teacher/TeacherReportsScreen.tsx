@@ -21,7 +21,6 @@ import { getOrCreateChat } from '../../api/chat';
 import type { DailyReport } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 function getInitials(name: string): string {
   return name
@@ -42,13 +41,8 @@ function getAge(dateOfBirth: string): string {
   return years === 1 ? '1 year' : `${years} years`;
 }
 
-type TeacherStackParamList = {
-  TeacherHome: undefined;
-  Reports: { childId: string };
-  Announcements: undefined;
-  Events: undefined;
-};
-type Props = NativeStackScreenProps<TeacherStackParamList, 'Reports'>;
+type ReportsRouteParams = { childId: string };
+type Props = { route: { params: ReportsRouteParams }; navigation: { navigate: (name: string, params?: object) => void; getParent: () => unknown } };
 
 // Extended report for fields stored in Firestore
 type ReportWithExtras = DailyReport & {
@@ -126,7 +120,6 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   const { profile } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const tabNav = navigation.getParent();
   const [child, setChild] = useState<Child | null>(null);
   const [className, setClassName] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportWithExtras[]>([]);
@@ -258,11 +251,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
     setMessageLoading(true);
     try {
       const { chatId, schoolId: sid } = await getOrCreateChat(schoolId, childId, parentId);
-      const tabNav = navigation.getParent();
-      (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate('Messages', {
-        screen: 'ChatThread',
-        params: { chatId, schoolId: sid },
-      });
+      navigation.navigate('ChatThread', { chatId, schoolId: sid });
     } catch (e) {
       Alert.alert('Error', 'Could not start conversation. Please try again.');
     } finally {
@@ -386,9 +375,10 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnPrimary]}
           onPress={() =>
-            tabNav?.navigate('AddUpdate', {
-              initialChildId: childId,
-            } as { initialChildId: string })
+            navigation.navigate('MainTabs', {
+              screen: 'AddUpdate',
+              params: { initialChildId: childId },
+            })
           }
           activeOpacity={0.7}
         >

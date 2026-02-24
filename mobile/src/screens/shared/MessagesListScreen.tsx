@@ -60,7 +60,7 @@ export function MessagesListScreen({ navigation }: Props) {
       navigation.setOptions({
         headerRight: () => (
           <TouchableOpacity
-            onPress={() => navigation.navigate('SelectChildToMessage')}
+            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('SelectChildToMessage')}
             style={styles.headerBtn}
           >
             <Text style={styles.headerBtnText}>New chat</Text>
@@ -132,7 +132,7 @@ export function MessagesListScreen({ navigation }: Props) {
   const renderItem = ({ item }: { item: ChatWithNames }) => (
     <TouchableOpacity
       style={styles.row}
-      onPress={() => navigation.navigate('ChatThread', { chatId: item.id, schoolId: item.schoolId })}
+      onPress={() => (navigation.getParent() as { navigate: (name: string, params: { chatId: string; schoolId: string }) => void } | undefined)?.navigate('ChatThread', { chatId: item.id, schoolId: item.schoolId })}
       activeOpacity={0.7}
     >
       <View style={styles.avatar}>

@@ -41,8 +41,8 @@ export function TeacherHomeScreen({
   navigation,
 }: {
   navigation: {
-    navigate: (a: string, b?: { childId: string }) => void;
-    getParent: () => { navigate: (name: string, params?: { initialType?: string }) => void } | undefined;
+    navigate: (name: string, params?: { childId?: string; initialType?: string }) => void;
+    getParent: () => { navigate: (name: string, params?: object) => void } | undefined;
   };
 }) {
   const insets = useSafeAreaInsets();
@@ -191,7 +191,7 @@ export function TeacherHomeScreen({
 
   const teacherName = profile?.displayName?.trim() || profile?.email?.split('@')[0] || 'Teacher';
 
-  const tabNav = navigation.getParent() as { navigate: (name: string, params?: { initialType: string }) => void } | undefined;
+  const rootStack = navigation.getParent();
 
   const quickActions = [
     {
@@ -199,42 +199,42 @@ export function TeacherHomeScreen({
       label: 'Log Meal',
       icon: 'restaurant' as const,
       color: '#ea580c',
-      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'meal' }),
+      onPress: () => navigation.navigate('AddUpdate', { initialType: 'meal' }),
     },
     {
       id: 'nap',
       label: 'Log Nap',
       icon: 'bed' as const,
       color: '#7c3aed',
-      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'nap_time' }),
+      onPress: () => navigation.navigate('AddUpdate', { initialType: 'nap_time' }),
     },
     {
       id: 'nappy',
       label: 'Log Nappy',
       icon: 'water' as const,
       color: '#0d9488',
-      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'nappy_change' }),
+      onPress: () => navigation.navigate('AddUpdate', { initialType: 'nappy_change' }),
     },
     {
       id: 'activity',
       label: 'Add Activity',
       icon: 'sparkles' as const,
       color: '#2563eb',
-      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'medication' }),
+      onPress: () => navigation.navigate('AddUpdate', { initialType: 'medication' }),
     },
     {
       id: 'photo',
       label: 'Add Photo',
       icon: 'camera' as const,
       color: '#db2777',
-      onPress: () => tabNav?.navigate('AddUpdate', { initialType: 'incident' }),
+      onPress: () => navigation.navigate('AddUpdate', { initialType: 'incident' }),
     },
     {
       id: 'message',
       label: 'Message Parent',
       icon: 'chatbubble' as const,
       color: '#16a34a',
-      onPress: () => navigation.navigate('Announcements'),
+      onPress: () => rootStack?.navigate('Announcements'),
     },
   ];
 
@@ -245,7 +245,7 @@ export function TeacherHomeScreen({
     return (
       <TouchableOpacity
         style={styles.studentCard}
-        onPress={() => navigation.navigate('Reports', { childId: item.id })}
+        onPress={() => rootStack?.navigate('Reports', { childId: item.id })}
         activeOpacity={0.7}
       >
         <View style={styles.avatar}>

@@ -241,11 +241,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
         childId,
         child.assignedTeacherId
       );
-      const tabNav = navigation.getParent();
-      (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate('Messages', {
-        screen: 'ChatThread',
-        params: { chatId, schoolId: sid },
-      });
+      navigation.navigate('ChatThread', { chatId, schoolId: sid });
     } catch (e) {
       Alert.alert('Error', 'Could not start conversation. Please try again.');
     } finally {

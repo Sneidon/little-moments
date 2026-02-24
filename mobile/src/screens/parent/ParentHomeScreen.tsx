@@ -93,11 +93,8 @@ export function ParentHomeScreen({
         selectedChild.id,
         selectedChild.assignedTeacherId
       );
-      const tabNav = navigation.getParent();
-      (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate('Messages', {
-        screen: 'ChatThread',
-        params: { chatId, schoolId: sid },
-      });
+      const rootStack = navigation.getParent();
+      (rootStack as { navigate: (name: string, params?: object) => void } | undefined)?.navigate('ChatThread', { chatId, schoolId: sid });
     } catch (e) {
       Alert.alert('Error', 'Could not open messages. Please try again.');
     } finally {
@@ -214,7 +211,7 @@ export function ParentHomeScreen({
             style={styles.headerProfile}
             onPress={() =>
               selectedChild &&
-              navigation.navigate('ChildProfile', {
+              (navigation.getParent() as { navigate: (name: string, params?: object) => void } | undefined)?.navigate('ChildProfile', {
                 childId: selectedChild.id,
                 schoolId: selectedChild.schoolId,
               })
@@ -326,7 +323,7 @@ export function ParentHomeScreen({
             <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
             <TouchableOpacity
               style={styles.previewBtn}
-              onPress={() => navigation.navigate('Announcements')}
+              onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('ParentAnnouncements')}
             >
               <Text style={styles.previewBtnText}>Announcements</Text>
             </TouchableOpacity>

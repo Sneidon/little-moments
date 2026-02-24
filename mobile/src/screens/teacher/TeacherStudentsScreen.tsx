@@ -21,7 +21,7 @@ import type { ClassRoom } from '../../../../shared/types';
 export function TeacherStudentsScreen({
   navigation,
 }: {
-  navigation: { navigate: (a: string, b?: { childId: string }) => void; getParent: () => { navigate: (a: string, b?: object) => void } | undefined };
+  navigation: { navigate: (name: string, params?: object) => void; getParent: () => { navigate: (name: string, params?: object) => void } | undefined };
 }) {
   const { profile } = useAuth();
   const { colors } = useTheme();
@@ -92,11 +92,8 @@ export function TeacherStudentsScreen({
           child.id,
           child.parentIds[0]
         );
-        const tabNav = navigation.getParent();
-        (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate(
-          'Messages',
-          { screen: 'ChatThread', params: { chatId, schoolId: sid } }
-        );
+        const rootStack = navigation.getParent();
+        rootStack?.navigate('ChatThread', { chatId, schoolId: sid });
       } catch (e) {
         Alert.alert('Error', 'Could not start conversation. Please try again.');
       } finally {
@@ -112,7 +109,7 @@ export function TeacherStudentsScreen({
     return (
       <TouchableOpacity
         style={styles.card}
-        onPress={() => navigation.navigate('Reports', { childId: item.id })}
+        onPress={() => navigation.getParent()?.navigate('Reports', { childId: item.id })}
       >
         <Ionicons name="person-circle-outline" size={28} color={colors.primary} style={styles.cardIcon} />
         <View style={styles.cardContent}>

@@ -148,7 +148,7 @@ export function MessagesListScreen({ navigation }: Props) {
           {item.childName}
         </Text>
         {item.lastMessageText ? (
-          <Text style={styles.preview} numberOfLines={1}>
+          <Text style={styles.lastMessage} numberOfLines={1}>
             {item.lastMessageText}
           </Text>
         ) : null}
@@ -213,7 +213,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     content: { flex: 1, minWidth: 0 },
     name: { fontSize: 16, fontWeight: '600', color: colors.text },
     subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-    preview: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    lastMessage: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
     time: { fontSize: 12, color: colors.textMuted, marginLeft: 8 },
     empty: {
       padding: 32,

@@ -679,8 +679,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 disabled={loading}
               >
                 {photoUri ? (
-                  <View style={styles.photoPreviewWrap}>
-                    <Image source={{ uri: photoUri }} style={styles.photoPreviewInZone} resizeMode="cover" />
+                  <View style={styles.photoThumbWrap}>
+                    <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
                     <TouchableOpacity
                       style={styles.removePhotoBtn}
                       onPress={(e) => {
@@ -700,10 +700,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   </>
                 )}
               </TouchableOpacity>
-              <View style={styles.previewRow}>
+              <View style={styles.actionsRow}>
                 <View style={{ flex: 1 }} />
-                <TouchableOpacity style={styles.previewBtn}>
-                  <Text style={styles.previewBtnText}>Preview</Text>
+                <TouchableOpacity style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>View</Text>
                 </TouchableOpacity>
               </View>
               <Text style={styles.label}>Caption</Text>
@@ -1016,8 +1016,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   placeholderTextColor={colors.textMuted}
                   editable={false}
                 />
-                <TouchableOpacity style={styles.previewBtn}>
-                  <Text style={styles.previewBtnText}>Preview</Text>
+                <TouchableOpacity style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>View</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
@@ -1461,8 +1461,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       color: colors.text,
     },
     inputMultiline: { minHeight: 88, textAlignVertical: 'top' },
-    previewBtn: { alignSelf: 'flex-start', marginTop: 8 },
-    previewBtnText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
+    secondaryBtn: { alignSelf: 'flex-start', marginTop: 8 },
+    secondaryBtnText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
     primaryButton: {
       flexDirection: 'row',
@@ -1491,9 +1491,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     photoUploadZoneFilled: { padding: 0, minHeight: 0 },
     photoUploadHint: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
     photoUploadFormats: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-    previewRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-    photoPreviewWrap: { position: 'relative', width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' },
-    photoPreviewInZone: { width: '100%', height: '100%', backgroundColor: colors.backgroundSecondary },
+    actionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+    photoThumbWrap: { position: 'relative', width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' },
+    photoThumbImage: { width: '100%', height: '100%', backgroundColor: colors.backgroundSecondary },
     removePhotoBtn: { position: 'absolute', top: 8, right: 8 },
     dropdownOptions: { marginTop: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, maxHeight: 200 },
     dropdownOption: { paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.backgroundSecondary },

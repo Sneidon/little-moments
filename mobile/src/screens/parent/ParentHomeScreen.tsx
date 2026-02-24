@@ -331,10 +331,10 @@ export function ParentHomeScreen({
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
             <TouchableOpacity
-              style={styles.previewBtn}
+              style={styles.sectionBtn}
               onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('ParentAnnouncements')}
             >
-              <Text style={styles.previewBtnText}>Announcements</Text>
+              <Text style={styles.sectionBtnText}>Announcements</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.statsRow}>
@@ -491,7 +491,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       marginBottom: 12,
     },
     sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
-    previewBtn: {
+    sectionBtn: {
       paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 8,
@@ -499,7 +499,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       borderWidth: 1,
       borderColor: colors.border,
     },
-    previewBtnText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+    sectionBtnText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
     statsRow: { flexDirection: 'row', gap: 10 },
     statCard: {

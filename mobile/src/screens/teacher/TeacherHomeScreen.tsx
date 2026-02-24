@@ -292,9 +292,6 @@ export function TeacherHomeScreen({
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
-            <TouchableOpacity style={styles.previewBtn}>
-              <Text style={styles.previewBtnText}>Preview</Text>
-            </TouchableOpacity>
           </View>
           <View style={styles.statsRow}>
             <View style={[styles.statCard, styles.statPresent]}>
@@ -415,15 +412,6 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       marginBottom: 12,
     },
     sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
-    previewBtn: {
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: colors.backgroundSecondary,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    previewBtnText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
     statsRow: { flexDirection: 'row', gap: 10 },
     statCard: {

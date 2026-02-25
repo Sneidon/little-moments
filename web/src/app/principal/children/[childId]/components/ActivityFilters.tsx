@@ -46,17 +46,14 @@ export function ActivityFilters({
         >
           Yesterday
         </button>
-        {daysWithActivity.map((d) => {
-          const label =
-            d === todayIso
-              ? 'Today'
-              : d === yesterdayIso
-                ? 'Yesterday'
-                : new Date(d).toLocaleDateString(undefined, {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  });
+        {daysWithActivity
+          .filter((d) => d !== todayIso && d !== yesterdayIso)
+          .map((d) => {
+          const label = new Date(d).toLocaleDateString(undefined, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          });
           const isSelected = filterDay === d;
           return (
             <button

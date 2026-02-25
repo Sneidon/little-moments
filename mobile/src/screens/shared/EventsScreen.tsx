@@ -59,15 +59,51 @@ export function EventsScreen() {
         ) : null}
         <Text style={styles.meta}>{new Date(item.startAt).toLocaleString()}</Text>
         {profile?.role === 'parent' && (
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.acceptBtn} onPress={() => respond(item.id, 'accepted')}>
-              <Ionicons name="checkmark-circle" size={18} color={colors.primaryContrast} style={styles.btnIcon} />
-              <Text style={styles.acceptText}>Accept</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.declineBtn} onPress={() => respond(item.id, 'declined')}>
-              <Ionicons name="close-circle-outline" size={18} color={colors.textMuted} style={styles.btnIcon} />
-              <Text style={styles.declineText}>Decline</Text>
-            </TouchableOpacity>
+          <View style={styles.rsvpSection}>
+            {item.parentResponses?.[profile.uid] ? (
+              <Text style={styles.rsvpStatus}>
+                You RSVP&apos;d: {item.parentResponses[profile.uid] === 'accepted' ? 'Going' : 'Not going'}
+              </Text>
+            ) : null}
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={[
+                  styles.acceptBtn,
+                  item.parentResponses?.[profile.uid] === 'accepted' && styles.acceptBtnSelected,
+                ]}
+                onPress={() => respond(item.id, 'accepted')}
+              >
+                <Ionicons
+                  name={item.parentResponses?.[profile.uid] === 'accepted' ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                  size={18}
+                  color={item.parentResponses?.[profile.uid] === 'accepted' ? colors.primaryContrast : colors.primaryContrast}
+                  style={styles.btnIcon}
+                />
+                <Text style={styles.acceptText}>
+                  {item.parentResponses?.[profile.uid] === 'accepted' ? "Going ✓" : 'Going'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.declineBtn,
+                  item.parentResponses?.[profile.uid] === 'declined' && styles.declineBtnSelected,
+                ]}
+                onPress={() => respond(item.id, 'declined')}
+              >
+                <Ionicons
+                  name={item.parentResponses?.[profile.uid] === 'declined' ? 'close-circle' : 'close-circle-outline'}
+                  size={18}
+                  color={item.parentResponses?.[profile.uid] === 'declined' ? colors.danger : colors.textMuted}
+                  style={styles.btnIcon}
+                />
+                <Text style={[
+                  styles.declineText,
+                  item.parentResponses?.[profile.uid] === 'declined' && styles.declineTextSelected,
+                ]}>
+                  {item.parentResponses?.[profile.uid] === 'declined' ? "Can't make it ✓" : "Can't make it"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -116,7 +152,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     documents: { marginTop: 8, gap: 4 },
     docLink: { fontSize: 14, color: colors.primary, textDecorationLine: 'underline' },
     meta: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
-    actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+    rsvpSection: { marginTop: 12 },
+    rsvpStatus: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
+    actions: { flexDirection: 'row', gap: 8 },
     acceptBtn: {
       flex: 1,
       flexDirection: 'row',
@@ -128,6 +166,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       backgroundColor: colors.success,
     },
     acceptText: { color: colors.primaryContrast, fontWeight: '600' },
+    acceptBtnSelected: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)' },
     declineBtn: {
       flex: 1,
       flexDirection: 'row',
@@ -140,6 +179,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       borderColor: colors.border,
     },
     declineText: { color: colors.textMuted },
+    declineBtnSelected: { borderWidth: 2, borderColor: colors.danger, backgroundColor: colors.dangerMuted },
+    declineTextSelected: { color: colors.danger, fontWeight: '600' },
     btnIcon: {},
     empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   });

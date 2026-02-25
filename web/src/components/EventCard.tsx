@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import type { Event, EventDocumentLink } from 'shared/types';
 
 /** Event image: square aspect, no stretch. */
@@ -90,20 +91,33 @@ export function EventCard({ event, variant = 'upcoming', classNamesMap, onEdit }
         >
           {ev.title}
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(ev.targetType === 'everyone' || !ev.targetType) && (
             <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-600 dark:text-slate-400">
               Everyone
             </span>
           )}
           {onEdit && (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-            >
-              Edit
-            </button>
+            <>
+              <Link
+                href={`/principal/events/${ev.id}/rsvps`}
+                className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                View RSVPs
+                {ev.parentResponses && Object.keys(ev.parentResponses).length > 0 && (
+                  <span className="ml-1 text-slate-500 dark:text-slate-400">
+                    ({Object.keys(ev.parentResponses).length})
+                  </span>
+                )}
+              </Link>
+              <button
+                type="button"
+                onClick={onEdit}
+                className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                Edit
+              </button>
+            </>
           )}
         </div>
       </div>

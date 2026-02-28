@@ -34,11 +34,10 @@ export function LoginScreen({ navigation }: Props) {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (e: unknown) {
+      setLoading(false);
       const message = e instanceof Error ? e.message : 'Login failed';
       Alert.alert('Login failed', message);
-    } finally {
-      setLoading(false);
-    }
+    } 
   };
 
   return (

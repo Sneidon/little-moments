@@ -5,18 +5,37 @@
 
 export type UserRole = 'teacher' | 'parent' | 'principal' | 'super_admin';
 
+/** Notification preferences for parents. */
+export interface NotificationPreferences {
+  nappyChange?: boolean;
+  napTime?: boolean;
+  meal?: boolean;
+  medication?: boolean;
+  incident?: boolean;
+  media?: boolean;
+  announcements?: boolean;
+  events?: boolean;
+  eventReminders?: boolean;
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
   preferredName?: string;
+  /** Last name (especially for parents). */
+  lastName?: string;
   /** Contact phone (especially for parents). */
   phone?: string;
+  /** Profile picture URL. */
+  photoURL?: string;
   role: UserRole;
   /** If false, user is inactive (principal can reactivate teachers/parents). Default true. */
   isActive?: boolean;
   schoolId?: string; // teachers, principals
   fcmTokens?: string[];
+  /** Parent notification preferences. All default true when undefined. */
+  notificationPreferences?: NotificationPreferences;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +47,8 @@ export interface Child {
   preferredName?: string;
   dateOfBirth: string; // ISO date
   allergies?: string[];
+  /** Profile picture URL. */
+  photoURL?: string;
   medicalNotes?: string;
   enrollmentDate?: string; // ISO date
   assignedTeacherId?: string;
@@ -57,8 +78,27 @@ export interface DailyReport {
   mealOptionName?: string;
   incidentDetails?: string;
   medicationName?: string;
-  /** URL of photo uploaded to Storage (for photo/incident reports). */
+  /** Dosage administered (for medication reports). */
+  medicationDosage?: string;
+  /** URL of photo/video uploaded to Storage (for photo/incident/media reports). */
   imageUrl?: string;
+  /** True if media is for whole class (all parents in class get notified). */
+  forWholeClass?: boolean;
+  /** MIME type: image/* or video/*. */
+  mediaType?: string;
+}
+
+/** Daily real-time communication: planned activity for the day, sent to all parents. */
+export interface DailyCommunication {
+  id: string;
+  schoolId: string;
+  classId: string;
+  /** Teacher uid. */
+  createdBy: string;
+  /** Planned activity / communication text. */
+  message: string;
+  date: string; // ISO date YYYY-MM-DD
+  createdAt: string;
 }
 
 export interface Announcement {
@@ -78,6 +118,8 @@ export interface Announcement {
   targetType?: 'everyone' | 'classes';
   /** Class IDs when targetType is 'classes'. */
   targetClassIds?: string[];
+  /** Teacher IDs when targeting by teacher (distributes to parents of that teacher's class). */
+  targetTeacherIds?: string[];
   targetRole?: UserRole; // optional filter (legacy)
   /** Set by Cloud Function when reminder notification has been sent. */
   reminderSentAt?: string;
@@ -127,6 +169,17 @@ export interface MealOption {
   updatedAt: string;
 }
 
+/** Weekly food menu: items per day. Monday=0, Sunday=6. */
+export interface FoodMenuWeekly {
+  id: string;
+  schoolId: string;
+  /** ISO date of Monday for this week. */
+  weekStart: string;
+  /** dayIndex 0=Mon..6=Sun, category breakfast|lunch|snack, value = meal option names/IDs. */
+  days: Record<string, Record<'breakfast' | 'lunch' | 'snack', string[]>>;
+  updatedAt: string;
+}
+
 /** @deprecated Use meal options (MealOption) per category instead. Kept for migration. */
 export interface FoodMenu {
   id: string;
@@ -140,6 +193,16 @@ export interface FoodMenu {
 
 export type SubscriptionStatus = 'active' | 'suspended';
 
+/** School feature flags - enable/disable per-feature. Default true when undefined. */
+export interface SchoolFeatures {
+  nappyChange?: boolean;
+  napTime?: boolean;
+  meal?: boolean;
+  medication?: boolean;
+  incident?: boolean;
+  media?: boolean;
+}
+
 export interface School {
   id: string;
   name: string;
@@ -149,6 +212,8 @@ export interface School {
   description?: string;
   website?: string;
   subscriptionStatus?: SubscriptionStatus;
+  /** Per-feature enable/disable. Super Admin configures. */
+  features?: SchoolFeatures;
   createdAt: string;
   updatedAt: string;
 }
@@ -187,4 +252,18 @@ export interface ChatMessage {
   senderId: string;
   text: string;
   createdAt: string;
+}
+
+/** App session for usage analytics (time spent). */
+export interface AppSession {
+  id: string;
+  userId: string;
+  schoolId?: string;
+  role: UserRole;
+  /** Session start (ISO). */
+  startedAt: string;
+  /** Session end (ISO). */
+  endedAt: string;
+  /** Duration in seconds. */
+  durationSeconds: number;
 }

@@ -335,6 +335,20 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
 
       {/* Action buttons */}
       <View style={styles.actionRow}>
+        {/* <TouchableOpacity
+          style={[styles.actionBtn, { marginRight: 8 }]}
+          onPress={() =>
+            schoolId &&
+            (navigation.getParent() as { navigate: (n: string, p?: object) => void } | undefined)?.navigate('EditChildProfileTeacher', {
+              childId,
+              schoolId,
+            })
+          }
+          activeOpacity={0.7}
+        >
+          <Ionicons name="create-outline" size={20} color={colors.primary} />
+          <Text style={[styles.actionBtnText, { color: colors.primary }]}>Edit profile</Text>
+        </TouchableOpacity> */}
         <TouchableOpacity
           style={styles.actionBtn}
           onPress={onMessageParents}

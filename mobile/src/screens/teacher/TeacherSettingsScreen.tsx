@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
 import { collection, getDocs } from 'firebase/firestore';
@@ -62,6 +62,21 @@ export function TeacherSettingsScreen() {
         {className ? (
           <Text style={[styles.row, styles.room]}>Class: {className}</Text>
         ) : null}
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="help-circle-outline" size={18} color={colors.textMuted} />
+          <Text style={styles.cardTitle}>Support</Text>
+        </View>
+        <TouchableOpacity style={styles.themeRow} onPress={() => Alert.alert('FAQ', 'How to log meals? Use Add Update → Meal. How to add planned activity? Use Planned activity quick action. Need more? support@mylittlemoments.com')} activeOpacity={0.7}>
+          <Text style={styles.themeLabel}>FAQ</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.themeRow} onPress={() => Alert.alert('Contact support', 'Email: support@mylittlemoments.com')} activeOpacity={0.7}>
+          <Text style={styles.themeLabel}>Contact support</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>

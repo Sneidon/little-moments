@@ -48,3 +48,28 @@ export async function uploadPhotoAsync(
   await uploadBytes(storageRef, bytes, { contentType: 'image/jpeg' });
   return getDownloadURL(storageRef);
 }
+
+/**
+ * Upload a local media file (photo or video) to Firebase Storage.
+ * Returns { url, mediaType }.
+ */
+export async function uploadMediaAsync(
+  localUri: string,
+  schoolId: string,
+  childId: string,
+  mimeType?: string
+): Promise<{ url: string; mediaType: string }> {
+  const isVideo = mimeType?.startsWith('video/') ?? localUri.toLowerCase().includes('.mp4') ?? localUri.toLowerCase().includes('.mov');
+  const ext = isVideo ? (mimeType?.includes('mp4') ? '.mp4' : '.mov') : '.jpg';
+  const contentType = isVideo ? (mimeType || 'video/mp4') : 'image/jpeg';
+  const base64 = await FileSystem.readAsStringAsync(localUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  const bytes = base64ToUint8Array(base64);
+  const filename = `${Date.now()}${ext}`;
+  const path = `schools/${schoolId}/children/${childId}/media/${filename}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, bytes, { contentType });
+  const url = await getDownloadURL(storageRef);
+  return { url, mediaType: isVideo ? 'video' : 'image' };
+}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -20,6 +21,26 @@ import { ParentSettingsScreen } from '../screens/parent/ParentSettingsScreen';
 import { PhotosPlaceholderScreen } from '../screens/shared/PhotosPlaceholderScreen';
 import { ParentCalendarScreen } from '../screens/parent/ParentCalendarScreen';
 import { ParentAnnouncementsScreen } from '../screens/parent/ParentAnnouncementsScreen';
+import { DailyCommunicationScreen } from '../screens/teacher/DailyCommunicationScreen';
+import { EditChildProfileScreen } from '../screens/parent/EditChildProfileScreen';
+import { useEditChildProfileParams } from '../screens/parent/useEditChildProfileParams';
+import { EditChildProfileTeacherScreen } from '../screens/teacher/EditChildProfileTeacherScreen';
+
+function EditChildProfileScreenWrapper() {
+  const navigation = useNavigation();
+  const { child, schoolId } = useEditChildProfileParams();
+  const goBack = () => (navigation as { goBack: () => void }).goBack();
+  if (!child || !schoolId) return null;
+  return <EditChildProfileScreen child={child} schoolId={schoolId} onSaved={goBack} onCancel={goBack} />;
+}
+
+function EditChildProfileTeacherScreenWrapper() {
+  const navigation = useNavigation();
+  const { child, schoolId } = useEditChildProfileParams();
+  const goBack = () => (navigation as { goBack: () => void }).goBack();
+  if (!child || !schoolId) return null;
+  return <EditChildProfileTeacherScreen child={child} schoolId={schoolId} onSaved={goBack} onCancel={goBack} />;
+}
 
 export type RootStackParamList = {
   MainTabs:
@@ -32,6 +53,9 @@ export type RootStackParamList = {
   ParentAnnouncements: undefined;
   SelectChildToMessage: undefined;
   ChatThread: { chatId: string; schoolId: string };
+  DailyCommunication: undefined;
+  EditChildProfile: { childId: string; schoolId: string };
+  EditChildProfileTeacher: { childId: string; schoolId: string };
 };
 
 const Tab = createBottomTabNavigator();
@@ -184,6 +208,9 @@ export function MainTabs({ role }: { role: UserRole }) {
       <RootStack.Screen name="ParentAnnouncements" component={ParentAnnouncementsScreen} options={{ title: 'Announcements' }} />
       <RootStack.Screen name="SelectChildToMessage" component={SelectChildToMessageScreen} options={{ title: 'Start conversation' }} />
       <RootStack.Screen name="ChatThread" component={ChatThreadScreen} options={{ title: 'Chat' }} />
+      <RootStack.Screen name="DailyCommunication" component={DailyCommunicationScreen} options={{ title: 'Planned activity' }} />
+      <RootStack.Screen name="EditChildProfile" component={EditChildProfileScreenWrapper} options={{ title: 'Edit child' }} />
+      <RootStack.Screen name="EditChildProfileTeacher" component={EditChildProfileTeacherScreenWrapper} options={{ title: 'Edit child' }} />
     </RootStack.Navigator>
   );
 }

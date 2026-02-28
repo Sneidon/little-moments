@@ -26,6 +26,13 @@ const navSections: { title: string; links: { href: string; label: string }[] }[]
     title: 'Analytics',
     links: [{ href: '/admin/usage', label: 'Usage & analytics' }],
   },
+  {
+    title: 'Support',
+    links: [
+      { href: '/admin/faq', label: 'FAQ' },
+      { href: '/admin/support', label: 'Contact support' },
+    ],
+  },
 ];
 
 export default function AdminLayout({

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useMealOptions } from '@/hooks/useMealOptions';
 import { useMealOptionForm } from '@/hooks/useMealOptionForm';
@@ -52,7 +53,8 @@ export default function FoodMenusPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
           Meal options
         </h1>
@@ -60,6 +62,13 @@ export default function FoodMenusPage() {
           Define options for breakfast, lunch and snacks. Teachers will select from this list when
           logging meals.
         </p>
+        </div>
+        <Link
+          href="/principal/food-menus/weekly"
+          className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+        >
+          Weekly menu
+        </Link>
       </div>
 
       {form.showForm && <MealOptionForm form={form} />}

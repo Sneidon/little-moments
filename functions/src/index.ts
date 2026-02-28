@@ -80,6 +80,64 @@ async function getFcmTokensForSchool(db: admin.firestore.Firestore, schoolId: st
   return tokens;
 }
 
+// Get FCM tokens for parents of children in a specific class.
+async function getFcmTokensForClass(db: admin.firestore.Firestore, schoolId: string, classId: string): Promise<string[]> {
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  const childrenSnap = await db.collection('schools').doc(schoolId).collection('children')
+    .where('classId', '==', classId)
+    .get();
+  const parentIds = new Set<string>();
+  childrenSnap.docs.forEach((d) => {
+    const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+    parentIdsArr.forEach((uid: string) => parentIds.add(uid));
+  });
+  for (const uid of parentIds) {
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) continue;
+    const data = userSnap.data() as { fcmTokens?: string[]; isActive?: boolean };
+    if (data.isActive === false) continue;
+    (data.fcmTokens || []).forEach((t: string) => {
+      if (t && !seen.has(t)) { seen.add(t); tokens.push(t); }
+    });
+  }
+  return tokens;
+}
+
+// When daily communication (planned activity) is created, notify parents in that class.
+export const onDailyCommunicationCreated = functions.firestore
+  .document('schools/{schoolId}/dailyCommunications/{docId}')
+  .onCreate(async (snap, context) => {
+    const { schoolId } = context.params;
+    const data = snap.data() as { classId?: string; message?: string };
+    const classId = data.classId;
+    if (!classId) return null;
+    const message = (data.message && String(data.message).trim()) ? String(data.message).trim().slice(0, 120) : 'Planned activity for today';
+    const db = admin.firestore();
+    const tokens = await getFcmTokensForClass(db, schoolId, classId);
+    if (tokens.length === 0) {
+      functions.logger.info('onDailyCommunicationCreated: no FCM tokens for class', classId);
+      return null;
+    }
+    const msg: admin.messaging.MulticastMessage = {
+      tokens,
+      notification: {
+        title: 'Planned activity for today',
+        body: message.length >= 120 ? `${message}…` : message,
+      },
+      data: { type: 'daily_communication', schoolId },
+      android: { priority: 'high' as const },
+      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+    };
+    try {
+      const res = await admin.messaging().sendEachForMulticast(msg);
+      functions.logger.info('onDailyCommunicationCreated: sent', res.successCount, 'schoolId', schoolId);
+    } catch (e) {
+      functions.logger.error('onDailyCommunicationCreated: send failed', e);
+    }
+    return null;
+  });
+
 // When an announcement is created, send push notifications to all school staff and parents.
 export const onAnnouncementCreated = functions.firestore
   .document('schools/{schoolId}/announcements/{announcementId}')
@@ -440,6 +498,49 @@ export const createTeacher = functions.https.onCall(async (data, context) => {
   return { teacherUid };
 });
 
+// Create a super admin. Callable by super_admin only.
+export const createSuperAdmin = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string }) : null;
+  if (callerData?.role !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can add super admins.');
+  }
+
+  const { email, displayName, password } = data as {
+    email?: string;
+    displayName?: string;
+    password?: string;
+  };
+
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Email is required.');
+  }
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    throw new functions.https.HttpsError('invalid-argument', 'Password must be at least 6 characters.');
+  }
+
+  const now = new Date().toISOString();
+  const userRecord = await admin.auth().createUser({
+    email: email.trim(),
+    password,
+    displayName: (displayName && typeof displayName === 'string') ? displayName.trim() : email.trim(),
+  });
+  await db.collection('users').doc(userRecord.uid).set({
+    email: email.trim(),
+    displayName: (displayName && typeof displayName === 'string') ? displayName.trim() : email.trim(),
+    role: 'super_admin',
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return { superAdminUid: userRecord.uid };
+});
+
 // Update a teacher's name or active status. Callable by principal only (for teachers in their school).
 export const updateTeacher = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -693,20 +794,146 @@ export const updateParent = functions.https.onCall(async (data, context) => {
   return { ok: true };
 });
 
-// Scheduled event reminders (one day before). Proposal: "Schedule event reminders one day
-// before using Cloud Scheduler, delivering via FCM and SendGrid."
-// Use a callable or HTTP function triggered by Cloud Scheduler (cron).
+// Parent updates their child's profile (name, DOB, allergies, photoURL). Only allowed fields.
+export const updateChildProfileByParent = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const { schoolId, childId, name, dateOfBirth, allergies, photoURL } = data as {
+    schoolId?: string;
+    childId?: string;
+    name?: string;
+    dateOfBirth?: string;
+    allergies?: string[];
+    photoURL?: string;
+  };
+  if (!schoolId || !childId) throw new functions.https.HttpsError('invalid-argument', 'schoolId and childId required.');
+  const childRef = db.collection('schools').doc(schoolId).collection('children').doc(childId);
+  const childSnap = await childRef.get();
+  if (!childSnap.exists) throw new functions.https.HttpsError('not-found', 'Child not found.');
+  const child = childSnap.data() as { parentIds?: string[] };
+  if (!child.parentIds?.includes(uid)) throw new functions.https.HttpsError('permission-denied', 'Not a parent of this child.');
+  const now = new Date().toISOString();
+  const updates: Record<string, unknown> = { updatedAt: now };
+  if (name !== undefined && typeof name === 'string' && name.trim()) updates.name = name.trim();
+  if (dateOfBirth !== undefined && typeof dateOfBirth === 'string') updates.dateOfBirth = dateOfBirth;
+  if (allergies !== undefined && Array.isArray(allergies)) updates.allergies = allergies.filter((a: unknown) => typeof a === 'string' && a.trim());
+  if (photoURL !== undefined) updates.photoURL = typeof photoURL === 'string' && photoURL.trim() ? photoURL.trim() : null;
+  await childRef.update(updates);
+  return { ok: true };
+});
+
+// Teacher updates child's profile (name, DOB, allergies, photoURL) for children in their class.
+export const updateChildProfileByTeacher = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(uid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'teacher' || callerData?.schoolId === undefined) {
+    throw new functions.https.HttpsError('permission-denied', 'Only teachers can use this.');
+  }
+  const { schoolId, childId, name, dateOfBirth, allergies, photoURL } = data as {
+    schoolId?: string;
+    childId?: string;
+    name?: string;
+    dateOfBirth?: string;
+    allergies?: string[];
+    photoURL?: string;
+  };
+  if (!schoolId || schoolId !== callerData.schoolId || !childId) {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolId and childId required.');
+  }
+  const childRef = db.collection('schools').doc(schoolId).collection('children').doc(childId);
+  const childSnap = await childRef.get();
+  if (!childSnap.exists) throw new functions.https.HttpsError('not-found', 'Child not found.');
+  const child = childSnap.data() as { classId?: string };
+  const classSnap = child.classId ? await db.collection('schools').doc(schoolId).collection('classes').doc(child.classId).get() : null;
+  const assignedTeacherId = classSnap?.exists ? (classSnap.data() as { assignedTeacherId?: string }).assignedTeacherId : null;
+  if (assignedTeacherId !== uid) throw new functions.https.HttpsError('permission-denied', 'Not the teacher for this child.');
+  const now = new Date().toISOString();
+  const updates: Record<string, unknown> = { updatedAt: now };
+  if (name !== undefined && typeof name === 'string' && name.trim()) updates.name = name.trim();
+  if (dateOfBirth !== undefined && typeof dateOfBirth === 'string') updates.dateOfBirth = dateOfBirth;
+  if (allergies !== undefined && Array.isArray(allergies)) updates.allergies = allergies.filter((a: unknown) => typeof a === 'string' && a.trim());
+  if (photoURL !== undefined) updates.photoURL = typeof photoURL === 'string' && photoURL.trim() ? photoURL.trim() : null;
+  await childRef.update(updates);
+  return { ok: true };
+});
+
+// Parent updates their own profile (name, lastName, email, phone, photoURL, notificationPreferences).
+export const updateParentProfile = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const userRef = db.collection('users').doc(uid);
+  const snap = await userRef.get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+  const d = snap.data() as { role?: string };
+  if (d.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
+  const { displayName, lastName, phone, photoURL, notificationPreferences } = data as {
+    displayName?: string;
+    lastName?: string;
+    phone?: string;
+    photoURL?: string;
+    notificationPreferences?: Record<string, boolean>;
+  };
+  const now = new Date().toISOString();
+  const updates: Record<string, unknown> = { updatedAt: now };
+  if (displayName !== undefined && typeof displayName === 'string') updates.displayName = displayName.trim();
+  if (lastName !== undefined) updates.lastName = typeof lastName === 'string' && lastName.trim() ? lastName.trim() : null;
+  if (phone !== undefined) updates.phone = typeof phone === 'string' && phone.trim() ? phone.trim() : null;
+  if (photoURL !== undefined) updates.photoURL = typeof photoURL === 'string' && photoURL.trim() ? photoURL.trim() : null;
+  if (notificationPreferences !== undefined && typeof notificationPreferences === 'object') {
+    updates.notificationPreferences = notificationPreferences;
+  }
+  await userRef.update(updates);
+  return { ok: true };
+});
+
+// Scheduled event reminders (one day before).
 export const sendEventReminders = functions.pubsub
   .schedule('0 8 * * *') // 8 AM daily
   .timeZone('Africa/Johannesburg')
   .onRun(async () => {
+    const db = admin.firestore();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     const tomorrowEnd = new Date(tomorrow);
     tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-    // TODO: Query events where startAt is between tomorrow and tomorrowEnd
-    // TODO: For each event, get target users and send FCM + SendGrid
-    functions.logger.info('Event reminders run');
+    const startIso = tomorrow.toISOString();
+    const endIso = tomorrowEnd.toISOString();
+
+    const schoolsSnap = await db.collection('schools').get();
+    for (const schoolDoc of schoolsSnap.docs) {
+      const schoolId = schoolDoc.id;
+      const eventsSnap = await db.collection('schools').doc(schoolId).collection('events')
+        .where('startAt', '>=', startIso)
+        .where('startAt', '<', endIso)
+        .get();
+      for (const evDoc of eventsSnap.docs) {
+        const ev = evDoc.data() as { title?: string; targetType?: string; targetClassIds?: string[] };
+        const title = (ev.title && String(ev.title).trim()) || 'Upcoming event';
+        const tokens = await getFcmTokensForSchool(db, schoolId);
+        if (tokens.length === 0) continue;
+        const msg: admin.messaging.MulticastMessage = {
+          tokens,
+          notification: {
+            title: `Reminder: ${title}`,
+            body: 'Happens tomorrow. Tap to view.',
+          },
+          data: { type: 'event_reminder', schoolId, eventId: evDoc.id },
+          android: { priority: 'high' as const },
+          apns: { payload: { aps: { sound: 'default' } } },
+        };
+        try {
+          await admin.messaging().sendEachForMulticast(msg);
+          functions.logger.info('Event reminder sent', evDoc.id, schoolId);
+        } catch (e) {
+          functions.logger.error('Event reminder failed', evDoc.id, e);
+        }
+      }
+    }
     return null;
   });

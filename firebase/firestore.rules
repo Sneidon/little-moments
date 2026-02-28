@@ -35,7 +35,8 @@ service cloud.firestore {
 
     match /schools/{schoolId} {
       allow read: if isAuthenticated();
-      allow write: if isSuperAdmin();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() || isPrincipal(schoolId);
       match /classes/{classId} {
         allow read: if isAuthenticated();
         allow create, update, delete: if isTeacher(schoolId) || isPrincipal(schoolId);
@@ -44,6 +45,7 @@ service cloud.firestore {
         allow read: if isSuperAdmin() || isTeacher(schoolId) || isPrincipal(schoolId) || (isAuthenticated() && request.auth.uid in resource.data.parentIds);
         allow create, update: if isTeacher(schoolId) || isPrincipal(schoolId);
         allow delete: if isPrincipal(schoolId) || isSuperAdmin();
+        allow update: if isAuthenticated() && request.auth.uid in resource.data.parentIds;
         match /reports/{reportId} {
           allow read: if isSuperAdmin() || isTeacher(schoolId) || isPrincipal(schoolId) || isParentOfChildId(schoolId, childId);
           allow create, update: if isTeacher(schoolId);
@@ -62,8 +64,17 @@ service cloud.firestore {
         allow delete: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid;
       }
       match /foodMenus/{menuId} {
-        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow read: if isAuthenticated();
         allow write: if isPrincipal(schoolId) || isSuperAdmin();
+      }
+      match /foodMenusWeekly/{menuId} {
+        allow read: if isAuthenticated();
+        allow write: if isPrincipal(schoolId) || isSuperAdmin();
+      }
+      match /dailyCommunications/{docId} {
+        allow read: if isAuthenticated();
+        allow create: if isTeacher(schoolId) || isPrincipal(schoolId);
+        allow update, delete: if isTeacher(schoolId) || isPrincipal(schoolId);
       }
       match /mealOptions/{optionId} {
         allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;

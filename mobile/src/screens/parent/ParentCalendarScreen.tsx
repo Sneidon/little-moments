@@ -1,12 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ScrollView } from 'react-native';
+import { SkeletonCard } from '../../components/Skeleton';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import type { Event } from '../../../../shared/types';
 
 export function ParentCalendarScreen() {
   const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [list, setList] = useState<Event[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,7 +78,11 @@ export function ParentCalendarScreen() {
   return (
     <View style={styles.container}>
       {!schoolId ? (
-        <Text style={styles.empty}>Loading…</Text>
+        <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+          {[1, 2, 3].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </ScrollView>
       ) : (
         <FlatList
           data={list}
@@ -90,23 +98,25 @@ export function ParentCalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  card: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  title: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
-  desc: { fontSize: 14, color: '#475569', marginTop: 8 },
-  meta: { fontSize: 12, color: '#94a3b8', marginTop: 8 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  acceptBtn: { flex: 1, padding: 10, borderRadius: 8, backgroundColor: '#22c55e', alignItems: 'center' },
-  acceptText: { color: '#fff', fontWeight: '600' },
-  declineBtn: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center' },
-  declineText: { color: '#64748b' },
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },
-});
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, padding: 16, backgroundColor: colors.background },
+    card: {
+      backgroundColor: colors.card,
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    title: { fontSize: 16, fontWeight: '600', color: colors.text },
+    desc: { fontSize: 14, color: colors.textMuted, marginTop: 8 },
+    meta: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
+    actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+    acceptBtn: { flex: 1, padding: 10, borderRadius: 8, backgroundColor: colors.success, alignItems: 'center' },
+    acceptText: { color: colors.primaryContrast, fontWeight: '600' },
+    declineBtn: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+    declineText: { color: colors.textMuted },
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
+  });
+}

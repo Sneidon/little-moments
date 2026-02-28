@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../config/firebase';
+import { useTheme } from '../../context/ThemeContext';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export function LoginScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,7 +48,7 @@ export function LoginScreen({ navigation }: Props) {
     >
       <View style={styles.form}>
         <View style={styles.logoRow}>
-          <Ionicons name="heart" size={48} color="#6366f1" />
+          <Ionicons name="heart" size={48} color={colors.primary} />
           <Text style={styles.appTitle}>My Little Moments</Text>
         </View>
         <TextInput
@@ -66,7 +69,7 @@ export function LoginScreen({ navigation }: Props) {
           editable={!loading}
         />
         <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-          <Ionicons name="log-in-outline" size={20} color="#fff" style={styles.buttonIcon} />
+          <Ionicons name="log-in-outline" size={20} color={colors.primaryContrast} style={styles.buttonIcon} />
           <Text style={styles.buttonText}>{loading ? 'Signing in…' : 'Sign in'}</Text>
         </TouchableOpacity>
         {/* <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={loading}>
@@ -77,28 +80,31 @@ export function LoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#f8fafc' },
-  form: { gap: 12 },
-  logoRow: { alignItems: 'center', marginBottom: 24 },
-  appTitle: { fontSize: 22, fontWeight: '700', color: '#1e293b', marginTop: 12 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6366f1',
-    padding: 14,
-    borderRadius: 8,
-  },
-  buttonIcon: { marginRight: 8 },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  link: { color: '#6366f1', textAlign: 'center', marginTop: 12 },
-});
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.background },
+    form: { gap: 12 },
+    logoRow: { alignItems: 'center', marginBottom: 24 },
+    appTitle: { fontSize: 22, fontWeight: '700', color: colors.text, marginTop: 12 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: 8,
+      padding: 14,
+      fontSize: 16,
+      backgroundColor: colors.inputBackground,
+      color: colors.text,
+    },
+    button: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      padding: 14,
+      borderRadius: 8,
+    },
+    buttonIcon: { marginRight: 8 },
+    buttonText: { color: colors.primaryContrast, fontWeight: '600' },
+    link: { color: colors.primary, textAlign: 'center', marginTop: 12 },
+  });
+}

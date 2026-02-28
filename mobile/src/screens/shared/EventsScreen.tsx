@@ -1,13 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Image, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import type { Event } from '../../../../shared/types';
 
 export function EventsScreen() {
   const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [list, setList] = useState<Event[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -38,7 +41,7 @@ export function EventsScreen() {
 
   const renderItem = ({ item }: { item: Event }) => (
     <View style={styles.card}>
-      <Ionicons name="calendar" size={24} color="#6366f1" style={styles.cardIcon} />
+      <Ionicons name="calendar" size={24} color={colors.primary} style={styles.cardIcon} />
       <View style={styles.cardContent}>
         <Text style={styles.title}>{item.title}</Text>
         {item.description ? <Text style={styles.desc}>{item.description}</Text> : null}
@@ -56,15 +59,51 @@ export function EventsScreen() {
         ) : null}
         <Text style={styles.meta}>{new Date(item.startAt).toLocaleString()}</Text>
         {profile?.role === 'parent' && (
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.acceptBtn} onPress={() => respond(item.id, 'accepted')}>
-              <Ionicons name="checkmark-circle" size={18} color="#fff" style={styles.btnIcon} />
-              <Text style={styles.acceptText}>Accept</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.declineBtn} onPress={() => respond(item.id, 'declined')}>
-              <Ionicons name="close-circle-outline" size={18} color="#64748b" style={styles.btnIcon} />
-              <Text style={styles.declineText}>Decline</Text>
-            </TouchableOpacity>
+          <View style={styles.rsvpSection}>
+            {item.parentResponses?.[profile.uid] ? (
+              <Text style={styles.rsvpStatus}>
+                You RSVP&apos;d: {item.parentResponses[profile.uid] === 'accepted' ? 'Going' : 'Not going'}
+              </Text>
+            ) : null}
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={[
+                  styles.acceptBtn,
+                  item.parentResponses?.[profile.uid] === 'accepted' && styles.acceptBtnSelected,
+                ]}
+                onPress={() => respond(item.id, 'accepted')}
+              >
+                <Ionicons
+                  name={item.parentResponses?.[profile.uid] === 'accepted' ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                  size={18}
+                  color={item.parentResponses?.[profile.uid] === 'accepted' ? colors.primaryContrast : colors.primaryContrast}
+                  style={styles.btnIcon}
+                />
+                <Text style={styles.acceptText}>
+                  {item.parentResponses?.[profile.uid] === 'accepted' ? "Going ✓" : 'Going'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.declineBtn,
+                  item.parentResponses?.[profile.uid] === 'declined' && styles.declineBtnSelected,
+                ]}
+                onPress={() => respond(item.id, 'declined')}
+              >
+                <Ionicons
+                  name={item.parentResponses?.[profile.uid] === 'declined' ? 'close-circle' : 'close-circle-outline'}
+                  size={18}
+                  color={item.parentResponses?.[profile.uid] === 'declined' ? colors.danger : colors.textMuted}
+                  style={styles.btnIcon}
+                />
+                <Text style={[
+                  styles.declineText,
+                  item.parentResponses?.[profile.uid] === 'declined' && styles.declineTextSelected,
+                ]}>
+                  {item.parentResponses?.[profile.uid] === 'declined' ? "Can't make it ✓" : "Can't make it"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -74,7 +113,7 @@ export function EventsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Ionicons name="calendar-outline" size={22} color="#1e293b" />
+        <Ionicons name="calendar-outline" size={22} color={colors.text} />
         <Text style={styles.screenTitle}>Events</Text>
       </View>
       <FlatList
@@ -90,52 +129,59 @@ export function EventsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  screenTitle: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  cardIcon: { marginRight: 12 },
-  cardContent: { flex: 1 },
-  title: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
-  desc: { fontSize: 14, color: '#475569', marginTop: 8 },
-  eventImage: { width: '100%', height: 160, borderRadius: 8, marginTop: 8 },
-  documents: { marginTop: 8, gap: 4 },
-  docLink: { fontSize: 14, color: '#6366f1', textDecorationLine: 'underline' },
-  meta: { fontSize: 12, color: '#94a3b8', marginTop: 8 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  acceptBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: '#22c55e',
-  },
-  acceptText: { color: '#fff', fontWeight: '600' },
-  declineBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  declineText: { color: '#64748b' },
-  btnIcon: {},
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 24 },
-});
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, padding: 16, backgroundColor: colors.background },
+    headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+    screenTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.card,
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    cardIcon: { marginRight: 12 },
+    cardContent: { flex: 1 },
+    title: { fontSize: 16, fontWeight: '600', color: colors.text },
+    desc: { fontSize: 14, color: colors.textMuted, marginTop: 8 },
+    eventImage: { width: '100%', height: 160, borderRadius: 8, marginTop: 8 },
+    documents: { marginTop: 8, gap: 4 },
+    docLink: { fontSize: 14, color: colors.primary, textDecorationLine: 'underline' },
+    meta: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
+    rsvpSection: { marginTop: 12 },
+    rsvpStatus: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
+    actions: { flexDirection: 'row', gap: 8 },
+    acceptBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      padding: 10,
+      borderRadius: 8,
+      backgroundColor: colors.success,
+    },
+    acceptText: { color: colors.primaryContrast, fontWeight: '600' },
+    acceptBtnSelected: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)' },
+    declineBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      padding: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    declineText: { color: colors.textMuted },
+    declineBtnSelected: { borderWidth: 2, borderColor: colors.danger, backgroundColor: colors.dangerMuted },
+    declineTextSelected: { color: colors.danger, fontWeight: '600' },
+    btnIcon: {},
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
+  });
+}

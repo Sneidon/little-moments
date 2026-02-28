@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme, type ThemeMode } from '../../context/ThemeContext';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 import type { School } from '../../../../shared/types';
@@ -20,6 +21,8 @@ function getAge(dateOfBirth: string): string {
 
 export function ParentSettingsScreen() {
   const { profile, selectedChildId } = useAuth();
+  const { colors, themeMode, setThemeMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [children, setChildren] = useState<Child[]>([]);
   const [school, setSchool] = useState<School | null>(null);
   const [classNames, setClassNames] = useState<Record<string, string>>({});
@@ -72,12 +75,31 @@ export function ParentSettingsScreen() {
     signOut(auth);
   };
 
+  const cycleTheme = () => {
+    const next: ThemeMode = themeMode === 'system' ? 'dark' : themeMode === 'dark' ? 'light' : 'system';
+    setThemeMode(next);
+  };
+
+  const themeLabel = themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light';
+
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.card}>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="moon-outline" size={18} color={colors.textMuted} />
+          <Text style={styles.cardTitle}>Appearance</Text>
+        </View>
+        <TouchableOpacity style={styles.themeRow} onPress={cycleTheme} activeOpacity={0.7}>
+          <Text style={styles.themeLabel}>Theme</Text>
+          <Text style={styles.themeValue}>{themeLabel}</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
       {selectedChild && (
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
-            <Ionicons name="person-outline" size={18} color="#475569" />
+            <Ionicons name="person-outline" size={18} color={colors.textMuted} />
             <Text style={styles.cardTitle}>Child profile</Text>
           </View>
           <Text style={styles.childName}>{selectedChild.name}</Text>
@@ -106,7 +128,7 @@ export function ParentSettingsScreen() {
       {school && (
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
-            <Ionicons name="business-outline" size={18} color="#475569" />
+            <Ionicons name="business-outline" size={18} color={colors.textMuted} />
             <Text style={styles.cardTitle}>Daycare information</Text>
           </View>
           <Text style={styles.row}>{school.name}</Text>
@@ -117,7 +139,7 @@ export function ParentSettingsScreen() {
 
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
-          <Ionicons name="log-out-outline" size={18} color="#475569" />
+          <Ionicons name="log-out-outline" size={18} color={colors.textMuted} />
           <Text style={styles.cardTitle}>Account</Text>
         </View>
         <Text style={styles.signOutHint}>Sign out to switch account.</Text>
@@ -127,29 +149,36 @@ export function ParentSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
-  subtitle: { fontSize: 14, color: '#64748b', marginTop: 4, marginBottom: 20 },
-  card: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: '#475569' },
-  childName: { fontSize: 14, fontWeight: '600', color: '#1e293b' },
-  row: { fontSize: 14, color: '#64748b', marginTop: 4 },
-  label: { fontSize: 12, fontWeight: '600', color: '#475569', marginTop: 12, marginBottom: 4 },
-  allergyRow: {},
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  tag: { backgroundColor: '#fef2f2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  tagText: { fontSize: 12, color: '#dc2626', fontWeight: '500' },
-  emergency: { marginTop: 8 },
-  signOutHint: { fontSize: 13, color: '#64748b', marginBottom: 12 },
-  signOutLink: { fontSize: 14, color: '#dc2626', fontWeight: '600' },
-});
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, padding: 16, backgroundColor: colors.background },
+    card: {
+      backgroundColor: colors.card,
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    cardTitle: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+    themeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 4,
+    },
+    themeLabel: { fontSize: 14, color: colors.text },
+    themeValue: { fontSize: 14, color: colors.textMuted },
+    childName: { fontSize: 14, fontWeight: '600', color: colors.text },
+    row: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
+    label: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 12, marginBottom: 4 },
+    allergyRow: {},
+    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+    tag: { backgroundColor: colors.dangerMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    tagText: { fontSize: 12, color: colors.danger, fontWeight: '500' },
+    emergency: { marginTop: 8 },
+    signOutHint: { fontSize: 13, color: colors.textMuted, marginBottom: 12 },
+    signOutLink: { fontSize: 14, color: colors.danger, fontWeight: '600' },
+  });
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,40 +14,20 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+
+import { getOrCreateChat } from '../../api/chat';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { getOrCreateChat } from '../../api/chat';
-import type { DailyReport } from '../../../../shared/types';
+import { useTheme } from '../../context/ThemeContext';
+import { Skeleton } from '../../components/Skeleton';
+import { getAge, getInitials, formatTime } from '../../utils';
+
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { DailyReport } from '../../../../shared/types';
 
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || '?';
-}
-
-function getAge(dateOfBirth: string): string {
-  const dob = new Date(dateOfBirth);
-  const now = new Date();
-  const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
-  if (months < 12) return `${months} mo`;
-  const years = Math.floor(months / 12);
-  return years === 1 ? '1 year' : `${years} years`;
-}
-
-type TeacherStackParamList = {
-  TeacherHome: undefined;
-  Reports: { childId: string };
-  Announcements: undefined;
-  Events: undefined;
-};
-type Props = NativeStackScreenProps<TeacherStackParamList, 'Reports'>;
+type ReportsRouteParams = { childId: string };
+type Props = { route: { params: ReportsRouteParams }; navigation: { navigate: (name: string, params?: object) => void; getParent: () => unknown } };
 
 // Extended report for fields stored in Firestore
 type ReportWithExtras = DailyReport & {
@@ -58,17 +38,6 @@ type ReportWithExtras = DailyReport & {
   mealType?: 'breakfast' | 'lunch' | 'snack';
   mealOptionName?: string;
 };
-
-function formatTime(iso: string) {
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function getReportTitle(item: ReportWithExtras): string {
   if (item.type === 'meal')
@@ -123,7 +92,8 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   const { childId } = route.params;
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
-  const tabNav = navigation.getParent();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [child, setChild] = useState<Child | null>(null);
   const [className, setClassName] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportWithExtras[]>([]);
@@ -255,11 +225,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
     setMessageLoading(true);
     try {
       const { chatId, schoolId: sid } = await getOrCreateChat(schoolId, childId, parentId);
-      const tabNav = navigation.getParent();
-      (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate('Messages', {
-        screen: 'ChatThread',
-        params: { chatId, schoolId: sid },
-      });
+      navigation.navigate('ChatThread', { chatId, schoolId: sid });
     } catch (e) {
       Alert.alert('Error', 'Could not start conversation. Please try again.');
     } finally {
@@ -285,7 +251,11 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
             </Text>
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.headerName}>{child?.name ?? 'Loading…'}</Text>
+            {child?.name ? (
+              <Text style={styles.headerName}>{child.name}</Text>
+            ) : (
+              <Skeleton width={140} height={20} style={{ marginBottom: 4 }} />
+            )}
             <Text style={styles.headerClass}>
               {child ? getAge(child.dateOfBirth) : ''}
               {className ? ` · ${className}` : ''}
@@ -300,18 +270,18 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
       {/* Date bar - same as home screen */}
       <View style={styles.dateBar}>
         <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-          <Ionicons name="chevron-back" size={24} color="#475569" />
+          <Ionicons name="chevron-back" size={24} color={colors.textMuted} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.dateCenter}
           onPress={() => setShowDatePicker(true)}
           activeOpacity={0.7}
         >
-          <Ionicons name="calendar-outline" size={20} color="#475569" />
+          <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
           <Text style={styles.dateText}>{displayDate}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-          <Ionicons name="chevron-forward" size={24} color="#475569" />
+          <Ionicons name="chevron-forward" size={24} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -372,10 +342,10 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
           activeOpacity={0.7}
         >
           {messageLoading ? (
-            <ActivityIndicator size="small" color="#475569" />
+            <ActivityIndicator size="small" color={colors.textMuted} />
           ) : (
             <>
-              <Ionicons name="chatbubble-outline" size={22} color="#475569" />
+              <Ionicons name="chatbubble-outline" size={22} color={colors.textMuted} />
               <Text style={styles.actionBtnText}>Message parents</Text>
             </>
           )}
@@ -383,13 +353,14 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnPrimary]}
           onPress={() =>
-            tabNav?.navigate('AddUpdate', {
-              initialChildId: childId,
-            } as { initialChildId: string })
+            navigation.navigate('MainTabs', {
+              screen: 'AddUpdate',
+              params: { initialChildId: childId },
+            })
           }
           activeOpacity={0.7}
         >
-          <Ionicons name="add-circle-outline" size={22} color="#fff" />
+          <Ionicons name="add-circle-outline" size={22} color={colors.primaryContrast} />
           <Text style={[styles.actionBtnText, styles.actionBtnPrimaryText]}>Add update</Text>
         </TouchableOpacity>
       </View>
@@ -434,144 +405,146 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#6d28d9',
-  },
-  headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  avatarLarge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 2,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLargeText: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  headerText: { marginLeft: 14 },
-  headerName: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  headerClass: { fontSize: 14, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
-  roleTag: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  roleTagText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      backgroundColor: colors.header,
+    },
+    headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    avatarLarge: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.headerAccent,
+      borderWidth: 2,
+      borderColor: colors.headerText,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarLargeText: { fontSize: 18, fontWeight: '700', color: colors.headerText },
+    headerText: { marginLeft: 14 },
+    headerName: { fontSize: 20, fontWeight: '700', color: colors.headerText },
+    headerClass: { fontSize: 14, color: colors.headerTextMuted, marginTop: 2 },
+    roleTag: {
+      backgroundColor: colors.headerAccent,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    roleTagText: { fontSize: 13, fontWeight: '600', color: colors.headerText },
 
-  dateBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  dateArrow: { padding: 4 },
-  dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dateText: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  datePickerDone: {
-    marginTop: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#7c3aed',
-    borderRadius: 8,
-    marginHorizontal: 16,
-  },
-  datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    dateBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    dateArrow: { padding: 4 },
+    dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    datePickerDone: {
+      marginTop: 8,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      marginHorizontal: 16,
+    },
+    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
 
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginHorizontal: 16,
-    marginTop: 20,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-  },
-  summaryValue: { fontSize: 20, fontWeight: '800' },
-  summaryLabel: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  summaryMeals: {},
-  summaryMealsValue: { color: '#ea580c' },
-  summaryNap: {},
-  summaryNapValue: { color: '#7c3aed' },
-  summaryNappy: {},
-  summaryNappyValue: { color: '#0d9488' },
-  summaryActivities: {},
-  summaryActivitiesValue: { color: '#2563eb' },
+    summaryRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginHorizontal: 16,
+      marginTop: 20,
+    },
+    summaryCard: {
+      flex: 1,
+      backgroundColor: colors.card,
+      paddingVertical: 14,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+    },
+    summaryValue: { fontSize: 20, fontWeight: '800', color: colors.textSecondary },
+    summaryLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+    summaryMeals: {},
+    summaryMealsValue: { color: colors.warning },
+    summaryNap: {},
+    summaryNapValue: { color: '#7c3aed' },
+    summaryNappy: {},
+    summaryNappyValue: { color: '#0d9488' },
+    summaryActivities: {},
+    summaryActivitiesValue: { color: '#2563eb' },
 
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginHorizontal: 16,
-    marginTop: 20,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  actionBtnPrimary: {
-    backgroundColor: '#7c3aed',
-    borderColor: '#7c3aed',
-  },
-  actionBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  actionBtnPrimaryText: { color: '#fff' },
+    actionRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginHorizontal: 16,
+      marginTop: 20,
+    },
+    actionBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    actionBtnPrimary: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    actionBtnText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    actionBtnPrimaryText: { color: colors.primaryContrast },
 
-  section: { marginTop: 24, paddingHorizontal: 16, paddingBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#334155', marginBottom: 12 },
-  empty: { color: '#64748b', textAlign: 'center', paddingVertical: 24 },
-  timelineCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  timelineIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  timelineContent: { flex: 1 },
-  timelineTitle: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  timelineTime: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  timelineNotes: { fontSize: 14, color: '#475569', marginTop: 6 },
-});
+    section: { marginTop: 24, paddingHorizontal: 16, paddingBottom: 24 },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
+    empty: { color: colors.textMuted, textAlign: 'center', paddingVertical: 24 },
+    timelineCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    timelineIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    timelineContent: { flex: 1 },
+    timelineTitle: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    timelineTime: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    timelineNotes: { fontSize: 14, color: colors.textMuted, marginTop: 6 },
+  });
+}

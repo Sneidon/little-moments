@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,40 +13,28 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { collection, query, where, getDocs, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  onSnapshot,
+  doc,
+  getDoc,
+} from 'firebase/firestore';
+
+import { getOrCreateChat } from '../../api/chat';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { getOrCreateChat } from '../../api/chat';
+import { useTheme } from '../../context/ThemeContext';
+import { Skeleton } from '../../components/Skeleton';
+import { getAge, getInitials, formatTime } from '../../utils';
+import { getCached, setCached, LIST_TTL_MS } from '../../utils/cache';
+
 import type { Child } from '../../../../shared/types';
-import type { DailyReport } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
-
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || '?';
-}
-
-function getAge(dateOfBirth: string): string {
-  const dob = new Date(dateOfBirth);
-  const now = new Date();
-  const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
-  if (months < 12) return `${months} mo`;
-  const years = Math.floor(months / 12);
-  return years === 1 ? '1 year' : `${years} years`;
-}
-
-function formatTime(iso: string) {
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  } catch {
-    return iso;
-  }
-}
+import type { DailyReport } from '../../../../shared/types';
 
 export function ParentHomeScreen({
   navigation,
@@ -58,6 +46,8 @@ export function ParentHomeScreen({
 }) {
   const insets = useSafeAreaInsets();
   const { profile, selectedChildId, setSelectedChildId } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [children, setChildren] = useState<Child[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -90,11 +80,8 @@ export function ParentHomeScreen({
         selectedChild.id,
         selectedChild.assignedTeacherId
       );
-      const tabNav = navigation.getParent();
-      (tabNav as { navigate: (a: string, b?: object) => void } | undefined)?.navigate('Messages', {
-        screen: 'ChatThread',
-        params: { chatId, schoolId: sid },
-      });
+      const rootStack = navigation.getParent();
+      (rootStack as { navigate: (name: string, params?: object) => void } | undefined)?.navigate('ChatThread', { chatId, schoolId: sid });
     } catch (e) {
       Alert.alert('Error', 'Could not open messages. Please try again.');
     } finally {
@@ -106,6 +93,15 @@ export function ParentHomeScreen({
     const uid = profile?.uid;
     if (!uid) return;
     (async () => {
+      const cacheKey = `parent:children:${uid}`;
+      const cached = await getCached<Child[]>(cacheKey);
+      if (cached?.length) {
+        setChildren(cached);
+        setSelectedChildId((prev) => {
+          if (!prev || !cached.some((c) => c.id === prev)) return cached[0].id;
+          return prev;
+        });
+      }
       const schoolsSnap = await getDocs(collection(db, 'schools'));
       const list: Child[] = [];
       for (const schoolDoc of schoolsSnap.docs) {
@@ -118,6 +114,7 @@ export function ParentHomeScreen({
       }
       setChildren(list);
       if (list.length > 0) {
+        await setCached(cacheKey, list, LIST_TTL_MS);
         setSelectedChildId((prev) => {
           if (!prev || !list.some((c) => c.id === prev)) return list[0].id;
           return prev;
@@ -133,12 +130,20 @@ export function ParentHomeScreen({
       setClassName(null);
       return;
     }
-    getDoc(doc(db, 'schools', selectedChild.schoolId, 'classes', selectedChild.classId)).then(
-      (snap) => {
-        if (snap.exists()) setClassName((snap.data() as ClassRoom).name);
-        else setClassName(null);
+    const { schoolId, classId } = selectedChild;
+    const cacheKey = `parent:class:${schoolId}:${classId}`;
+    (async () => {
+      const cached = await getCached<string | null>(cacheKey);
+      if (cached != null) setClassName(cached);
+      const snap = await getDoc(doc(db, 'schools', schoolId, 'classes', classId));
+      if (snap.exists()) {
+        const name = (snap.data() as ClassRoom).name;
+        setClassName(name);
+        await setCached(cacheKey, name, LIST_TTL_MS);
+      } else {
+        setClassName(null);
       }
-    );
+    })();
   }, [selectedChild?.schoolId, selectedChild?.classId]);
 
   useEffect(() => {
@@ -211,7 +216,7 @@ export function ParentHomeScreen({
             style={styles.headerProfile}
             onPress={() =>
               selectedChild &&
-              navigation.navigate('ChildProfile', {
+              (navigation.getParent() as { navigate: (name: string, params?: object) => void } | undefined)?.navigate('ChildProfile', {
                 childId: selectedChild.id,
                 schoolId: selectedChild.schoolId,
               })
@@ -225,7 +230,11 @@ export function ParentHomeScreen({
               </Text>
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.headerName}>{selectedChild?.name ?? 'Loading…'}</Text>
+              {selectedChild?.name ? (
+                <Text style={styles.headerName}>{selectedChild.name}</Text>
+              ) : (
+                <Skeleton width={120} height={20} style={{ marginBottom: 4 }} />
+              )}
               <Text style={styles.headerClass}>
                 {selectedChild ? getAge(selectedChild.dateOfBirth) : ''}
                 {className ? ` · ${className}` : ''}
@@ -271,10 +280,10 @@ export function ParentHomeScreen({
             disabled={messageLoading}
           >
             {messageLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={colors.primaryContrast} />
             ) : (
               <>
-                <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+                <Ionicons name="chatbubble-outline" size={20} color={colors.primaryContrast} />
                 <Text style={styles.messageTeacherBtnText}>Message teacher</Text>
               </>
             )}
@@ -283,18 +292,18 @@ export function ParentHomeScreen({
 
         <View style={styles.dateBar}>
           <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-back" size={24} color="#475569" />
+            <Ionicons name="chevron-back" size={24} color={colors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dateCenter}
             onPress={() => setShowDatePicker(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="calendar-outline" size={20} color="#475569" />
+            <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
             <Text style={styles.dateText}>{displayDate}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-forward" size={24} color="#475569" />
+            <Ionicons name="chevron-forward" size={24} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -322,10 +331,10 @@ export function ParentHomeScreen({
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
             <TouchableOpacity
-              style={styles.previewBtn}
-              onPress={() => navigation.navigate('Announcements')}
+              style={styles.sectionBtn}
+              onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('ParentAnnouncements')}
             >
-              <Text style={styles.previewBtnText}>Announcements</Text>
+              <Text style={styles.sectionBtnText}>Announcements</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.statsRow}>
@@ -360,7 +369,7 @@ export function ParentHomeScreen({
                 <Ionicons
                   name={reportTypeIcon(item.type) as keyof typeof Ionicons.glyphMap}
                   size={22}
-                  color="#6366f1"
+                  color={colors.primary}
                   style={styles.updateCardIcon}
                 />
                 <View style={styles.updateCardContent}>
@@ -381,151 +390,153 @@ export function ParentHomeScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f1f5f9' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 24 },
-  bottomPad: { height: 24 },
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    scroll: { flex: 1 },
+    scrollContent: { paddingBottom: 24 },
+    bottomPad: { height: 24 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#6d28d9',
-  },
-  headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  avatarLarge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 2,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLargeText: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  headerText: { marginLeft: 14 },
-  headerName: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  headerClass: { fontSize: 14, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
-  roleTag: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  roleTagText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      backgroundColor: colors.header,
+    },
+    headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    avatarLarge: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.headerAccent,
+      borderWidth: 2,
+      borderColor: colors.headerText,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarLargeText: { fontSize: 18, fontWeight: '700', color: colors.headerText },
+    headerText: { marginLeft: 14 },
+    headerName: { fontSize: 20, fontWeight: '700', color: colors.headerText },
+    headerClass: { fontSize: 14, color: colors.headerTextMuted, marginTop: 2 },
+    roleTag: {
+      backgroundColor: colors.headerAccent,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    roleTagText: { fontSize: 13, fontWeight: '600', color: colors.headerText },
 
-  childChipsWrap: { backgroundColor: '#6d28d9', paddingBottom: 12, paddingHorizontal: 4 },
-  childChipsContent: { paddingHorizontal: 16 },
-  childChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginRight: 8,
-  },
-  childChipActive: { borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.35)' },
-  childChipText: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
-  childChipTextActive: { color: '#fff', fontWeight: '600' },
+    childChipsWrap: { backgroundColor: colors.header, paddingBottom: 12, paddingHorizontal: 4 },
+    childChipsContent: { paddingHorizontal: 16 },
+    childChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.4)',
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      marginRight: 8,
+    },
+    childChipActive: { borderColor: colors.headerText, backgroundColor: 'rgba(255,255,255,0.35)' },
+    childChipText: { fontSize: 14, color: colors.headerTextMuted },
+    childChipTextActive: { color: colors.headerText, fontWeight: '600' },
 
-  messageTeacherBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#6d28d9',
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  messageTeacherBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    messageTeacherBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.header,
+      marginHorizontal: 16,
+      marginTop: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+    },
+    messageTeacherBtnText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
 
-  dateBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  dateArrow: { padding: 4 },
-  dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dateText: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  datePickerDone: {
-    marginTop: 8,
-    marginHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#6d28d9',
-    borderRadius: 8,
-  },
-  datePickerDoneText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    dateBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    dateArrow: { padding: 4 },
+    dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    datePickerDone: {
+      marginTop: 8,
+      marginHorizontal: 16,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+    },
+    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
 
-  section: { marginTop: 24, paddingHorizontal: 16 },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#334155', marginBottom: 12 },
-  previewBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  previewBtnText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+    section: { marginTop: 24, paddingHorizontal: 16 },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
+    sectionBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    sectionBtnText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
-  statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-  },
-  statValue: { fontSize: 26, fontWeight: '800', color: '#334155' },
-  statLabel: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  statMeals: {},
-  statMealsValue: { color: '#ea580c' },
-  statNap: {},
-  statNapValue: { color: '#7c3aed' },
-  statNappy: {},
-  statNappyValue: { color: '#0d9488' },
-  statActivities: {},
-  statActivitiesValue: { color: '#2563eb' },
+    statsRow: { flexDirection: 'row', gap: 10 },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+    },
+    statValue: { fontSize: 26, fontWeight: '800', color: colors.textSecondary },
+    statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+    statMeals: {},
+    statMealsValue: { color: colors.warning },
+    statNap: {},
+    statNapValue: { color: '#7c3aed' },
+    statNappy: {},
+    statNappyValue: { color: '#0d9488' },
+    statActivities: {},
+    statActivitiesValue: { color: '#2563eb' },
 
-  updateCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  updateCardIcon: { marginRight: 12 },
-  updateCardContent: { flex: 1 },
-  updateTime: { fontSize: 12, color: '#64748b' },
-  updateType: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 4 },
-  updateNotes: { fontSize: 14, color: '#475569', marginTop: 4 },
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 8 },
-});
+    updateCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    updateCardIcon: { marginRight: 12 },
+    updateCardContent: { flex: 1 },
+    updateTime: { fontSize: 12, color: colors.textMuted },
+    updateType: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 4 },
+    updateNotes: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8 },
+  });
+}

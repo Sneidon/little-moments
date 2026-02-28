@@ -1,16 +1,11 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useEffect, useState, useLayoutEffect, useMemo } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { SkeletonChatRow } from '../../components/Skeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, collectionGroup, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import type { Chat } from '../../../../shared/types';
 import type { UserProfile } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
@@ -49,6 +44,8 @@ function formatMessageTime(iso: string | undefined): string {
 
 export function MessagesListScreen({ navigation }: Props) {
   const { profile } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [chats, setChats] = useState<ChatWithNames[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,7 +54,7 @@ export function MessagesListScreen({ navigation }: Props) {
       navigation.setOptions({
         headerRight: () => (
           <TouchableOpacity
-            onPress={() => navigation.navigate('SelectChildToMessage')}
+            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('SelectChildToMessage')}
             style={styles.headerBtn}
           >
             <Text style={styles.headerBtnText}>New chat</Text>
@@ -129,7 +126,7 @@ export function MessagesListScreen({ navigation }: Props) {
   const renderItem = ({ item }: { item: ChatWithNames }) => (
     <TouchableOpacity
       style={styles.row}
-      onPress={() => navigation.navigate('ChatThread', { chatId: item.id, schoolId: item.schoolId })}
+      onPress={() => (navigation.getParent() as { navigate: (name: string, params: { chatId: string; schoolId: string }) => void } | undefined)?.navigate('ChatThread', { chatId: item.id, schoolId: item.schoolId })}
       activeOpacity={0.7}
     >
       <View style={styles.avatar}>
@@ -151,7 +148,7 @@ export function MessagesListScreen({ navigation }: Props) {
           {item.childName}
         </Text>
         {item.lastMessageText ? (
-          <Text style={styles.preview} numberOfLines={1}>
+          <Text style={styles.lastMessage} numberOfLines={1}>
             {item.lastMessageText}
           </Text>
         ) : null}
@@ -162,8 +159,10 @@ export function MessagesListScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={styles.container}>
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <SkeletonChatRow key={i} />
+        ))}
       </View>
     );
   }
@@ -176,7 +175,7 @@ export function MessagesListScreen({ navigation }: Props) {
         renderItem={renderItem}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="chatbubbles-outline" size={48} color="#cbd5e1" />
+            <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
             <Text style={styles.emptyTitle}>No conversations yet</Text>
             <Text style={styles.emptySubtitle}>
               {profile?.role === 'teacher'
@@ -190,38 +189,39 @@ export function MessagesListScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#6366f1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: { fontSize: 18, fontWeight: '600', color: '#fff' },
-  content: { flex: 1, minWidth: 0 },
-  name: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
-  subtitle: { fontSize: 13, color: '#64748b', marginTop: 2 },
-  preview: { fontSize: 13, color: '#94a3b8', marginTop: 2 },
-  time: { fontSize: 12, color: '#94a3b8', marginLeft: 8 },
-  empty: {
-    padding: 32,
-    alignItems: 'center',
-  },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#64748b', marginTop: 16 },
-  emptySubtitle: { fontSize: 14, color: '#94a3b8', marginTop: 8, textAlign: 'center' },
-  headerBtn: { paddingHorizontal: 12, paddingVertical: 8 },
-  headerBtnText: { color: '#6366f1', fontWeight: '600', fontSize: 16 },
-});
+function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    avatarText: { fontSize: 18, fontWeight: '600', color: colors.primaryContrast },
+    content: { flex: 1, minWidth: 0 },
+    name: { fontSize: 16, fontWeight: '600', color: colors.text },
+    subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    lastMessage: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    time: { fontSize: 12, color: colors.textMuted, marginLeft: 8 },
+    empty: {
+      padding: 32,
+      alignItems: 'center',
+    },
+    emptyTitle: { fontSize: 18, fontWeight: '600', color: colors.textMuted, marginTop: 16 },
+    emptySubtitle: { fontSize: 14, color: colors.textMuted, marginTop: 8, textAlign: 'center' },
+    headerBtn: { paddingHorizontal: 12, paddingVertical: 8 },
+    headerBtnText: { color: colors.primary, fontWeight: '600', fontSize: 16 },
+  });
+}

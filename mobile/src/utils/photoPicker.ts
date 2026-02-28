@@ -3,6 +3,8 @@ import { Alert, Linking } from 'react-native';
 
 export type PhotoResult = { uri: string } | null;
 
+export type MediaResult = { uri: string; mimeType?: string } | null;
+
 /**
  * Request camera permission and show alert if denied. Returns true if granted.
  */
@@ -77,6 +79,43 @@ export async function pickPhotoAsync(): Promise<PhotoResult> {
 
   if (result.canceled || !result.assets?.[0]) return null;
   return { uri: result.assets[0].uri };
+}
+
+/**
+ * Open media library to pick a photo or video.
+ */
+export async function pickMediaAsync(): Promise<MediaResult> {
+  const granted = await ensureMediaLibraryPermission();
+  if (!granted) return null;
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.All,
+    allowsEditing: false,
+  });
+  if (result.canceled || !result.assets?.[0]) return null;
+  const asset = result.assets[0];
+  return {
+    uri: asset.uri,
+    mimeType: (asset as { mimeType?: string }).mimeType,
+  };
+}
+
+/**
+ * Show an action sheet / alert to choose Take Photo, Choose Photo, or Choose Video.
+ */
+export function showMediaSourceAlert(
+  onTakePhoto: () => void,
+  onChoosePhoto: () => void,
+  onChooseVideo?: () => void
+): void {
+  const opts = [
+    { text: 'Cancel', style: 'cancel' as const },
+    { text: 'Take Photo', onPress: onTakePhoto },
+    { text: 'Choose from Library', onPress: onChoosePhoto },
+  ];
+  if (onChooseVideo) {
+    opts.push({ text: 'Choose Video', onPress: onChooseVideo });
+  }
+  Alert.alert('Add media', 'Take a photo or choose from your library.', opts);
 }
 
 /**

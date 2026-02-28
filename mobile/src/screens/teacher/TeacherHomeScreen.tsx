@@ -169,10 +169,17 @@ export function TeacherHomeScreen({
       onPress: () => navigation.navigate('AddUpdate', { initialType: 'incident' }),
     },
     {
+      id: 'planned',
+      label: 'Planned activity',
+      icon: 'megaphone' as const,
+      color: '#16a34a',
+      onPress: () => rootStack?.navigate('DailyCommunication'),
+    },
+    {
       id: 'message',
       label: 'Message Parent',
       icon: 'chatbubble' as const,
-      color: '#16a34a',
+      color: '#0891b2',
       onPress: () => rootStack?.navigate('Announcements'),
     },
   ];

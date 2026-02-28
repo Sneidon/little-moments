@@ -13,6 +13,8 @@ export default function AdminSchoolUsagePage() {
   const [schoolName, setSchoolName] = useState<string>('');
   const [stats, setStats] = useState({
     children: 0,
+    parents: 0,
+    teachers: 0,
     reportsCount: 0,
     announcements: 0,
     events: 0,
@@ -36,20 +38,28 @@ export default function AdminSchoolUsagePage() {
         const name = (schoolSnap.data() as { name?: string }).name ?? schoolId;
         setSchoolName(name);
 
-        const [childrenSnap, announcementsSnap, eventsSnap] = await Promise.all([
+        const [childrenSnap, announcementsSnap, eventsSnap, usersSnap] = await Promise.all([
           getDocs(collection(db, 'schools', schoolId, 'children')),
           getDocs(collection(db, 'schools', schoolId, 'announcements')),
           getDocs(collection(db, 'schools', schoolId, 'events')),
+          getDocs(collection(db, 'users')),
         ]);
         let reportsCount = 0;
+        const parentIds = new Set<string>();
         for (const childDoc of childrenSnap.docs) {
+          const d = childDoc.data() as { parentIds?: string[] };
+          (d.parentIds ?? []).forEach((uid: string) => parentIds.add(uid));
           const reportsSnap = await getDocs(
             collection(db, 'schools', schoolId, 'children', childDoc.id, 'reports')
           );
           reportsCount += reportsSnap.size;
         }
+        const schoolUsers = usersSnap.docs.filter((d) => (d.data() as { schoolId?: string }).schoolId === schoolId);
+        const teacherCount = schoolUsers.filter((d) => (d.data() as { role?: string }).role === 'teacher').length;
         setStats({
           children: childrenSnap.size,
+          parents: parentIds.size,
+          teachers: teacherCount,
           reportsCount,
           announcements: announcementsSnap.size,
           events: eventsSnap.size,
@@ -119,6 +129,14 @@ export default function AdminSchoolUsagePage() {
             <tr className="border-t border-slate-100 dark:border-slate-600">
               <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">Children</td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{stats.children}</td>
+            </tr>
+            <tr className="border-t border-slate-100 dark:border-slate-600">
+              <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">Parents</td>
+              <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{stats.parents}</td>
+            </tr>
+            <tr className="border-t border-slate-100 dark:border-slate-600">
+              <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">Teachers</td>
+              <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{stats.teachers}</td>
             </tr>
             <tr className="border-t border-slate-100 dark:border-slate-600">
               <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">Reports</td>

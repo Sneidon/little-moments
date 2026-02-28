@@ -172,6 +172,14 @@ export default function AdminSchoolOverviewPage() {
           <h3 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">Usage & analytics</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Activity overview</p>
         </Link>
+        <Link
+          href={`/admin/schools/${schoolId}/settings`}
+          className="card-hover block p-6"
+        >
+          <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">⚙</p>
+          <h3 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">Configure school</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Enable/disable features</p>
+        </Link>
       </div>
     </div>
   );

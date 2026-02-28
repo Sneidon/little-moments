@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../config/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import firebaseApp, { auth, db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, type ThemeMode } from '../../context/ThemeContext';
 import type { Child } from '../../../../shared/types';
@@ -26,6 +27,33 @@ export function ParentSettingsScreen() {
   const [children, setChildren] = useState<Child[]>([]);
   const [school, setSchool] = useState<School | null>(null);
   const [classNames, setClassNames] = useState<Record<string, string>>({});
+  const [profileForm, setProfileForm] = useState({
+    displayName: profile?.displayName ?? '',
+    lastName: (profile as { lastName?: string })?.lastName ?? '',
+    phone: profile?.phone ?? '',
+  });
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({
+    nappyChange: true,
+    napTime: true,
+    meal: true,
+    medication: true,
+    incident: true,
+    media: true,
+    announcements: true,
+    events: true,
+    eventReminders: true,
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    setProfileForm({
+      displayName: profile?.displayName ?? '',
+      lastName: (profile as { lastName?: string })?.lastName ?? '',
+      phone: profile?.phone ?? '',
+    });
+    const prefs = (profile as { notificationPreferences?: Record<string, boolean> })?.notificationPreferences;
+    if (prefs) setNotifPrefs((p) => ({ ...p, ...prefs }));
+  }, [profile?.uid, profile?.displayName, profile?.phone]);
 
   useEffect(() => {
     const uid = profile?.uid;
@@ -82,8 +110,86 @@ export function ParentSettingsScreen() {
 
   const themeLabel = themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light';
 
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const update = httpsCallable<
+        { displayName?: string; lastName?: string; phone?: string; notificationPreferences?: Record<string, boolean> },
+        { ok: boolean }
+      >(getFunctions(firebaseApp), 'updateParentProfile');
+      await update({
+        displayName: profileForm.displayName.trim(),
+        lastName: profileForm.lastName.trim() || undefined,
+        phone: profileForm.phone.trim() || undefined,
+        notificationPreferences: notifPrefs,
+      });
+      Alert.alert('Saved', 'Profile updated.');
+    } catch {
+      Alert.alert('Error', 'Could not save. Please try again.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const toggleNotif = (key: string) => {
+    setNotifPrefs((p) => ({ ...p, [key]: !p[key] }));
+  };
+
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.card}>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="person-outline" size={18} color={colors.textMuted} />
+          <Text style={styles.cardTitle}>Your profile</Text>
+        </View>
+        <Text style={styles.label}>Name</Text>
+        <TextInput
+          style={styles.input}
+          value={profileForm.displayName}
+          onChangeText={(t) => setProfileForm((p) => ({ ...p, displayName: t }))}
+          placeholder="First name"
+          placeholderTextColor={colors.textMuted}
+        />
+        <Text style={styles.label}>Last name</Text>
+        <TextInput
+          style={styles.input}
+          value={profileForm.lastName}
+          onChangeText={(t) => setProfileForm((p) => ({ ...p, lastName: t }))}
+          placeholder="Last name"
+          placeholderTextColor={colors.textMuted}
+        />
+        <Text style={styles.label}>Email (read-only)</Text>
+        <Text style={styles.row}>{profile?.email ?? '—'}</Text>
+        <Text style={styles.label}>Phone</Text>
+        <TextInput
+          style={styles.input}
+          value={profileForm.phone}
+          onChangeText={(t) => setProfileForm((p) => ({ ...p, phone: t }))}
+          placeholder="Phone number"
+          placeholderTextColor={colors.textMuted}
+        />
+        <Text style={[styles.label, { marginTop: 16 }]}>Notification preferences</Text>
+        {(['nappyChange', 'napTime', 'meal', 'medication', 'incident', 'media', 'announcements', 'events', 'eventReminders'] as const).map((k) => (
+          <TouchableOpacity key={k} style={styles.themeRow} onPress={() => toggleNotif(k)} activeOpacity={0.7}>
+            <Text style={styles.themeLabel}>
+              {k === 'nappyChange' && 'Nappy changes'}
+              {k === 'napTime' && 'Nap time'}
+              {k === 'meal' && 'Meals'}
+              {k === 'medication' && 'Medication'}
+              {k === 'incident' && 'Incidents'}
+              {k === 'media' && 'Photos/media'}
+              {k === 'announcements' && 'Announcements'}
+              {k === 'events' && 'Events'}
+              {k === 'eventReminders' && 'Event reminders'}
+            </Text>
+            <Ionicons name={notifPrefs[k] ? 'notifications' : 'notifications-off'} size={20} color={notifPrefs[k] ? colors.primary : colors.textMuted} />
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity style={[styles.saveProfileBtn, savingProfile && styles.saveProfileBtnDisabled]} onPress={saveProfile} disabled={savingProfile}>
+          {savingProfile ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveProfileText}>Save profile</Text>}
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Ionicons name="moon-outline" size={18} color={colors.textMuted} />
@@ -139,6 +245,21 @@ export function ParentSettingsScreen() {
 
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
+          <Ionicons name="help-circle-outline" size={18} color={colors.textMuted} />
+          <Text style={styles.cardTitle}>Support</Text>
+        </View>
+        <TouchableOpacity style={styles.themeRow} onPress={() => Alert.alert('FAQ', 'Common questions: How to add a child? Principals use Children page. How to log meals? Teachers use Add Update. How to view updates? Parents see them in the app. Need more? Email support@mylittlemoments.com')} activeOpacity={0.7}>
+          <Text style={styles.themeLabel}>FAQ</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.themeRow} onPress={() => Alert.alert('Contact support', 'Email: support@mylittlemoments.com\n\nWe respond within 1–2 business days.')} activeOpacity={0.7}>
+          <Text style={styles.themeLabel}>Contact support</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardTitleRow}>
           <Ionicons name="log-out-outline" size={18} color={colors.textMuted} />
           <Text style={styles.cardTitle}>Account</Text>
         </View>
@@ -178,6 +299,24 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     tag: { backgroundColor: colors.dangerMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
     tagText: { fontSize: 12, color: colors.danger, fontWeight: '500' },
     emergency: { marginTop: 8 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: 8,
+      padding: 10,
+      fontSize: 14,
+      color: colors.text,
+      marginTop: 4,
+    },
+    saveProfileBtn: {
+      marginTop: 16,
+      paddingVertical: 12,
+      borderRadius: 8,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+    },
+    saveProfileBtnDisabled: { opacity: 0.6 },
+    saveProfileText: { fontSize: 15, fontWeight: '600', color: colors.primaryContrast },
     signOutHint: { fontSize: 13, color: colors.textMuted, marginBottom: 12 },
     signOutLink: { fontSize: 14, color: colors.danger, fontWeight: '600' },
   });

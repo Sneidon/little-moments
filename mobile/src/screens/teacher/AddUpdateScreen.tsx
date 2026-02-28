@@ -14,8 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { takePhotoAsync, pickPhotoAsync } from '../../utils/photoPicker';
-import { uploadPhotoAsync } from '../../utils/uploadPhoto';
+import { takePhotoAsync, pickPhotoAsync, pickMediaAsync, showMediaSourceAlert } from '../../utils/photoPicker';
+import { uploadPhotoAsync, uploadMediaAsync } from '../../utils/uploadPhoto';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { Child } from '../../../../shared/types';
@@ -48,6 +48,7 @@ export type ChildFormOverrides = Partial<{
   activityType: string | null;
   activityTitle: string;
   activityDescription: string;
+  medicationDosage: string;
   notes: string;
   photoCategory: string | null;
 }>;
@@ -179,7 +180,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [mealTime, setMealTime] = useState(() => formatTime(new Date()));
   const [loading, setLoading] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState<string | undefined>(undefined);
   const [photoCategory, setPhotoCategory] = useState<string | null>(null);
+  const [forWholeClass, setForWholeClass] = useState(false);
   const [nappyTime, setNappyTime] = useState(() => formatTime(new Date()));
   const [nappyType, setNappyType] = useState('wet');
   const [nappyCondition, setNappyCondition] = useState('normal');
@@ -192,6 +195,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [activityType, setActivityType] = useState<string | null>(null);
   const [activityTitle, setActivityTitle] = useState('');
   const [activityDescription, setActivityDescription] = useState('');
+  const [medicationDosage, setMedicationDosage] = useState('');
   const [activityTime, setActivityTime] = useState(() => formatTime(new Date()));
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
 
@@ -306,6 +310,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       activityType: o.activityType !== undefined ? o.activityType : activityType,
       activityTitle: (o.activityTitle ?? activityTitle).trim(),
       activityDescription: (o.activityDescription ?? activityDescription).trim(),
+      medicationDosage: (o.medicationDosage ?? medicationDosage).trim(),
       notes: (o.notes ?? notes).trim(),
       photoCategory: o.photoCategory !== undefined ? o.photoCategory : photoCategory,
     };
@@ -338,6 +343,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       activityType: v.activityType,
       activityTitle: v.activityTitle,
       activityDescription: v.activityDescription,
+      medicationDosage: v.medicationDosage ?? '',
       notes: v.notes,
       photoCategory: v.photoCategory,
     });
@@ -354,22 +360,37 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
   const submit = async () => {
     const schoolId = profile?.schoolId;
-    if (!schoolId || selectedChildIds.length === 0) {
+    const needSelection = type !== 'incident' || !forWholeClass;
+    if (!schoolId || (needSelection && selectedChildIds.length === 0)) {
       Alert.alert('Select children', 'Choose at least one child.');
       return;
     }
     if (type === 'incident' && !photoUri) {
-      Alert.alert('Add a photo', 'Take or choose a photo to log.');
+      Alert.alert('Add media', 'Take or choose a photo/video to log.');
       return;
     }
     setLoading(true);
     try {
       const now = new Date();
-      let uploadedImageUrl: string | null = null;
-      if (type === 'incident' && photoUri && selectedChildIds.length > 0) {
-        uploadedImageUrl = await uploadPhotoAsync(photoUri, schoolId, selectedChildIds[0]);
+      const targetChildIds = type === 'incident' && forWholeClass ? children.map((c) => c.id) : selectedChildIds;
+      if (targetChildIds.length === 0) {
+        Alert.alert('Select children', forWholeClass ? 'No children in your class.' : 'Choose at least one child.');
+        setLoading(false);
+        return;
       }
-      for (const childId of selectedChildIds) {
+      let uploadedUrl: string | null = null;
+      let mediaType: string | undefined;
+      if (type === 'incident' && photoUri) {
+        const isVideo = photoMimeType?.startsWith('video/');
+        if (isVideo) {
+          const { url, mediaType: mt } = await uploadMediaAsync(photoUri, schoolId, targetChildIds[0], photoMimeType);
+          uploadedUrl = url;
+          mediaType = mt;
+        } else {
+          uploadedUrl = await uploadPhotoAsync(photoUri, schoolId, targetChildIds[0]);
+        }
+      }
+      for (const childId of targetChildIds) {
         const v = getValuesForChild(childId);
         const payload: Record<string, unknown> = {
           childId,
@@ -400,11 +421,14 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         if (type === 'medication') {
           payload.activityType = v.activityType || undefined;
           payload.activityTitle = v.activityTitle || undefined;
-          payload.medicationName = v.activityType || undefined;
+          payload.medicationName = v.activityTitle || undefined;
+          payload.medicationDosage = v.medicationDosage?.trim() || undefined;
           if (v.activityDescription) payload.notes = v.activityDescription;
         }
         if (type === 'incident') {
-          if (uploadedImageUrl) payload.imageUrl = uploadedImageUrl;
+          if (uploadedUrl) payload.imageUrl = uploadedUrl;
+          if (mediaType) payload.mediaType = mediaType;
+          if (forWholeClass) payload.forWholeClass = true;
           if (v.photoCategory) payload.photoCategory = v.photoCategory;
         }
         const sanitized = Object.fromEntries(
@@ -418,7 +442,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       Alert.alert('Done', selectedChildIds.length > 1 ? `Update saved for ${selectedChildIds.length} children.` : 'Update saved.');
       setNotes('');
       setPhotoUri(null);
+      setPhotoMimeType(undefined);
       setPhotoCategory(null);
+      setForWholeClass(false);
       setChildOverrides({});
       setVariationModalChildId(null);
       if (type === 'nap_time') {
@@ -441,7 +467,18 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
   const handlePickPhoto = async () => {
     const result = await pickPhotoAsync();
-    if (result) setPhotoUri(result.uri);
+    if (result) {
+      setPhotoUri(result.uri);
+      setPhotoMimeType(undefined);
+    }
+  };
+
+  const handlePickMedia = async () => {
+    const result = await pickMediaAsync();
+    if (result) {
+      setPhotoUri(result.uri);
+      setPhotoMimeType(result.mimeType);
+    }
   };
 
   const startNapTimer = () => {
@@ -668,13 +705,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               <Text style={styles.photoZoneLabel}>Photo</Text>
               <TouchableOpacity
                 style={[styles.photoUploadZone, photoUri ? styles.photoUploadZoneFilled : null]}
-                onPress={async () => {
+                onPress={() => {
                   if (photoUri) return;
-                  Alert.alert('Add Photo', 'Take a new photo or choose from library.', [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Take Photo', onPress: handleTakePhoto },
-                    { text: 'Choose from Library', onPress: handlePickPhoto },
-                  ]);
+                  showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia);
                 }}
                 disabled={loading}
               >
@@ -686,6 +719,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                       onPress={(e) => {
                         e.stopPropagation();
                         setPhotoUri(null);
+                        setPhotoMimeType(undefined);
                       }}
                       disabled={loading}
                     >
@@ -695,8 +729,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 ) : (
                   <>
                     <Ionicons name="camera-outline" size={48} color="#94a3b8" />
-                    <Text style={styles.photoUploadHint}>Click to upload or drag and drop</Text>
-                    <Text style={styles.photoUploadFormats}>PNG, JPG up to 10MB</Text>
+                    <Text style={styles.photoUploadHint}>Tap to add photo or video</Text>
+                    <Text style={styles.photoUploadFormats}>Photos & videos</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -744,12 +778,21 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 </View>
               )}
               <TouchableOpacity
+                style={[styles.optionChip, forWholeClass && styles.optionChipActive, { marginTop: 12 }]}
+                onPress={() => setForWholeClass((x) => !x)}
+              >
+                <Ionicons name={forWholeClass ? 'checkbox' : 'square-outline'} size={20} color={forWholeClass ? colors.primary : colors.textMuted} />
+                <Text style={[styles.optionChipText, forWholeClass && styles.optionChipTextActive, { marginLeft: 8 }]}>
+                  For whole class (notify all parents)
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={submit}
                 disabled={loading}
               >
                 <Ionicons name="cloud-upload-outline" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
-                <Text style={styles.primaryButtonText}>{loading ? 'Uploading…' : 'Upload Photo'}</Text>
+                <Text style={styles.primaryButtonText}>{loading ? 'Uploading…' : 'Upload media'}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -987,16 +1030,25 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   ))}
                 </View>
               )}
-              <Text style={styles.label}>Activity Title</Text>
+              <Text style={styles.label}>Name of medication / activity</Text>
               <TextInput
                 style={styles.input}
                 value={activityTitle}
                 onChangeText={setActivityTitle}
-                placeholder="e.g., Watercolor Painting"
+                placeholder="e.g. Paracetamol, Watercolor Painting"
                 placeholderTextColor={colors.textMuted}
                 editable={!loading}
               />
-              <Text style={styles.label}>Description</Text>
+              <Text style={styles.label}>Dosage administered (optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={medicationDosage}
+                onChangeText={setMedicationDosage}
+                placeholder="e.g. 5ml, 1 tablet"
+                placeholderTextColor={colors.textMuted}
+                editable={!loading}
+              />
+              <Text style={styles.label}>Notes</Text>
               <TextInput
                 style={[styles.input, styles.inputMultiline]}
                 value={activityDescription}
@@ -1148,12 +1200,20 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 )}
                 {type === 'medication' && (
                   <>
-                    <Text style={styles.label}>Activity title</Text>
+                    <Text style={styles.label}>Activity / medication name</Text>
                     <TextInput
                       style={styles.input}
                       value={variationDraft.activityTitle ?? ''}
                       onChangeText={(text) => setVariationDraft((p) => (p ? { ...p, activityTitle: text } : null))}
-                      placeholder="e.g., Watercolor Painting"
+                      placeholder="e.g. Paracetamol, Watercolor Painting"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                    <Text style={styles.label}>Dosage (optional)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={variationDraft.medicationDosage ?? ''}
+                      onChangeText={(text) => setVariationDraft((p) => (p ? { ...p, medicationDosage: text } : null))}
+                      placeholder="e.g. 5ml, 1 tablet"
                       placeholderTextColor={colors.textMuted}
                     />
                   </>

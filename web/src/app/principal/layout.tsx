@@ -39,6 +39,13 @@ const navSections: { title: string; links: { href: string; label: string }[] }[]
       { href: '/principal/settings', label: 'School settings' },
     ],
   },
+  {
+    title: 'Support',
+    links: [
+      { href: '/principal/faq', label: 'FAQ' },
+      { href: '/principal/support', label: 'Contact support' },
+    ],
+  },
 ];
 
 export default function PrincipalLayout({

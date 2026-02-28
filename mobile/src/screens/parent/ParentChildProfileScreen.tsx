@@ -21,15 +21,10 @@ import type { DailyReport } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../navigation/MainTabs';
 import { Skeleton } from '../../components/Skeleton';
 
-type ParentStackParamList = {
-  ParentHome: undefined;
-  ChildProfile: { childId: string; schoolId: string };
-  Announcements: undefined;
-  Events: undefined;
-};
-type Props = NativeStackScreenProps<ParentStackParamList, 'ChildProfile'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'ChildProfile'>;
 
 type ReportWithExtras = DailyReport & {
   napStartTime?: string;
@@ -311,7 +306,16 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
         </>
       )}
 
-      {/* Message teacher */}
+      {/* Edit profile + Message teacher */}
+      {child && (
+        <TouchableOpacity
+          style={[styles.messageTeacherBtn, { marginBottom: 8, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder }]}
+          onPress={() => (navigation.getParent() as { navigate: (n: string, p?: object) => void } | undefined)?.navigate('EditChildProfile', { childId: child.id, schoolId })}
+        >
+          <Ionicons name="create-outline" size={20} color={colors.primary} />
+          <Text style={[styles.messageTeacherBtnText, { color: colors.primary }]}>Edit child profile</Text>
+        </TouchableOpacity>
+      )}
       {child?.assignedTeacherId ? (
         <TouchableOpacity
           style={styles.messageTeacherBtn}

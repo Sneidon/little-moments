@@ -40,18 +40,7 @@ export function TeacherSettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.cardTitleRow}>
-          <Ionicons name="moon-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.cardTitle}>Appearance</Text>
-        </View>
-        <TouchableOpacity style={styles.themeRow} onPress={cycleTheme} activeOpacity={0.7}>
-          <Text style={styles.themeLabel}>Theme</Text>
-          <Text style={styles.themeValue}>{themeLabel}</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
+      
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Ionicons name="person-outline" size={18} color={colors.textMuted} />
@@ -75,6 +64,18 @@ export function TeacherSettingsScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.themeRow} onPress={() => Alert.alert('Contact support', 'Email: support@mylittlemoments.com')} activeOpacity={0.7}>
           <Text style={styles.themeLabel}>Contact support</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="moon-outline" size={18} color={colors.textMuted} />
+          <Text style={styles.cardTitle}>Appearance</Text>
+        </View>
+        <TouchableOpacity style={styles.themeRow} onPress={cycleTheme} activeOpacity={0.7}>
+          <Text style={styles.themeLabel}>Theme</Text>
+          <Text style={styles.themeValue}>{themeLabel}</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
       </View>

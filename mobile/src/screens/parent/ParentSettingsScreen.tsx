@@ -116,17 +116,7 @@ export function ParentSettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.cardTitleRow}>
-          <Ionicons name="moon-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.cardTitle}>Appearance</Text>
-        </View>
-        <TouchableOpacity style={styles.themeRow} onPress={cycleTheme} activeOpacity={0.7}>
-          <Text style={styles.themeLabel}>Theme</Text>
-          <Text style={styles.themeValue}>{themeLabel}</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
+     
 
       {selectedChild && (
         <View style={styles.card}>
@@ -186,11 +176,25 @@ export function ParentSettingsScreen() {
 
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
+          <Ionicons name="moon-outline" size={18} color={colors.textMuted} />
+          <Text style={styles.cardTitle}>Appearance</Text>
+        </View>
+        <TouchableOpacity style={styles.themeRow} onPress={cycleTheme} activeOpacity={0.7}>
+          <Text style={styles.themeLabel}>Theme</Text>
+          <Text style={styles.themeValue}>{themeLabel}</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardTitleRow}>
           <Ionicons name="log-out-outline" size={18} color={colors.textMuted} />
           <Text style={styles.cardTitle}>Account</Text>
         </View>
         <Text style={styles.signOutHint}>Sign out to switch account.</Text>
-        <Text style={styles.signOutLink} onPress={handleSignOut}>Sign out</Text>
+        <TouchableOpacity onPress={handleSignOut}>
+          <Text style={styles.signOutLink}>Sign out</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

@@ -2,9 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, ViewStyle } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
+type DimensionValue = number | `${number}%` | 'auto';
+
 type SkeletonProps = {
-  width?: number | string;
-  height?: number | string;
+  width?: DimensionValue;
+  height?: DimensionValue;
   borderRadius?: number;
   style?: ViewStyle;
   animate?: boolean;
@@ -48,8 +50,8 @@ export function Skeleton({
           height,
           borderRadius,
           backgroundColor: colors.skeleton,
-          opacity: animate ? opacity : 1,
         },
+        animate ? { opacity } : { opacity: 1 },
         style,
       ]}
     />

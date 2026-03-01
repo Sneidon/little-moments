@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -13,20 +13,24 @@ const ALLOWED_ROLES = ['teacher', 'parent'] as const;
 
 function RootNavigator() {
   const { user, profile, loading } = useAuth();
+  const [authStackKey, setAuthStackKey] = useState(0);
 
   useEffect(() => {
-    if (user && profile && !ALLOWED_ROLES.includes(profile.role as typeof ALLOWED_ROLES[number])) {
+    if (!user || loading) return;
+    const allowed = profile && ALLOWED_ROLES.includes(profile.role as (typeof ALLOWED_ROLES)[number]);
+    if (!allowed) {
       signOut(auth);
+      setAuthStackKey((k) => k + 1);
       Alert.alert(
         'Access denied',
         'This app is only available for teachers and parents. Please use the web app for other roles.'
       );
     }
-  }, [user, profile]);
+  }, [user, profile, loading]);
 
   if (loading) return null; // or a splash screen
-  if (!user || !profile) return <AuthStack />;
-  if (!ALLOWED_ROLES.includes(profile.role as typeof ALLOWED_ROLES[number])) return <AuthStack />;
+  if (!user || !profile) return <AuthStack key={authStackKey} />;
+  if (!ALLOWED_ROLES.includes(profile.role as (typeof ALLOWED_ROLES)[number])) return <AuthStack key={authStackKey} />;
   return <MainTabs role={profile.role} />;
 }
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -9,15 +10,24 @@ import { AccessDeniedScreen } from './src/screens/auth/AccessDeniedScreen';
 
 const ALLOWED_ROLES = ['teacher', 'parent'] as const;
 
+function Loader() {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+}
+
 function RootNavigator() {
   const { user, profile, loading } = useAuth();
 
-  if (loading) return null;
+  if (loading || (user && !profile)) return <Loader />;
   if (!user) return <AuthStack />;
-  if (!profile || !ALLOWED_ROLES.includes(profile.role as (typeof ALLOWED_ROLES)[number])) {
+  if (!ALLOWED_ROLES.includes(profile!.role as (typeof ALLOWED_ROLES)[number])) {
     return <AccessDeniedScreen />;
   }
-  return <MainTabs role={profile.role} />;
+  return <MainTabs role={profile!.role} />;
 }
 
 function AppContent() {

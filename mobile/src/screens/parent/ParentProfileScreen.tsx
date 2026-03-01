@@ -64,15 +64,7 @@ export function ParentProfileScreen() {
           onChangeText={(t) => setProfileForm((p) => ({ ...p, displayName: t }))}
           placeholder="First name"
           placeholderTextColor={colors.textMuted}
-        />
-        <Text style={styles.label}>Last name</Text>
-        <TextInput
-          style={styles.input}
-          value={profileForm.lastName}
-          onChangeText={(t) => setProfileForm((p) => ({ ...p, lastName: t }))}
-          placeholder="Last name"
-          placeholderTextColor={colors.textMuted}
-        />
+        /> 
         <Text style={styles.label}>Email (read-only)</Text>
         <Text style={styles.row}>{profile?.email ?? '—'}</Text>
         <Text style={styles.label}>Phone</Text>

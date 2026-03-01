@@ -58,14 +58,34 @@ export function MessagesListScreen({ navigation }: Props) {
   }, []);
 
   useLayoutEffect(() => {
+    const root = navigation.getParent() as { navigate: (name: string) => void } | undefined;
     if (profile?.role === 'teacher') {
       navigation.setOptions({
         headerRight: () => (
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              onPress={() => root?.navigate('BroadcastToClass')}
+              style={styles.headerBtn}
+            >
+              <Text style={styles.headerBtnText}>Message class</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => root?.navigate('SelectChildToMessage')}
+              style={styles.headerBtn}
+            >
+              <Text style={styles.headerBtnText}>New chat</Text>
+            </TouchableOpacity>
+          </View>
+        ),
+      });
+    } else if (profile?.role === 'parent') {
+      navigation.setOptions({
+        headerRight: () => (
           <TouchableOpacity
-            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('SelectChildToMessage')}
+            onPress={() => root?.navigate('ParentSelectChildToMessage')}
             style={styles.headerBtn}
           >
-            <Text style={styles.headerBtnText}>New chat</Text>
+            <Text style={styles.headerBtnText}>Message teacher</Text>
           </TouchableOpacity>
         ),
       });
@@ -206,8 +226,8 @@ export function MessagesListScreen({ navigation }: Props) {
             title="No conversations yet"
             subtitle={
               profile?.role === 'teacher'
-                ? 'Tap "New chat" above to message a parent, or open a child\'s report and tap "Message parents".'
-                : 'Start a conversation from your child\'s profile by tapping "Message teacher".'
+                ? 'Tap "New chat" above to message a parent, or "Message class" to message all parents in a class.'
+                : 'Tap "Message teacher" above to start a conversation about your child.'
             }
           />
         }
@@ -243,6 +263,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     lastMessage: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
     time: { fontSize: 12, color: colors.textMuted, marginLeft: 8 },
     listContent: { flexGrow: 1 },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     headerBtn: { paddingHorizontal: 12, paddingVertical: 8 },
     headerBtnText: { color: colors.primary, fontWeight: '600', fontSize: 16 },
   });

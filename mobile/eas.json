@@ -1,30 +1,43 @@
 {
-  "cli": {
-    "version": ">= 18.0.6",
-    "appVersionSource": "remote"
-  },
+  "cli": { "version": ">= 18.0.6", "appVersionSource": "remote" },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBF8GVFMPdqcG9BDm2Wl0bYj3PpHYPsWFI",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "little-moments-6647f.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "little-moments-6647f",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "little-moments-6647f.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "692778727048",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:692778727048:web:4b37819414bb1ee2be913d"
       }
     },
     "preview": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBF8GVFMPdqcG9BDm2Wl0bYj3PpHYPsWFI",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "little-moments-6647f.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "little-moments-6647f",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "little-moments-6647f.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "692778727048",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:692778727048:web:4b37819414bb1ee2be913d"
       }
     },
     "production": {
       "autoIncrement": true,
-      "android": {
-        "buildType": "apk"
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBF8GVFMPdqcG9BDm2Wl0bYj3PpHYPsWFI",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "little-moments-6647f.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "little-moments-6647f",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "little-moments-6647f.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "692778727048",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:692778727048:web:4b37819414bb1ee2be913d"
       }
     }
   },
-  "submit": {
-    "production": {}
-  }
+  "submit": { "production": {} }
 }

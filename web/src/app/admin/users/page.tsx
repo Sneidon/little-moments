@@ -37,7 +37,6 @@ function getCallableErrorMessage(err: unknown): string {
 export default function AdminUsersPage() {
   const [schools, setSchools] = useState<SchoolUserCount[]>([]);
   const [superAdmins, setSuperAdmins] = useState<SuperAdminUser[]>([]);
-  const [parentCount, setParentCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<AddSuperAdminFormState>(INITIAL_ADD_FORM);
@@ -57,9 +56,7 @@ export default function AdminUsersPage() {
       const users = usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() } as { uid: string; schoolId?: string; role?: string; email?: string; displayName?: string }));
 
       const admins = users.filter((u) => u.role === 'super_admin') as SuperAdminUser[];
-      const parents = users.filter((u) => u.role === 'parent').length;
       setSuperAdmins(admins);
-      setParentCount(parents);
 
       const list: SchoolUserCount[] = schoolsSnap.docs.map((doc) => {
         const schoolId = doc.id;
@@ -195,25 +192,19 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {(superAdmins.length > 0 || parentCount > 0 || showAddForm) && (
+      {(superAdmins.length > 0 || showAddForm) && (
         <SectionCard topBar="warm" padding="default" className="mb-6">
           <div className="flex flex-wrap items-center gap-4">
-          <div>
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Super admins</span>
-            <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{superAdmins.length}</p>
-          </div>
-          <div className='flex-1'></div>
-          {!showAddForm && (
-            <button type="button" onClick={openAddForm} className="btn-primary text-sm">
-              Add super admin
-            </button>
-          )}
-          {parentCount > 0 && (
             <div>
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Parents (all)</span>
-              <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{parentCount}</p>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Super admins</span>
+              <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{superAdmins.length}</p>
             </div>
-          )}
+            <div className="flex-1" />
+            {!showAddForm && (
+              <button type="button" onClick={openAddForm} className="btn-primary text-sm">
+                Add super admin
+              </button>
+            )}
           </div>
         </SectionCard>
       )}

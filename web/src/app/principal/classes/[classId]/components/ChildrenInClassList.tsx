@@ -87,7 +87,6 @@ export function ChildrenInClassList({ children, childLinkHref = (child) => `/pri
           ))}
         </ul>
       )}
-
     </SectionCard>
   );
 }

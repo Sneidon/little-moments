@@ -57,13 +57,11 @@ export default function PrincipalProfilePage() {
       if (photoFile) {
         updates.photoURL = await uploadUserAvatar(photoFile, profile.uid);
       }
-      if (Object.keys(updates).length > 1) {
-        await updateDoc(doc(db, 'users', profile.uid), updates);
-        await refreshProfile();
-        setSaved(true);
-        setPhotoFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
+      await updateDoc(doc(db, 'users', profile.uid), updates);
+      await refreshProfile();
+      setSaved(true);
+      setPhotoFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {

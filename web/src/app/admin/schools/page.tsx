@@ -6,6 +6,7 @@ import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/config/firebase';
 import type { School, SubscriptionStatus } from 'shared/types';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 export default function SchoolsPage() {
   const [schools, setSchools] = useState<School[]>([]);
@@ -124,31 +125,30 @@ export default function SchoolsPage() {
   };
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Schools</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Create and manage schools</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setShowForm(true);
-            setEditingId(null);
-            setError('');
-            setForm({ name: '', address: '', contactEmail: '', contactPhone: '', description: '', website: '', subscriptionStatus: 'active', principalEmail: '', principalDisplayName: '', principalPassword: '' });
-          }}
-          className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Add school
-        </button>
-      </div>
+    <div className="animate-fade-in">
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Schools</span>}
+        subtitle="Create and manage schools"
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm(true);
+              setEditingId(null);
+              setError('');
+              setForm({ name: '', address: '', contactEmail: '', contactPhone: '', description: '', website: '', subscriptionStatus: 'active', principalEmail: '', principalDisplayName: '', principalPassword: '' });
+            }}
+            className="btn-primary"
+          >
+            Add school
+          </button>
+        }
+      />
 
       {showForm && (
-        <form
-          onSubmit={save}
-          className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
-        >
+        <SectionCard topBar="primary" className="mb-8">
+          <form onSubmit={save}>
           <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
             {editingId ? 'Edit school' : 'New school'}
           </h2>
@@ -267,26 +267,30 @@ export default function SchoolsPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-slate-700 px-4 py-2 text-white hover:bg-slate-800 disabled:opacity-50"
+              className="btn-primary"
             >
               {submitting ? 'Saving…' : editingId ? 'Save' : 'Add school'}
             </button>
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+              className="btn-secondary"
             >
               Cancel
             </button>
           </div>
-        </form>
+          </form>
+        </SectionCard>
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton rows={6} cols={6} />
+        </SectionCard>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
-          <table className="w-full text-left text-sm">
+        <SectionCard topBar="accent" padding="none">
+          <div className="overflow-hidden">
+          <table className="data-table">
             <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Name</th>
@@ -346,9 +350,10 @@ export default function SchoolsPage() {
             </tbody>
           </table>
           {schools.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500">No schools yet.</p>
+            <p className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
           )}
-        </div>
+          </div>
+        </SectionCard>
       )}
     </div>
   );

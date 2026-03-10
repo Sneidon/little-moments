@@ -7,7 +7,7 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100;
+    @apply bg-warm-50 text-slate-800 antialiased dark:bg-slate-900 dark:text-slate-100;
   }
   *:focus-visible {
     @apply outline-none ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-slate-900;
@@ -24,33 +24,138 @@
   --color-primary-500: #7c3aed;
   --color-primary-600: #6d28d9;
   --color-primary-700: #5b21b6;
+  --color-accent-500: #14b8a6;
+  --color-accent-600: #0d9488;
 }
 
 /* Reusable input style for consistency */
 @layer components {
   .input-base {
-    @apply w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-slate-900 placeholder:text-slate-400
-           transition-colors focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20
-           dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-100 dark:placeholder:text-slate-500
+    @apply w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-slate-900 placeholder:text-slate-400
+           transition-all duration-200 focus:border-primary-500 focus:bg-white focus:shadow-input-focus focus:outline-none focus:ring-2 focus:ring-primary-500/25
+           dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100 dark:placeholder:text-slate-500
            dark:focus:border-primary-500 dark:focus:bg-slate-800 dark:focus:ring-primary-500/30;
   }
   .btn-primary {
-    @apply rounded-xl bg-primary-600 px-4 py-2.5 font-medium text-white shadow-sm transition
-           hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none
+    @apply rounded-xl bg-primary-600 px-4 py-2.5 font-semibold text-white shadow-md
+           transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-btn-hover
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+           active:translate-y-0 active:shadow-md
+           disabled:translate-y-0 disabled:opacity-50 disabled:pointer-events-none disabled:shadow-md
            dark:focus:ring-offset-slate-900;
   }
   .btn-secondary {
-    @apply rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700
-           transition hover:border-slate-300 hover:bg-slate-50 focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-2
+    @apply rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700
+           transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-2
            dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-700
            dark:focus:ring-offset-slate-900;
   }
   .card {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-card transition
+    @apply rounded-card border border-slate-200/80 bg-white shadow-card
+           transition-all duration-250 ease-smooth
            dark:border-slate-700 dark:bg-slate-800;
   }
   .card-hover {
-    @apply card hover:border-primary-200 hover:shadow-card-hover
+    @apply card
+           hover:-translate-y-1 hover:border-primary-200 hover:shadow-card-hover
            dark:hover:border-primary-800 dark:hover:shadow-card-hover;
+  }
+  .heading-daycare {
+    @apply font-display font-bold tracking-tight text-slate-800 dark:text-slate-100;
+  }
+  .stat-number {
+    @apply font-extrabold tabular-nums tracking-tight text-slate-900 dark:text-slate-100;
+  }
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent;
+  }
+  .text-gradient-warm {
+    @apply bg-gradient-to-r from-primary-600 via-warm-500 to-accent-500 bg-clip-text text-transparent;
+  }
+  .card-top-primary {
+    @apply relative overflow-hidden rounded-card border border-slate-200/80 bg-white shadow-card
+           transition-all duration-250 ease-smooth dark:border-slate-700 dark:bg-slate-800
+           before:absolute before:left-0 before:right-0 before:top-0 before:h-1 before:content-[''] before:bg-gradient-to-r before:from-primary-500 before:to-primary-400;
+  }
+  .card-top-accent {
+    @apply relative overflow-hidden rounded-card border border-slate-200/80 bg-white shadow-card
+           transition-all duration-250 ease-smooth dark:border-slate-700 dark:bg-slate-800
+           before:absolute before:left-0 before:right-0 before:top-0 before:h-1 before:content-[''] before:bg-gradient-to-r before:from-accent-500 before:to-accent-400;
+  }
+  .card-top-warm {
+    @apply relative overflow-hidden rounded-card border border-slate-200/80 bg-white shadow-card
+           transition-all duration-250 ease-smooth dark:border-slate-700 dark:bg-slate-800
+           before:absolute before:left-0 before:right-0 before:top-0 before:h-1 before:content-[''] before:bg-gradient-to-r before:from-warm-500 before:to-warm-400;
+  }
+  .quick-action-card {
+    @apply card rounded-card border border-slate-200/80 bg-white px-5 py-4 font-semibold
+           transition-all duration-250 ease-smooth
+           hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-card-hover
+           hover:bg-gradient-to-r hover:from-primary-50/80 hover:to-accent-50/60
+           dark:border-slate-700 dark:bg-slate-800
+           dark:hover:border-primary-600 dark:hover:from-primary-900/30 dark:hover:to-accent-900/20;
+  }
+  .nav-active-bar {
+    @apply absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-primary-500 to-accent-500;
+  }
+  .bg-pattern-dots {
+    background-image: radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.07) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+  .dark .bg-pattern-dots {
+    background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.06) 1px, transparent 0);
+  }
+
+  /* Data table – consistent table styling across admin/principal */
+  .data-table {
+    @apply w-full text-left text-sm;
+  }
+  .data-table thead {
+    @apply bg-slate-50 dark:bg-slate-700;
+  }
+  .data-table th {
+    @apply px-4 py-3 font-semibold text-slate-700 dark:text-slate-200;
+  }
+  .data-table tbody tr {
+    @apply border-t border-slate-100 dark:border-slate-600 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-700/50;
+  }
+  .data-table td {
+    @apply px-4 py-3 text-slate-600 dark:text-slate-300;
+  }
+  .data-table .cell-main {
+    @apply font-medium text-slate-800 dark:text-slate-100;
+  }
+  .data-table .cell-muted {
+    @apply text-slate-500 dark:text-slate-400;
+  }
+
+  /* Dialog – backdrop and panel matching card/daycare style */
+  .dialog-backdrop {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4
+           bg-black/50 backdrop-blur-sm
+           transition-opacity duration-200;
+  }
+  .dialog-panel {
+    @apply relative w-full max-w-md overflow-hidden rounded-card border-2 border-slate-200/80 bg-white
+           p-6 shadow-card-raised
+           dark:border-slate-600 dark:bg-slate-800;
+  }
+  .dialog-panel:focus {
+    @apply outline-none;
+  }
+  .dialog-panel-top {
+    @apply relative overflow-hidden rounded-card border-2 border-slate-200/80 bg-white p-6 shadow-card-raised
+           dark:border-slate-700 dark:bg-slate-800
+           before:absolute before:left-0 before:right-0 before:top-0 before:h-1 before:content-[''] before:bg-gradient-to-r before:from-primary-500 before:to-accent-500;
+  }
+  .dialog-title {
+    @apply mb-2 text-lg font-semibold text-slate-800 dark:text-slate-100;
+  }
+  .dialog-description {
+    @apply mb-6 text-sm text-slate-600 dark:text-slate-300;
+  }
+  .dialog-actions {
+    @apply flex flex-wrap items-center justify-end gap-2 pt-2;
   }
 }

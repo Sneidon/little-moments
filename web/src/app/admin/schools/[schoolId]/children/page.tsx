@@ -9,6 +9,7 @@ import { exportChildrenToPdf } from '@/lib/exportChildrenPdf';
 import { exportChildrenToCsv } from '@/lib/exportChildrenCsv';
 import { exportChildrenToExcel } from '@/lib/exportChildrenExcel';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHero, SectionCard } from '@/components/ui';
 
 export default function AdminSchoolChildrenPage() {
   const params = useParams();
@@ -76,82 +77,89 @@ export default function AdminSchoolChildrenPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link
-            href={`/admin/schools/${schoolId}`}
-            className="text-primary-600 dark:text-primary-400 hover:underline text-sm font-medium"
-          >
-            ← Back to {school.name}
-          </Link>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
-            Children
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Enrolled children at {school.name}
-          </p>
-        </div>
-        <div className="relative shrink-0" ref={exportMenuRef}>
-          <button
-            type="button"
-            onClick={() => setExportOpen((o) => !o)}
-            disabled={exportingPdf || filteredChildren.length === 0}
-            className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
-            aria-expanded={exportOpen}
-            aria-haspopup="true"
-          >
-            <span>{exportingPdf ? 'Exporting…' : 'Export'}</span>
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {exportOpen && (
-            <div
-              className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-1.5 shadow-xl"
-              role="menu"
+      <PageHero
+        variant="full"
+        backHref={`/admin/schools/${schoolId}`}
+        backLabel={school.name}
+        title={<span className="text-gradient-warm">Children</span>}
+        subtitle={`Enrolled children at ${school.name}`}
+        actions={
+          <div className="relative shrink-0" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setExportOpen((o) => !o)}
+              disabled={exportingPdf || filteredChildren.length === 0}
+              className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
+              aria-expanded={exportOpen}
+              aria-haspopup="true"
             >
-              <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                Download as
+              <span>{exportingPdf ? 'Exporting…' : 'Export'}</span>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {exportOpen && (
+              <div
+                className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-1.5 shadow-xl"
+                role="menu"
+              >
+                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Download as
+                </div>
+                <button type="button" role="menuitem" onClick={handleExportCsv} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <span className="rounded bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 font-mono text-xs">CSV</span>
+                  Spreadsheet (CSV)
+                </button>
+                <button type="button" role="menuitem" onClick={handleExportExcel} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <span className="rounded bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 font-mono text-xs text-emerald-800 dark:text-emerald-200">XLSX</span>
+                  Excel
+                </button>
+                <button type="button" role="menuitem" onClick={handleExportPdf} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <span className="rounded bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 font-mono text-xs text-red-800 dark:text-red-200">PDF</span>
+                  PDF document
+                </button>
               </div>
-              <button type="button" role="menuitem" onClick={handleExportCsv} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
-                <span className="rounded bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 font-mono text-xs">CSV</span>
-                Spreadsheet (CSV)
-              </button>
-              <button type="button" role="menuitem" onClick={handleExportExcel} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
-                <span className="rounded bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 font-mono text-xs text-emerald-800 dark:text-emerald-200">XLSX</span>
-                Excel
-              </button>
-              <button type="button" role="menuitem" onClick={handleExportPdf} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
-                <span className="rounded bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 font-mono text-xs text-red-800 dark:text-red-200">PDF</span>
-                PDF document
-              </button>
-            </div>
+            )}
+          </div>
+        }
+      />
+
+      <SectionCard topBar="accent" padding="default" className="mb-6">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Filters</h2>
+          {filterClassId && (
+            <button
+              type="button"
+              onClick={() => setFilterClassId('')}
+              className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            >
+              Clear
+            </button>
           )}
         </div>
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3 shadow-sm">
-        <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Filter by class</label>
-        <select
-          value={filterClassId}
-          onChange={(e) => setFilterClassId(e.target.value)}
-          className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-        >
-          <option value="">All classes</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>{formatClassDisplay(c)}</option>
-          ))}
-        </select>
-        {filterClassId && (
-          <span className="text-sm text-slate-500 dark:text-slate-400">
-            {filteredChildren.length} of {children.length} children
-          </span>
-        )}
-      </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Filter by class</label>
+          <select
+            value={filterClassId}
+            onChange={(e) => setFilterClassId(e.target.value)}
+            className="input-base max-w-[220px]"
+          >
+            <option value="">All classes</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>{formatClassDisplay(c)}</option>
+            ))}
+          </select>
+          {filterClassId && (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {filteredChildren.length} of {children.length} children
+            </span>
+          )}
+        </div>
+      </SectionCard>
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="data-table">
             <thead className="bg-slate-50/80 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>

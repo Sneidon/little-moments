@@ -7,6 +7,7 @@ import { formatClassDisplay } from '@/lib/formatClass';
 import { getTeacherDisplayName } from '@/lib/teachers';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ClassesTable } from '@/app/principal/classes/components';
+import { PageHero } from '@/components/ui';
 
 export default function AdminSchoolClassesPage() {
   const params = useParams();
@@ -37,20 +38,13 @@ export default function AdminSchoolClassesPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6">
-        <Link
-          href={`/admin/schools/${schoolId}`}
-          className="text-primary-600 dark:text-primary-400 hover:underline text-sm font-medium"
-        >
-          ← Back to {school.name}
-        </Link>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
-          Classes
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Rooms and groups at {school.name}
-        </p>
-      </div>
+      <PageHero
+        variant="full"
+        backHref={`/admin/schools/${schoolId}`}
+        backLabel={school.name}
+        title={<span className="text-gradient-warm">Classes</span>}
+        subtitle={`Rooms and groups at ${school.name}`}
+      />
 
       <ClassesTable
         classes={classes}

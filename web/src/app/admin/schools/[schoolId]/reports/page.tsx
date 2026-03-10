@@ -10,6 +10,7 @@ import {
   ReportsTable,
 } from '@/app/principal/reports/components';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 
 export default function AdminSchoolReportsPage() {
   const params = useParams();
@@ -20,6 +21,7 @@ export default function AdminSchoolReportsPage() {
     filteredReports,
     loading: reportsLoading,
     filters,
+    clearFilters,
     setFilterClassId,
     setFilterDay,
     setFilterDateFrom,
@@ -74,10 +76,22 @@ export default function AdminSchoolReportsPage() {
         showClassColumn={showClassColumn}
         classDisplay={classDisplay}
       />
+      {loading ? (
+        <>
+          <SectionCard topBar="accent" padding="default" className="mb-6">
+            <FilterSkeleton />
+          </SectionCard>
+          <SectionCard topBar="accent" padding="none">
+            <TableSkeleton />
+          </SectionCard>
+        </>
+      ) : (
+        <>
       <ReportsFilters
         classes={classes}
         filters={filters}
         limitOptions={limitOptions}
+        onClearFilters={clearFilters}
         onFilterClassId={setFilterClassId}
         onFilterDay={setFilterDay}
         onFilterDateFrom={setFilterDateFrom}
@@ -88,14 +102,12 @@ export default function AdminSchoolReportsPage() {
         onSortOrder={setSortOrder}
         onLimit={setLimit}
       />
-      {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
-      ) : (
         <ReportsTable
           rows={filteredReports}
           showClassColumn={showClassColumn}
           classDisplay={classDisplay}
         />
+        </>
       )}
     </div>
   );

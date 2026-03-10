@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { UserProfile } from 'shared/types';
+import { PageHero } from '@/components/ui';
 
 export interface ParentDetailHeaderProps {
   parent: UserProfile;
@@ -17,42 +18,25 @@ export function ParentDetailHeader({
   passwordResetSending,
 }: ParentDetailHeaderProps) {
   return (
-    <>
-      <div className="mb-6 flex items-center gap-4 border-b border-slate-200 dark:border-slate-600 pb-4">
-        <Link
-          href="/principal/parents"
-          className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium"
-          aria-label="Back to parents list"
-        >
-          ← Back to parents
-        </Link>
-      </div>
-
-      <div className="card mb-8 p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              {parent.displayName ?? '—'}
-            </h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {childrenCount} linked {childrenCount === 1 ? 'child' : 'children'}
-            </p>
-          </div>
-          {parent.email && onRequestPasswordReset && (
-            <div className="shrink-0">
-              <button
-                type="button"
-                onClick={onRequestPasswordReset}
-                disabled={passwordResetSending}
-                className="btn-secondary disabled:opacity-50"
-                title="Send password reset email to this parent"
-              >
-                {passwordResetSending ? 'Sending…' : 'Send password reset email'}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+    <PageHero
+      variant="full"
+      backHref="/principal/parents"
+      backLabel="Parents"
+      title={<span className="text-gradient-warm">{parent.displayName ?? '—'}</span>}
+      subtitle={`${childrenCount} linked ${childrenCount === 1 ? 'child' : 'children'}`}
+      actions={
+        parent.email && onRequestPasswordReset ? (
+          <button
+            type="button"
+            onClick={onRequestPasswordReset}
+            disabled={passwordResetSending}
+            className="btn-secondary disabled:opacity-50"
+            title="Send password reset email to this parent"
+          >
+            {passwordResetSending ? 'Sending…' : 'Send password reset email'}
+          </button>
+        ) : undefined
+      }
+    />
   );
 }

@@ -8,6 +8,7 @@ import { db, app } from '@/config/firebase';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddSuperAdminForm, type AddSuperAdminFormState } from './components/AddSuperAdminForm';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 type SchoolUserCount = {
   id: string;
@@ -135,7 +136,7 @@ export default function AdminUsersPage() {
   }, []);
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <ConfirmDialog
         open={!!pendingPasswordReset}
         onClose={() => setPendingPasswordReset(null)}
@@ -149,15 +150,15 @@ export default function AdminUsersPage() {
         onConfirm={() => pendingPasswordReset && handleRequestPasswordReset(pendingPasswordReset)}
         confirmDisabled={!!passwordResetLoadingUid}
       />
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Users</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Overview by school. Click a school to view and manage its users.
-        </p>
-      </div>
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Users</span>}
+        subtitle="Overview by school. Click a school to view and manage its users."
+      />
 
       {showAddForm && (
-        <AddSuperAdminForm
+        <SectionCard topBar="primary" className="mb-6">
+          <AddSuperAdminForm
           form={addForm}
           setForm={setAddForm}
           error={addError}
@@ -165,6 +166,7 @@ export default function AdminUsersPage() {
           onSubmit={handleAddSuperAdmin}
           onCancel={() => setShowAddForm(false)}
         />
+        </SectionCard>
       )}
 
       {(passwordResetError || passwordResetSuccess) && (
@@ -194,7 +196,8 @@ export default function AdminUsersPage() {
       )}
 
       {(superAdmins.length > 0 || parentCount > 0 || showAddForm) && (
-        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
+        <SectionCard topBar="warm" padding="default" className="mb-6">
+          <div className="flex flex-wrap items-center gap-4">
           <div>
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Super admins</span>
             <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{superAdmins.length}</p>
@@ -211,15 +214,16 @@ export default function AdminUsersPage() {
               <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{parentCount}</p>
             </div>
           )}
-        </div>
+          </div>
+        </SectionCard>
       )}
 
       {superAdmins.length > 0 && (
-        <div className="mb-6 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
+        <SectionCard topBar="primary" padding="none" className="mb-6">
           <h2 className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200">
             Super admins
           </h2>
-          <table className="w-full text-left text-sm">
+          <table className="data-table">
             <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Display name</th>
@@ -247,14 +251,16 @@ export default function AdminUsersPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </SectionCard>
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton rows={6} cols={3} />
+        </SectionCard>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
-          <table className="w-full text-left text-sm">
+        <SectionCard topBar="accent" padding="none">
+          <table className="data-table">
             <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">School</th>
@@ -278,9 +284,9 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
           {schools.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
+            <p className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
           )}
-        </div>
+        </SectionCard>
       )}
     </div>
   );

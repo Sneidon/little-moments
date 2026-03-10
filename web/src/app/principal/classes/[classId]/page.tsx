@@ -104,7 +104,7 @@ export default function ClassActivitiesPage() {
   }
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <ExportPdfOptionsDialog
         open={exportPdfOpen}
         onClose={() => setExportPdfOpen(false)}

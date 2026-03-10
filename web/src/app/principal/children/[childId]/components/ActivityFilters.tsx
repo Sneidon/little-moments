@@ -19,11 +19,24 @@ export function ActivityFilters({
   yesterdayIso,
   daysWithActivity,
 }: ActivityFiltersProps) {
+  const hasFilterActive = filterDay !== todayIso;
+
   return (
     <div className="mb-6">
-      <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-        Filter by date
-      </label>
+      <div className="mb-2 flex items-center justify-between gap-4">
+        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          Filter by date
+        </label>
+        {hasFilterActive && (
+          <button
+            type="button"
+            onClick={() => setFilterDay(todayIso)}
+            className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            Clear
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="date"

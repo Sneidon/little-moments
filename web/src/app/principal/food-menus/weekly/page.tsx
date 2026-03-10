@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useMealOptions } from '@/hooks/useMealOptions';
 import { MEAL_CATEGORIES, MEAL_CATEGORY_LABELS } from '@/constants/mealOptions';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -78,41 +79,43 @@ export default function FoodMenuWeeklyPage() {
   if (!schoolId || loading) {
     return (
       <div className="animate-fade-in">
-        <div className="h-64 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <PageHero variant="full" backHref="/principal/food-menus" backLabel="Meal options" title={<span className="text-gradient-warm">Weekly food menu</span>} subtitle="Assign meal options to each day." />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton rows={8} cols={5} />
+        </SectionCard>
       </div>
     );
   }
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Weekly food menu
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Assign meal options to each day. Parents and teachers can view the weekly plan.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={prevWeek} className="btn-secondary">
-            ← Prev
-          </button>
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Week of {new Date(weekStart).toLocaleDateString()}
-          </span>
-          <button type="button" onClick={nextWeek} className="btn-secondary">
-            Next →
-          </button>
-          <button type="button" onClick={save} disabled={saving} className="btn-primary">
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          {saved && <span className="text-sm text-green-600">Saved</span>}
-        </div>
-      </div>
+      <PageHero
+        variant="full"
+        backHref="/principal/food-menus"
+        backLabel="Meal options"
+        title={<span className="text-gradient-warm">Weekly food menu</span>}
+        subtitle="Assign meal options to each day. Parents and teachers can view the weekly plan."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={prevWeek} className="btn-secondary">
+              ← Prev
+            </button>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Week of {new Date(weekStart).toLocaleDateString()}
+            </span>
+            <button type="button" onClick={nextWeek} className="btn-secondary">
+              Next →
+            </button>
+            <button type="button" onClick={save} disabled={saving} className="btn-primary">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            {saved && <span className="text-sm text-green-600">Saved</span>}
+          </div>
+        }
+      />
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[700px] text-left text-sm">
+        <table className="data-table min-w-[700px]">
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-600">
               <th className="py-3 pr-4 font-medium text-slate-700 dark:text-slate-200">Day</th>

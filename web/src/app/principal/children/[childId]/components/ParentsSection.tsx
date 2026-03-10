@@ -1,5 +1,6 @@
 import type { UserProfile } from 'shared/types';
 import type { InviteFormState, EditFormState, InviteStep } from '@/hooks/useParentsManagement';
+import { SectionCard } from '@/components/ui';
 
 export interface ParentsSectionProps {
   childName?: string;
@@ -74,7 +75,7 @@ export function ParentsSection({
 
   if (readOnly) {
     return (
-      <section className="card mb-8 p-6">
+      <SectionCard topBar="warm" padding="default" className="mb-8">
         <h2 className="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">Parents</h2>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
           Up to {maxParents} parents per child.
@@ -115,12 +116,12 @@ export function ParentsSection({
             ))}
           </ul>
         )}
-      </section>
+      </SectionCard>
     );
   }
 
   return (
-    <section className="card mb-8 p-6">
+    <SectionCard topBar="warm" padding="default" className="mb-8">
       <h2 className="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">Parents</h2>
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
         Up to {maxParents} parents per child. Invited parents can sign in and view this child&apos;s reports.
@@ -399,6 +400,6 @@ export function ParentsSection({
       {!canInviteMore && parents.length >= maxParents ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Maximum number of parents reached.</p>
       ) : null}
-    </section>
+    </SectionCard>
   );
 }

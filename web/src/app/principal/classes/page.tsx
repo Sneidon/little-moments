@@ -13,6 +13,7 @@ import {
   type ClassFormData,
 } from '@/services/classes';
 import type { ClassRoom } from 'shared/types';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 import { ClassForm, ClassesTable } from './components';
 
 const INITIAL_FORM: ClassFormData = {
@@ -104,19 +105,17 @@ export default function ClassesPage() {
   );
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-          Classes / rooms
-        </h1>
-        <button
-          type="button"
-          onClick={openAdd}
-          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-        >
-          Add class
-        </button>
-      </div>
+    <div className="animate-fade-in">
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Classes / rooms</span>}
+        subtitle="Manage classes and assign teachers."
+        actions={
+          <button type="button" onClick={openAdd} className="btn-primary">
+            Add class
+          </button>
+        }
+      />
 
       {showForm && (
         <ClassForm
@@ -131,7 +130,9 @@ export default function ClassesPage() {
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton rows={5} cols={3} />
+        </SectionCard>
       ) : (
         <ClassesTable
           classes={classes}

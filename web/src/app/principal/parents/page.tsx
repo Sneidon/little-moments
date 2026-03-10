@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParentsPage } from '@/hooks/useParentsPage';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ParentsPageHeader, ParentsFilters, ParentsTable } from './components';
+import { SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 import type { UserProfile } from 'shared/types';
 
 export default function ParentsPage() {
@@ -58,7 +59,14 @@ export default function ParentsPage() {
       />
 
       {loading ? (
-        <div className="card h-48 animate-pulse bg-slate-100 dark:bg-slate-700" />
+        <>
+          <SectionCard topBar="warm" padding="default" className="mb-6">
+            <FilterSkeleton />
+          </SectionCard>
+          <SectionCard topBar="accent" padding="none">
+            <TableSkeleton />
+          </SectionCard>
+        </>
       ) : (
         <>
           <ParentsFilters

@@ -1,6 +1,7 @@
 'use client';
 
 import type { UserProfile } from 'shared/types';
+import { SectionCard } from '@/components/ui';
 
 export interface ParentProfileCardProps {
   parent: UserProfile;
@@ -12,7 +13,7 @@ function formatDate(s: string | undefined) {
 
 export function ParentProfileCard({ parent }: ParentProfileCardProps) {
   return (
-    <div className="card p-6">
+    <SectionCard topBar="primary" padding="default" className="mb-8">
       <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Contact details</h2>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div>
@@ -59,6 +60,6 @@ export function ParentProfileCard({ parent }: ParentProfileCardProps) {
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Account created</p>
         <p className="text-slate-700 dark:text-slate-300">{formatDate(parent.createdAt)}</p>
       </div>
-    </div>
+    </SectionCard>
   );
 }

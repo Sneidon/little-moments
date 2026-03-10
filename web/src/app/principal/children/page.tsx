@@ -20,6 +20,7 @@ import { exportChildrenToCsv } from '@/lib/exportChildrenCsv';
 import { exportChildrenToExcel } from '@/lib/exportChildrenExcel';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
+import { PageHero, SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 
 export default function ChildrenPage() {
   const { profile } = useAuth();
@@ -224,95 +225,94 @@ export default function ChildrenPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Children</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Enrolled children at your school</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <div className="relative" ref={exportMenuRef}>
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Children</span>}
+        subtitle="Enrolled children at your school"
+        actions={
+          <>
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                type="button"
+                onClick={() => setExportOpen((o) => !o)}
+                disabled={exportingPdf || loading || filteredChildren.length === 0}
+                className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
+                aria-expanded={exportOpen}
+                aria-haspopup="true"
+                title={filteredChildren.length === 0 ? 'No children to export' : 'Export roster'}
+              >
+                <span>{exportingPdf ? 'Exporting…' : 'Export'}</span>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {exportOpen && (
+                <div
+                  className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-1.5 shadow-xl"
+                  role="menu"
+                >
+                  <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Download as
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleExportCsv}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    <span className="rounded bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 font-mono text-xs">CSV</span>
+                    Spreadsheet (CSV)
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleExportExcel}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    <span className="rounded bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 font-mono text-xs text-emerald-800 dark:text-emerald-200">XLSX</span>
+                    Excel
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleExportPdf}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    <span className="rounded bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 font-mono text-xs text-red-800 dark:text-red-200">PDF</span>
+                    PDF document
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               type="button"
-              onClick={() => setExportOpen((o) => !o)}
-              disabled={exportingPdf || loading || filteredChildren.length === 0}
-              className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
-              aria-expanded={exportOpen}
-              aria-haspopup="true"
-              title={filteredChildren.length === 0 ? 'No children to export' : 'Export roster'}
+              onClick={() => {
+                setShowForm(true);
+                setEditingId(null);
+                setForm({
+                  name: '',
+                  preferredName: '',
+                  dateOfBirth: '',
+                  allergies: [],
+                  allergyInput: '',
+                  medicalNotes: '',
+                  enrollmentDate: '',
+                  emergencyContact: '',
+                  emergencyContactName: '',
+                  classId: '',
+                });
+              }}
+              className="btn-primary"
             >
-              <span>{exportingPdf ? 'Exporting…' : 'Export'}</span>
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              Add child
             </button>
-            {exportOpen && (
-              <div
-                className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-1.5 shadow-xl"
-                role="menu"
-              >
-                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  Download as
-                </div>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleExportCsv}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                >
-                  <span className="rounded bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 font-mono text-xs">CSV</span>
-                  Spreadsheet (CSV)
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleExportExcel}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                >
-                  <span className="rounded bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 font-mono text-xs text-emerald-800 dark:text-emerald-200">XLSX</span>
-                  Excel
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleExportPdf}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                >
-                  <span className="rounded bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 font-mono text-xs text-red-800 dark:text-red-200">PDF</span>
-                  PDF document
-                </button>
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setShowForm(true);
-              setEditingId(null);
-              setForm({
-                name: '',
-                preferredName: '',
-                dateOfBirth: '',
-                allergies: [],
-                allergyInput: '',
-                medicalNotes: '',
-                enrollmentDate: '',
-                emergencyContact: '',
-                emergencyContactName: '',
-                classId: '',
-              });
-            }}
-            className="btn-primary"
-          >
-            Add child
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {showForm && (
-        <form
-          onSubmit={save}
-          className="card mb-8 p-6"
-        >
+        <SectionCard topBar="primary" className="mb-8">
+          <form onSubmit={save}>
           <h2 className="mb-5 text-lg font-semibold text-slate-800 dark:text-slate-100">
             {editingId ? 'Edit child' : 'New child'}
           </h2>
@@ -438,34 +438,56 @@ export default function ChildrenPage() {
               Cancel
             </button>
           </div>
-        </form>
+          </form>
+        </SectionCard>
       )}
 
       {loading ? (
-        <div className="card h-48 animate-pulse bg-slate-100 dark:bg-slate-700" />
+        <>
+          <SectionCard topBar="accent" padding="default" className="mb-6">
+            <FilterSkeleton />
+          </SectionCard>
+          <SectionCard topBar="accent" padding="none">
+            <TableSkeleton />
+          </SectionCard>
+        </>
       ) : (
         <>
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3 shadow-sm">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Filter by class</label>
-            <select
-              value={filterClassId}
-              onChange={(e) => setFilterClassId(e.target.value)}
-              className="rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="">All classes</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>{formatClassDisplay(c)}</option>
-              ))}
-            </select>
-            {filterClassId && (
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {filteredChildren.length} of {children.length} children
-              </span>
-            )}
-          </div>
-          <div className="card overflow-hidden">
+          <SectionCard topBar="accent" padding="default" className="mb-6">
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Filters</h2>
+              {filterClassId && (
+                <button
+                  type="button"
+                  onClick={() => setFilterClassId('')}
+                  className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Filter by class</label>
+              <select
+                value={filterClassId}
+                onChange={(e) => setFilterClassId(e.target.value)}
+                className="input-base max-w-[220px]"
+              >
+                <option value="">All classes</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{formatClassDisplay(c)}</option>
+                ))}
+              </select>
+              {filterClassId && (
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {filteredChildren.length} of {children.length} children
+                </span>
+              )}
+            </div>
+          </SectionCard>
+          <SectionCard topBar="accent" padding="none">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="data-table">
               <thead className="bg-slate-50/80 dark:bg-slate-700">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
@@ -515,16 +537,16 @@ export default function ChildrenPage() {
             </table>
           </div>
           {filteredChildren.length === 0 && (
-            <div className="px-4 py-12 text-center">
-              <p className="text-slate-500">
+            <div className="px-6 py-12 text-center">
+              <p className="text-slate-500 dark:text-slate-400">
                 {filterClassId ? 'No children in this class.' : 'No children yet.'}
               </p>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
                 {filterClassId ? 'Try another class or clear the filter.' : 'Add a child to get started.'}
               </p>
             </div>
           )}
-        </div>
+        </SectionCard>
         </>
       )}
     </div>

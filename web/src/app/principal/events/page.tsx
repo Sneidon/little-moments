@@ -7,7 +7,7 @@ import { useEventForm } from '@/hooks/useEventForm';
 import { useClasses } from '@/hooks/useClasses';
 import { EventCard } from '@/components/EventCard';
 import { EventForm } from '@/components/EventForm';
-import { EventListSkeleton } from '@/components/EventListSkeleton';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 export default function EventsPage() {
   const { profile } = useAuth();
@@ -26,25 +26,18 @@ export default function EventsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Events
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Create and manage school events
-          </p>
-        </div>
-        {!form.showForm && (
-          <button
-            type="button"
-            onClick={form.openFormForNew}
-            className="btn-primary shrink-0"
-          >
-            Add event
-          </button>
-        )}
-      </div>
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Events</span>}
+        subtitle="Create and manage school events"
+        actions={
+          !form.showForm ? (
+            <button type="button" onClick={form.openFormForNew} className="btn-primary shrink-0">
+              Add event
+            </button>
+          ) : undefined
+        }
+      />
 
       {form.showForm && <EventForm form={form} classes={classes} />}
 
@@ -52,7 +45,9 @@ export default function EventsPage() {
         Upcoming events
       </h2>
       {loading ? (
-        <EventListSkeleton />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton />
+        </SectionCard>
       ) : (
         <>
           <div className="mb-8 space-y-4">

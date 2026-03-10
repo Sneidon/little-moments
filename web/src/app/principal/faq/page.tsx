@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { PageHero } from '@/components/ui';
 
 const FAQ_ITEMS = [
   { q: 'How do I add a child?', a: 'Go to People → Children and click "Add child". Link the child to a class and parent(s).' },
@@ -14,7 +15,7 @@ const FAQ_ITEMS = [
 export default function FAQPage() {
   return (
     <div className="animate-fade-in mx-auto max-w-2xl">
-      <h1 className="mb-8 text-2xl font-bold text-slate-900 dark:text-slate-100">Frequently asked questions</h1>
+      <PageHero variant="full" title={<span className="text-gradient-warm">Frequently asked questions</span>} className="mb-8" />
       <div className="space-y-6">
         {FAQ_ITEMS.map((item, i) => (
           <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4">

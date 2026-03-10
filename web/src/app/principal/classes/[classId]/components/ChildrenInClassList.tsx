@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Child } from 'shared/types';
+import { SectionCard } from '@/components/ui';
 
 export interface ChildrenInClassListProps {
   children: Child[];
@@ -9,7 +10,7 @@ export interface ChildrenInClassListProps {
 
 export function ChildrenInClassList({ children, childLinkHref = (child) => `/principal/children/${child.id}` }: ChildrenInClassListProps) {
   return (
-    <section className="mt-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
+    <SectionCard topBar="warm" padding="default" className="mt-8">
       <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">
         Children in this class
       </h2>
@@ -49,6 +50,6 @@ export function ChildrenInClassList({ children, childLinkHref = (child) => `/pri
           ))}
         </ul>
       )}
-    </section>
+    </SectionCard>
   );
 }

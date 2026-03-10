@@ -1,4 +1,5 @@
 import type { DailyReport } from 'shared/types';
+import { SectionCard } from '@/components/ui';
 import { ReportListItem } from './ReportListItem';
 import { ActivityFilters } from './ActivityFilters';
 
@@ -29,7 +30,7 @@ export function ActivityList({
   });
 
   return (
-    <section className="card p-6">
+    <SectionCard topBar="accent" padding="default" className="mb-8">
       <h2 className="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">
         Day-to-day activities
       </h2>
@@ -71,6 +72,6 @@ export function ActivityList({
           ))}
         </ul>
       )}
-    </section>
+    </SectionCard>
   );
 }

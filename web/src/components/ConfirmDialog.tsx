@@ -27,7 +27,7 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="dialog-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
@@ -35,19 +35,16 @@ export function ConfirmDialog({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-600 dark:bg-slate-800"
+        className="dialog-panel-top"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2
-          id="confirm-dialog-title"
-          className="mb-2 text-lg font-semibold text-slate-800 dark:text-slate-100"
-        >
+        <h2 id="confirm-dialog-title" className="dialog-title">
           {title}
         </h2>
-        <p id="confirm-dialog-desc" className="mb-6 text-sm text-slate-600 dark:text-slate-300">
+        <p id="confirm-dialog-desc" className="dialog-description">
           {message}
         </p>
-        <div className="flex justify-end gap-2">
+        <div className="dialog-actions">
           <button type="button" onClick={onClose} className="btn-secondary">
             {cancelLabel}
           </button>

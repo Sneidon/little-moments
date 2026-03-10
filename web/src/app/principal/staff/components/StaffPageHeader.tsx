@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { PageHero } from '@/components/ui';
 
 export interface StaffPageHeaderProps {
   onExportPdf: () => void;
@@ -42,15 +43,11 @@ export function StaffPageHeader({
   };
 
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-          Staff & teachers
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Teachers and principals at your school. Assign from Classes; parents are on the Parents page.
-        </p>
-      </div>
+    <PageHero
+      variant="full"
+      title={<span className="text-gradient-warm">Staff & teachers</span>}
+      subtitle="Teachers and principals at your school. Assign from Classes; parents are on the Parents page."
+      actions={
       <div className="flex flex-wrap items-center gap-2 shrink-0">
         <div className="relative" ref={menuRef}>
           <button
@@ -107,6 +104,7 @@ export function StaffPageHeader({
           Add teacher
         </button>
       </div>
-    </div>
+      }
+    />
   );
 }

@@ -20,7 +20,7 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
         </span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="data-table">
           <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-700">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Child</th>

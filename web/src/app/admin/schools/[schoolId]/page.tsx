@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAdminSchoolDetail } from '@/hooks/useAdminSchoolDetail';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHero, SectionCard } from '@/components/ui';
 
 export default function AdminSchoolOverviewPage() {
   const params = useParams();
@@ -36,36 +37,25 @@ export default function AdminSchoolOverviewPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link
-            href="/admin/schools"
-            className="text-primary-600 dark:text-primary-400 hover:underline text-sm font-medium"
-          >
-            ← Back to schools
-          </Link>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
-            {school.name}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Overview
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="btn-secondary shrink-0"
-        >
-          Refresh
-        </button>
-      </div>
+      <PageHero
+        variant="full"
+        backHref="/admin/schools"
+        backLabel="Schools"
+        title={<span className="text-gradient-warm">{school.name}</span>}
+        subtitle="Overview"
+        actions={
+          <button type="button" onClick={() => refetch()} className="btn-secondary shrink-0">
+            Refresh
+          </button>
+        }
+      />
 
       {/* School information */}
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
           School information
         </h2>
-        <div className="card overflow-hidden p-6">
+        <SectionCard topBar="primary" padding="default">
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             <div>
               <dt className="text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">Name</dt>
@@ -124,7 +114,7 @@ export default function AdminSchoolOverviewPage() {
               </div>
             )}
           </dl>
-        </div>
+        </SectionCard>
       </section>
 
       {/* Links to Teachers, Classes, Children, Reports */}

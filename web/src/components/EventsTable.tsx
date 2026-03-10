@@ -57,21 +57,23 @@ export function EventsTable({
                   {ev.description ? ev.description.replace(/\s+/g, ' ').trim().slice(0, 60) + (ev.description.length > 60 ? '…' : '') : '—'}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
-                  {variant === 'upcoming' && (
-                    <Link
-                      href={`/principal/events/${ev.id}/rsvps`}
-                      className="text-sm text-primary-600 dark:text-primary-400 hover:underline mr-3"
+                  <div className="flex items-center justify-end gap-2">
+                    {variant === 'upcoming' && (
+                      <Link
+                        href={`/principal/events/${ev.id}/rsvps`}
+                        className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                      >
+                        RSVPs{ev.parentResponses && Object.keys(ev.parentResponses).length > 0 ? ` (${Object.keys(ev.parentResponses).length})` : ''}
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onEdit(ev)}
+                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     >
-                      RSVPs{ev.parentResponses && Object.keys(ev.parentResponses).length > 0 ? ` (${Object.keys(ev.parentResponses).length})` : ''}
-                    </Link>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onEdit(ev)}
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                  >
-                    Edit
-                  </button>
+                      Edit
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -122,6 +122,7 @@ export default function ChildDetailPage() {
         childName={child?.name}
         maxParents={parentManagement.maxParents}
         parents={parents}
+        getParentProfileHref={(p) => `/principal/parents/${p.uid}`}
         canInviteMore={parentManagement.canInviteMore}
         showInviteParent={parentManagement.showInviteParent}
         setShowInviteParent={parentManagement.setShowInviteParent}

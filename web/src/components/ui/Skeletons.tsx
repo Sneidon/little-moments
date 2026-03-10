@@ -2,11 +2,11 @@
 
 const pulse = 'animate-pulse rounded bg-slate-200 dark:bg-slate-600';
 
-/** Filter/search bar placeholder: single block. Use inside SectionCard. */
+/** Filter/search bar placeholder: reserves space only (no skeleton). Use inside SectionCard. */
 export function FilterSkeleton({ className = '' }: { className?: string } = {}) {
   return (
     <div
-      className={`min-h-[3.5rem] ${pulse} ${className}`}
+      className={`min-h-[3.5rem] ${className}`}
       role="status"
       aria-label="Loading filters"
     />

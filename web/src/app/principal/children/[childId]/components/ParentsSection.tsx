@@ -1,6 +1,20 @@
+import Link from 'next/link';
 import type { UserProfile } from 'shared/types';
 import type { InviteFormState, EditFormState, InviteStep } from '@/hooks/useParentsManagement';
 import { SectionCard } from '@/components/ui';
+import { IconMail, IconPhone, IconUser } from '@/components/icons/AdminIcons';
+
+function getInitials(p: UserProfile): string {
+  const name = (p.displayName ?? '').trim();
+  if (name.length >= 2) {
+    const parts = name.split(/\s+/);
+    if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+  const email = (p.email ?? '').trim();
+  if (email.length >= 1) return email[0].toUpperCase();
+  return '?';
+}
 
 export interface ParentsSectionProps {
   childName?: string;
@@ -8,6 +22,8 @@ export interface ParentsSectionProps {
   parents: UserProfile[];
   /** When true, only show the list of parents (no invite/edit). Used for admin read-only view. */
   readOnly?: boolean;
+  /** When provided, each parent card shows a "View profile" link to this URL (e.g. principal parent detail). */
+  getParentProfileHref?: (parent: UserProfile) => string;
   canInviteMore?: boolean;
   showInviteParent?: boolean;
   setShowInviteParent?: (show: boolean) => void;
@@ -37,6 +53,7 @@ export function ParentsSection({
   maxParents,
   parents,
   readOnly = false,
+  getParentProfileHref,
   canInviteMore = false,
   showInviteParent = false,
   setShowInviteParent,
@@ -73,6 +90,75 @@ export function ParentsSection({
 
   const childLabel = childName ? ` to ${childName}` : ' to this child';
 
+  const parentCardContent = (p: UserProfile, isReadOnly: boolean) => (
+    <>
+      <div className="flex shrink-0 items-center justify-center h-11 w-11 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 text-sm font-semibold">
+        {p.photoURL ? (
+          <img src={p.photoURL} alt="" className="h-11 w-11 rounded-full object-cover" />
+        ) : (
+          getInitials(p)
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-slate-800 dark:text-slate-100">{p.displayName ?? '—'}</span>
+          <span
+            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              p.isActive !== false
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+            }`}
+          >
+            {p.isActive !== false ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+        <div className="mt-1.5 flex flex-col gap-0.5 text-sm text-slate-600 dark:text-slate-300">
+          <span className="flex items-center gap-2">
+            <IconMail className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+            <a href={`mailto:${p.email}`} className="text-primary-600 dark:text-primary-400 hover:underline truncate">
+              {p.email}
+            </a>
+          </span>
+          {p.phone ? (
+            <span className="flex items-center gap-2">
+              <IconPhone className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+              <a href={`tel:${p.phone}`} className="text-primary-600 dark:text-primary-400 hover:underline">
+                {p.phone}
+              </a>
+            </span>
+          ) : (
+            <span className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
+              <IconPhone className="h-4 w-4 shrink-0" />
+              No phone
+            </span>
+          )}
+        </div>
+      </div>
+      {!isReadOnly && (onStartEditParent || getParentProfileHref) && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {getParentProfileHref?.(p) && (
+            <Link
+              href={getParentProfileHref(p)}
+              className="btn-secondary text-sm py-1.5 px-3 inline-flex items-center gap-1.5"
+            >
+              <IconUser className="h-4 w-4" />
+              View profile
+            </Link>
+          )}
+          {onStartEditParent && (
+            <button
+              type="button"
+              onClick={() => onStartEditParent(p)}
+              className="btn-secondary text-sm py-1.5 px-3"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+
   if (readOnly) {
     return (
       <SectionCard topBar="warm" padding="default" className="mb-8">
@@ -83,35 +169,13 @@ export function ParentsSection({
         {parents.length === 0 ? (
           <p className="text-slate-500 dark:text-slate-400">No parents linked.</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-4">
             {parents.map((p) => (
               <li
                 key={p.uid}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-3"
+                className="flex flex-wrap items-start gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-slate-800 dark:text-slate-100">{p.displayName ?? '—'}</span>
-                  <span className="text-slate-600 dark:text-slate-300 text-sm">{p.email}</span>
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      p.isActive !== false
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
-                    }`}
-                  >
-                    {p.isActive !== false ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-                {p.phone ? (
-                  <a
-                    href={`tel:${p.phone}`}
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                  >
-                    {p.phone}
-                  </a>
-                ) : (
-                  <span className="text-sm text-slate-400 dark:text-slate-500">No phone</span>
-                )}
+                {parentCardContent(p, true)}
               </li>
             ))}
           </ul>
@@ -140,44 +204,13 @@ export function ParentsSection({
       )}
 
       {parents.length > 0 && (
-        <ul className="mb-6 space-y-3">
+        <ul className="mb-6 space-y-4">
           {parents.map((p) => (
             <li
               key={p.uid}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-3"
+              className="flex flex-wrap items-start gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium text-slate-800 dark:text-slate-100">{p.displayName ?? '—'}</span>
-                <span className="text-slate-600 dark:text-slate-300 text-sm">{p.email}</span>
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    p.isActive !== false
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
-                  }`}
-                >
-                  {p.isActive !== false ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                {p.phone ? (
-                  <a
-                    href={`tel:${p.phone}`}
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                  >
-                    {p.phone}
-                  </a>
-                ) : (
-                  <span className="text-sm text-slate-400 dark:text-slate-500">No phone</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onStartEditParent?.(p)}
-                  className="btn-secondary text-sm py-1.5 px-3"
-                >
-                  Edit
-                </button>
-              </div>
+              {parentCardContent(p, false)}
             </li>
           ))}
         </ul>

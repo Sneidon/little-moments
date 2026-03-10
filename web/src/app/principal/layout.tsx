@@ -112,7 +112,7 @@ export default function PrincipalLayout({
   return (
     <div className="relative flex min-h-screen bg-warm-50 dark:bg-slate-900">
       <div className="fixed inset-0 z-0 bg-pattern-dots opacity-30 pointer-events-none dark:opacity-20" aria-hidden />
-      <header className="fixed top-0 left-0 right-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none sm:px-6">
+      <header className="fixed top-0 left-0 right-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none sm:px-6 lg:left-6 lg:right-6 lg:rounded-b-card lg:border lg:border-t-0 lg:border-slate-200 lg:shadow-xl dark:lg:border-slate-700">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             type="button"
@@ -155,10 +155,10 @@ export default function PrincipalLayout({
       )}
       <aside
         className={`
-          fixed left-0 top-[4.5rem] bottom-0 z-50 flex w-64 flex-col border border-slate-200/80 bg-white
+          fixed left-0 top-14 bottom-0 z-50 flex w-64 flex-col border border-slate-200/80 bg-white
           dark:border-slate-700 dark:bg-slate-800/95
           transition-transform duration-250 ease-smooth
-          lg:left-4 lg:bottom-4 lg:top-[4.5rem] lg:h-[calc(100vh-4.5rem-1rem)] lg:w-64
+          lg:left-6 lg:bottom-4 lg:top-[calc(3.5rem+1rem)] lg:h-[calc(100vh-3.5rem-1rem-1rem)] lg:w-64
           lg:rounded-card lg:shadow-xl lg:border-slate-200 dark:lg:border-slate-700
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
@@ -211,7 +211,7 @@ export default function PrincipalLayout({
           </div>
         </nav>
       </aside>
-      <div className="flex min-h-screen flex-1 flex-col pt-14 lg:ml-[calc(16rem+1rem)]">
+      <div className="flex min-h-screen flex-1 flex-col pt-14 lg:ml-[calc(16rem+1rem+0.5rem)]">
         <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>

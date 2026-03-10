@@ -11,7 +11,7 @@ interface ReportsTableProps {
 
 export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
+    <div className="overflow-hidden rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-800/80 px-4 py-3">
         <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
           {rows.length === 0

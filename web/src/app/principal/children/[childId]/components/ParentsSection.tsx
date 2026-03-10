@@ -173,7 +173,7 @@ export function ParentsSection({
             {parents.map((p) => (
               <li
                 key={p.uid}
-                className="flex flex-wrap items-start gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
+                className="flex flex-wrap items-start gap-4 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
               >
                 {parentCardContent(p, true)}
               </li>
@@ -192,7 +192,7 @@ export function ParentsSection({
       </p>
 
       {parents.length === 0 && !showInviteParent && canInviteMore && (
-        <div className="mb-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/30 py-8 px-4 text-center">
+        <div className="mb-6 rounded-card border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/30 py-8 px-4 text-center">
           <p className="text-slate-600 dark:text-slate-300">No parents linked yet.</p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Invite a parent so they can sign in and view this child&apos;s daily activities.
@@ -208,7 +208,7 @@ export function ParentsSection({
           {parents.map((p) => (
             <li
               key={p.uid}
-              className="flex flex-wrap items-start gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
+              className="flex flex-wrap items-start gap-4 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
             >
               {parentCardContent(p, false)}
             </li>
@@ -219,7 +219,7 @@ export function ParentsSection({
       {editingParentUid ? (
         <form
           onSubmit={(e) => onUpdateParentSubmit?.(e)}
-          className="mb-6 max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
+          className="mb-6 max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
         >
           <h3 className="font-medium text-slate-800 dark:text-slate-100">Edit parent</h3>
           {editParentError ? (
@@ -282,7 +282,7 @@ export function ParentsSection({
           ) : inviteStep === 'email' ? (
             <form
               onSubmit={(e) => onCheckEmail?.(e)}
-              className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
+              className="max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
             >
               <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Step 1</h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -314,7 +314,7 @@ export function ParentsSection({
           ) : inviteStep === 'link' ? (
             <form
               onSubmit={(e) => onInviteSubmit?.(e)}
-              className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
+              className="max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
             >
               <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Link existing account</h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -360,7 +360,7 @@ export function ParentsSection({
           ) : (
             <form
               onSubmit={(e) => onInviteSubmit?.(e)}
-              className="max-w-md space-y-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
+              className="max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
             >
               <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Create account</h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">

@@ -125,7 +125,7 @@ export default function AdminLayout({
           dark:border-slate-700 dark:bg-slate-800/95
           transition-transform duration-250 ease-smooth
           lg:left-4 lg:bottom-4 lg:top-[4.5rem] lg:h-[calc(100vh-4.5rem-1rem)] lg:w-64
-          lg:rounded-2xl lg:shadow-xl lg:border-slate-200 dark:lg:border-slate-700
+          lg:rounded-card lg:shadow-xl lg:border-slate-200 dark:lg:border-slate-700
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}
@@ -142,7 +142,7 @@ export default function AdminLayout({
             </svg>
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 lg:rounded-b-2xl lg:pt-3" aria-label="Main">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 lg:rounded-b-card lg:pt-3" aria-label="Main">
           <div className="flex flex-col gap-5">
             {navSections.map((section) => (
               <div key={section.title}>

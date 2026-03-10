@@ -2,8 +2,9 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { doc, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/config/firebase';
+import { auth, db } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import { HeartIcon } from '@/components/HeartIcon';
@@ -27,7 +28,7 @@ import {
 
 const navSections: { title: string; links: { href: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] }[] = [
   {
-    title: 'Overview',
+    title: '',
     links: [{ href: '/principal', label: 'Dashboard', Icon: IconDashboard }],
   },
   {
@@ -72,6 +73,18 @@ export default function PrincipalLayout({
   const pathname = usePathname();
   const { user, profile, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [schoolName, setSchoolName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profile?.schoolId) return;
+    let cancelled = false;
+    getDoc(doc(db, 'schools', profile.schoolId)).then((snap) => {
+      if (cancelled || !snap.exists()) return;
+      const name = (snap.data() as { name?: string }).name;
+      if (name) setSchoolName(name);
+    });
+    return () => { cancelled = true; };
+  }, [profile?.schoolId]);
 
   useEffect(() => {
     if (loading) return;
@@ -115,7 +128,9 @@ export default function PrincipalLayout({
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/50 dark:to-accent-900/30">
               <HeartIcon size={18} className="text-primary-600 dark:text-primary-400" aria-hidden />
             </div>
-            <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">My Little Moments</span>
+            <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100" title={schoolName ?? undefined}>
+              {schoolName ?? 'My Little Moments'}
+            </span>
           </Link>
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300 lg:sr-only">
             Principal
@@ -144,7 +159,7 @@ export default function PrincipalLayout({
           dark:border-slate-700 dark:bg-slate-800/95
           transition-transform duration-250 ease-smooth
           lg:left-4 lg:bottom-4 lg:top-[4.5rem] lg:h-[calc(100vh-4.5rem-1rem)] lg:w-64
-          lg:rounded-2xl lg:shadow-xl lg:border-slate-200 dark:lg:border-slate-700
+          lg:rounded-card lg:shadow-xl lg:border-slate-200 dark:lg:border-slate-700
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}
@@ -161,7 +176,7 @@ export default function PrincipalLayout({
             </svg>
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 lg:rounded-b-2xl lg:pt-3" aria-label="Main">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 lg:rounded-b-card lg:pt-3" aria-label="Main">
           <div className="flex flex-col gap-5">
             {navSections.map((section) => (
               <div key={section.title}>

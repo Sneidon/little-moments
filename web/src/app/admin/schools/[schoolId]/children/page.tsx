@@ -68,7 +68,7 @@ export default function AdminSchoolChildrenPage() {
         <Link href="/admin/schools" className="text-primary-600 dark:text-primary-400 hover:underline text-sm font-medium">
           ← Back to schools
         </Link>
-        <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
+        <div className="mt-6 rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
           <p className="text-slate-600 dark:text-slate-300">{error ?? 'School not found.'}</p>
         </div>
       </div>

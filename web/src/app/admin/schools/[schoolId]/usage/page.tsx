@@ -86,7 +86,7 @@ export default function AdminSchoolUsagePage() {
         >
           ← Back to Usage & analytics
         </Link>
-        <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
+        <div className="mt-6 rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
           <p className="text-slate-600 dark:text-slate-300">{error}</p>
         </div>
       </div>

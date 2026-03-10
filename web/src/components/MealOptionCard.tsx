@@ -10,7 +10,7 @@ export interface MealOptionCardProps {
 
 export function MealOptionCard({ option, onEdit, onDelete }: MealOptionCardProps) {
   return (
-    <div className="flex gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
+    <div className="flex gap-4 rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
       {option.imageUrl ? (
         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-700">
           <img

@@ -7,7 +7,7 @@ export default function SupportPage() {
   return (
     <div className="animate-fade-in mx-auto max-w-xl">
       <PageHero variant="full" title={<span className="text-gradient-warm">Contact support</span>} className="mb-6" />
-      <div className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
+      <div className="rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
         <p className="text-slate-600 dark:text-slate-300">
           For technical support or questions about My Little Moments, please contact:
         </p>

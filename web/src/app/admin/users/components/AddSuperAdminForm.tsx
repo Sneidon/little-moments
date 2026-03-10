@@ -24,7 +24,7 @@ export function AddSuperAdminForm({
   onCancel,
 }: AddSuperAdminFormProps) {
   return (
-    <form onSubmit={onSubmit} className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
+    <form onSubmit={onSubmit} className="mb-8 rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
       <h2 className="mb-5 text-lg font-semibold text-slate-800 dark:text-slate-100">Add super admin</h2>
       {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
       <div className="grid gap-4 sm:grid-cols-2">

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { School } from 'shared/types';
-import { PageHero, SectionCard, CardSkeleton } from '@/components/ui';
+import { PageHero, SchoolSettingsSkeleton } from '@/components/ui';
 
 export default function PrincipalSettingsPage() {
   const { profile } = useAuth();
@@ -64,9 +64,7 @@ export default function PrincipalSettingsPage() {
     return (
       <div className="animate-fade-in">
         <PageHero variant="full" title={<span className="text-gradient-warm">School settings</span>} subtitle="Update your school details" />
-        <SectionCard topBar="accent" padding="default">
-          <CardSkeleton />
-        </SectionCard>
+        <SchoolSettingsSkeleton />
       </div>
     );
   }
@@ -132,6 +130,20 @@ export default function PrincipalSettingsPage() {
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <button type="submit" disabled={submitting} className="btn-primary">
             {submitting ? 'Saving…' : 'Save changes'}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setForm({
+                name: school.name ?? '',
+                address: school.address ?? '',
+                contactEmail: school.contactEmail ?? '',
+                contactPhone: school.contactPhone ?? '',
+              })
+            }
+            className="btn-secondary"
+          >
+            Cancel
           </button>
           {saved && (
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 dark:text-green-400" role="status">

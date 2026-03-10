@@ -15,7 +15,7 @@ export default function AdminFAQPage() {
       <PageHero variant="full" title={<span className="text-gradient-warm">Frequently asked questions</span>} className="mb-8" />
       <div className="space-y-6">
         {FAQ_ITEMS.map((item, i) => (
-          <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4">
+          <div key={i} className="rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4">
             <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.q}</h2>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{item.a}</p>
           </div>

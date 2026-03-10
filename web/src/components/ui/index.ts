@@ -4,4 +4,4 @@ export type { TopBarVariant } from './SectionCard';
 export { QuickActionLink } from './QuickActionLink';
 export { SectionHeading } from './SectionHeading';
 export { StatCard } from './StatCard';
-export { TableSkeleton, CardSkeleton, StatCardSkeleton, FilterSkeleton } from './Skeletons';
+export { TableSkeleton, CardSkeleton, StatCardSkeleton, FilterSkeleton, SchoolSettingsSkeleton } from './Skeletons';

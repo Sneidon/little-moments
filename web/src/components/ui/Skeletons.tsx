@@ -41,3 +41,14 @@ export function StatCardSkeleton({ className = '' }: { className?: string } = {}
     <div className={`rounded-card border border-slate-200 dark:border-slate-600 p-5 ${pulse} h-[180px] ${className}`} role="status" aria-label="Loading" />
   );
 }
+
+/** School settings placeholder: single block, same card size and border radius. */
+export function SchoolSettingsSkeleton({ className = '' }: { className?: string } = {}) {
+  return (
+    <div
+      className={`card max-w-xl min-h-[18rem] rounded-card animate-pulse bg-slate-200 dark:bg-slate-600 ${className}`}
+      role="status"
+      aria-label="Loading school settings"
+    />
+  );
+}

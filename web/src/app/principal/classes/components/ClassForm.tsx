@@ -31,7 +31,7 @@ export function ClassForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
+      className="mb-8 rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm"
     >
       <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
         {editingId ? 'Edit class' : 'New class'}

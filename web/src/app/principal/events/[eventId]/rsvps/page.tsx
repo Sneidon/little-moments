@@ -150,11 +150,11 @@ export default function EventRsvpsPage() {
           <TableSkeleton rows={6} cols={3} />
         </SectionCard>
       ) : entries.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 px-6 py-12 text-center">
+        <div className="rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 px-6 py-12 text-center">
           <p className="text-slate-600 dark:text-slate-400">No RSVPs yet</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800">
+        <div className="overflow-hidden rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800">
           <ul className="divide-y divide-slate-200 dark:divide-slate-600">
             {entries.map((entry) => (
               <li

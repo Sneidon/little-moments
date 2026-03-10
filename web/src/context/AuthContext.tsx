@@ -11,6 +11,7 @@ interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -54,8 +55,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
+  const refreshProfile = React.useCallback(async () => {
+    const u = auth.currentUser;
+    if (!u) return;
+    try {
+      const snap = await getDoc(doc(db, 'users', u.uid));
+      if (snap.exists()) {
+        const profileData = { uid: u.uid, ...snap.data() } as UserProfile;
+        setProfile(profileData);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading }}>
+    <AuthContext.Provider value={{ user, profile, loading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

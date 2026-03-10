@@ -2,6 +2,17 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/config/firebase';
 
 /**
+ * Upload user avatar. Path: users/{uid}/avatar.{ext}
+ */
+export async function uploadUserAvatar(file: File, uid: string): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `users/${uid}/avatar.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type || 'image/jpeg' });
+  return getDownloadURL(storageRef);
+}
+
+/**
  * Upload a file to Firebase Storage and return the download URL.
  * Path: schools/{schoolId}/mealOptions/{optionId}.jpg
  */

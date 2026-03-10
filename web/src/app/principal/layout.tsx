@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { HeartIcon } from '@/components/HeartIcon';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserMenu } from '@/components/UserMenu';
 import {
   IconDashboard,
   IconChild,
@@ -108,23 +109,21 @@ export default function PrincipalLayout({
       )}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200/80 bg-white shadow-xl
-          dark:border-slate-700 dark:bg-slate-800/95 dark:shadow-none
-          transition-transform duration-250 ease-smooth lg:static lg:translate-x-0
+          fixed inset-y-0 left-0 z-50 flex w-64 flex-col border border-slate-200/80 bg-white
+          dark:border-slate-700 dark:bg-slate-800/95
+          transition-transform duration-250 ease-smooth
+          lg:left-4 lg:right-auto lg:top-4 lg:bottom-4 lg:h-[calc(100vh-2rem)] lg:w-64
+          lg:rounded-2xl lg:shadow-xl lg:border-slate-200 dark:lg:border-slate-700
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
         `}
       >
-        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 pl-4 pr-3 dark:border-slate-700">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-100 to-accent-100 shadow-sm dark:from-primary-900/50 dark:to-accent-900/30">
-              <HeartIcon size={22} className="text-primary-600 dark:text-primary-400" aria-hidden />
+        <div className="flex h-14 shrink-0 items-center justify-between gap-2 rounded-t-2xl border-b border-slate-200/80 pl-3 pr-2 dark:border-slate-700 lg:rounded-t-2xl">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/50 dark:to-accent-900/30">
+              <HeartIcon size={18} className="text-primary-600 dark:text-primary-400" aria-hidden />
             </div>
-            <div className="min-w-0">
-              <span className="block truncate font-semibold text-slate-800 dark:text-slate-100">My Little Moments</span>
-              <span className="mt-0.5 inline-block rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-medium text-accent-700 dark:bg-accent-900/40 dark:text-accent-300">
-                Principal
-              </span>
-            </div>
+            <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">My Little Moments</span>
           </div>
           <button
             type="button"
@@ -137,7 +136,7 @@ export default function PrincipalLayout({
             </svg>
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto p-3" aria-label="Main">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 lg:rounded-b-2xl" aria-label="Main">
           <div className="flex flex-col gap-5">
             {navSections.map((section) => (
               <div key={section.title}>
@@ -171,20 +170,8 @@ export default function PrincipalLayout({
             ))}
           </div>
         </nav>
-        <div className="shrink-0 border-t border-slate-200 p-3 dark:border-slate-700">
-          <p className="truncate px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400" title={profile.displayName ?? ''}>
-            {profile.displayName}
-          </p>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-          >
-            Sign out
-          </button>
-        </div>
       </aside>
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen flex-1 flex-col lg:ml-[calc(16rem+1rem)]">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 shadow-header backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-none sm:px-6">
           <div className="flex items-center gap-2">
             <button
@@ -201,7 +188,14 @@ export default function PrincipalLayout({
               Principal
             </span>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <UserMenu
+              profile={profile}
+              profileHref="/principal/profile"
+              onSignOut={handleSignOut}
+            />
+          </div>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">{children}</main>
       </div>

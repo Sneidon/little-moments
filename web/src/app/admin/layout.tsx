@@ -121,16 +121,16 @@ export default function AdminLayout({
       )}
       <aside
         className={`
-          fixed left-0 top-14 bottom-0 z-50 flex w-64 flex-col border border-slate-200/80 bg-white
+          fixed left-0 top-0 bottom-0 z-50 flex w-64 max-w-[85vw] flex-col border-r border-slate-200/80 bg-white shadow-xl
           dark:border-slate-700 dark:bg-slate-800/95
           transition-transform duration-250 ease-smooth
-          lg:left-6 lg:bottom-4 lg:top-[calc(3.5rem+1rem)] lg:h-[calc(100vh-3.5rem-1rem-1rem)] lg:w-64
-          lg:rounded-card lg:shadow-xl lg:border-slate-200 dark:lg:border-slate-700
+          lg:left-6 lg:bottom-4 lg:top-[calc(3.5rem+1rem)] lg:h-[calc(100vh-3.5rem-1rem-1rem)] lg:w-64 lg:max-w-none
+          lg:rounded-card lg:shadow-xl lg:border lg:border-slate-200 dark:lg:border-slate-700
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}
       >
-        <div className="flex h-12 shrink-0 items-center justify-end border-b border-slate-200/80 px-2 dark:border-slate-700 lg:hidden">
+        <div className="flex shrink-0 items-center justify-end border-b border-slate-200/80 px-3 py-2 pt-4 dark:border-slate-700 lg:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}

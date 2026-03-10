@@ -20,13 +20,15 @@ export interface ExportReportsPdfOptions {
   classDisplay?: (classId: string) => string;
   title?: string;
   filtersApplied?: string;
+  /** School name for header/footer when applicable */
+  schoolName?: string;
 }
 
 export function exportReportsToPdf(
   rows: ReportRow[],
   options: ExportReportsPdfOptions = {}
 ): void {
-  const { includeClass = true, classDisplay = (id) => id, title = 'Reports', filtersApplied } = options;
+  const { includeClass = true, classDisplay = (id) => id, title = 'Reports', filtersApplied, schoolName } = options;
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const margin = PDF_MARGIN.portrait;
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -76,6 +78,7 @@ export function exportReportsToPdf(
     })} · ${rows.length} ${rows.length === 1 ? 'report' : 'reports'}`,
     margin,
     startY: margin,
+    schoolName,
   });
 
   autoTable(doc, {
@@ -96,7 +99,8 @@ export function exportReportsToPdf(
       doc,
       margin,
       pageHeight,
-      pageCount > 1 ? `Reports · Page ${p} of ${pageCount}` : 'Reports'
+      pageCount > 1 ? `Reports · Page ${p} of ${pageCount}` : 'Reports',
+      { schoolName }
     );
   }
 

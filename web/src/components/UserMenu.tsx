@@ -83,7 +83,7 @@ export function UserMenu({ profile, profileHref, onSignOut }: UserMenuProps) {
       </button>
       {open && (
         <div
-          className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl bg-white py-3 shadow-xl animate-fade-in dark:bg-slate-800"
+          className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white py-3 shadow-xl animate-fade-in dark:border-slate-600 dark:bg-slate-800"
           role="menu"
         >
           <div className="px-4 pb-3">

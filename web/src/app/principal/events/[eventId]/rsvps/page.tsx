@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useEvent } from '@/hooks/useEvent';
 import { useEventRSVPs } from '@/hooks/useEventRSVPs';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import { downloadEventRsvpsCsv } from '@/lib/exportEventRsvpsCsv';
 import { exportEventRsvpsToExcel } from '@/lib/exportEventRsvpsExcel';
 import { exportEventRsvpsToPdf } from '@/lib/exportEventRsvpsPdf';
@@ -17,6 +18,7 @@ export default function EventRsvpsPage() {
   const eventId = params?.eventId as string;
   const { profile } = useAuth();
   const schoolId = profile?.schoolId;
+  const schoolName = useSchoolName(schoolId);
 
   const { event, loading: eventLoading } = useEvent(schoolId, eventId);
   const { entries, loading: rsvpsLoading } = useEventRSVPs(
@@ -68,7 +70,7 @@ export default function EventRsvpsPage() {
   };
 
   const handleExportPdf = () => {
-    exportEventRsvpsToPdf(entries, event.title, eventDate);
+    exportEventRsvpsToPdf(entries, event.title, eventDate, { schoolName: schoolName ?? undefined });
     setExportOpen(false);
   };
 

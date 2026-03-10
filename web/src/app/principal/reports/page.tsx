@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useReportsPage } from '@/hooks/useReportsPage';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import {
   ReportsPageHeader,
   ReportsFilters,
@@ -11,6 +12,7 @@ import { SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 
 export default function ReportsPage() {
   const { profile } = useAuth();
+  const schoolName = useSchoolName(profile?.schoolId);
   const {
     classes,
     filteredReports,
@@ -39,6 +41,7 @@ export default function ReportsPage() {
         filters={filters}
         showClassColumn={showClassColumn}
         classDisplay={classDisplay}
+        schoolName={schoolName ?? undefined}
       />
       {loading ? (
         <>

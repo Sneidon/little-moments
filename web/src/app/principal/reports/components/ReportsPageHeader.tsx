@@ -13,6 +13,7 @@ interface ReportsPageHeaderProps {
   filters: ReportsFiltersState;
   showClassColumn: boolean;
   classDisplay: (id: string) => string;
+  schoolName?: string;
 }
 
 export function ReportsPageHeader({
@@ -20,6 +21,7 @@ export function ReportsPageHeader({
   filters,
   showClassColumn,
   classDisplay,
+  schoolName,
 }: ReportsPageHeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -60,6 +62,7 @@ export function ReportsPageHeader({
       includeClass: showClassColumn,
       classDisplay,
       filtersApplied,
+      schoolName,
     });
     setExportOpen(false);
   };

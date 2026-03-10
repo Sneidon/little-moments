@@ -34,6 +34,8 @@ export interface ExportChildDetailsOptions {
   parents: UserProfile[];
   reports: DailyReport[];
   classDisplay: ClassDisplayFn;
+  /** School name for header/footer when applicable */
+  schoolName?: string;
   /** Which sections to include. Defaults to all true. */
   include?: ExportChildDetailsInclude;
 }
@@ -45,7 +47,7 @@ const DEFAULT_CHILD_INCLUDE: Required<ExportChildDetailsInclude> = {
 };
 
 export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): void {
-  const { child, classes, parents, reports, classDisplay } = options;
+  const { child, classes, parents, reports, classDisplay, schoolName } = options;
   const inc = { ...DEFAULT_CHILD_INCLUDE, ...options.include };
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const margin = PDF_MARGIN.portrait;
@@ -59,6 +61,7 @@ export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): voi
     meta: `Exported on ${new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`,
     margin,
     startY: margin,
+    schoolName,
   });
 
   if (inc.profile) {
@@ -98,7 +101,7 @@ export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): voi
 
   if (inc.parents && parents.length > 0) {
     if (y > 240) {
-      pdfAddFooter(doc, margin, pageHeight, footerRight);
+      pdfAddFooter(doc, margin, pageHeight, footerRight, { schoolName });
       doc.addPage();
       y = margin;
     }
@@ -123,7 +126,7 @@ export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): voi
 
   if (inc.activitySummary) {
   if (y > 250) {
-    pdfAddFooter(doc, margin, pageHeight, footerRight);
+    pdfAddFooter(doc, margin, pageHeight, footerRight, { schoolName });
     doc.addPage();
     y = margin;
   }
@@ -141,7 +144,7 @@ export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): voi
   }
   }
 
-  pdfAddFooter(doc, margin, pageHeight, footerRight);
+  pdfAddFooter(doc, margin, pageHeight, footerRight, { schoolName });
   const filename = `child-details-${child.name.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(filename);
 }

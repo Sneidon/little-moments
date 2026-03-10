@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { useClassDetail, type ClassReportRow } from '@/hooks/useClassDetail';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import { getTeacherDisplayName } from '@/lib/teachers';
 import { getReportsForDay, getDaysWithActivity } from '@/lib/reports';
 import { formatClassDisplay } from '@/lib/formatClass';
@@ -25,6 +26,7 @@ export default function AdminSchoolClassDetailPage() {
   const params = useParams();
   const schoolId = typeof params?.schoolId === 'string' ? params.schoolId : undefined;
   const classId = typeof params?.classId === 'string' ? params.classId : undefined;
+  const schoolName = useSchoolName(schoolId);
   const { classRoom, children, teachers, reports, loading } = useClassDetail(
     schoolId,
     classId,
@@ -58,13 +60,14 @@ export default function AdminSchoolClassDetailPage() {
         filterDay,
         reportsForDay,
         classDisplayName,
+        schoolName: schoolName ?? undefined,
         include: {
           children: set.has('children'),
           activities: set.has('activities'),
         },
       });
     },
-    [classRoom, children, filterDay, reportsForDay, assignedTeacherNameStr, classDisplayName]
+    [classRoom, children, filterDay, reportsForDay, assignedTeacherNameStr, classDisplayName, schoolName]
   );
 
   const handleExportCsv = useCallback(() => {

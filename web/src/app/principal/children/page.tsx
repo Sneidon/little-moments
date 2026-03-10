@@ -16,6 +16,7 @@ import {
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
 import { exportChildrenToPdf } from '@/lib/exportChildrenPdf';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import { exportChildrenToCsv } from '@/lib/exportChildrenCsv';
 import { exportChildrenToExcel } from '@/lib/exportChildrenExcel';
 import type { Child } from 'shared/types';
@@ -24,6 +25,7 @@ import { PageHero, SectionCard, TableSkeleton, FilterSkeleton } from '@/componen
 
 export default function ChildrenPage() {
   const { profile } = useAuth();
+  const schoolName = useSchoolName(profile?.schoolId);
   const searchParams = useSearchParams();
   const [children, setChildren] = useState<Child[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
@@ -196,6 +198,7 @@ export default function ChildrenPage() {
         onProgress: (msg) => {
           if (!msg) setExportingPdf(false);
         },
+        schoolName: schoolName ?? undefined,
       });
     } catch (e) {
       console.error(e);

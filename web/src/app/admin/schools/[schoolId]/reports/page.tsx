@@ -75,6 +75,7 @@ export default function AdminSchoolReportsPage() {
         filters={filters}
         showClassColumn={showClassColumn}
         classDisplay={classDisplay}
+        schoolName={school?.name}
       />
       {loading ? (
         <>

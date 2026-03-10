@@ -43,6 +43,7 @@ export default function AdminSchoolChildrenPage() {
         onProgress: (msg) => {
           if (!msg) setExportingPdf(false);
         },
+        schoolName: school?.name,
       });
     } catch (e) {
       console.error(e);

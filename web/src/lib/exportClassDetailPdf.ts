@@ -34,6 +34,8 @@ export interface ExportClassDetailOptions {
   filterDay: string;
   reportsForDay: ClassReportRow[];
   classDisplayName: string;
+  /** School name for header/footer when applicable */
+  schoolName?: string;
   /** Which sections to include. Defaults to all true. */
   include?: ExportClassDetailInclude;
 }
@@ -51,6 +53,7 @@ export function exportClassDetailToPdf(options: ExportClassDetailOptions): void 
     filterDay,
     reportsForDay,
     classDisplayName,
+    schoolName,
   } = options;
   const inc = { ...DEFAULT_CLASS_INCLUDE, ...options.include };
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
@@ -69,6 +72,7 @@ export function exportClassDetailToPdf(options: ExportClassDetailOptions): void 
     })}`,
     margin,
     startY: margin,
+    schoolName,
   });
 
   if (inc.children) {
@@ -108,7 +112,7 @@ export function exportClassDetailToPdf(options: ExportClassDetailOptions): void 
 
   if (inc.activities) {
   if (y > 230) {
-    pdfAddFooter(doc, margin, pageHeight, footerRight);
+    pdfAddFooter(doc, margin, pageHeight, footerRight, { schoolName });
     doc.addPage();
     y = margin;
   }
@@ -153,7 +157,7 @@ export function exportClassDetailToPdf(options: ExportClassDetailOptions): void 
   }
   }
 
-  pdfAddFooter(doc, margin, pageHeight, footerRight);
+  pdfAddFooter(doc, margin, pageHeight, footerRight, { schoolName });
   const safeName = classDisplayName.replace(/\s+/g, '-').replace(/[()]/g, '');
   const filename = `class-${safeName}-${filterDay}.pdf`;
   doc.save(filename);

@@ -5,8 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useAnnouncementForm } from '@/hooks/useAnnouncementForm';
 import { useClasses } from '@/hooks/useClasses';
-import { AnnouncementCard } from '@/components/AnnouncementCard';
 import { AnnouncementForm } from '@/components/AnnouncementForm';
+import { AnnouncementsTable } from '@/components/AnnouncementsTable';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 export default function AnnouncementsPage() {
@@ -41,34 +41,16 @@ export default function AnnouncementsPage() {
 
       {form.showForm && <AnnouncementForm form={form} classes={classes} />}
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
-        Recent announcements
-      </h2>
       {loading ? (
         <SectionCard topBar="accent" padding="none">
           <TableSkeleton />
         </SectionCard>
       ) : (
-        <>
-          <div className="space-y-4">
-            {announcements.map((a) => (
-              <AnnouncementCard
-                key={a.id}
-                announcement={a}
-                classNamesMap={classNamesMap}
-                onEdit={() => form.openFormForEdit(a)}
-              />
-            ))}
-          </div>
-          {announcements.length === 0 && (
-            <div className="card py-12 text-center">
-              <p className="text-slate-500 dark:text-slate-400">No announcements yet.</p>
-              <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
-                Click &quot;Add announcement&quot; to get started.
-              </p>
-            </div>
-          )}
-        </>
+        <AnnouncementsTable
+          announcements={announcements}
+          classNamesMap={classNamesMap}
+          onEdit={form.openFormForEdit}
+        />
       )}
     </div>
   );

@@ -5,8 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useEvents } from '@/hooks/useEvents';
 import { useEventForm } from '@/hooks/useEventForm';
 import { useClasses } from '@/hooks/useClasses';
-import { EventCard } from '@/components/EventCard';
 import { EventForm } from '@/components/EventForm';
+import { EventsTable } from '@/components/EventsTable';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 export default function EventsPage() {
@@ -41,47 +41,24 @@ export default function EventsPage() {
 
       {form.showForm && <EventForm form={form} classes={classes} />}
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
-        Upcoming events
-      </h2>
       {loading ? (
         <SectionCard topBar="accent" padding="none">
           <TableSkeleton />
         </SectionCard>
       ) : (
         <>
-          <div className="mb-8 space-y-4">
-            {upcoming.map((ev) => (
-              <EventCard
-                key={ev.id}
-                event={ev}
-                variant="upcoming"
-                classNamesMap={classNamesMap}
-                onEdit={() => form.openFormForEdit(ev)}
-              />
-            ))}
-            {upcoming.length === 0 && (
-              <p className="text-slate-500 dark:text-slate-400">No upcoming events.</p>
-            )}
-          </div>
-
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
-            Past events
-          </h2>
-          <div className="space-y-4">
-            {past.slice(0, 20).map((ev) => (
-              <EventCard
-                key={ev.id}
-                event={ev}
-                variant="past"
-                classNamesMap={classNamesMap}
-                onEdit={() => form.openFormForEdit(ev)}
-              />
-            ))}
-            {past.length === 0 && (
-              <p className="text-slate-500 dark:text-slate-400">No past events.</p>
-            )}
-          </div>
+          <EventsTable
+            events={upcoming}
+            variant="upcoming"
+            classNamesMap={classNamesMap}
+            onEdit={form.openFormForEdit}
+          />
+          <EventsTable
+            events={past.slice(0, 20)}
+            variant="past"
+            classNamesMap={classNamesMap}
+            onEdit={form.openFormForEdit}
+          />
         </>
       )}
     </div>

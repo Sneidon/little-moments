@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { PageHero } from '@/components/ui';
 
 export default function AdminSupportPage() {
@@ -12,9 +11,6 @@ export default function AdminSupportPage() {
           For technical support: <a href="mailto:support@mylittlemoments.com" className="text-primary-600 dark:text-primary-400 hover:underline">support@mylittlemoments.com</a>. Response within 1–2 business days.
         </p>
       </div>
-      <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-        <Link href="/admin/faq" className="text-primary-600 dark:text-primary-400 hover:underline">View FAQ</Link>
-      </p>
     </div>
   );
 }

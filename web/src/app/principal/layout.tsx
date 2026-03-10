@@ -29,7 +29,7 @@ import {
 const navSections: { title: string; links: { href: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] }[] = [
   {
     title: '',
-    links: [{ href: '/principal', label: 'Dashboard', Icon: IconDashboard }],
+    links: [{ href: '/principal', label: 'Home', Icon: IconDashboard }],
   },
   {
     title: 'People',

@@ -49,6 +49,7 @@ export default function ChildrenPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [filterClassId, setFilterClassId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -186,9 +187,15 @@ export default function ChildrenPage() {
 
   const classDisplay = (id: string) => formatClassDisplay(classes.find((r) => r.id === id)) || id;
 
-  const filteredChildren = filterClassId
-    ? children.filter((c) => c.classId === filterClassId)
-    : children;
+  const filteredChildren = children
+    .filter((c) => (filterClassId ? c.classId === filterClassId : true))
+    .filter((c) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.trim().toLowerCase();
+      const name = (c.name ?? '').toLowerCase();
+      const preferred = (c.preferredName ?? '').toLowerCase();
+      return name.includes(q) || preferred.includes(q);
+    });
 
   const handleExportPdf = () => {
     setExportOpen(false);
@@ -459,10 +466,13 @@ export default function ChildrenPage() {
           <SectionCard topBar="accent" padding="default" className="mb-6">
             <div className="mb-3 flex items-center justify-between gap-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Filters</h2>
-              {filterClassId && (
+              {(filterClassId || searchQuery.trim()) && (
                 <button
                   type="button"
-                  onClick={() => setFilterClassId('')}
+                  onClick={() => {
+                    setFilterClassId('');
+                    setSearchQuery('');
+                  }}
                   className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                 >
                   Clear
@@ -481,7 +491,17 @@ export default function ChildrenPage() {
                   <option key={c.id} value={c.id}>{formatClassDisplay(c)}</option>
                 ))}
               </select>
-              {filterClassId && (
+              <label className="sr-only" htmlFor="children-search">Search by name</label>
+              <input
+                id="children-search"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name…"
+                className="input-base max-w-[200px]"
+                aria-label="Search children by name"
+              />
+              {(filterClassId || searchQuery.trim()) && (
                 <span className="text-sm text-slate-500 dark:text-slate-400">
                   {filteredChildren.length} of {children.length} children
                 </span>
@@ -542,10 +562,14 @@ export default function ChildrenPage() {
           {filteredChildren.length === 0 && (
             <div className="px-6 py-12 text-center">
               <p className="text-slate-500 dark:text-slate-400">
-                {filterClassId ? 'No children in this class.' : 'No children yet.'}
+                {filterClassId || searchQuery.trim()
+                  ? 'No children match the current filters.'
+                  : 'No children yet.'}
               </p>
               <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
-                {filterClassId ? 'Try another class or clear the filter.' : 'Add a child to get started.'}
+                {filterClassId || searchQuery.trim()
+                  ? 'Try another class, change the search, or clear filters.'
+                  : 'Add a child to get started.'}
               </p>
             </div>
           )}

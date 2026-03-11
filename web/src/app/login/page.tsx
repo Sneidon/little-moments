@@ -61,9 +61,6 @@ export default function LoginPage() {
             <h1 className="mt-6 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
               <span className="text-gradient-warm">My Little Moments</span>
             </h1>
-            <p className="mt-3 rounded-full border border-warm-200 bg-warm-100 px-4 py-1.5 text-xs font-bold text-warm-800 dark:border-warm-800 dark:bg-warm-900/40 dark:text-warm-200">
-              Daycare admin — Principals & super admins
-            </p>
           </div>
           <div className="space-y-4">
             <div>

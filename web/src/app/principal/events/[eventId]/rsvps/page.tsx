@@ -54,7 +54,11 @@ export default function EventRsvpsPage() {
     );
   }
 
-  const eventDate = new Date(event.startAt).toLocaleString();
+  const start = new Date(event.startAt);
+  const endMs = event.endAt ? new Date(event.endAt).getTime() : start.getTime() + 60 * 60 * 1000;
+  const eventDate = event.endAt
+    ? `${start.toLocaleString()} – ${new Date(endMs).toLocaleTimeString()}`
+    : `${start.toLocaleString()} (1 hr)`;
   const loading = eventLoading || rsvpsLoading;
   const acceptedCount = entries.filter((e) => e.response === 'accepted').length;
   const declinedCount = entries.filter((e) => e.response === 'declined').length;

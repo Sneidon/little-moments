@@ -105,6 +105,8 @@ export function EventForm({ form, classes }: EventFormProps) {
     setDescription,
     startAt,
     setStartAt,
+    durationMinutes,
+    setDurationMinutes,
     imageFile,
     setImageFile,
     documents,
@@ -253,16 +255,36 @@ export function EventForm({ form, classes }: EventFormProps) {
         </div>
       </div>
 
-      <div className="mb-4">
-        <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Date & time
-        </label>
-        <input
-          type="datetime-local"
-          value={startAt}
-          onChange={(e) => setStartAt(e.target.value)}
-          className={`${inputBase} w-full`}
-        />
+      <div className="mb-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Date & time
+          </label>
+          <input
+            type="datetime-local"
+            value={startAt}
+            onChange={(e) => setStartAt(e.target.value)}
+            className={`${inputBase} w-full`}
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Duration
+          </label>
+          <select
+            value={durationMinutes}
+            onChange={(e) => setDurationMinutes(Number(e.target.value))}
+            className={`${inputBase} w-full`}
+          >
+            <option value={30}>30 minutes</option>
+            <option value={60}>1 hour</option>
+            <option value={90}>1.5 hours</option>
+            <option value={120}>2 hours</option>
+            <option value={180}>3 hours</option>
+            <option value={240}>4 hours</option>
+            <option value={480}>All day (8 hours)</option>
+          </select>
+        </div>
       </div>
 
       <div className="flex gap-2">

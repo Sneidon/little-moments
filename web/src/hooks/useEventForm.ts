@@ -22,6 +22,8 @@ export interface UseEventFormOptions {
   onSuccess?: () => void;
 }
 
+const DEFAULT_DURATION_MINUTES = 60;
+
 export interface UseEventFormResult {
   title: string;
   setTitle: (v: string) => void;
@@ -29,6 +31,8 @@ export interface UseEventFormResult {
   setDescription: (v: string) => void;
   startAt: string;
   setStartAt: (v: string) => void;
+  durationMinutes: number;
+  setDurationMinutes: (v: number) => void;
   imageFile: File | null;
   setImageFile: (f: File | null) => void;
   documents: PendingDocument[];
@@ -48,7 +52,7 @@ export interface UseEventFormResult {
   toggleTargetClass: (classId: string) => void;
   showForm: boolean;
   editingId: string | null;
-  openFormForNew: () => void;
+  openFormForNew: (initialDate?: Date) => void;
   openFormForEdit: (event: Event) => void;
   closeForm: () => void;
   submitting: boolean;
@@ -64,6 +68,7 @@ export function useEventForm({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startAt, setStartAt] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(DEFAULT_DURATION_MINUTES);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<PendingDocument[]>([]);
   const [links, setLinks] = useState<PendingLink[]>([]);
@@ -78,6 +83,7 @@ export function useEventForm({
     setTitle('');
     setDescription('');
     setStartAt('');
+    setDurationMinutes(DEFAULT_DURATION_MINUTES);
     setImageFile(null);
     setDocuments([]);
     setLinks([]);
@@ -87,11 +93,18 @@ export function useEventForm({
     onSuccess?.();
   }, [onSuccess]);
 
-  const openFormForNew = useCallback(() => {
+  const openFormForNew = useCallback((initialDate?: Date) => {
     setEditingId(null);
     setTitle('');
     setDescription('');
-    setStartAt('');
+    if (initialDate) {
+      const d = new Date(initialDate);
+      d.setHours(9, 0, 0, 0);
+      setStartAt(d.toISOString().slice(0, 16));
+    } else {
+      setStartAt('');
+    }
+    setDurationMinutes(DEFAULT_DURATION_MINUTES);
     setImageFile(null);
     setDocuments([]);
     setLinks([]);
@@ -106,6 +119,13 @@ export function useEventForm({
     setDescription(event.description || '');
     const start = event.startAt ? new Date(event.startAt) : null;
     setStartAt(start && !isNaN(start.getTime()) ? start.toISOString().slice(0, 16) : '');
+    if (event.endAt) {
+      const end = new Date(event.endAt);
+      const mins = Math.round((end.getTime() - start!.getTime()) / 60000);
+      setDurationMinutes(mins > 0 ? mins : DEFAULT_DURATION_MINUTES);
+    } else {
+      setDurationMinutes(DEFAULT_DURATION_MINUTES);
+    }
     setTargetType(event.targetType || 'everyone');
     setTargetClassIds(event.targetClassIds || []);
     setImageFile(null);
@@ -158,11 +178,15 @@ export function useEventForm({
       if (!schoolId || !title.trim() || !startAt) return;
       setSubmitting(true);
       try {
+        const startMs = new Date(startAt).getTime();
+        const endAtIso = new Date(startMs + durationMinutes * 60 * 1000).toISOString();
+
         if (editingId) {
           const updates: Partial<Event> = {
             title: title.trim(),
             description: description.trim(),
             startAt: new Date(startAt).toISOString(),
+            endAt: endAtIso,
             targetType,
             targetClassIds: targetType === 'classes' ? targetClassIds : [],
           };
@@ -178,6 +202,7 @@ export function useEventForm({
           schoolId,
           title: title.trim(),
           startAt: new Date(startAt).toISOString(),
+          endAt: endAtIso,
           createdBy,
           createdAt: new Date().toISOString(),
         };
@@ -236,7 +261,7 @@ export function useEventForm({
         setSubmitting(false);
       }
     },
-    [schoolId, editingId, title, description, startAt, imageFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
+    [schoolId, editingId, title, description, startAt, durationMinutes, imageFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
   );
 
   return {
@@ -246,6 +271,8 @@ export function useEventForm({
     setDescription,
     startAt,
     setStartAt,
+    durationMinutes,
+    setDurationMinutes,
     imageFile,
     setImageFile,
     documents,

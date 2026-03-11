@@ -4,6 +4,17 @@ import Link from 'next/link';
 import type { Event } from 'shared/types';
 import { SectionCard } from '@/components/ui';
 
+const DEFAULT_DURATION_MS = 60 * 60 * 1000;
+
+function formatEventDateTime(ev: Event): string {
+  const start = new Date(ev.startAt);
+  const endMs = ev.endAt ? new Date(ev.endAt).getTime() : start.getTime() + DEFAULT_DURATION_MS;
+  const end = new Date(endMs);
+  const startStr = start.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+  const endStr = end.toLocaleTimeString(undefined, { timeStyle: 'short' });
+  return ev.endAt ? `${startStr} – ${endStr}` : `${startStr} (1 hr)`;
+}
+
 export interface EventsTableProps {
   events: Event[];
   variant: 'upcoming' | 'past';
@@ -50,7 +61,7 @@ export function EventsTable({
               <tr key={ev.id} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{ev.title}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600 dark:text-slate-300">
-                  {new Date(ev.startAt).toLocaleString()}
+                  {formatEventDateTime(ev)}
                 </td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{audience(ev)}</td>
                 <td className="max-w-[200px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={ev.description || undefined}>

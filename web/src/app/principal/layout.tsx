@@ -45,6 +45,7 @@ const navSections: { title: string; links: { href: string; label: string; Icon: 
     links: [
       { href: '/principal/announcements', label: 'Announcements', Icon: IconMegaphone },
       { href: '/principal/events', label: 'Events', Icon: IconCalendar },
+      { href: '/principal/calendar', label: 'School calendar', Icon: IconCalendar },
       { href: '/principal/food-menus', label: 'Meal options', Icon: IconUtensils },
     ],
   },

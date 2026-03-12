@@ -13,8 +13,40 @@ export function FilterSkeleton({ className = '' }: { className?: string } = {}) 
   );
 }
 
-/** Table area placeholder: single block. Use inside SectionCard or standalone. */
-export function TableSkeleton({ className = '' }: { className?: string } = {}) {
+/** Table area placeholder. Use inside SectionCard or standalone. Optional rows/cols render a table-like grid. */
+export function TableSkeleton({
+  className = '',
+  rows,
+  cols,
+}: { className?: string; rows?: number; cols?: number } = {}) {
+  if (rows != null && cols != null && rows > 0 && cols > 0) {
+    return (
+      <div className={`overflow-hidden ${className}`} role="status" aria-label="Loading">
+        <table className="data-table w-full">
+          <thead className="bg-slate-50 dark:bg-slate-700">
+            <tr>
+              {Array.from({ length: cols }, (_, i) => (
+                <th key={i} className="px-4 py-3">
+                  <div className={`h-4 w-16 ${pulse}`} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }, (_, rowIdx) => (
+              <tr key={rowIdx}>
+                {Array.from({ length: cols }, (_, colIdx) => (
+                  <td key={colIdx} className="px-4 py-3">
+                    <div className={`h-4 ${pulse}`} style={{ width: colIdx === cols - 1 ? '4rem' : '80%' }} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
   return (
     <div
       className={`min-h-[12rem] ${pulse} ${className}`}

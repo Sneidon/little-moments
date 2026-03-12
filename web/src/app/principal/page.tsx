@@ -82,7 +82,7 @@ export default function PrincipalDashboard() {
         title={<span className="text-gradient-warm">Dashboard</span>}
         subtitle={
           <>
-            Welcome back, <span className="font-bold text-slate-800 dark:text-slate-200">{profile?.displayName ?? 'Principal'}</span>. Here’s what’s happening at your daycare.
+            Welcome back, <span className="font-bold text-slate-800 dark:text-slate-200">{profile?.displayName ?? 'Principal'}</span>.
           </>
         }
       />

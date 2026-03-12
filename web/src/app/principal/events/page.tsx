@@ -58,7 +58,7 @@ export default function EventsPage() {
                 </svg>
                 View calendar
               </Link>
-              <button type="button" onClick={form.openFormForNew} className="btn-primary shrink-0">
+              <button type="button" onClick={() => form.openFormForNew()} className="btn-primary shrink-0">
                 Add event
               </button>
             </div>

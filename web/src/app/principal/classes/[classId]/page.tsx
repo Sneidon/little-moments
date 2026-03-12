@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useParams } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { useClassDetail, type ClassReportRow } from '@/hooks/useClassDetail';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import { getTeacherDisplayName } from '@/lib/teachers';
 import { getReportsForDay, getDaysWithActivity } from '@/lib/reports';
 import { formatClassDisplay } from '@/lib/formatClass';
@@ -26,6 +27,7 @@ export default function ClassActivitiesPage() {
   const { profile } = useAuth();
   const params = useParams();
   const classId = params?.classId as string;
+  const schoolName = useSchoolName(profile?.schoolId);
   const { classRoom, children, teachers, reports, loading } = useClassDetail(
     profile?.schoolId,
     classId
@@ -62,13 +64,14 @@ export default function ClassActivitiesPage() {
         filterDay,
         reportsForDay,
         classDisplayName,
+        schoolName: schoolName ?? undefined,
         include: {
           children: set.has('children'),
           activities: set.has('activities'),
         },
       });
     },
-    [classRoom, children, filterDay, reportsForDay, teacherName, assignedTeacherNameStr, classDisplayName]
+    [classRoom, children, filterDay, reportsForDay, teacherName, assignedTeacherNameStr, classDisplayName, schoolName]
   );
 
   const handleExportCsv = useCallback(() => {
@@ -104,7 +107,7 @@ export default function ClassActivitiesPage() {
   }
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <ExportPdfOptionsDialog
         open={exportPdfOpen}
         onClose={() => setExportPdfOpen(false)}

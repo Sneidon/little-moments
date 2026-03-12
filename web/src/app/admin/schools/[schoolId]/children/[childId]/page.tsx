@@ -10,6 +10,7 @@ import { exportChildDetailsToCsv } from '@/lib/exportChildDetailsCsv';
 import { exportChildDetailsToExcel } from '@/lib/exportChildDetailsExcel';
 import { useChildDetail } from '@/hooks/useChildDetail';
 import { useChildParents } from '@/hooks/useChildParents';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import { ExportPdfOptionsDialog } from '@/components/ExportPdfOptionsDialog';
 import {
   ChildDetailHeader,
@@ -27,6 +28,7 @@ export default function AdminSchoolChildDetailPage() {
   const params = useParams();
   const schoolId = typeof params?.schoolId === 'string' ? params.schoolId : undefined;
   const childId = typeof params?.childId === 'string' ? params.childId : undefined;
+  const schoolName = useSchoolName(schoolId);
   const { child, classes, reports, loading } = useChildDetail(schoolId, childId, {
     redirectPathIfNotFound: schoolId ? `/admin/schools/${schoolId}/children` : '/admin/schools',
   });
@@ -56,6 +58,7 @@ export default function AdminSchoolChildDetailPage() {
         parents,
         reports,
         classDisplay,
+        schoolName: schoolName ?? undefined,
         include: {
           profile: set.has('profile'),
           parents: set.has('parents'),
@@ -63,7 +66,7 @@ export default function AdminSchoolChildDetailPage() {
         },
       });
     },
-    [child, classes, parents, reports, classDisplay]
+    [child, classes, parents, reports, classDisplay, schoolName]
   );
 
   const handleExportCsv = useCallback(() => {

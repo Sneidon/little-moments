@@ -18,7 +18,7 @@ export function ReportListItem({ report }: ReportListItemProps) {
   const mainContent = report.mealOptionName ?? report.medicationName ?? report.incidentDetails ?? (report.type === 'meal' ? report.mealType : report.mealType);
 
   return (
-    <li className="flex flex-wrap items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 p-4">
+    <li className="flex flex-wrap items-start gap-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 p-4">
       <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${typeStyle}`}>
         {typeLabel}
       </span>

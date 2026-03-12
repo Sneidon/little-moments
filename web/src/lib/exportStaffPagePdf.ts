@@ -54,6 +54,7 @@ export function exportStaffPageToPdf(options: ExportStaffPageOptions): void {
     })}`,
     margin,
     startY: margin,
+    schoolName,
   });
 
   if (inc.staff && staff.length > 0) {
@@ -80,7 +81,7 @@ export function exportStaffPageToPdf(options: ExportStaffPageOptions): void {
 
   if (inc.parents && parents.length > 0) {
     if (y > 200) {
-      pdfAddFooter(doc, margin, pageHeight, footerRight);
+      pdfAddFooter(doc, margin, pageHeight, footerRight, { schoolName });
       doc.addPage();
       y = margin;
     }
@@ -106,7 +107,7 @@ export function exportStaffPageToPdf(options: ExportStaffPageOptions): void {
     y = (doc as DocWithAutoTable).lastAutoTable.finalY + 10;
   }
 
-  pdfAddFooter(doc, margin, pageHeight, footerRight);
+  pdfAddFooter(doc, margin, pageHeight, footerRight, { schoolName });
   const safeName = schoolName.replace(/\s+/g, '-').replace(/[()]/g, '');
   const filename = onlyParents
     ? `parents-${safeName}-${new Date().toISOString().slice(0, 10)}.pdf`

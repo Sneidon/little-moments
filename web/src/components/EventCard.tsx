@@ -76,7 +76,7 @@ export function EventCard({ event, variant = 'upcoming', classNamesMap, onEdit }
 
   const isPast = variant === 'past';
   const cardClass = isPast
-    ? 'rounded-xl border border-slate-100 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 p-4'
+    ? 'rounded-card border border-slate-100 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 p-4'
     : 'card p-5';
 
   return (

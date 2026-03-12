@@ -5,9 +5,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useAnnouncementForm } from '@/hooks/useAnnouncementForm';
 import { useClasses } from '@/hooks/useClasses';
-import { AnnouncementCard } from '@/components/AnnouncementCard';
 import { AnnouncementForm } from '@/components/AnnouncementForm';
-import { AnnouncementListSkeleton } from '@/components/AnnouncementListSkeleton';
+import { AnnouncementsTable } from '@/components/AnnouncementsTable';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 export default function AnnouncementsPage() {
   const { profile } = useAuth();
@@ -26,54 +26,31 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Announcements
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Post updates for parents and staff
-          </p>
-        </div>
-        {!form.showForm && (
-          <button
-            type="button"
-            onClick={form.openFormForNew}
-            className="btn-primary shrink-0"
-          >
-            Add announcement
-          </button>
-        )}
-      </div>
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Announcements</span>}
+        subtitle="Post updates for parents and staff"
+        actions={
+          !form.showForm ? (
+            <button type="button" onClick={form.openFormForNew} className="btn-primary shrink-0">
+              Add announcement
+            </button>
+          ) : undefined
+        }
+      />
 
       {form.showForm && <AnnouncementForm form={form} classes={classes} />}
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
-        Recent announcements
-      </h2>
       {loading ? (
-        <AnnouncementListSkeleton />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton />
+        </SectionCard>
       ) : (
-        <>
-          <div className="space-y-4">
-            {announcements.map((a) => (
-              <AnnouncementCard
-                key={a.id}
-                announcement={a}
-                classNamesMap={classNamesMap}
-                onEdit={() => form.openFormForEdit(a)}
-              />
-            ))}
-          </div>
-          {announcements.length === 0 && (
-            <div className="card py-12 text-center">
-              <p className="text-slate-500 dark:text-slate-400">No announcements yet.</p>
-              <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
-                Click &quot;Add announcement&quot; to get started.
-              </p>
-            </div>
-          )}
-        </>
+        <AnnouncementsTable
+          announcements={announcements}
+          classNamesMap={classNamesMap}
+          onEdit={form.openFormForEdit}
+        />
       )}
     </div>
   );

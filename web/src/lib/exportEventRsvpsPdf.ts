@@ -16,8 +16,10 @@ import type { RSVPEntry } from '@/hooks/useEventRSVPs';
 export function exportEventRsvpsToPdf(
   entries: RSVPEntry[],
   eventTitle: string,
-  eventDate: string
+  eventDate: string,
+  options?: { schoolName?: string }
 ): void {
+  const schoolName = options?.schoolName;
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const margin = PDF_MARGIN.portrait;
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -45,6 +47,7 @@ export function exportEventRsvpsToPdf(
     })} · ${entries.length} ${entries.length === 1 ? 'RSVP' : 'RSVPs'}`,
     margin,
     startY: margin,
+    schoolName,
   });
 
   autoTable(doc, {
@@ -65,7 +68,8 @@ export function exportEventRsvpsToPdf(
       doc,
       margin,
       pageHeight,
-      pageCount > 1 ? `RSVPs · Page ${p} of ${pageCount}` : 'RSVPs'
+      pageCount > 1 ? `RSVPs · Page ${p} of ${pageCount}` : 'RSVPs',
+      { schoolName }
     );
   }
 

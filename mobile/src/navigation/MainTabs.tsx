@@ -15,12 +15,16 @@ import { EventsScreen } from '../screens/shared/EventsScreen';
 import { MessagesListScreen } from '../screens/shared/MessagesListScreen';
 import { ChatThreadScreen } from '../screens/shared/ChatThreadScreen';
 import { SelectChildToMessageScreen } from '../screens/teacher/SelectChildToMessageScreen';
+import { BroadcastToClassScreen } from '../screens/teacher/BroadcastToClassScreen';
 import { ParentHomeScreen } from '../screens/parent/ParentHomeScreen';
 import { ParentChildProfileScreen } from '../screens/parent/ParentChildProfileScreen';
 import { ParentSettingsScreen } from '../screens/parent/ParentSettingsScreen';
+import { ParentProfileScreen } from '../screens/parent/ParentProfileScreen';
+import { ParentNotificationsScreen } from '../screens/parent/ParentNotificationsScreen';
 import { PhotosPlaceholderScreen } from '../screens/shared/PhotosPlaceholderScreen';
 import { ParentCalendarScreen } from '../screens/parent/ParentCalendarScreen';
 import { ParentAnnouncementsScreen } from '../screens/parent/ParentAnnouncementsScreen';
+import { ParentSelectChildToMessageScreen } from '../screens/parent/ParentSelectChildToMessageScreen';
 import { DailyCommunicationScreen } from '../screens/teacher/DailyCommunicationScreen';
 import { EditChildProfileScreen } from '../screens/parent/EditChildProfileScreen';
 import { useEditChildProfileParams } from '../screens/parent/useEditChildProfileParams';
@@ -52,10 +56,14 @@ export type RootStackParamList = {
   ChildProfile: { childId: string; schoolId: string };
   ParentAnnouncements: undefined;
   SelectChildToMessage: undefined;
+  ParentSelectChildToMessage: undefined;
+  BroadcastToClass: undefined;
   ChatThread: { chatId: string; schoolId: string };
   DailyCommunication: undefined;
   EditChildProfile: { childId: string; schoolId: string };
   EditChildProfileTeacher: { childId: string; schoolId: string };
+  ParentProfile: undefined;
+  ParentNotifications: undefined;
 };
 
 const Tab = createBottomTabNavigator();
@@ -207,10 +215,14 @@ export function MainTabs({ role }: { role: UserRole }) {
       <RootStack.Screen name="ChildProfile" component={ParentChildProfileScreen} options={{ title: 'Child' }} />
       <RootStack.Screen name="ParentAnnouncements" component={ParentAnnouncementsScreen} options={{ title: 'Announcements' }} />
       <RootStack.Screen name="SelectChildToMessage" component={SelectChildToMessageScreen} options={{ title: 'Start conversation' }} />
+      <RootStack.Screen name="ParentSelectChildToMessage" component={ParentSelectChildToMessageScreen} options={{ title: 'Message teacher' }} />
+      <RootStack.Screen name="BroadcastToClass" component={BroadcastToClassScreen} options={{ title: 'Message all in class' }} />
       <RootStack.Screen name="ChatThread" component={ChatThreadScreen} options={{ title: 'Chat' }} />
       <RootStack.Screen name="DailyCommunication" component={DailyCommunicationScreen} options={{ title: 'Planned activity' }} />
       <RootStack.Screen name="EditChildProfile" component={EditChildProfileScreenWrapper} options={{ title: 'Edit child' }} />
       <RootStack.Screen name="EditChildProfileTeacher" component={EditChildProfileTeacherScreenWrapper} options={{ title: 'Edit child' }} />
+      <RootStack.Screen name="ParentProfile" component={ParentProfileScreen} options={{ title: 'Profile' }} />
+      <RootStack.Screen name="ParentNotifications" component={ParentNotificationsScreen} options={{ title: 'Notifications' }} />
     </RootStack.Navigator>
   );
 }

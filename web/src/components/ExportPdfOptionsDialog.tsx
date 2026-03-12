@@ -56,23 +56,20 @@ export function ExportPdfOptionsDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="dialog-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="export-pdf-title"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-600 dark:bg-slate-800"
+        className="dialog-panel-top"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2
-          id="export-pdf-title"
-          className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100"
-        >
+        <h2 id="export-pdf-title" className="dialog-title">
           {title}
         </h2>
-        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+        <p className="dialog-description">
           Choose which sections to include in the PDF.
         </p>
         <ul className="mb-6 space-y-3">
@@ -94,7 +91,7 @@ export function ExportPdfOptionsDialog({
             </li>
           ))}
         </ul>
-        <div className="flex justify-end gap-2">
+        <div className="dialog-actions">
           <button type="button" onClick={onClose} className="btn-secondary">
             Cancel
           </button>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { PageHero } from '@/components/ui';
 
 export interface ParentsPageHeaderProps {
   onExportPdf: () => void;
@@ -44,15 +45,11 @@ export function ParentsPageHeader({
   };
 
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-          Parents
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Parents linked to children at your school. Invite and manage from each child&apos;s profile.
-        </p>
-      </div>
+    <PageHero
+      variant="full"
+      title={<span className="text-gradient-warm">Parents</span>}
+      subtitle="Parents linked to children at your school. Invite and manage from each child's profile."
+      actions={
       <div className="relative shrink-0" ref={menuRef}>
         <button
           type="button"
@@ -106,6 +103,7 @@ export function ParentsPageHeader({
           </div>
         )}
       </div>
-    </div>
+      }
+    />
   );
 }

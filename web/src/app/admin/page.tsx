@@ -1,10 +1,11 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { IconSchool, IconUsers, IconChart } from '@/components/icons/AdminIcons';
+import { PageHero, StatCard, QuickActionLink, SectionHeading, StatCardSkeleton } from '@/components/ui';
 
 export default function AdminDashboard() {
   const { profile } = useAuth();
@@ -41,11 +42,11 @@ export default function AdminDashboard() {
   }, []);
 
   const cards = [
-    { to: '/admin/schools', label: 'Schools', value: stats.schools, desc: 'Create and manage schools' },
-    { to: '/admin/users', label: 'Total users', value: stats.users, desc: 'All platform users' },
-    { label: 'Teachers', value: stats.teachers, desc: 'Staff with teacher role' },
-    { label: 'Principals', value: stats.principals, desc: 'School principals' },
-    { label: 'Parents', value: stats.parents, desc: 'Parent accounts' },
+    { to: '/admin/schools', label: 'Schools', value: stats.schools, desc: 'Create and manage schools', icon: IconSchool, bar: 'primary' as const },
+    { to: '/admin/users', label: 'Total users', value: stats.users, desc: 'All platform users', icon: IconUsers, bar: 'accent' as const },
+    { label: 'Teachers', value: stats.teachers, desc: 'Staff with teacher role', icon: IconUsers, bar: 'warm' as const },
+    { label: 'Principals', value: stats.principals, desc: 'School principals', icon: IconUsers, bar: 'primary' as const },
+    { label: 'Parents', value: stats.parents, desc: 'Parent accounts', icon: IconUsers, bar: 'accent' as const },
   ];
 
   const quickLinks = [
@@ -56,55 +57,45 @@ export default function AdminDashboard() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">Dashboard</h1>
-        <p className="mt-1 text-slate-600 dark:text-slate-400">Welcome back, {profile?.displayName ?? 'Super Admin'}.</p>
-      </div>
+      <PageHero
+        title={<span className="text-gradient-warm">Dashboard</span>}
+        subtitle={
+          <>
+            Welcome back, <span className="font-bold text-slate-800 dark:text-slate-200">{profile?.displayName ?? 'Super Admin'}</span>. Manage your daycares and schools.
+          </>
+        }
+      />
 
       {loading ? (
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="card h-36 animate-pulse bg-slate-100 dark:bg-slate-700" />
+            <StatCardSkeleton key={i} />
           ))}
         </div>
       ) : (
         <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {cards.map((c) =>
-            c.to ? (
-              <Link
-                key={c.to}
-                href={c.to}
-                className="card-hover block p-6"
-              >
-                <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{c.value}</p>
-                <h2 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{c.label}</h2>
-                {c.desc != null && (
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{c.desc}</p>
-                )}
-              </Link>
-            ) : (
-              <div key={c.label} className="card p-6">
-                <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{c.value}</p>
-                <h2 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{c.label}</h2>
-                {c.desc != null && (
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{c.desc}</p>
-                )}
-              </div>
-            )
-          )}
+          {cards.map((c, i) => (
+            <StatCard
+              key={c.to ?? c.label}
+              to={c.to}
+              label={c.label}
+              value={c.value}
+              desc={c.desc}
+              icon={c.icon}
+              bar={c.bar}
+              gradientValue={i === 0}
+              animationDelay={i * 60}
+            />
+          ))}
         </div>
       )}
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">Quick actions</h2>
+      <SectionHeading>Quick actions</SectionHeading>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {quickLinks.map(({ to, label }) => (
-          <Link
-            key={to}
-            href={to}
-            className="card-hover flex items-center px-5 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-200"
-          >
+          <QuickActionLink key={to} href={to}>
             {label}
-          </Link>
+          </QuickActionLink>
         ))}
       </div>
     </div>

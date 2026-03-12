@@ -55,7 +55,7 @@ export async function takePhotoAsync(): Promise<PhotoResult> {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
     aspect: [4, 3],
-    quality: 0.8,
+    quality: 0.5,
   });
 
   if (result.canceled || !result.assets?.[0]) return null;
@@ -74,7 +74,7 @@ export async function pickPhotoAsync(): Promise<PhotoResult> {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
     aspect: [4, 3],
-    quality: 0.8,
+    quality: 0.5,
   });
 
   if (result.canceled || !result.assets?.[0]) return null;

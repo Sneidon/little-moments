@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { School } from 'shared/types';
+import { PageHero, SchoolSettingsSkeleton } from '@/components/ui';
 
 export default function PrincipalSettingsPage() {
   const { profile } = useAuth();
@@ -60,24 +61,29 @@ export default function PrincipalSettingsPage() {
   };
 
   if (loading) {
-    return <div className="card h-40 animate-pulse bg-slate-100 dark:bg-slate-700" />;
+    return (
+      <div className="animate-fade-in">
+        <PageHero variant="full" title={<span className="text-gradient-warm">School settings</span>} subtitle="Update your school details" />
+        <SchoolSettingsSkeleton />
+      </div>
+    );
   }
 
   if (!school) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">School settings</h1>
-        <p className="mt-4 text-slate-500 dark:text-slate-400">School not found.</p>
+        <PageHero variant="compact" title="School settings" subtitle="School not found." />
       </div>
     );
   }
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">School settings</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Update your school details</p>
-      </div>
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">School settings</span>}
+        subtitle="Update your school details"
+      />
       <form onSubmit={save} className="card max-w-xl p-6">
         <div className="space-y-4">
           <div>
@@ -124,6 +130,20 @@ export default function PrincipalSettingsPage() {
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <button type="submit" disabled={submitting} className="btn-primary">
             {submitting ? 'Saving…' : 'Save changes'}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setForm({
+                name: school.name ?? '',
+                address: school.address ?? '',
+                contactEmail: school.contactEmail ?? '',
+                contactPhone: school.contactPhone ?? '',
+              })
+            }
+            className="btn-secondary"
+          >
+            Cancel
           </button>
           {saved && (
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 dark:text-green-400" role="status">

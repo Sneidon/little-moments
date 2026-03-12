@@ -6,16 +6,19 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useEvent } from '@/hooks/useEvent';
 import { useEventRSVPs } from '@/hooks/useEventRSVPs';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import { downloadEventRsvpsCsv } from '@/lib/exportEventRsvpsCsv';
 import { exportEventRsvpsToExcel } from '@/lib/exportEventRsvpsExcel';
 import { exportEventRsvpsToPdf } from '@/lib/exportEventRsvpsPdf';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 export default function EventRsvpsPage() {
   const params = useParams();
   const eventId = params?.eventId as string;
   const { profile } = useAuth();
   const schoolId = profile?.schoolId;
+  const schoolName = useSchoolName(schoolId);
 
   const { event, loading: eventLoading } = useEvent(schoolId, eventId);
   const { entries, loading: rsvpsLoading } = useEventRSVPs(
@@ -51,7 +54,11 @@ export default function EventRsvpsPage() {
     );
   }
 
-  const eventDate = new Date(event.startAt).toLocaleString();
+  const start = new Date(event.startAt);
+  const endMs = event.endAt ? new Date(event.endAt).getTime() : start.getTime() + 60 * 60 * 1000;
+  const eventDate = event.endAt
+    ? `${start.toLocaleString()} – ${new Date(endMs).toLocaleTimeString()}`
+    : `${start.toLocaleString()} (1 hr)`;
   const loading = eventLoading || rsvpsLoading;
   const acceptedCount = entries.filter((e) => e.response === 'accepted').length;
   const declinedCount = entries.filter((e) => e.response === 'declined').length;
@@ -67,37 +74,33 @@ export default function EventRsvpsPage() {
   };
 
   const handleExportPdf = () => {
-    exportEventRsvpsToPdf(entries, event.title, eventDate);
+    exportEventRsvpsToPdf(entries, event.title, eventDate, { schoolName: schoolName ?? undefined });
     setExportOpen(false);
   };
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <Link
-            href="/principal/events"
-            className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-          >
-            ← Back to events
-          </Link>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            RSVPs: {event.title}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      <PageHero
+        variant="full"
+        backHref="/principal/events"
+        backLabel="Events"
+        title={<span className="text-gradient-warm">RSVPs: {event.title}</span>}
+        subtitle={
+          <>
             {eventDate}
             {event.parentResponses && Object.keys(event.parentResponses).length > 0 && (
               <span className="ml-2">
                 · {acceptedCount} going · {declinedCount} can&apos;t make it
               </span>
             )}
-          </p>
-        </div>
-        <div className="relative shrink-0" ref={menuRef}>
-          <button
-            type="button"
-            onClick={() => setExportOpen((o) => !o)}
-            className="btn-secondary inline-flex items-center gap-2"
+          </>
+        }
+        actions={
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setExportOpen((o) => !o)}
+              className="btn-secondary inline-flex items-center gap-2"
             aria-expanded={exportOpen}
             aria-haspopup="true"
             title="Export RSVP list"
@@ -144,17 +147,20 @@ export default function EventRsvpsPage() {
               </button>
             </div>
           )}
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {loading ? (
-        <div className="h-64 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton rows={6} cols={3} />
+        </SectionCard>
       ) : entries.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 px-6 py-12 text-center">
+        <div className="rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 px-6 py-12 text-center">
           <p className="text-slate-600 dark:text-slate-400">No RSVPs yet</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800">
+        <div className="overflow-hidden rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800">
           <ul className="divide-y divide-slate-200 dark:divide-slate-600">
             {entries.map((entry) => (
               <li

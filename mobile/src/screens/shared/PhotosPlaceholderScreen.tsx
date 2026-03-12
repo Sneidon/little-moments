@@ -1,27 +1,36 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useCallback, useMemo } from 'react';
+import { StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { EmptyState } from '../../components/EmptyState';
 
 export function PhotosPlaceholderScreen() {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  return (
-    <View style={styles.container}>
-      <Ionicons name="images-outline" size={64} color={colors.textMuted} style={styles.icon} />
-      <Text style={styles.title}>Photos</Text>
-      <Text style={styles.subtitle}>Daily moments</Text>
-      <Text style={styles.placeholder}>Photo sharing will be available in a future update.</Text>
-    </View>
-  );
-}
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    listContent: { flexGrow: 1, padding: 16 },
+  }), [colors]);
+  const [refreshing, setRefreshing] = useState(false);
 
-function createStyles(colors: import('../../theme/colors').ColorPalette) {
-  return StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' },
-    icon: { marginBottom: 16 },
-    title: { fontSize: 20, fontWeight: '700', color: colors.text },
-    subtitle: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
-    placeholder: { fontSize: 14, color: colors.textMuted, marginTop: 24, textAlign: 'center' },
-  });
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 500);
+  }, []);
+
+  return (
+    <FlatList
+      style={styles.container}
+      data={[]}
+      contentContainerStyle={styles.listContent}
+      ListEmptyComponent={
+        <EmptyState
+          icon="images-outline"
+          title="Photos"
+          subtitle="Daily moments. Photo sharing will be available in a future update."
+        />
+      }
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+      }
+    />
+  );
 }

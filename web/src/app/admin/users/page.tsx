@@ -8,6 +8,7 @@ import { db, app } from '@/config/firebase';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddSuperAdminForm, type AddSuperAdminFormState } from './components/AddSuperAdminForm';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 type SchoolUserCount = {
   id: string;
@@ -36,7 +37,6 @@ function getCallableErrorMessage(err: unknown): string {
 export default function AdminUsersPage() {
   const [schools, setSchools] = useState<SchoolUserCount[]>([]);
   const [superAdmins, setSuperAdmins] = useState<SuperAdminUser[]>([]);
-  const [parentCount, setParentCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<AddSuperAdminFormState>(INITIAL_ADD_FORM);
@@ -56,9 +56,7 @@ export default function AdminUsersPage() {
       const users = usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() } as { uid: string; schoolId?: string; role?: string; email?: string; displayName?: string }));
 
       const admins = users.filter((u) => u.role === 'super_admin') as SuperAdminUser[];
-      const parents = users.filter((u) => u.role === 'parent').length;
       setSuperAdmins(admins);
-      setParentCount(parents);
 
       const list: SchoolUserCount[] = schoolsSnap.docs.map((doc) => {
         const schoolId = doc.id;
@@ -135,7 +133,7 @@ export default function AdminUsersPage() {
   }, []);
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <ConfirmDialog
         open={!!pendingPasswordReset}
         onClose={() => setPendingPasswordReset(null)}
@@ -149,15 +147,15 @@ export default function AdminUsersPage() {
         onConfirm={() => pendingPasswordReset && handleRequestPasswordReset(pendingPasswordReset)}
         confirmDisabled={!!passwordResetLoadingUid}
       />
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Users</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Overview by school. Click a school to view and manage its users.
-        </p>
-      </div>
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Users</span>}
+        subtitle="Overview by school. Click a school to view and manage its users."
+      />
 
       {showAddForm && (
-        <AddSuperAdminForm
+        <SectionCard topBar="primary" className="mb-6">
+          <AddSuperAdminForm
           form={addForm}
           setForm={setAddForm}
           error={addError}
@@ -165,6 +163,7 @@ export default function AdminUsersPage() {
           onSubmit={handleAddSuperAdmin}
           onCancel={() => setShowAddForm(false)}
         />
+        </SectionCard>
       )}
 
       {(passwordResetError || passwordResetSuccess) && (
@@ -193,33 +192,29 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {(superAdmins.length > 0 || parentCount > 0 || showAddForm) && (
-        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 shadow-sm">
-          <div>
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Super admins</span>
-            <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{superAdmins.length}</p>
-          </div>
-          <div className='flex-1'></div>
-          {!showAddForm && (
-            <button type="button" onClick={openAddForm} className="btn-primary text-sm">
-              Add super admin
-            </button>
-          )}
-          {parentCount > 0 && (
+      {(superAdmins.length > 0 || showAddForm) && (
+        <SectionCard topBar="warm" padding="default" className="mb-6">
+          <div className="flex flex-wrap items-center gap-4">
             <div>
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Parents (all)</span>
-              <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{parentCount}</p>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Super admins</span>
+              <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{superAdmins.length}</p>
             </div>
-          )}
-        </div>
+            <div className="flex-1" />
+            {!showAddForm && (
+              <button type="button" onClick={openAddForm} className="btn-primary text-sm">
+                Add super admin
+              </button>
+            )}
+          </div>
+        </SectionCard>
       )}
 
       {superAdmins.length > 0 && (
-        <div className="mb-6 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
+        <SectionCard topBar="primary" padding="none" className="mb-6">
           <h2 className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200">
             Super admins
           </h2>
-          <table className="w-full text-left text-sm">
+          <table className="data-table">
             <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Display name</th>
@@ -247,14 +242,16 @@ export default function AdminUsersPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </SectionCard>
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton rows={6} cols={3} />
+        </SectionCard>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
-          <table className="w-full text-left text-sm">
+        <SectionCard topBar="accent" padding="none">
+          <table className="data-table">
             <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">School</th>
@@ -278,9 +275,9 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
           {schools.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
+            <p className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
           )}
-        </div>
+        </SectionCard>
       )}
     </div>
   );

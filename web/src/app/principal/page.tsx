@@ -1,10 +1,11 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { IconChild, IconUsers, IconFileText, IconCalendar } from '@/components/icons/AdminIcons';
+import { PageHero, StatCard, QuickActionLink, SectionHeading, StatCardSkeleton } from '@/components/ui';
 
 export default function PrincipalDashboard() {
   const { profile } = useAuth();
@@ -62,10 +63,10 @@ export default function PrincipalDashboard() {
   }, [profile?.schoolId]);
 
   const cards = [
-    { to: '/principal/children', label: 'Children', value: stats.children, desc: 'Enrolled in your school' },
-    { to: '/principal/staff', label: 'Staff', value: stats.staff, desc: 'Teachers & principals' },
-    { to: '/principal/reports', label: 'Reports today', value: stats.reportsToday, desc: 'Daily logs submitted' },
-    { to: '/principal/events', label: 'Upcoming events', value: stats.upcomingEvents, desc: 'Scheduled events' },
+    { to: '/principal/children', label: 'Children', value: stats.children, desc: 'Enrolled in your school', icon: IconChild, bar: 'primary' as const },
+    { to: '/principal/staff', label: 'Staff', value: stats.staff, desc: 'Teachers & principals', icon: IconUsers, bar: 'accent' as const },
+    { to: '/principal/reports', label: 'Reports today', value: stats.reportsToday, desc: 'Daily logs submitted', icon: IconFileText, bar: 'warm' as const },
+    { to: '/principal/events', label: 'Upcoming events', value: stats.upcomingEvents, desc: 'Scheduled events', icon: IconCalendar, bar: 'primary' as const },
   ];
 
   const quickLinks = [
@@ -77,43 +78,45 @@ export default function PrincipalDashboard() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">Dashboard</h1>
-        <p className="mt-1 text-slate-600 dark:text-slate-400">Welcome back, {profile?.displayName ?? 'Principal'}.</p>
-      </div>
+      <PageHero
+        title={<span className="text-gradient-warm">Dashboard</span>}
+        subtitle={
+          <>
+            Welcome back, <span className="font-bold text-slate-800 dark:text-slate-200">{profile?.displayName ?? 'Principal'}</span>.
+          </>
+        }
+      />
 
       {loading ? (
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card h-36 animate-pulse bg-slate-100 dark:bg-slate-700" />
+            <StatCardSkeleton key={i} />
           ))}
         </div>
       ) : (
         <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {cards.map(({ to, label, value, desc }) => (
-            <Link
-              key={to}
-              href={to}
-              className="card-hover block p-6"
-            >
-              <p className="text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{value}</p>
-              <h2 className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{label}</h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{desc}</p>
-            </Link>
+          {cards.map((c, i) => (
+            <StatCard
+              key={c.to}
+              to={c.to}
+              label={c.label}
+              value={c.value}
+              desc={c.desc}
+              icon={c.icon}
+              bar={c.bar}
+              gradientValue={i === 0}
+              animationDelay={i * 60}
+            />
           ))}
         </div>
       )}
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">Quick actions</h2>
+      <SectionHeading>Quick actions</SectionHeading>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {quickLinks.map(({ to, label }) => (
-          <Link
-            key={to}
-            href={to}
-            className="card-hover flex items-center px-5 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-200"
-          >
+          <QuickActionLink key={to} href={to}>
             {label}
-          </Link>
+          </QuickActionLink>
         ))}
       </div>
     </div>

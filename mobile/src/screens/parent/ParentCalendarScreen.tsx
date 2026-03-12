@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ScrollView } from 'react-native';
 import { SkeletonCard } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -75,32 +76,44 @@ export function ParentCalendarScreen() {
     </View>
   );
 
+  const emptyComponent = (
+    <EmptyState
+      icon="calendar-outline"
+      title="No events"
+      subtitle="Upcoming events from your daycare will appear here."
+    />
+  );
+
+  if (!schoolId) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.loaderContent}>
+        {[1, 2, 3].map((i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </ScrollView>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      {!schoolId ? (
-        <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
-          {[1, 2, 3].map((i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </ScrollView>
-      ) : (
-        <FlatList
-          data={list}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          ListEmptyComponent={<Text style={styles.empty}>No events.</Text>}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      )}
-    </View>
+    <FlatList
+      style={styles.container}
+      data={list}
+      keyExtractor={(item) => item.id}
+      renderItem={renderItem}
+      contentContainerStyle={styles.listContent}
+      ListEmptyComponent={emptyComponent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+      }
+    />
   );
 }
 
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
   return StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: colors.background },
+    container: { flex: 1, backgroundColor: colors.background },
+    loaderContent: { flex: 1, padding: 16 },
+    listContent: { flexGrow: 1, padding: 16 },
     card: {
       backgroundColor: colors.card,
       padding: 16,
@@ -117,6 +130,5 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     acceptText: { color: colors.primaryContrast, fontWeight: '600' },
     declineBtn: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
     declineText: { color: colors.textMuted },
-    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   });
 }

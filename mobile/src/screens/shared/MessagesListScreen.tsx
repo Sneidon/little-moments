@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useLayoutEffect, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useLayoutEffect, useMemo, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
 import { SkeletonChatRow } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, collectionGroup, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -48,16 +49,43 @@ export function MessagesListScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [chats, setChats] = useState<ChatWithNames[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setRefreshTrigger((t) => t + 1);
+  }, []);
 
   useLayoutEffect(() => {
+    const root = navigation.getParent() as { navigate: (name: string) => void } | undefined;
     if (profile?.role === 'teacher') {
       navigation.setOptions({
         headerRight: () => (
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              onPress={() => root?.navigate('BroadcastToClass')}
+              style={styles.headerBtn}
+            >
+              <Text style={styles.headerBtnText}>Message class</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => root?.navigate('SelectChildToMessage')}
+              style={styles.headerBtn}
+            >
+              <Text style={styles.headerBtnText}>New chat</Text>
+            </TouchableOpacity>
+          </View>
+        ),
+      });
+    } else if (profile?.role === 'parent') {
+      navigation.setOptions({
+        headerRight: () => (
           <TouchableOpacity
-            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('SelectChildToMessage')}
+            onPress={() => root?.navigate('ParentSelectChildToMessage')}
             style={styles.headerBtn}
           >
-            <Text style={styles.headerBtnText}>New chat</Text>
+            <Text style={styles.headerBtnText}>Message teacher</Text>
           </TouchableOpacity>
         ),
       });
@@ -88,40 +116,55 @@ export function MessagesListScreen({ navigation }: Props) {
             orderBy('updatedAt', 'desc')
           );
 
-    const unsub = onSnapshot(q, async (snap) => {
-      const list: Chat[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Chat));
-      const withNames: ChatWithNames[] = await Promise.all(
-        list.map(async (c) => {
-          const otherUid = role === 'teacher' ? c.parentId : c.teacherId;
-          let otherDisplayName = '…';
-          let childName = '…';
-          try {
-            const userSnap = await getDoc(doc(db, 'users', otherUid));
-            if (userSnap.exists()) {
-              otherDisplayName = (userSnap.data() as UserProfile).displayName || otherUid.slice(0, 8);
-            }
-          } catch {}
-          try {
-            const childSnap = await getDoc(
-              doc(db, 'schools', c.schoolId, 'children', c.childId)
-            );
-            if (childSnap.exists()) {
-              childName = (childSnap.data() as Child).name || 'Child';
-            }
-          } catch {}
-          return {
-            ...c,
-            otherDisplayName,
-            childName,
-          };
-        })
-      );
-      setChats(withNames);
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      q,
+      async (snap) => {
+        try {
+          const list: Chat[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Chat));
+          const withNames: ChatWithNames[] = await Promise.all(
+            list.map(async (c) => {
+              const otherUid = role === 'teacher' ? c.parentId : c.teacherId;
+              let otherDisplayName = '…';
+              let childName = '…';
+              try {
+                const userSnap = await getDoc(doc(db, 'users', otherUid));
+                if (userSnap.exists()) {
+                  otherDisplayName = (userSnap.data() as UserProfile).displayName || otherUid.slice(0, 8);
+                }
+              } catch {}
+              try {
+                const childSnap = await getDoc(
+                  doc(db, 'schools', c.schoolId, 'children', c.childId)
+                );
+                if (childSnap.exists()) {
+                  childName = (childSnap.data() as Child).name || 'Child';
+                }
+              } catch {}
+              return {
+                ...c,
+                otherDisplayName,
+                childName,
+              };
+            })
+          );
+          setChats(withNames);
+        } catch (e) {
+          console.error('Messages process error:', e);
+          setChats([]);
+        }
+        setLoading(false);
+        setRefreshing(false);
+      },
+      (err) => {
+        console.error('Messages snapshot error:', err);
+        setChats([]);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    );
 
     return () => unsub();
-  }, [profile?.uid, profile?.schoolId, profile?.role]);
+  }, [profile?.uid, profile?.schoolId, profile?.role, refreshTrigger]);
 
   const renderItem = ({ item }: { item: ChatWithNames }) => (
     <TouchableOpacity
@@ -173,16 +216,20 @@ export function MessagesListScreen({ navigation }: Props) {
         data={chats}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>No conversations yet</Text>
-            <Text style={styles.emptySubtitle}>
-              {profile?.role === 'teacher'
-                ? 'Tap "New chat" above to message a parent, or open a child\'s report and tap "Message parents".'
-                : 'Start a conversation from your child\'s profile by tapping "Message teacher".'}
-            </Text>
-          </View>
+          <EmptyState
+            icon="chatbubbles-outline"
+            title="No conversations yet"
+            subtitle={
+              profile?.role === 'teacher'
+                ? 'Tap "New chat" above to message a parent, or "Message class" to message all parents in a class.'
+                : 'Tap "Message teacher" above to start a conversation about your child.'
+            }
+          />
         }
       />
     </View>
@@ -215,12 +262,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
     lastMessage: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
     time: { fontSize: 12, color: colors.textMuted, marginLeft: 8 },
-    empty: {
-      padding: 32,
-      alignItems: 'center',
-    },
-    emptyTitle: { fontSize: 18, fontWeight: '600', color: colors.textMuted, marginTop: 16 },
-    emptySubtitle: { fontSize: 14, color: colors.textMuted, marginTop: 8, textAlign: 'center' },
+    listContent: { flexGrow: 1 },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     headerBtn: { paddingHorizontal: 12, paddingVertical: 8 },
     headerBtnText: { color: colors.primary, fontWeight: '600', fontSize: 16 },
   });

@@ -1,23 +1,39 @@
 'use client';
 
-import { useMemo } from 'react';
+import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useEvents } from '@/hooks/useEvents';
 import { useEventForm } from '@/hooks/useEventForm';
 import { useClasses } from '@/hooks/useClasses';
-import { EventCard } from '@/components/EventCard';
 import { EventForm } from '@/components/EventForm';
-import { EventListSkeleton } from '@/components/EventListSkeleton';
+import { EventsTable } from '@/components/EventsTable';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 export default function EventsPage() {
   const { profile } = useAuth();
   const schoolId = profile?.schoolId;
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const hasHandledDateParam = useRef(false);
   const { upcoming, past, loading } = useEvents(schoolId);
   const { classes } = useClasses(schoolId);
   const form = useEventForm({
     schoolId,
     createdBy: profile?.uid ?? '',
   });
+
+  const dateParam = searchParams.get('date');
+  useEffect(() => {
+    if (!dateParam || hasHandledDateParam.current) return;
+    const parsed = new Date(dateParam);
+    if (!isNaN(parsed.getTime())) {
+      hasHandledDateParam.current = true;
+      form.openFormForNew(parsed);
+      router.replace('/principal/events', { scroll: false });
+    }
+  }, [dateParam, form.openFormForNew, router]);
 
   const classNamesMap = useMemo(
     () => Object.fromEntries(classes.map((c) => [c.id, c.name])),
@@ -26,67 +42,50 @@ export default function EventsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Events
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Create and manage school events
-          </p>
-        </div>
-        {!form.showForm && (
-          <button
-            type="button"
-            onClick={form.openFormForNew}
-            className="btn-primary shrink-0"
-          >
-            Add event
-          </button>
-        )}
-      </div>
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Events</span>}
+        subtitle="Create and manage school events"
+        actions={
+          !form.showForm ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                href="/principal/calendar"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                View calendar
+              </Link>
+              <button type="button" onClick={form.openFormForNew} className="btn-primary shrink-0">
+                Add event
+              </button>
+            </div>
+          ) : undefined
+        }
+      />
 
       {form.showForm && <EventForm form={form} classes={classes} />}
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
-        Upcoming events
-      </h2>
       {loading ? (
-        <EventListSkeleton />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton />
+        </SectionCard>
       ) : (
         <>
-          <div className="mb-8 space-y-4">
-            {upcoming.map((ev) => (
-              <EventCard
-                key={ev.id}
-                event={ev}
-                variant="upcoming"
-                classNamesMap={classNamesMap}
-                onEdit={() => form.openFormForEdit(ev)}
-              />
-            ))}
-            {upcoming.length === 0 && (
-              <p className="text-slate-500 dark:text-slate-400">No upcoming events.</p>
-            )}
-          </div>
-
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-slate-200">
-            Past events
-          </h2>
-          <div className="space-y-4">
-            {past.slice(0, 20).map((ev) => (
-              <EventCard
-                key={ev.id}
-                event={ev}
-                variant="past"
-                classNamesMap={classNamesMap}
-                onEdit={() => form.openFormForEdit(ev)}
-              />
-            ))}
-            {past.length === 0 && (
-              <p className="text-slate-500 dark:text-slate-400">No past events.</p>
-            )}
-          </div>
+          <EventsTable
+            events={upcoming}
+            variant="upcoming"
+            classNamesMap={classNamesMap}
+            onEdit={form.openFormForEdit}
+          />
+          <EventsTable
+            events={past.slice(0, 20)}
+            variant="past"
+            classNamesMap={classNamesMap}
+            onEdit={form.openFormForEdit}
+          />
         </>
       )}
     </div>

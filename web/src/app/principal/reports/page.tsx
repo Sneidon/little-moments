@@ -2,19 +2,23 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useReportsPage } from '@/hooks/useReportsPage';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import {
   ReportsPageHeader,
   ReportsFilters,
   ReportsTable,
 } from './components';
+import { SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 
 export default function ReportsPage() {
   const { profile } = useAuth();
+  const schoolName = useSchoolName(profile?.schoolId);
   const {
     classes,
     filteredReports,
     loading,
     filters,
+    clearFilters,
     setFilterClassId,
     setFilterDay,
     setFilterDateFrom,
@@ -37,11 +41,24 @@ export default function ReportsPage() {
         filters={filters}
         showClassColumn={showClassColumn}
         classDisplay={classDisplay}
+        schoolName={schoolName ?? undefined}
       />
+      {loading ? (
+        <>
+          <SectionCard topBar="accent" padding="default" className="mb-6">
+            <FilterSkeleton />
+          </SectionCard>
+          <SectionCard topBar="accent" padding="none">
+            <TableSkeleton />
+          </SectionCard>
+        </>
+      ) : (
+        <>
       <ReportsFilters
         classes={classes}
         filters={filters}
         limitOptions={limitOptions}
+        onClearFilters={clearFilters}
         onFilterClassId={setFilterClassId}
         onFilterDay={setFilterDay}
         onFilterDateFrom={setFilterDateFrom}
@@ -52,14 +69,12 @@ export default function ReportsPage() {
         onSortOrder={setSortOrder}
         onLimit={setLimit}
       />
-      {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
-      ) : (
         <ReportsTable
           rows={filteredReports}
           showClassColumn={showClassColumn}
           classDisplay={classDisplay}
         />
+        </>
       )}
     </div>
   );

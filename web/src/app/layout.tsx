@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
-import { DM_Sans } from 'next/font/google';
+import { Nunito } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import '@/app/globals.css';
 
-const dmSans = DM_Sans({
+const nunito = Nunito({
   subsets: ['latin'],
-  variable: '--font-dm-sans',
+  weight: ['400', '600', '700', '800'],
+  variable: '--font-nunito',
   display: 'swap',
 });
 
@@ -21,8 +22,8 @@ const themeScript = `
 `;
 
 export const metadata: Metadata = {
-  title: 'My Little Moments – Admin',
-  description: 'School and admin management for My Little Moments',
+  title: 'My Little Moments – Daycare Admin',
+  description: 'Daycare and school management for My Little Moments',
 };
 
 export default function RootLayout({
@@ -31,11 +32,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={dmSans.variable} suppressHydrationWarning>
+    <html lang="en" className={nunito.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100">
+      <body className="min-h-screen bg-warm-50 font-sans text-slate-800 antialiased dark:bg-slate-900 dark:text-slate-100">
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>

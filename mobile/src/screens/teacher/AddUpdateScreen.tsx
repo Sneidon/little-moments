@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
@@ -462,7 +463,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
   const handleTakePhoto = async () => {
     const result = await takePhotoAsync();
-    if (result) setPhotoUri(result.uri);
+    if (result) {
+      setPhotoUri(result.uri);
+      setPhotoMimeType(undefined);
+    }
   };
 
   const handlePickPhoto = async () => {
@@ -1317,6 +1321,22 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Blocking save modal - prevents navigation while saving */}
+      <Modal
+        visible={loading}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.savingOverlay}>
+          <View style={styles.savingContent}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.savingText}>Saving…</Text>
+            <Text style={styles.savingHint}>Please wait</Text>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -1563,6 +1583,23 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
 
     emptyState: { alignItems: 'center', paddingVertical: 48 },
     emptyText: { fontSize: 15, color: colors.textMuted, marginTop: 12 },
+
+    savingOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    savingContent: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 28,
+      alignItems: 'center',
+      minWidth: 180,
+    },
+    savingText: { fontSize: 18, fontWeight: '700', color: colors.text, marginTop: 12 },
+    savingHint: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
 
     modalBackdrop: {
       flex: 1,

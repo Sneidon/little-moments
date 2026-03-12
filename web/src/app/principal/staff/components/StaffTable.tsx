@@ -1,6 +1,7 @@
 'use client';
 
 import type { UserProfile } from 'shared/types';
+import { SectionCard } from '@/components/ui';
 
 export interface StaffTableProps {
   staff: UserProfile[];
@@ -22,29 +23,29 @@ export function StaffTable({
   passwordResetLoadingUid,
 }: StaffTableProps) {
   return (
-    <div className="card overflow-hidden">
+    <SectionCard topBar="accent" padding="none">
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50/80 dark:bg-slate-700">
+        <table className="data-table">
+          <thead>
             <tr>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Preferred name</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Email</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Role</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Assigned class</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Added</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Updated</th>
-              <th className="w-0 px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Actions</th>
+              <th>Name</th>
+              <th>Preferred name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Assigned class</th>
+              <th>Added</th>
+              <th>Updated</th>
+              <th className="w-0 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {staff.map((u) => (
-              <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
-              <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{u.displayName ?? '—'}</td>
-              <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.preferredName ?? '—'}</td>
-              <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email}</td>
-              <td className="px-4 py-3">
+              <tr key={u.uid}>
+              <td className="cell-main">{u.displayName ?? '—'}</td>
+              <td>{u.preferredName ?? '—'}</td>
+              <td>{u.email}</td>
+              <td>
                 <span
                   className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                     u.role === 'principal'
@@ -55,7 +56,7 @@ export function StaffTable({
                   {u.role}
                 </span>
               </td>
-              <td className="px-4 py-3">
+              <td>
                 {u.role === 'teacher' ? (
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -68,10 +69,10 @@ export function StaffTable({
                   '—'
                 )}
               </td>
-              <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{classForTeacher(u.uid) ?? '—'}</td>
-              <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{formatDate(u.createdAt)}</td>
-              <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{formatDate(u.updatedAt)}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right">
+              <td>{classForTeacher(u.uid) ?? '—'}</td>
+              <td className="cell-muted">{formatDate(u.createdAt)}</td>
+              <td className="cell-muted">{formatDate(u.updatedAt)}</td>
+              <td className="whitespace-nowrap text-right">
                 <div className="flex flex-nowrap items-center justify-end gap-2">
                   {u.role === 'teacher' && (
                     <button
@@ -113,6 +114,6 @@ export function StaffTable({
         </div>
       )}
       </div>
-    </div>
+    </SectionCard>
   );
 }

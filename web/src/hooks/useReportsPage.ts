@@ -51,6 +51,7 @@ export interface UseReportsPageResult {
   loading: boolean;
   filters: ReportsFiltersState;
   setFilters: React.Dispatch<React.SetStateAction<ReportsFiltersState>>;
+  clearFilters: () => void;
   setFilterClassId: (v: string) => void;
   setFilterDay: (v: string) => void;
   setFilterDateFrom: (v: string) => void;
@@ -177,6 +178,13 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
     setFilters((prev) => ({ ...prev, limit: v }));
   }, []);
 
+  const clearFilters = useCallback(() => {
+    setFilters({
+      ...DEFAULT_FILTERS,
+      day: getDefaultDay(),
+    });
+  }, []);
+
   return {
     reports,
     classes,
@@ -184,6 +192,7 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
     loading,
     filters,
     setFilters,
+    clearFilters,
     setFilterClassId,
     setFilterDay,
     setFilterDateFrom,

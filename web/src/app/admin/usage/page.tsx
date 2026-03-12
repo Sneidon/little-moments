@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 type SchoolStats = {
   id: string;
@@ -57,19 +58,20 @@ export default function UsagePage() {
   }, []);
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Usage & analytics</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Overview of activity per school. Click a school to view its analytics.
-        </p>
-      </div>
+    <div className="animate-fade-in">
+      <PageHero
+        variant="full"
+        title={<span className="text-gradient-warm">Usage & analytics</span>}
+        subtitle="Overview of activity per school. Click a school to view its analytics."
+      />
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+        <SectionCard topBar="accent" padding="none">
+          <TableSkeleton rows={5} cols={5} />
+        </SectionCard>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
-          <table className="w-full text-left text-sm">
+        <SectionCard topBar="accent" padding="none">
+          <table className="data-table">
             <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">School</th>
@@ -99,9 +101,9 @@ export default function UsagePage() {
             </tbody>
           </table>
           {stats.length === 0 && (
-            <p className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
+            <p className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No schools yet.</p>
           )}
-        </div>
+        </SectionCard>
       )}
     </div>
   );

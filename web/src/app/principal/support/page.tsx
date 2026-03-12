@@ -1,12 +1,12 @@
 'use client';
 
-import Link from 'next/link';
+import { PageHero } from '@/components/ui';
 
 export default function SupportPage() {
   return (
     <div className="animate-fade-in mx-auto max-w-xl">
-      <h1 className="mb-6 text-2xl font-bold text-slate-900 dark:text-slate-100">Contact support</h1>
-      <div className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
+      <PageHero variant="full" title={<span className="text-gradient-warm">Contact support</span>} className="mb-6" />
+      <div className="rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
         <p className="text-slate-600 dark:text-slate-300">
           For technical support or questions about My Little Moments, please contact:
         </p>
@@ -22,11 +22,6 @@ export default function SupportPage() {
           </li>
         </ul>
       </div>
-      <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-        <Link href="/principal/faq" className="text-primary-600 dark:text-primary-400 hover:underline">
-          View FAQ
-        </Link>
-      </p>
     </div>
   );
 }

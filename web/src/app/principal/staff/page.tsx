@@ -11,6 +11,7 @@ import {
   EditTeacherForm,
 } from './components';
 import type { UserProfile } from 'shared/types';
+import { SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 
 export default function StaffPage() {
   const [pendingPasswordResetUser, setPendingPasswordResetUser] = useState<UserProfile | null>(null);
@@ -101,7 +102,14 @@ export default function StaffPage() {
       )}
 
       {loading ? (
-        <div className="card h-48 animate-pulse bg-slate-100 dark:bg-slate-700" />
+        <>
+          <SectionCard topBar="warm" padding="default" className="mb-6">
+            <FilterSkeleton />
+          </SectionCard>
+          <SectionCard topBar="accent" padding="none">
+            <TableSkeleton />
+          </SectionCard>
+        </>
       ) : (
         <>
           <StaffFilters

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import app, { auth, db } from '../config/firebase';
 import { getCached, setCached, removeCached, PROFILE_TTL_MS } from '../utils/cache';
 import type { UserProfile, UserRole } from '../../../shared/types';
 
@@ -37,6 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const snap = await getDoc(doc(db, 'users', u.uid));
         if (snap.exists()) {
           const profileData = { uid: u.uid, ...snap.data() } as UserProfile;
+          try {
+            const syncClaims = httpsCallable(getFunctions(app), 'syncClaims');
+            await syncClaims({});
+            await u.getIdToken(true);
+          } catch { /* rules may fail until next login if sync fails */ }
           setProfile(profileData);
           await setCached(cacheKey, profileData, PROFILE_TTL_MS);
         } else {

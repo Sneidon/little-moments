@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { REPORT_TYPE_LABELS } from '@/constants/reports';
 import type { ClassReportRow } from '@/hooks/useClassDetail';
+import { SectionCard } from '@/components/ui';
 
 export interface ClassActivitiesSectionProps {
   filterDay: string;
@@ -20,16 +21,29 @@ export function ClassActivitiesSection({
   daysWithActivity,
   reportsForDay,
 }: ClassActivitiesSectionProps) {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const hasFilterActive = filterDay !== todayIso;
   const dateLabel = new Date(filterDay + 'T12:00:00').toLocaleDateString(
     undefined,
     { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
   );
 
   return (
-    <section className="mb-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 shadow-sm">
-      <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">
-        Class activities by day
-      </h2>
+    <SectionCard topBar="accent" padding="default" className="mb-8">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+          Class activities by day
+        </h2>
+        {hasFilterActive && (
+          <button
+            type="button"
+            onClick={() => setFilterDay(todayIso)}
+            className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            Clear
+          </button>
+        )}
+      </div>
 
       <div className="mb-6 flex flex-wrap items-end gap-4">
         <div>
@@ -81,7 +95,7 @@ export function ClassActivitiesSection({
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-600">
-          <table className="w-full text-left text-sm">
+          <table className="data-table">
             <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">
@@ -142,6 +156,6 @@ export function ClassActivitiesSection({
           </table>
         </div>
       )}
-    </section>
+    </SectionCard>
   );
 }

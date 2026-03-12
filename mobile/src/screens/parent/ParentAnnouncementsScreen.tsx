@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl, Image, TouchableOpacity, Linking, ScrollView } from 'react-native';
 import { SkeletonCard } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -80,7 +81,7 @@ export function ParentAnnouncementsScreen() {
   return (
     <View style={styles.container}>
       {!schoolId ? (
-        <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+        <ScrollView style={styles.container}>
           {[1, 2, 3, 4].map((i) => (
             <SkeletonCard key={i} />
           ))}
@@ -90,7 +91,14 @@ export function ParentAnnouncementsScreen() {
           data={list}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          ListEmptyComponent={<Text style={styles.empty}>No announcements.</Text>}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <EmptyState
+              icon="megaphone-outline"
+              title="No announcements"
+              subtitle="Announcements from your daycare will appear here."
+            />
+          }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -102,7 +110,7 @@ export function ParentAnnouncementsScreen() {
 
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
   return StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: colors.background },
+    container: { flex: 1, backgroundColor: colors.background },
     card: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -121,6 +129,6 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     documents: { marginTop: 8, gap: 4 },
     docLink: { fontSize: 14, color: colors.primary, textDecorationLine: 'underline' },
     meta: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
-    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
+    listContent: { flexGrow: 1, padding: 16 },
   });
 }

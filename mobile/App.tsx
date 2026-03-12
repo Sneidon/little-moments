@@ -1,33 +1,33 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { signOut } from 'firebase/auth';
-import { auth } from './src/config/firebase';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthStack } from './src/navigation/AuthStack';
 import { MainTabs } from './src/navigation/MainTabs';
+import { AccessDeniedScreen } from './src/screens/auth/AccessDeniedScreen';
 
 const ALLOWED_ROLES = ['teacher', 'parent'] as const;
+
+function Loader() {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+}
 
 function RootNavigator() {
   const { user, profile, loading } = useAuth();
 
-  useEffect(() => {
-    if (user && profile && !ALLOWED_ROLES.includes(profile.role as typeof ALLOWED_ROLES[number])) {
-      signOut(auth);
-      Alert.alert(
-        'Access denied',
-        'This app is only available for teachers and parents. Please use the web app for other roles.'
-      );
-    }
-  }, [user, profile]);
-
-  if (loading) return null; // or a splash screen
-  if (!user || !profile) return <AuthStack />;
-  if (!ALLOWED_ROLES.includes(profile.role as typeof ALLOWED_ROLES[number])) return <AuthStack />;
-  return <MainTabs role={profile.role} />;
+  if (loading || (user && !profile)) return <Loader />;
+  if (!user) return <AuthStack />;
+  if (!ALLOWED_ROLES.includes(profile!.role as (typeof ALLOWED_ROLES)[number])) {
+    return <AccessDeniedScreen />;
+  }
+  return <MainTabs role={profile!.role} />;
 }
 
 function AppContent() {

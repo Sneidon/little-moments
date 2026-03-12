@@ -2,6 +2,7 @@
 
 import { REPORT_TYPE_LABELS, REPORT_TYPE_STYLES } from '@/constants/reports';
 import type { ReportRow } from '@/hooks/useReportsPage';
+import { SectionCard } from '@/components/ui';
 
 interface ReportsTableProps {
   rows: ReportRow[];
@@ -11,7 +12,7 @@ interface ReportsTableProps {
 
 export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
+    <SectionCard topBar="accent" padding="none">
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-800/80 px-4 py-3">
         <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
           {rows.length === 0
@@ -20,7 +21,7 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
         </span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="data-table">
           <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-700">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Child</th>
@@ -92,6 +93,6 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Try changing the date range, class, or type</p>
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 }

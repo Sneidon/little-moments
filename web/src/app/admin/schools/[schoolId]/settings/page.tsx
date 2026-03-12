@@ -7,6 +7,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import type { School, SchoolFeatures } from 'shared/types';
+import { PageHero, SectionCard } from '@/components/ui';
 
 const FEATURE_KEYS: (keyof SchoolFeatures)[] = [
   'nappyChange',
@@ -107,7 +108,7 @@ export default function AdminSchoolSettingsPage() {
         >
           ← Back to schools
         </Link>
-        <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
+        <div className="mt-6 rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
           <p className="text-slate-600 dark:text-slate-300">{error ?? 'School not found'}</p>
         </div>
       </div>
@@ -116,22 +117,16 @@ export default function AdminSchoolSettingsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6">
-        <Link
-          href={`/admin/schools/${schoolId}`}
-          className="text-primary-600 dark:text-primary-400 hover:underline text-sm font-medium"
-        >
-          ← Back to {school.name}
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-          Configure school
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Enable or disable features for this school. Disabled features will be hidden from teachers.
-        </p>
-      </div>
+      <PageHero
+        variant="full"
+        backHref={`/admin/schools/${schoolId}`}
+        backLabel={school.name}
+        title={<span className="text-gradient-warm">Configure school</span>}
+        subtitle="Enable or disable features for this school. Disabled features will be hidden from teachers."
+      />
 
-      <form onSubmit={save} className="card p-6">
+      <form onSubmit={save}>
+        <SectionCard topBar="primary" padding="default">
         <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-200">Feature flags</h2>
         <div className="space-y-3">
           {FEATURE_KEYS.map((key) => (
@@ -165,6 +160,7 @@ export default function AdminSchoolSettingsPage() {
             <span className="text-sm font-medium text-red-600 dark:text-red-400">{error}</span>
           )}
         </div>
+        </SectionCard>
       </form>
     </div>
   );

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PageHero, SectionCard } from '@/components/ui';
 
 export default function AdminSchoolUsagePage() {
   const params = useParams();
@@ -85,7 +86,7 @@ export default function AdminSchoolUsagePage() {
         >
           ← Back to Usage & analytics
         </Link>
-        <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
+        <div className="mt-6 rounded-card border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-6">
           <p className="text-slate-600 dark:text-slate-300">{error}</p>
         </div>
       </div>
@@ -94,31 +95,21 @@ export default function AdminSchoolUsagePage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6">
-        <Link
-          href="/admin/usage"
-          className="text-primary-600 dark:text-primary-400 hover:underline text-sm font-medium"
-        >
-          ← Back to Usage & analytics
-        </Link>
-        <Link
-          href={`/admin/schools/${schoolId}`}
-          className="ml-4 text-primary-600 dark:text-primary-400 hover:underline text-sm font-medium"
-        >
-          Back to {schoolName || 'school'}
-        </Link>
-      </div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-          Usage & analytics
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {schoolName || 'School'} — activity overview
-        </p>
-      </div>
+      <PageHero
+        variant="full"
+        backHref="/admin/usage"
+        backLabel="Usage & analytics"
+        title={<span className="text-gradient-warm">Usage & analytics</span>}
+        subtitle={`${schoolName || 'School'} — activity overview`}
+        actions={
+          <Link href={`/admin/schools/${schoolId}`} className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
+            Back to {schoolName || 'school'}
+          </Link>
+        }
+      />
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm">
-        <table className="w-full text-left text-sm">
+      <SectionCard topBar="accent" padding="none">
+        <table className="data-table">
           <thead className="bg-slate-50 dark:bg-slate-700">
             <tr>
               <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Metric</th>
@@ -152,7 +143,7 @@ export default function AdminSchoolUsagePage() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </SectionCard>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 import { formatClassDisplay } from '@/lib/formatClass';
+import { SectionCard } from '@/components/ui';
 
 export interface LinkedChildrenListProps {
   children: Child[];
@@ -15,8 +16,8 @@ export function LinkedChildrenList({ children, classes }: LinkedChildrenListProp
     classId ? formatClassDisplay(classes.find((c) => c.id === classId)) ?? '—' : '—';
 
   return (
-    <div className="card overflow-hidden">
-      <div className="border-b border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/50 px-4 py-3">
+    <SectionCard topBar="accent" padding="none">
+      <div className="border-b border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/50 px-6 py-4">
         <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Linked children</h2>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
           Children linked to this parent. Manage from each child&apos;s profile.
@@ -31,7 +32,7 @@ export function LinkedChildrenList({ children, classes }: LinkedChildrenListProp
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="data-table">
             <thead className="bg-slate-50/80 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
@@ -65,6 +66,6 @@ export function LinkedChildrenList({ children, classes }: LinkedChildrenListProp
           </table>
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 }

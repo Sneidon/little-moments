@@ -11,6 +11,7 @@ import { exportChildDetailsToExcel } from '@/lib/exportChildDetailsExcel';
 import { useChildDetail } from '@/hooks/useChildDetail';
 import { useChildParents } from '@/hooks/useChildParents';
 import { useParentsManagement } from '@/hooks/useParentsManagement';
+import { useSchoolName } from '@/hooks/useSchoolName';
 import { ExportPdfOptionsDialog } from '@/components/ExportPdfOptionsDialog';
 import {
   ChildDetailHeader,
@@ -28,6 +29,7 @@ export default function ChildDetailPage() {
   const { profile } = useAuth();
   const params = useParams();
   const childId = params?.childId as string;
+  const schoolName = useSchoolName(profile?.schoolId);
   const { child, setChild, classes, reports, loading } = useChildDetail(
     profile?.schoolId,
     childId
@@ -70,6 +72,7 @@ export default function ChildDetailPage() {
         parents,
         reports,
         classDisplay,
+        schoolName: schoolName ?? undefined,
         include: {
           profile: set.has('profile'),
           parents: set.has('parents'),
@@ -77,7 +80,7 @@ export default function ChildDetailPage() {
         },
       });
     },
-    [child, classes, parents, reports, classDisplay]
+    [child, classes, parents, reports, classDisplay, schoolName]
   );
 
   const handleExportCsv = useCallback(() => {
@@ -122,6 +125,7 @@ export default function ChildDetailPage() {
         childName={child?.name}
         maxParents={parentManagement.maxParents}
         parents={parents}
+        getParentProfileHref={(p) => `/principal/parents/${p.uid}`}
         canInviteMore={parentManagement.canInviteMore}
         showInviteParent={parentManagement.showInviteParent}
         setShowInviteParent={parentManagement.setShowInviteParent}

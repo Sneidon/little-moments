@@ -40,9 +40,10 @@ export function exportChildrenToPdf(
   children: Child[],
   classes: ClassRoom[],
   classDisplay: ClassDisplayFn,
-  options?: { onProgress?: (message: string) => void }
+  options?: { onProgress?: (message: string) => void; schoolName?: string }
 ): void {
   const onProgress = options?.onProgress ?? (() => {});
+  const schoolName = options?.schoolName;
 
   if (children.length === 0) {
     onProgress('No children to export.');
@@ -71,6 +72,7 @@ export function exportChildrenToPdf(
     meta: `Exported ${new Date().toLocaleDateString()} · ${children.length} children`,
     margin,
     startY: 12,
+    schoolName,
   });
 
   autoTable(doc, {
@@ -91,7 +93,7 @@ export function exportChildrenToPdf(
       5: { cellWidth: 38 },
     },
     didDrawPage: () => {
-      pdfAddFooter(doc, margin, pageHeight, `${children.length} children`);
+      pdfAddFooter(doc, margin, pageHeight, `${children.length} children`, { schoolName });
     },
     showHead: 'everyPage',
   });

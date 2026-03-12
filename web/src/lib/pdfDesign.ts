@@ -1,6 +1,6 @@
 /**
- * Shared PDF design for all exports. Use these constants and helpers so every
- * PDF has consistent branding, typography, and table styling.
+ * Shared PDF design for all exports. Matches the app's current design:
+ * primary (violet), accent (teal), warm tones, and consistent typography.
  */
 import type { jsPDF } from 'jspdf';
 
@@ -10,6 +10,9 @@ export const PDF_MARGIN = {
   portrait: 14,
   landscape: 10,
 } as const;
+
+/** Height of the accent bar at the top of the first page (mm). */
+export const PDF_ACCENT_BAR_HEIGHT = 3;
 
 export const PDF_FONT = {
   brandSize: 18,
@@ -22,14 +25,19 @@ export const PDF_FONT = {
   footerSize: 8,
 } as const;
 
+/** Colors aligned with app theme (RGB 0–255 for jsPDF). */
 export const PDF_COLOR = {
   /** Slate for meta text and footer */
   meta: [100, 116, 139] as [number, number, number],
-  /** Table header background (slate-600) */
-  headFill: [71, 85, 105] as [number, number, number],
+  /** Primary (violet) – table headers, brand accent */
+  primary: [109, 40, 217] as [number, number, number],
+  /** Accent (teal) – top bar */
+  accent: [20, 184, 166] as [number, number, number],
+  /** Table header background: primary */
+  headFill: [109, 40, 217] as [number, number, number],
   /** Table header text */
   headText: 255,
-  /** Alternate row background (slate-50) */
+  /** Alternate row background (warm-50 / slate-50) */
   alternateRow: [248, 250, 252] as [number, number, number],
 } as const;
 
@@ -65,7 +73,17 @@ export const PDF_TABLE_ALTERNATE_ROW = {
 };
 
 /**
- * Draw the standard document header: brand, title, meta line.
+ * Draw the accent bar at the top of the page (teal, matches app card-top-accent).
+ * Call once at the start of the document.
+ */
+export function pdfDrawAccentBar(doc: jsPDF, margin: number): void {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...PDF_COLOR.accent);
+  doc.rect(0, 0, pageWidth, PDF_ACCENT_BAR_HEIGHT, 'F');
+}
+
+/**
+ * Draw the standard document header: accent bar (on first page), brand, optional school name, title, meta line.
  * Returns the Y position after the header (use as startY for content).
  */
 export function pdfAddHeader(
@@ -76,15 +94,35 @@ export function pdfAddHeader(
     meta: string;
     margin: number;
     startY?: number;
+    /** School name shown under the brand when provided */
+    schoolName?: string;
+    /** If true, draw the accent bar at the top (typically true only on first page) */
+    drawAccentBar?: boolean;
   }
 ): number {
-  const { title, subtitle, meta, margin, startY = margin } = options;
+  const { title, subtitle, meta, margin, startY = margin, schoolName, drawAccentBar = true } = options;
   let y = startY;
+
+  if (drawAccentBar) {
+    pdfDrawAccentBar(doc, margin);
+    y += PDF_ACCENT_BAR_HEIGHT + 4;
+  }
 
   doc.setFontSize(PDF_FONT.brandSize);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...PDF_COLOR.primary);
   doc.text(PDF_BRAND, margin, y);
+  doc.setTextColor(0, 0, 0);
   y += 6;
+
+  if (schoolName) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(PDF_FONT.metaSize);
+    doc.setTextColor(...PDF_COLOR.meta);
+    doc.text(`School: ${schoolName}`, margin, y);
+    doc.setTextColor(0, 0, 0);
+    y += 5;
+  }
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(PDF_FONT.titleSize);
@@ -124,16 +162,19 @@ export function pdfAddSectionTitle(
 
 /**
  * Draw the standard footer on a page (e.g. in didDrawPage).
+ * Optionally show school name on the left (e.g. "My Little Moments · School Name").
  */
 export function pdfAddFooter(
   doc: jsPDF,
   margin: number,
   pageHeight: number,
-  rightText: string
+  rightText: string,
+  options?: { schoolName?: string }
 ): void {
   doc.setFontSize(PDF_FONT.footerSize);
   doc.setTextColor(...PDF_COLOR.meta);
-  doc.text(PDF_BRAND, margin, pageHeight - 6);
+  const leftText = options?.schoolName ? `${PDF_BRAND} · ${options.schoolName}` : PDF_BRAND;
+  doc.text(leftText, margin, pageHeight - 6);
   const pageWidth = doc.internal.pageSize.getWidth();
   doc.text(rightText, pageWidth - margin, pageHeight - 6, { align: 'right' });
   doc.setTextColor(0, 0, 0);

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { ParentWithChildren } from '@/lib/exportStaffPagePdf';
 import type { UserProfile } from 'shared/types';
+import { SectionCard } from '@/components/ui';
 
 export interface ParentsTableProps {
   parents: ParentWithChildren[];
@@ -18,9 +19,9 @@ export function ParentsTable({
   passwordResetLoadingUid,
 }: ParentsTableProps) {
   return (
-    <div className="card overflow-hidden">
+    <SectionCard topBar="accent" padding="none">
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="data-table">
           <thead className="bg-slate-50/80 dark:bg-slate-700">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
@@ -92,7 +93,7 @@ export function ParentsTable({
         </tbody>
       </table>
       {parents.length === 0 && (
-        <div className="px-4 py-12 text-center">
+        <div className="px-6 py-12 text-center">
           <p className="text-slate-500 dark:text-slate-400">
             {totalCount === 0 ? 'No parents yet.' : 'No parents match the current filters.'}
           </p>
@@ -102,6 +103,6 @@ export function ParentsTable({
         </div>
       )}
       </div>
-    </div>
+    </SectionCard>
   );
 }

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "My Little Moments",
-    "slug": "my-little-moments",
+    "slug": "little-moments",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,19 +23,23 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mylittlemoments.app"
+      "bundleIdentifier": "co.za.mylittlemoments"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#6366f1"
       },
-      "package": "com.mylittlemoments.app"
+      "package": "co.za.mylittlemoments",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "extra": {
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "d0c62874-2bcb-4046-b9c1-6a5fb470db7d"
       }
-    }
+    },
+    "owner": "mukondleteri"
   }
 }

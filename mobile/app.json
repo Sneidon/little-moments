@@ -14,13 +14,6 @@
     "plugins": [
       "expo-notifications",
       [
-        "@react-native-firebase/app",
-        {
-          "ios": { "googleServicesFile": "./firebase/GoogleService-Info.plist" },
-          "android": { "googleServicesFile": "./firebase/google-services.json" }
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": "Allow Little Moments to access your photos to attach to updates.",

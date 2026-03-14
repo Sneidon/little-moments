@@ -22,6 +22,7 @@ import {
   SkeletonStudentCard,
 } from '../../components/Skeleton';
 import { useDateNavigation, useTeacherClassChildren } from '../../hooks';
+import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { getAge, getInitials } from '../../utils';
 
 import type { Child } from '../../../../shared/types';
@@ -48,6 +49,8 @@ export function TeacherHomeScreen({
   const [presentChildIds, setPresentChildIds] = useState<Set<string>>(new Set());
 
   const { children, className, loading } = useTeacherClassChildren(refreshTrigger);
+  useNotificationNavigation(false);
+
   const {
     selectedDate,
     showDatePicker,

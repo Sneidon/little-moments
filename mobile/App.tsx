@@ -7,6 +7,10 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthStack } from './src/navigation/AuthStack';
 import { MainTabs } from './src/navigation/MainTabs';
 import { AccessDeniedScreen } from './src/screens/auth/AccessDeniedScreen';
+import { registerBackgroundMessageHandler } from './src/services/notifications';
+
+// Register FCM background handler as early as possible (required by react-native-firebase).
+registerBackgroundMessageHandler();
 
 const ALLOWED_ROLES = ['teacher', 'parent'] as const;
 

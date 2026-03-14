@@ -31,6 +31,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Skeleton } from '../../components/Skeleton';
 import { getAge, getInitials, formatTime } from '../../utils';
 import { getCached, setCached, LIST_TTL_MS } from '../../utils/cache';
+import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -48,6 +49,7 @@ export function ParentHomeScreen({
   const { profile, selectedChildId, setSelectedChildId } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useNotificationNavigation(true);
   const [children, setChildren] = useState<Child[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => {

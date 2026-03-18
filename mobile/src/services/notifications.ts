@@ -22,6 +22,14 @@ try {
   // Expo Go or environment without native FCM
 }
 
+type ExpoNotificationsModule = typeof import('expo-notifications');
+let expoNotifications: ExpoNotificationsModule | null = null;
+try {
+  expoNotifications = require('expo-notifications');
+} catch {
+  // Not installed / unavailable (should exist in this app, but keep safe)
+}
+
 /** Call once at app startup, before any component mounts. */
 export function registerBackgroundMessageHandler(): void {
   if (!messaging) return;
@@ -49,6 +57,90 @@ export type RemoteMessage = {
   data?: NotificationData;
 };
 
+let foregroundBridgeUnsubscribe: (() => void) | null = null;
+let tokenRefreshUnsubscribe: (() => void) | null = null;
+
+async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  if (!expoNotifications) return;
+  try {
+    await expoNotifications.setNotificationChannelAsync('default', {
+      name: 'Default',
+      importance: expoNotifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#6366f1',
+    });
+  } catch {
+    // ignore
+  }
+}
+
+function configureExpoNotificationHandler(): void {
+  if (!expoNotifications) return;
+  try {
+    expoNotifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch {
+    // ignore
+  }
+}
+
+async function presentLocalNotificationFromRemoteMessage(message: RemoteMessage): Promise<void> {
+  if (!expoNotifications) return;
+  const title = message.notification?.title?.trim();
+  const body = message.notification?.body?.trim();
+  if (!title && !body) return;
+  try {
+    await ensureAndroidChannel();
+    await expoNotifications.presentNotificationAsync({
+      content: {
+        title: title ?? '',
+        body: body ?? '',
+        data: (message.data ?? {}) as Record<string, unknown>,
+      },
+      trigger: null,
+    });
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Call once at app startup (native builds). Ensures:
+ * - Android has a notification channel
+ * - Foreground notifications show as local notifications (FCM does not show system UI in foreground)
+ */
+export function configureNotifications(): void {
+  configureExpoNotificationHandler();
+  ensureAndroidChannel().catch(() => {});
+
+  if (!messaging) return;
+  if (foregroundBridgeUnsubscribe) return;
+
+  try {
+    foregroundBridgeUnsubscribe = messaging().onMessage(async (remoteMessage) => {
+      await presentLocalNotificationFromRemoteMessage(remoteMessage as unknown as RemoteMessage);
+    });
+  } catch {
+    foregroundBridgeUnsubscribe = null;
+  }
+}
+
+async function saveTokenToBackend(token: string): Promise<void> {  
+  const trimmed = token.trim();
+  if (!trimmed) return;
+  const saveFcmToken = httpsCallable<{ token: string }, { ok: boolean }>(
+    getFunctions(app),
+    'saveFcmToken'
+  );
+  await saveFcmToken({ token: trimmed });
+}
+
 /**
  * Request permission (iOS + Android 33+), get FCM token, and save to backend via saveFcmToken.
  * Call after user is signed in.
@@ -69,12 +161,14 @@ export async function registerForPushNotifications(): Promise<void> {
 
     const token = await messaging().getToken();
     if (!token || !token.trim()) return;
+    await saveTokenToBackend(token);
 
-    const saveFcmToken = httpsCallable<{ token: string }, { ok: boolean }>(
-      getFunctions(app),
-      'saveFcmToken'
-    );
-    await saveFcmToken({ token: token.trim() });
+    if (!tokenRefreshUnsubscribe) {
+      tokenRefreshUnsubscribe = messaging().onTokenRefresh((newToken) => {
+        console.log('Token refreshed:', newToken);
+        saveTokenToBackend(newToken).catch(() => {});
+      });
+    }
   } catch (e) {
     console.warn('Push registration failed (expected in Expo Go):', e);
   }

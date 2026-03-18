@@ -21,7 +21,7 @@ import { getOrCreateChat } from '../../api/chat';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton } from '../../components/Skeleton';
+import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { font } from '../../theme/typography';
 import { getAge, getInitials, formatTime } from '../../utils';
@@ -34,7 +34,7 @@ type ReportsRouteParams = { childId: string };
 type Props = {
   route: { params: ReportsRouteParams };
   navigation: {
-    navigate: (name: string, params?: object) => void;
+    navigate: (name: 'ReportDetail' | 'AddUpdate' | 'ChatThread', params?: object) => void;
     setOptions: (o: object) => void;
   };
 };
@@ -108,6 +108,8 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   const styles = useMemo(() => createStyles(colors, compact, isDark), [colors, compact, isDark]);
   const [child, setChild] = useState<Child | null>(null);
   const [className, setClassName] = useState<string | null>(null);
+  const [childLoading, setChildLoading] = useState(true);
+  const [childMissing, setChildMissing] = useState(false);
   const [reports, setReports] = useState<ReportWithExtras[]>([]);
   const [selectedDate, setSelectedDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
@@ -168,17 +170,41 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   }
 
   useEffect(() => {
-    if (!schoolId || !childId) return;
-    const childRef = doc(db, 'schools', schoolId, 'children', childId);
-    getDoc(childRef).then(async (snap) => {
-      if (!snap.exists()) return;
-      const data = snap.data() as Child;
-      setChild({ ...data, id: snap.id } as Child);
-      if (data.classId) {
-        const classSnap = await getDoc(doc(db, 'schools', schoolId, 'classes', data.classId));
-        if (classSnap.exists()) setClassName((classSnap.data() as ClassRoom).name);
+    if (!schoolId || !childId) {
+      setChildLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setChildLoading(true);
+    setChildMissing(false);
+    setChild(null);
+    setClassName(null);
+    (async () => {
+      try {
+        const childRef = doc(db, 'schools', schoolId, 'children', childId);
+        const snap = await getDoc(childRef);
+        if (cancelled) return;
+        if (!snap.exists()) {
+          setChildMissing(true);
+          return;
+        }
+        const data = snap.data() as Child;
+        setChild({ ...data, id: snap.id } as Child);
+        if (data.classId) {
+          const classSnap = await getDoc(doc(db, 'schools', schoolId, 'classes', data.classId));
+          if (!cancelled && classSnap.exists()) {
+            setClassName((classSnap.data() as ClassRoom).name);
+          }
+        }
+      } catch {
+        if (!cancelled) setChildMissing(true);
+      } finally {
+        if (!cancelled) setChildLoading(false);
       }
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [schoolId, childId]);
 
   useEffect(() => {
@@ -271,30 +297,44 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.profileCard}>
-          {child?.photoURL ? (
-            <Image source={{ uri: child.photoURL }} style={styles.profileAvatarImg} />
-          ) : (
-            <View style={styles.profileAvatar}>
-              <Text style={styles.profileAvatarText}>
-                {child ? getInitials(child.name) : '…'}
-              </Text>
+        {childLoading ? (
+          <View style={styles.profileCard}>
+            <SkeletonCircle size={52} />
+            <View style={styles.profileTextCol}>
+              <Skeleton width="72%" height={20} borderRadius={8} style={{ marginBottom: 10 }} />
+              <Skeleton width="48%" height={14} borderRadius={6} />
             </View>
-          )}
-          <View style={styles.profileTextCol}>
-            {child?.name ? (
+          </View>
+        ) : childMissing || !child ? (
+          <View style={styles.profileCard}>
+            <View style={[styles.profileAvatar, styles.profileAvatarMuted]}>
+              <Ionicons name="person-outline" size={26} color={colors.textMuted} />
+            </View>
+            <View style={styles.profileTextCol}>
+              <Text style={styles.profileName}>Child not found</Text>
+              <Text style={styles.profileMeta}>This student may have been removed.</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.profileCard}>
+            {child.photoURL ? (
+              <Image source={{ uri: child.photoURL }} style={styles.profileAvatarImg} />
+            ) : (
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>{getInitials(child.name)}</Text>
+              </View>
+            )}
+            <View style={styles.profileTextCol}>
               <Text style={styles.profileName} numberOfLines={1}>
                 {child.name}
               </Text>
-            ) : (
-              <Skeleton width={160} height={22} style={{ marginBottom: 6 }} />
-            )}
-            <Text style={styles.profileMeta} numberOfLines={1}>
-              {child ? getAge(child.dateOfBirth) : ''}
-              {className ? ` · ${className}` : ''}
-            </Text>
+              <Text style={styles.profileMeta} numberOfLines={1}>
+                {getAge(child.dateOfBirth)}
+                {className ? ` · ${className}` : ''}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.dateBar}>
           <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
@@ -339,35 +379,58 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
         )}
 
         <View style={styles.overviewSection}>
-          <Text style={styles.overviewTitle}>{"Today's overview"}</Text>
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryCard, styles.summaryMeals]}>
-              <Text style={[styles.summaryValue, styles.summaryMealsValue]}>{meals}/3</Text>
-              <Text style={styles.summaryLabel}>Meals</Text>
+          {childLoading ? (
+            <Skeleton width={160} height={20} borderRadius={8} style={{ marginBottom: 12 }} />
+          ) : (
+            <Text style={styles.overviewTitle}>{"Today's overview"}</Text>
+          )}
+          {childLoading ? (
+            <View style={styles.summaryRow}>
+              {[0, 1, 2, 3].map((i) => (
+                <View key={i} style={[styles.summaryCard, styles.summarySkeletonCard]}>
+                  <Skeleton width={compact ? 24 : 30} height={compact ? 18 : 22} borderRadius={6} />
+                  <Skeleton width={compact ? 36 : 44} height={10} borderRadius={4} style={{ marginTop: 8 }} />
+                </View>
+              ))}
             </View>
-            <View style={[styles.summaryCard, styles.summaryNap]}>
-              <Text style={[styles.summaryValue, styles.summaryNapValue]}>{napDuration}</Text>
-              <Text style={styles.summaryLabel}>Nap</Text>
+          ) : childMissing ? (
+            <Text style={styles.unavailableHint}>Overview unavailable</Text>
+          ) : (
+            <View style={styles.summaryRow}>
+              <View style={[styles.summaryCard, styles.summaryMeals]}>
+                <Text style={[styles.summaryValue, styles.summaryMealsValue]}>{meals}/3</Text>
+                <Text style={styles.summaryLabel}>Meals</Text>
+              </View>
+              <View style={[styles.summaryCard, styles.summaryNap]}>
+                <Text style={[styles.summaryValue, styles.summaryNapValue]}>{napDuration}</Text>
+                <Text style={styles.summaryLabel}>Nap</Text>
+              </View>
+              <View style={[styles.summaryCard, styles.summaryNappy]}>
+                <Text style={[styles.summaryValue, styles.summaryNappyValue]}>{nappy}</Text>
+                <Text style={styles.summaryLabel}>Nappy</Text>
+              </View>
+              <View style={[styles.summaryCard, styles.summaryActivities]}>
+                <Text style={[styles.summaryValue, styles.summaryActivitiesValue]}>{activities}</Text>
+                <Text style={styles.summaryLabel}>Activities</Text>
+              </View>
             </View>
-            <View style={[styles.summaryCard, styles.summaryNappy]}>
-              <Text style={[styles.summaryValue, styles.summaryNappyValue]}>{nappy}</Text>
-              <Text style={styles.summaryLabel}>Nappy</Text>
-            </View>
-            <View style={[styles.summaryCard, styles.summaryActivities]}>
-              <Text style={[styles.summaryValue, styles.summaryActivitiesValue]}>{activities}</Text>
-              <Text style={styles.summaryLabel}>Activities</Text>
-            </View>
-          </View>
+          )}
         </View>
 
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={[
               styles.actionBtnOutline,
-              (!child?.parentIds?.length || messageLoading) && styles.actionBtnDisabled,
+              (childLoading ||
+                childMissing ||
+                !child?.parentIds?.length ||
+                messageLoading) &&
+                styles.actionBtnDisabled,
             ]}
             onPress={onMessageParents}
-            disabled={messageLoading || !child?.parentIds?.length}
+            disabled={
+              childLoading || childMissing || messageLoading || !child?.parentIds?.length
+            }
             activeOpacity={0.75}
           >
             {messageLoading ? (
@@ -377,12 +440,18 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
                 <Ionicons
                   name="chatbubble-outline"
                   size={22}
-                  color={child?.parentIds?.length ? colors.primary : colors.textMuted}
+                  color={
+                    childLoading || childMissing || !child?.parentIds?.length
+                      ? colors.textMuted
+                      : colors.primary
+                  }
                 />
                 <Text
                   style={[
                     styles.actionBtnOutlineText,
-                    !child?.parentIds?.length && { color: colors.textMuted },
+                    (childLoading || childMissing || !child?.parentIds?.length) && {
+                      color: colors.textMuted,
+                    },
                   ]}
                 >
                   Message parents
@@ -391,8 +460,13 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnPrimary]}
+            style={[
+              styles.actionBtn,
+              styles.actionBtnPrimary,
+              (childLoading || childMissing) && styles.actionBtnDisabledSolid,
+            ]}
             onPress={() => navigation.navigate('AddUpdate', { initialChildId: childId })}
+            disabled={childLoading || childMissing}
             activeOpacity={0.85}
           >
             <Ionicons name="add-circle" size={24} color={colors.primaryContrast} />
@@ -401,10 +475,29 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {isToday ? "Today's Updates" : `Updates · ${displayDate}`}
-          </Text>
-          {sortedDayReports.length === 0 ? (
+          {childLoading ? (
+            <Skeleton width={200} height={20} borderRadius={8} style={{ marginBottom: 14 }} />
+          ) : (
+            <Text style={styles.sectionTitle}>
+              {isToday ? "Today's Updates" : `Updates · ${displayDate}`}
+            </Text>
+          )}
+          {childLoading ? (
+            <View>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={styles.timelineCard}>
+                  <Skeleton width={44} height={44} borderRadius={12} />
+                  <View style={styles.timelineSkeletonCol}>
+                    <Skeleton width={52} height={12} borderRadius={4} />
+                    <Skeleton width="85%" height={16} borderRadius={6} style={{ marginTop: 10 }} />
+                    <Skeleton width="70%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : childMissing ? (
+            <Text style={styles.unavailableHint}>No updates to show.</Text>
+          ) : sortedDayReports.length === 0 ? (
             <View style={styles.emptyBlock}>
               <EmptyState
                 icon="create-outline"
@@ -422,7 +515,21 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
             </View>
           ) : (
             sortedDayReports.map((item) => (
-              <View key={item.id} style={styles.timelineCard}>
+              <TouchableOpacity
+                key={item.id}
+                style={styles.timelineCard}
+                onPress={() =>
+                  schoolId &&
+                  navigation.navigate('ReportDetail', {
+                    schoolId,
+                    childId,
+                    reportId: item.id,
+                  })
+                }
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`View details: ${getReportTitle(item)}`}
+              >
                 <View
                   style={[
                     styles.timelineIconWrap,
@@ -436,13 +543,20 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
                   />
                 </View>
                 <View style={styles.timelineContent}>
-                  <Text style={styles.timelineTime}>
-                    {formatTime(item.timestamp || item.createdAt)}
-                  </Text>
+                  <View style={styles.timelineRowTop}>
+                    <Text style={styles.timelineTime}>
+                      {formatTime(item.timestamp || item.createdAt)}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </View>
                   <Text style={styles.timelineTitle}>{getReportTitle(item)}</Text>
-                  {item.notes ? <Text style={styles.timelineNotes}>{item.notes}</Text> : null}
+                  {item.notes ? (
+                    <Text style={styles.timelineNotes} numberOfLines={2}>
+                      {item.notes}
+                    </Text>
+                  ) : null}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -477,6 +591,11 @@ function createStyles(
       backgroundColor: colors.avatarBg,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    profileAvatarMuted: {
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
     },
     profileAvatarImg: {
       width: 52,
@@ -594,6 +713,24 @@ function createStyles(
     summaryNappyValue: { color: '#0d9488' },
     summaryActivities: {},
     summaryActivitiesValue: { color: '#2563eb' },
+    summarySkeletonCard: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: compact ? 68 : 76,
+    },
+    unavailableHint: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: colors.textMuted,
+      textAlign: 'center',
+      paddingVertical: 20,
+    },
+    timelineSkeletonCol: {
+      flex: 1,
+      marginLeft: 12,
+      minWidth: 0,
+      justifyContent: 'center',
+    },
 
     actionRow: {
       flexDirection: 'row',
@@ -647,6 +784,9 @@ function createStyles(
             elevation: 4,
           }),
     },
+    actionBtnDisabledSolid: {
+      opacity: 0.45,
+    },
     actionBtnText: {
       fontSize: 15,
       fontFamily: font.semiBold,
@@ -695,6 +835,11 @@ function createStyles(
       marginRight: 12,
     },
     timelineContent: { flex: 1, minWidth: 0 },
+    timelineRowTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
     timelineTime: {
       fontSize: 12,
       fontFamily: font.medium,

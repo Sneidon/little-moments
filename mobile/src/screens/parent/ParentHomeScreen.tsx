@@ -368,7 +368,20 @@ export function ParentHomeScreen({
             <Text style={styles.empty}>No updates for this day.</Text>
           ) : (
             reports.map((item) => (
-              <View key={item.id} style={styles.updateCard}>
+              <TouchableOpacity
+                key={item.id}
+                style={styles.updateCard}
+                onPress={() =>
+                  selectedChild &&
+                  (navigation.getParent() as { navigate: (n: string, p: object) => void } | undefined)?.navigate(
+                    'ReportDetail',
+                    { schoolId: selectedChild.schoolId, childId: selectedChild.id, reportId: item.id }
+                  )
+                }
+                activeOpacity={0.7}
+                disabled={!selectedChild}
+                accessibilityRole="button"
+              >
                 <Ionicons
                   name={reportTypeIcon(item.type) as keyof typeof Ionicons.glyphMap}
                   size={22}
@@ -376,13 +389,18 @@ export function ParentHomeScreen({
                   style={styles.updateCardIcon}
                 />
                 <View style={styles.updateCardContent}>
-                  <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+                  <View style={styles.updateCardRow}>
+                    <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </View>
                   <Text style={styles.updateType}>{item.type.replace('_', ' ')}</Text>
                   {item.notes ? (
-                    <Text style={styles.updateNotes}>{item.notes}</Text>
+                    <Text style={styles.updateNotes} numberOfLines={2}>
+                      {item.notes}
+                    </Text>
                   ) : null}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -460,5 +478,10 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       borderRadius: 12,
     },
     messageTeacherBtnText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
+    updateCardRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
   });
 }

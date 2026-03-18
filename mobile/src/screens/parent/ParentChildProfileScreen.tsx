@@ -395,7 +395,19 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
             </View>
           ) : (
             reports.map((item) => (
-              <View key={item.id} style={styles.updateCard}>
+              <TouchableOpacity
+                key={item.id}
+                style={styles.updateCard}
+                onPress={() =>
+                  (navigation.getParent() as { navigate: (n: string, p: object) => void } | undefined)?.navigate(
+                    'ReportDetail',
+                    { schoolId, childId, reportId: item.id }
+                  )
+                }
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`${formatReportTypeLabel(item.type)} details`}
+              >
                 <View style={[styles.updateIconCircle, { backgroundColor: colors.primaryMuted }]}>
                   <Ionicons
                     name={reportTypeIcon(item.type) as keyof typeof Ionicons.glyphMap}
@@ -404,11 +416,18 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
                   />
                 </View>
                 <View style={styles.updateCardContent}>
-                  <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+                  <View style={styles.updateCardTopRow}>
+                    <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </View>
                   <Text style={styles.updateType}>{formatReportTypeLabel(item.type)}</Text>
-                  {item.notes ? <Text style={styles.updateNotes}>{item.notes}</Text> : null}
+                  {item.notes ? (
+                    <Text style={styles.updateNotes} numberOfLines={2}>
+                      {item.notes}
+                    </Text>
+                  ) : null}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -602,6 +621,11 @@ function createChildProfileStyles(colors: import('../../theme/colors').ColorPale
       marginRight: 12,
     },
     updateCardContent: { flex: 1, minWidth: 0 },
+    updateCardTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
     updateTime: {
       fontSize: 12,
       fontFamily: font.medium,

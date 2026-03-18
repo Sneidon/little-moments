@@ -30,6 +30,7 @@ import { EditChildProfileScreen } from '../screens/parent/EditChildProfileScreen
 import { useEditChildProfileParams } from '../screens/parent/useEditChildProfileParams';
 import { EditChildProfileTeacherScreen } from '../screens/teacher/EditChildProfileTeacherScreen';
 import { AddUpdateScreen } from '../screens/teacher/AddUpdateScreen';
+import { ReportDetailScreen } from '../screens/shared/ReportDetailScreen';
 
 function EditChildProfileScreenWrapper() {
   const navigation = useNavigation();
@@ -51,6 +52,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   AddUpdate: { initialType?: string; initialChildId?: string } | undefined;
   Reports: { childId: string };
+  ReportDetail: { schoolId: string; childId: string; reportId: string };
   Announcements: undefined;
   Events: undefined;
   ChildProfile: { childId: string; schoolId: string };
@@ -212,6 +214,11 @@ export function MainTabs({ role }: { role: UserRole }) {
         options={{ headerShown: false }}
       />
       <RootStack.Screen name="Reports" component={TeacherReportsScreen} options={{ title: 'Daily report' }} />
+      <RootStack.Screen
+        name="ReportDetail"
+        component={ReportDetailScreen}
+        options={{ title: 'Update details' }}
+      />
       <RootStack.Screen
         name="AddUpdate"
         component={AddUpdateScreen as React.ComponentType<Record<string, unknown>>}

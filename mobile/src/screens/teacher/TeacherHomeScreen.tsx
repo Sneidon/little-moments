@@ -252,7 +252,7 @@ export function TeacherHomeScreen({
       icon: 'restaurant' as const,
       soft: colors.accentOrangeSoft,
       iconColor: colors.accentOrange,
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'meal' }),
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'meal' }),
     },
     {
       id: 'nap',
@@ -260,7 +260,7 @@ export function TeacherHomeScreen({
       icon: 'moon' as const,
       soft: colors.accentPurpleSoft,
       iconColor: colors.accentPurple,
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'nap_time' }),
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'nap_time' }),
     },
     {
       id: 'nappy',
@@ -268,7 +268,7 @@ export function TeacherHomeScreen({
       icon: 'water' as const,
       soft: colors.accentTealSoft,
       iconColor: colors.accentTeal,
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'nappy_change' }),
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'nappy_change' }),
     },
     {
       id: 'activity',
@@ -276,7 +276,7 @@ export function TeacherHomeScreen({
       icon: 'color-palette' as const,
       soft: colors.accentOrangeSoft,
       iconColor: colors.accentOrange,
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'medication' }),
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'medication' }),
     },
     {
       id: 'photo',
@@ -284,7 +284,7 @@ export function TeacherHomeScreen({
       icon: 'camera' as const,
       soft: colors.accentTealSoft,
       iconColor: colors.accentTeal,
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'incident' }),
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'incident' }),
     },
     {
       id: 'planned',
@@ -443,7 +443,7 @@ export function TeacherHomeScreen({
           {/* Add Daily Update CTA */}
           <TouchableOpacity
             style={styles.ctaCard}
-            onPress={() => navigation.navigate('AddUpdate')}
+            onPress={() => rootStack?.navigate('AddUpdate')}
             activeOpacity={0.92}
           >
             <View style={styles.ctaIconCircle}>

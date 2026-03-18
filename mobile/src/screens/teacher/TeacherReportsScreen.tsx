@@ -367,10 +367,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnPrimary]}
           onPress={() =>
-            navigation.navigate('MainTabs', {
-              screen: 'AddUpdate',
-              params: { initialChildId: childId },
-            })
+            navigation.navigate('AddUpdate', { initialChildId: childId })
           }
           activeOpacity={0.7}
         >

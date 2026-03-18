@@ -8,7 +8,6 @@ import { font } from '../theme/typography';
 import type { UserRole } from '../../../shared/types';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
-import { AddUpdateScreen } from '../screens/teacher/AddUpdateScreen';
 import { TeacherStudentsScreen } from '../screens/teacher/TeacherStudentsScreen';
 import { TeacherSettingsScreen } from '../screens/teacher/TeacherSettingsScreen';
 import { AnnouncementsScreen } from '../screens/shared/AnnouncementsScreen';
@@ -30,6 +29,7 @@ import { DailyCommunicationScreen } from '../screens/teacher/DailyCommunicationS
 import { EditChildProfileScreen } from '../screens/parent/EditChildProfileScreen';
 import { useEditChildProfileParams } from '../screens/parent/useEditChildProfileParams';
 import { EditChildProfileTeacherScreen } from '../screens/teacher/EditChildProfileTeacherScreen';
+import { AddUpdateScreen } from '../screens/teacher/AddUpdateScreen';
 
 function EditChildProfileScreenWrapper() {
   const navigation = useNavigation();
@@ -48,9 +48,8 @@ function EditChildProfileTeacherScreenWrapper() {
 }
 
 export type RootStackParamList = {
-  MainTabs:
-    | undefined
-    | { screen: 'AddUpdate'; params?: { initialChildId?: string; initialType?: string } };
+  MainTabs: undefined;
+  AddUpdate: { initialType?: string; initialChildId?: string } | undefined;
   Reports: { childId: string };
   Announcements: undefined;
   Events: undefined;
@@ -97,16 +96,6 @@ function TeacherTabs() {
           headerTitle: '',
           headerShadowVisible: false,
           tabBarIcon: ({ focused }) => tabIcon('grid', focused),
-        }}
-      />
-      <Tab.Screen
-        name="AddUpdate"
-        component={AddUpdateScreen}
-        options={{
-          title: 'Add Update',
-          headerShown: true,
-          headerTitle: 'Add update',
-          tabBarIcon: ({ focused }) => tabIcon('add-circle', focused),
         }}
       />
         <Tab.Screen
@@ -223,6 +212,11 @@ export function MainTabs({ role }: { role: UserRole }) {
         options={{ headerShown: false }}
       />
       <RootStack.Screen name="Reports" component={TeacherReportsScreen} options={{ title: 'Daily report' }} />
+      <RootStack.Screen
+        name="AddUpdate"
+        component={AddUpdateScreen as React.ComponentType<Record<string, unknown>>}
+        options={{ title: 'Add Update', headerBackTitle: 'Back' }}
+      />
       <RootStack.Screen name="Announcements" component={AnnouncementsScreen} options={{ title: 'Announcements' }} />
       <RootStack.Screen name="Events" component={EventsScreen} options={{ title: 'Events' }} />
       <RootStack.Screen name="ChildProfile" component={ParentChildProfileScreen} options={{ title: 'Child' }} />

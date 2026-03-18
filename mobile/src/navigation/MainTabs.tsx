@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { font } from '../theme/typography';
 import type { UserRole } from '../../../shared/types';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
@@ -80,6 +81,11 @@ function TeacherTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
+        tabBarStyle: {
+          backgroundColor: colors.tabBarBg,
+          borderTopColor: colors.cardBorder,
+        },
+        tabBarLabelStyle: { fontFamily: font.medium, fontSize: 10 },
       }}
     >
       <Tab.Screen
@@ -88,8 +94,9 @@ function TeacherTabs() {
         options={{
           title: 'Dashboard',
           headerShown: true,
-          headerTitle: 'Dashboard',
-          tabBarIcon: ({ focused }) => tabIcon('grid-outline', focused),
+          headerTitle: '',
+          headerShadowVisible: false,
+          tabBarIcon: ({ focused }) => tabIcon('grid', focused),
         }}
       />
       <Tab.Screen
@@ -99,7 +106,7 @@ function TeacherTabs() {
           title: 'Add Update',
           headerShown: true,
           headerTitle: 'Add update',
-          tabBarIcon: ({ focused }) => tabIcon('add-circle-outline', focused),
+          tabBarIcon: ({ focused }) => tabIcon('add-circle', focused),
         }}
       />
         <Tab.Screen
@@ -108,25 +115,26 @@ function TeacherTabs() {
           options={{
             title: 'Students',
             headerShown: true,
-            tabBarIcon: ({ focused }) => tabIcon('people-outline', focused),
+            tabBarIcon: ({ focused }) => tabIcon('school-outline', focused),
           }}
         />
         <Tab.Screen
-          name="Messages"
-          component={MessagesListScreen}
+          name="MessagesList"
+          component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
           options={{
-            title: 'Messages',
+            title: 'Inbox',
             headerShown: true,
-            tabBarIcon: ({ focused }) => tabIcon('chatbubbles-outline', focused),
+            headerTitle: 'Messages',
+            tabBarIcon: ({ focused }) => tabIcon('mail-outline', focused),
           }}
         />
         <Tab.Screen
           name="Settings"
           component={TeacherSettingsScreen}
         options={{
-          title: 'Settings',
+          title: 'Profile',
           headerShown: true,
-          tabBarIcon: ({ focused }) => tabIcon('settings-outline', focused),
+          tabBarIcon: ({ focused }) => tabIcon('person-outline', focused),
         }}
       />
     </Tab.Navigator>
@@ -144,6 +152,11 @@ function ParentTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
+        tabBarStyle: {
+          backgroundColor: colors.tabBarBg,
+          borderTopColor: colors.cardBorder,
+        },
+        tabBarLabelStyle: { fontFamily: font.medium, fontSize: 10 },
       }}
     >
       <Tab.Screen
@@ -175,8 +188,8 @@ function ParentTabs() {
         }}
       />
         <Tab.Screen
-          name="Messages"
-          component={MessagesListScreen}
+          name="MessagesList"
+          component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
           options={{
             title: 'Messages',
             headerShown: true,

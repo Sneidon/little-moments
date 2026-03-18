@@ -1,210 +1,175 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Platform,
-  RefreshControl,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
+  Platform,
+  RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { collection, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { collection, doc, getDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { RootStackParamList } from '../../navigation/MainTabs';
 import { db } from '../../config/firebase';
-import { useAuth } from '../../context/AuthContext';
+import type { Child, DailyReport } from '../../../../shared/types';
 import { useTheme } from '../../context/ThemeContext';
+import { font } from '../../theme/typography';
+import { getAge, getInitials, formatTime } from '../../utils';
+import { getParentHomeContentStyles } from './parentHomeContentStyles';
 import { getOrCreateChat } from '../../api/chat';
-import type { DailyReport } from '../../../../shared/types';
-import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/MainTabs';
-import { Skeleton } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChildProfile'>;
 
-type ReportWithExtras = DailyReport & {
-  napStartTime?: string;
-  napEndTime?: string;
-  activityTitle?: string;
-  mealType?: 'breakfast' | 'lunch' | 'snack';
-  mealOptionName?: string;
-};
-
-function formatTime(iso: string) {
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
+function formatReportTypeLabel(type: string): string {
+  switch (type) {
+    case 'meal':
+      return 'Meal';
+    case 'nap_time':
+      return 'Nap';
+    case 'nappy_change':
+      return 'Nappy change';
+    case 'medication':
+      return 'Medication';
+    case 'incident':
+      return 'Incident';
+    default:
+      return type.replace(/_/g, ' ');
   }
-}
-
-function getAge(dateOfBirth: string): string {
-  const dob = new Date(dateOfBirth);
-  const now = new Date();
-  const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
-  if (months < 12) return `${months} mo`;
-  const years = Math.floor(months / 12);
-  return years === 1 ? '1 year' : `${years} years`;
-}
-
-function getReportTitle(item: ReportWithExtras): string {
-  if (item.type === 'meal')
-    return (item.mealOptionName || item.mealType || 'Meal').charAt(0).toUpperCase()
-      + (item.mealOptionName || item.mealType || 'meal').slice(1);
-  if (item.type === 'nap_time') return 'Nap Time';
-  if (item.type === 'nappy_change') return 'Nappy Change';
-  if (item.type === 'medication') return item.activityTitle || 'Activity';
-  if (item.type === 'incident') return 'Photo';
-  return String(item.type).replace('_', ' ');
-}
-
-function reportIcon(type: string): keyof typeof Ionicons.glyphMap {
-  if (type === 'meal') return 'restaurant-outline';
-  if (type === 'nap_time') return 'moon-outline';
-  if (type === 'nappy_change') return 'water-outline';
-  if (type === 'medication') return 'sparkles-outline';
-  if (type === 'incident') return 'camera-outline';
-  return 'ellipse-outline';
-}
-
-function reportIconColor(type: string): string {
-  if (type === 'meal') return '#ea580c';
-  if (type === 'nap_time') return '#7c3aed';
-  if (type === 'nappy_change') return '#0d9488';
-  if (type === 'medication') return '#2563eb';
-  if (type === 'incident') return '#db2777';
-  return '#64748b';
-}
-
-/** Parse time-only string (e.g. "13:00") with a date string to get ms. Nap times are stored as "HH:mm". */
-function parseTimeWithDate(timeStr: string | undefined, dateStr: string): number {
-  if (!timeStr || typeof timeStr !== 'string') return NaN;
-  const parts = timeStr.trim().split(':').map((p) => parseInt(p, 10));
-  const h = !isNaN(parts[0]) ? parts[0] : 0;
-  const m = !isNaN(parts[1]) ? parts[1] : 0;
-  const d = new Date(dateStr + 'T12:00:00');
-  d.setHours(h, m, 0, 0);
-  return d.getTime();
-}
-
-function getReportDateStr(r: ReportWithExtras): string {
-  const t = r.timestamp ?? r.createdAt;
-  if (typeof t === 'string') return t.slice(0, 10);
-  if (t && typeof (t as { toDate?: () => Date }).toDate === 'function') {
-    return (t as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
-  }
-  return '';
 }
 
 export function ParentChildProfileScreen({ route, navigation }: Props) {
   const { childId, schoolId } = route.params;
-  const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const [reports, setReports] = useState<ReportWithExtras[]>([]);
+  const styles = useMemo(() => createChildProfileStyles(colors, width), [colors, width]);
+
   const [child, setChild] = useState<Child | null>(null);
   const [className, setClassName] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [loadingChild, setLoadingChild] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reports, setReports] = useState<DailyReport[]>([]);
+  const [loadingReports, setLoadingReports] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [messageLoading, setMessageLoading] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const startOfDay = `${selectedDate}T00:00:00.000Z`;
-  const endOfDay = `${selectedDate}T23:59:59.999Z`;
-  const dayReports = reports.filter((r) => {
-    const t = r.timestamp || r.createdAt;
-    return t >= startOfDay && t <= endOfDay;
-  });
-  const sortedDayReports = [...dayReports].sort(
-    (a, b) =>
-      new Date(a.timestamp || a.createdAt).getTime() -
-      new Date(b.timestamp || b.createdAt).getTime()
-  );
+  const isToday = selectedDate === new Date().toISOString().slice(0, 10);
 
-  const meals = dayReports.filter((r) => r.type === 'meal').length;
-  const naps = dayReports.filter((r) => r.type === 'nap_time');
-  const nappy = dayReports.filter((r) => r.type === 'nappy_change').length;
-  const activities = dayReports.filter(
-    (r) => r.type === 'medication' || r.type === 'incident'
-  ).length;
+  const openHeaderMenu = useCallback(() => {
+    if (!child) return;
+    Alert.alert('Options', undefined, [
+      {
+        text: 'Edit profile',
+        onPress: () =>
+          (navigation.getParent() as { navigate: (n: string, p?: object) => void } | undefined)?.navigate(
+            'EditChildProfile',
+            { childId: child.id, schoolId }
+          ),
+      },
+      {
+        text: 'Message teacher',
+        onPress: async () => {
+          if (!child.assignedTeacherId) {
+            Alert.alert(
+              'No teacher assigned',
+              'This child does not have an assigned teacher yet.'
+            );
+            return;
+          }
+          try {
+            const { chatId, schoolId: sid } = await getOrCreateChat(
+              schoolId,
+              child.id,
+              child.assignedTeacherId
+            );
+            (navigation.getParent() as { navigate: (n: string, p?: object) => void } | undefined)?.navigate(
+              'ChatThread',
+              { chatId, schoolId: sid }
+            );
+          } catch {
+            Alert.alert('Error', 'Could not open messages. Please try again.');
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [child, navigation, schoolId]);
 
-  let napDuration = '';
-  if (naps.length > 0) {
-    let totalMs = 0;
-    const dateStr = selectedDate;
-    for (const n of naps) {
-      const r = n as ReportWithExtras;
-      const reportDate = getReportDateStr(r) || dateStr;
-      if (r.napStartTime && r.napEndTime) {
-        const startMs = parseTimeWithDate(r.napStartTime, reportDate);
-        const endMs = parseTimeWithDate(r.napEndTime, reportDate);
-        if (!isNaN(startMs) && !isNaN(endMs)) {
-          totalMs += endMs - startMs;
-        } else {
-          totalMs += 1.5 * 60 * 60 * 1000;
-        }
-      } else {
-        totalMs += 1.5 * 60 * 60 * 1000;
-      }
-    }
-    const hours = totalMs / (60 * 60 * 1000);
-    napDuration =
-      Number.isFinite(hours) && hours >= 0
-        ? hours >= 1
-          ? `${hours.toFixed(1)}h`
-          : `${Math.round(hours * 60)}m`
-        : '0h';
-  } else {
-    napDuration = '0h';
-  }
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'schools', schoolId, 'children', childId));
+        if (cancelled) return;
+        if (snap.exists()) {
+          const c = { id: snap.id, ...snap.data() } as Child;
+          setChild(c);
+          if (c.classId) {
+            const cls = await getDoc(doc(db, 'schools', schoolId, 'classes', c.classId));
+            if (!cancelled && cls.exists()) setClassName((cls.data() as { name?: string }).name ?? null);
+          } else {
+            setClassName(null);
+          }
+        }
+      } finally {
+        if (!cancelled) setLoadingChild(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [childId, schoolId]);
+
+  useEffect(() => {
+    if (!schoolId || !childId) return;
     const q = query(
       collection(db, 'schools', schoolId, 'children', childId, 'reports'),
       orderBy('timestamp', 'desc')
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setReports(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() } as ReportWithExtras))
-      );
-    });
-    return () => unsub();
-  }, [schoolId, childId]);
-
-  useEffect(() => {
-    (async () => {
-      const childSnap = await getDoc(doc(db, 'schools', schoolId, 'children', childId));
-      if (childSnap.exists()) setChild({ id: childSnap.id, ...childSnap.data() } as Child);
-      const childData = childSnap.data() as Child | undefined;
-      if (childData?.classId) {
-        const classSnap = await getDoc(doc(db, 'schools', schoolId, 'classes', childData.classId));
-        if (classSnap.exists()) setClassName((classSnap.data() as ClassRoom).name);
+    const start = `${selectedDate}T00:00:00.000Z`;
+    const end = `${selectedDate}T23:59:59.999Z`;
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as DailyReport));
+        const filtered = list.filter((r) => r.timestamp >= start && r.timestamp <= end);
+        setReports(filtered);
+        setLoadingReports(false);
+        setRefreshing(false);
+      },
+      () => {
+        setLoadingReports(false);
+        setRefreshing(false);
       }
-    })();
-  }, [schoolId, childId]);
+    );
+    return () => unsub();
+  }, [childId, schoolId, selectedDate, refreshTrigger]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 400);
+    setRefreshTrigger((t) => t + 1);
   }, []);
 
-  const isToday = selectedDate === new Date().toISOString().slice(0, 10);
-  const displayDate = isToday
-    ? 'Today'
-    : new Date(selectedDate).toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
+  const meals = reports.filter((r) => r.type === 'meal').length;
+  const naps = reports.filter((r) => r.type === 'nap_time').length;
+  const nappy = reports.filter((r) => r.type === 'nappy_change').length;
+  const activities = reports.filter(
+    (r) => r.type !== 'meal' && r.type !== 'nap_time' && r.type !== 'nappy_change'
+  ).length;
 
   const prevDay = () => {
     const d = new Date(selectedDate);
@@ -215,8 +180,8 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + 1);
     const today = new Date().toISOString().slice(0, 10);
-    if (d.toISOString().slice(0, 10) <= today)
-      setSelectedDate(d.toISOString().slice(0, 10));
+    if (d.toISOString().slice(0, 10) > today) return;
+    setSelectedDate(d.toISOString().slice(0, 10));
   };
 
   const onDatePickerChange = (event: { type: string }, date?: Date) => {
@@ -225,283 +190,435 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
     if (date) setSelectedDate(date.toISOString().slice(0, 10));
   };
 
-  const onMessageTeacher = useCallback(async () => {
-    if (!child?.assignedTeacherId) {
-      Alert.alert('No teacher assigned', 'This child does not have an assigned teacher yet.');
-      return;
-    }
-    setMessageLoading(true);
-    try {
-      const { chatId, schoolId: sid } = await getOrCreateChat(
-        schoolId,
-        childId,
-        child.assignedTeacherId
-      );
-      navigation.navigate('ChatThread', { chatId, schoolId: sid });
-    } catch (e) {
-      Alert.alert('Error', 'Could not start conversation. Please try again.');
-    } finally {
-      setMessageLoading(false);
-    }
-  }, [child?.assignedTeacherId, schoolId, childId, navigation]);
+  const reportTypeIcon = (type: string) => {
+    if (type === 'meal') return 'restaurant-outline';
+    if (type === 'nap_time') return 'bed-outline';
+    if (type === 'nappy_change') return 'water-outline';
+    return 'sparkles-outline';
+  };
+
+  const displayDate = isToday
+    ? 'Today'
+    : new Date(selectedDate).toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+
+  const scrollBottomPad = 24 + Math.max(insets.bottom, 12);
+
+  if (loadingChild) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.backgroundSecondary, paddingBottom: insets.bottom }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingHint, { color: colors.textMuted }]}>Loading profile…</Text>
+      </View>
+    );
+  }
+
+  if (!child) {
+    return (
+      <View
+        style={[
+          styles.centered,
+          { backgroundColor: colors.backgroundSecondary, paddingBottom: insets.bottom, paddingHorizontal: 24 },
+        ]}
+      >
+        <Ionicons name="person-outline" size={48} color={colors.textMuted} />
+        <Text style={[styles.notFoundTitle, { color: colors.text }]}>Child not found</Text>
+        <Text style={[styles.notFoundSub, { color: colors.textSecondary }]}>
+          This profile may have been removed or you may not have access.
+        </Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.primaryBtnText, { color: colors.primaryContrast }]}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Header: child like Parent home */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Daily report</Text>
-        {child ? (
-          <View style={styles.childHeader}>
-            <Text style={styles.childName}>{child.name}</Text>
-            <Text style={styles.childMeta}>
-              {getAge(child.dateOfBirth)}
-              {className ? ` · ${className}` : ''}
-            </Text>
-          </View>
-        ) : (
-          <Skeleton width={120} height={14} style={{ marginTop: 2 }} />
-        )}
-      </View>
-
-      {/* Date bar - same as home screen */}
-      <View style={styles.dateBar}>
-        <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-          <Ionicons name="chevron-back" size={24} color="#6366f1" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dateCenter}
-          onPress={() => setShowDatePicker(true)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="calendar-outline" size={20} color="#6366f1" />
-          <Text style={styles.dateText}>{displayDate}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-          <Ionicons name="chevron-forward" size={24} color="#6366f1" />
-        </TouchableOpacity>
-      </View>
-
-      {showDatePicker && (
-        <>
-          <DateTimePicker
-            value={new Date(selectedDate + 'T12:00:00')}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'calendar' : 'default'}
-            onChange={onDatePickerChange}
-            maximumDate={new Date()}
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
-          {Platform.OS === 'ios' && (
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header matches ParentHomeScreen: one row, profile (with back) + menu + same role pill */}
+        <View style={[styles.header, { paddingTop: Math.max(56, insets.top + 12) }]}>
+          <View style={styles.headerMain}>
             <TouchableOpacity
-              style={styles.datePickerDone}
-              onPress={() => setShowDatePicker(false)}
+              onPress={() => navigation.goBack()}
+              style={styles.headerBackWrap}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
-              <Text style={styles.datePickerDoneText}>Done</Text>
+              <Ionicons name="arrow-back" size={24} color={colors.headerText} />
             </TouchableOpacity>
-          )}
-        </>
-      )}
-
-      {/* Edit profile + Message teacher */}
-      {child && (
-        <TouchableOpacity
-          style={[styles.messageTeacherBtn, { marginBottom: 8, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder }]}
-          onPress={() => (navigation.getParent() as { navigate: (n: string, p?: object) => void } | undefined)?.navigate('EditChildProfile', { childId: child.id, schoolId })}
-        >
-          <Ionicons name="create-outline" size={20} color={colors.primary} />
-          <Text style={[styles.messageTeacherBtnText, { color: colors.primary }]}>Edit child profile</Text>
-        </TouchableOpacity>
-      )}
-      {child?.assignedTeacherId ? (
-        <TouchableOpacity
-          style={styles.messageTeacherBtn}
-          onPress={onMessageTeacher}
-          disabled={messageLoading}
-        >
-          {messageLoading ? (
-            <ActivityIndicator size="small" color={colors.primaryContrast} />
-          ) : (
-            <>
-              <Ionicons name="chatbubble-outline" size={20} color={colors.primaryContrast} />
-              <Text style={styles.messageTeacherBtnText}>Message teacher</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      ) : null}
-
-      {/* Summary cards */}
-      <View style={styles.summaryRow}>
-        <View style={[styles.summaryCard, styles.summaryMeals]}>
-          <Text style={[styles.summaryValue, styles.summaryMealsValue]}>
-            {meals}/3
-          </Text>
-          <Text style={styles.summaryLabel}>Meals</Text>
-        </View>
-        <View style={[styles.summaryCard, styles.summaryNap]}>
-          <Text style={[styles.summaryValue, styles.summaryNapValue]}>
-            {napDuration}
-          </Text>
-          <Text style={styles.summaryLabel}>Nap</Text>
-        </View>
-        <View style={[styles.summaryCard, styles.summaryNappy]}>
-          <Text style={[styles.summaryValue, styles.summaryNappyValue]}>
-            {nappy}
-          </Text>
-          <Text style={styles.summaryLabel}>Nappy</Text>
-        </View>
-        <View style={[styles.summaryCard, styles.summaryActivities]}>
-          <Text style={[styles.summaryValue, styles.summaryActivitiesValue]}>
-            {activities}
-          </Text>
-          <Text style={styles.summaryLabel}>Activities</Text>
-        </View>
-      </View>
-
-      {/* Today's Updates */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          {isToday ? "Today's Updates" : 'Updates'}
-        </Text>
-        {sortedDayReports.length === 0 ? (
-          <Text style={styles.empty}>No updates for this day.</Text>
-        ) : (
-          sortedDayReports.map((item) => (
-            <View key={item.id} style={styles.timelineCard}>
-              <View
-                style={[
-                  styles.timelineIconWrap,
-                  { backgroundColor: reportIconColor(item.type) + '20' },
-                ]}
-              >
-                <Ionicons
-                  name={reportIcon(item.type)}
-                  size={22}
-                  color={reportIconColor(item.type)}
-                />
-              </View>
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineTitle}>{getReportTitle(item)}</Text>
-                <Text style={styles.timelineTime}>
-                  {formatTime(item.timestamp || item.createdAt)}
+            <View style={styles.headerProfile}>
+              {child.photoURL ? (
+                <Image source={{ uri: child.photoURL }} style={styles.avatarPhotoHome} />
+              ) : (
+                <View style={styles.avatarLarge}>
+                  <Text style={styles.avatarLargeText}>{getInitials(child.name)}</Text>
+                </View>
+              )}
+              <View style={styles.headerText}>
+                <Text style={styles.headerName} numberOfLines={1}>
+                  {child.name}
                 </Text>
-                {item.notes ? (
-                  <Text style={styles.timelineNotes}>{item.notes}</Text>
-                ) : null}
+                <Text style={styles.headerClass} numberOfLines={1}>
+                  {getAge(child.dateOfBirth)}
+                  {className ? ` · ${className}` : ''}
+                </Text>
               </View>
             </View>
-          ))
+          </View>
+          <TouchableOpacity
+            onPress={openHeaderMenu}
+            style={styles.headerMenuInline}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="More options"
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color={colors.headerText} />
+          </TouchableOpacity>
+          <View style={styles.roleTag}>
+            <Text style={styles.roleTagText}>Parent</Text>
+          </View>
+        </View>
+
+        <View style={styles.dateBar}>
+          <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
+            <Ionicons name="chevron-back" size={24} color={colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.dateCenter}
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
+            <Text style={styles.dateText}>{displayDate}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={nextDay} style={styles.dateArrow} disabled={isToday}>
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={colors.textMuted}
+              style={{ opacity: isToday ? 0.28 : 1 }}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {showDatePicker && (
+          <>
+            <DateTimePicker
+              value={new Date(selectedDate + 'T12:00:00')}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'calendar' : 'default'}
+              onChange={onDatePickerChange}
+              maximumDate={new Date()}
+            />
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity style={styles.datePickerDone} onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.datePickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
-      </View>
-    </ScrollView>
+
+        <View style={styles.sectionTightTop}>
+          <View style={styles.sectionHeaderAligned}>
+            <Text style={styles.sectionOverviewTitleFlex} numberOfLines={2}>
+              {"Today's Overview"}
+            </Text>
+            <TouchableOpacity
+              style={styles.sectionBtnShrink}
+              onPress={() =>
+                (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
+                  'ParentAnnouncements'
+                )
+              }
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sectionBtnText}>Announcements</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.statsRowAligned}>
+            <View style={[styles.statCard, styles.statCell]}>
+              <Text style={[styles.statValue, styles.statMealsValue]}>{meals}</Text>
+              <Text style={styles.statLabel}>Meals</Text>
+            </View>
+            <View style={[styles.statCard, styles.statCell]}>
+              <Text style={[styles.statValue, styles.statNapValue]}>{naps}</Text>
+              <Text style={styles.statLabel}>Nap</Text>
+            </View>
+            <View style={[styles.statCard, styles.statCell]}>
+              <Text style={[styles.statValue, styles.statNappyValue]}>{nappy}</Text>
+              <Text style={styles.statLabel}>Nappy</Text>
+            </View>
+            <View style={[styles.statCard, styles.statCell]}>
+              <Text style={[styles.statValue, styles.statActivitiesValue]}>{activities}</Text>
+              <Text style={styles.statLabel}>Activities</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionBlockTitle}>
+            {isToday ? "Today's Updates" : 'Updates'}
+          </Text>
+          {loadingReports ? (
+            <View style={styles.updatesLoading}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={[styles.updatesLoadingText, { color: colors.textMuted }]}>Loading updates…</Text>
+            </View>
+          ) : reports.length === 0 ? (
+            <View style={styles.emptyUpdatesWrap}>
+              <EmptyState
+                icon="clipboard-outline"
+                title="No updates for this day"
+                subtitle="When teachers log meals, naps, or activities, they will show up here."
+              />
+            </View>
+          ) : (
+            reports.map((item) => (
+              <View key={item.id} style={styles.updateCard}>
+                <View style={[styles.updateIconCircle, { backgroundColor: colors.primaryMuted }]}>
+                  <Ionicons
+                    name={reportTypeIcon(item.type) as keyof typeof Ionicons.glyphMap}
+                    size={20}
+                    color={colors.primary}
+                  />
+                </View>
+                <View style={styles.updateCardContent}>
+                  <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+                  <Text style={styles.updateType}>{formatReportTypeLabel(item.type)}</Text>
+                  {item.notes ? <Text style={styles.updateNotes}>{item.notes}</Text> : null}
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette) {
+function createChildProfileStyles(colors: import('../../theme/colors').ColorPalette, screenWidth: number) {
+  const shared = getParentHomeContentStyles(colors);
+  const compactStats = screenWidth < 360;
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    header: {
-      paddingHorizontal: 16,
-      paddingTop: 16,
-      paddingBottom: 12,
-      marginBottom: 4,
-      backgroundColor: colors.card,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.cardBorder,
+    ...shared,
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    scroll: { flex: 1 },
+    scrollContent: { flexGrow: 1 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingHint: {
+      marginTop: 14,
+      fontFamily: font.regular,
+      fontSize: 15,
     },
-    headerTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
-    childHeader: { marginTop: 8 },
-    childName: { fontSize: 18, fontWeight: '600', color: colors.text },
-    childMeta: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
+    notFoundTitle: {
+      fontFamily: font.semiBold,
+      fontSize: 18,
+      marginTop: 16,
+      textAlign: 'center',
+    },
+    notFoundSub: {
+      fontFamily: font.regular,
+      fontSize: 14,
+      marginTop: 8,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    primaryBtn: {
+      marginTop: 24,
+      paddingVertical: 14,
+      paddingHorizontal: 28,
+      borderRadius: 12,
+    },
+    primaryBtnText: { fontFamily: font.semiBold, fontSize: 16 },
 
-    dateBar: {
+    /** Matches ParentHomeScreen header */
+    header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.card,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 12,
-      marginHorizontal: 16,
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      backgroundColor: colors.header,
     },
-    dateArrow: { padding: 4 },
-    dateCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
-    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
-    datePickerDone: {
-      marginBottom: 16,
-      paddingVertical: 10,
-      alignItems: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-    },
-    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
-
-    messageTeacherBtn: {
+    headerMain: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      backgroundColor: colors.primary,
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 12,
-      marginHorizontal: 16,
-      marginBottom: 16,
+      minWidth: 0,
+      marginRight: 8,
     },
-    messageTeacherBtnText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
-
-    summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20, marginHorizontal: 16 },
-    summaryCard: {
-      flex: 1,
-      backgroundColor: colors.card,
-      paddingVertical: 14,
-      paddingHorizontal: 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+    headerBackWrap: {
+      paddingVertical: 4,
+      paddingRight: 10,
+      marginLeft: -4,
+    },
+    headerProfile: {
+      flexDirection: 'row',
       alignItems: 'center',
+      flex: 1,
+      minWidth: 0,
     },
-    summaryValue: { fontSize: 20, fontWeight: '800', color: colors.textSecondary },
-    summaryLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-    summaryMeals: {},
-    summaryMealsValue: { color: colors.warning },
-    summaryNap: {},
-    summaryNapValue: { color: '#7c3aed' },
-    summaryNappy: {},
-    summaryNappyValue: { color: '#0d9488' },
-    summaryActivities: {},
-    summaryActivitiesValue: { color: '#2563eb' },
+    avatarLarge: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.headerAccent,
+      borderWidth: 2,
+      borderColor: colors.headerText,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarPhotoHome: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 2,
+      borderColor: colors.headerText,
+    },
+    avatarLargeText: { fontSize: 18, fontWeight: '700', color: colors.headerText },
+    headerText: { marginLeft: 14, flex: 1, minWidth: 0 },
+    headerName: { fontSize: 20, fontWeight: '700', color: colors.headerText },
+    headerClass: { fontSize: 14, color: colors.headerTextMuted, marginTop: 2 },
+    headerMenuInline: {
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    roleTag: {
+      backgroundColor: colors.headerAccent,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      flexShrink: 0,
+    },
+    roleTagText: { fontSize: 13, fontWeight: '600', color: colors.headerText },
 
-    section: { marginTop: 4, paddingHorizontal: 0, paddingLeft: 16, paddingRight: 16 },
-    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
-    empty: { color: colors.textMuted, textAlign: 'center', paddingVertical: 24 },
-    timelineCard: {
+    sectionTightTop: {
+      marginTop: 18,
+      paddingHorizontal: 16,
+    },
+    sectionHeaderAligned: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+      gap: 10,
+    },
+    sectionOverviewTitleFlex: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 18,
+      fontFamily: font.bold,
+      color: colors.textSecondary,
+      letterSpacing: -0.2,
+    },
+    sectionBtnShrink: {
+      flexShrink: 0,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+
+    statsRowAligned: {
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
+      gap: compactStats ? 6 : 10,
+      alignItems: 'stretch',
+    },
+    statCell: {
+      flex: 1,
+      minWidth: 0,
+      paddingVertical: compactStats ? 10 : 14,
+      paddingHorizontal: compactStats ? 4 : 14,
+    },
+    statValue: {
+      fontSize: compactStats ? 22 : 26,
+      fontFamily: font.bold,
+      fontWeight: '800',
+      color: colors.textSecondary,
+    },
+    statLabel: {
+      fontSize: compactStats ? 11 : 12,
+      fontFamily: font.medium,
+      color: colors.textMuted,
+      marginTop: 4,
+      textAlign: 'center',
+    },
+
+    updatesLoading: {
+      alignItems: 'center',
+      paddingVertical: 28,
+    },
+    updatesLoadingText: {
+      marginTop: 12,
+      fontFamily: font.regular,
+      fontSize: 14,
+    },
+    emptyUpdatesWrap: {
+      marginHorizontal: -8,
+    },
+
+    updateCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       backgroundColor: colors.card,
       padding: 14,
-      borderRadius: 12,
+      borderRadius: 14,
       marginBottom: 10,
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
-    timelineIconWrap: {
+    updateIconCircle: {
       width: 40,
       height: 40,
-      borderRadius: 20,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: 12,
     },
-    timelineContent: { flex: 1 },
-    timelineTitle: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
-    timelineTime: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-    timelineNotes: { fontSize: 14, color: colors.textMuted, marginTop: 6 },
+    updateCardContent: { flex: 1, minWidth: 0 },
+    updateTime: {
+      fontSize: 12,
+      fontFamily: font.medium,
+      color: colors.textMuted,
+    },
+    updateType: {
+      fontSize: 15,
+      fontFamily: font.semiBold,
+      color: colors.text,
+      marginTop: 4,
+    },
+    updateNotes: {
+      fontSize: 14,
+      fontFamily: font.regular,
+      color: colors.textSecondary,
+      marginTop: 6,
+      lineHeight: 20,
+    },
   });
 }

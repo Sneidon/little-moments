@@ -328,11 +328,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (type !== 'meal') return;
     const opts = mealOptions.filter((o) => o.category === mealType);
-    if (opts.length === 0) {
-      setSelectedMealOptionId(null);
-      return;
-    }
-    setSelectedMealOptionId((prev) => (prev && opts.some((o) => o.id === prev) ? prev : opts[0].id));
+    setSelectedMealOptionId((prev) =>
+      prev && opts.some((o) => o.id === prev) ? prev : null
+    );
   }, [mealType, mealOptions, type]);
 
   const selectedChildren = children.filter((c) => selectedChildIds.includes(c.id));
@@ -628,26 +626,6 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       Alert.alert('Select children', 'Choose at least one child.');
       return;
     }
-    if (type === 'meal') {
-      const opts = mealOptions.filter((o) => o.category === mealType);
-      if (opts.length === 0) {
-        Alert.alert(
-          'No meals on menu',
-          `There are no meals set up for ${mealType}. Ask your principal to add meal options for this meal type.`
-        );
-        return;
-      }
-      for (const childId of selectedChildIds) {
-        const v = getValuesForChild(childId);
-        if (!v.mealOptionId || !opts.some((o) => o.id === v.mealOptionId)) {
-          Alert.alert(
-            'Choose a meal',
-            'Pick a meal from the list for each child. Tap a child’s name if they need a different menu item.'
-          );
-          return;
-        }
-      }
-    }
     if (type === 'incident' && !photoUri) {
       Alert.alert('Add media', 'Take or choose a photo/video to log.');
       return;
@@ -689,9 +667,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         if (type === 'meal') {
           payload.mealType = v.mealType;
           payload.mealAmount = v.mealAmount;
-          const mealOpt = mealOptions.find((o) => o.id === v.mealOptionId);
-          payload.mealOptionId = v.mealOptionId;
-          payload.mealOptionName = mealOpt?.name ?? v.mealOptionName ?? '';
+          if (v.mealOptionId) {
+            const mealOpt = mealOptions.find((o) => o.id === v.mealOptionId);
+            payload.mealOptionId = v.mealOptionId;
+            payload.mealOptionName = mealOpt?.name ?? v.mealOptionName;
+          }
         }
         if (type === 'nappy_change') {
           payload.nappyType = v.nappyType;
@@ -1059,7 +1039,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   <TouchableOpacity
                     key={m.value}
                     style={[styles.mealTypePill, mealType === m.value && styles.mealTypePillActive]}
-                    onPress={() => setMealType(m.value)}
+                    onPress={() => {
+                      setMealType(m.value);
+                      setSelectedMealOptionId(null);
+                    }}
                   >
                     <Text style={[styles.mealTypePillText, mealType === m.value && styles.mealTypePillTextActive]}>
                       {m.label}
@@ -1068,11 +1051,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 ))}
               </View>
 
-              <Text style={styles.label}>Choose meal (from school menu)</Text>
+              <Text style={styles.label}>Menu item (optional)</Text>
               {mealOptionsForCategory.length === 0 ? (
                 <Text style={styles.helperText}>
-                  No meals are on the menu for {mealType} yet. Your principal adds them in Meal options. Teachers pick
-                  only from that list.
+                  No menu items for {mealType} yet. You can still post this meal. Your principal can add items in Meal
+                  options later.
                 </Text>
               ) : (
                 <ScrollView
@@ -1088,7 +1071,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                         styles.mealOptionCard,
                         selectedMealOptionId === opt.id && styles.mealOptionCardActive,
                       ]}
-                      onPress={() => setSelectedMealOptionId(opt.id)}
+                      onPress={() =>
+                        setSelectedMealOptionId((prev) => (prev === opt.id ? null : opt.id))
+                      }
                       activeOpacity={0.85}
                     >
                       {opt.imageUrl ? (
@@ -1110,6 +1095,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   ))}
                 </ScrollView>
               )}
+              {mealOptionsForCategory.length > 0 ? (
+                <Text style={[styles.helperText, { marginTop: 6 }]}>
+                  Optional. Tap a card to select; tap again to clear.
+                </Text>
+              ) : null}
 
               <Text style={styles.label}>How much did they eat?</Text>
               <ScrollView
@@ -1576,9 +1566,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   >
                 {type === 'meal' && (
                   <>
-                    <Text style={styles.label}>Meal from menu</Text>
+                    <Text style={styles.label}>Menu item (optional)</Text>
                     {mealOptionsForCategory.length === 0 ? (
-                      <Text style={styles.helperText}>No meals for {mealType}.</Text>
+                      <Text style={styles.helperText}>No menu items for {mealType}.</Text>
                     ) : (
                       <ScrollView
                         horizontal
@@ -1595,9 +1585,13 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                               variationDraft.mealOptionId === opt.id && styles.mealOptionCardActive,
                             ]}
                             onPress={() =>
-                              setVariationDraft((p) =>
-                                p ? { ...p, mealOptionId: opt.id, mealOptionName: opt.name } : null
-                              )
+                              setVariationDraft((p) => {
+                                if (!p) return null;
+                                if (p.mealOptionId === opt.id) {
+                                  return { ...p, mealOptionId: null, mealOptionName: '' };
+                                }
+                                return { ...p, mealOptionId: opt.id, mealOptionName: opt.name };
+                              })
                             }
                           >
                             {opt.imageUrl ? (

@@ -32,6 +32,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { getAge, getInitials, formatTime } from '../../utils';
 import { getCached, setCached, LIST_TTL_MS } from '../../utils/cache';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
+import { getParentHomeContentStyles } from './parentHomeContentStyles';
 
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -331,7 +332,7 @@ export function ParentHomeScreen({
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
+            <Text style={styles.sectionOverviewTitle}>{"Today's Overview"}</Text>
             <TouchableOpacity
               style={styles.sectionBtn}
               onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('ParentAnnouncements')}
@@ -360,7 +361,7 @@ export function ParentHomeScreen({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
+          <Text style={styles.sectionBlockTitle}>
             {isToday ? "Today's Updates" : 'Updates'}
           </Text>
           {reports.length === 0 ? (
@@ -394,6 +395,7 @@ export function ParentHomeScreen({
 
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
   return StyleSheet.create({
+    ...getParentHomeContentStyles(colors),
     container: { flex: 1, backgroundColor: colors.backgroundSecondary },
     scroll: { flex: 1 },
     scrollContent: { paddingBottom: 24 },
@@ -458,87 +460,5 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       borderRadius: 12,
     },
     messageTeacherBtnText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
-
-    dateBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.card,
-      marginHorizontal: 16,
-      marginTop: 16,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
-    dateArrow: { padding: 4 },
-    dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
-    datePickerDone: {
-      marginTop: 8,
-      marginHorizontal: 16,
-      paddingVertical: 10,
-      alignItems: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-    },
-    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
-
-    section: { marginTop: 24, paddingHorizontal: 16 },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
-    sectionBtn: {
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: colors.backgroundSecondary,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    sectionBtnText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
-
-    statsRow: { flexDirection: 'row', gap: 10 },
-    statCard: {
-      flex: 1,
-      backgroundColor: colors.card,
-      padding: 14,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      alignItems: 'center',
-    },
-    statValue: { fontSize: 26, fontWeight: '800', color: colors.textSecondary },
-    statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-    statMeals: {},
-    statMealsValue: { color: colors.warning },
-    statNap: {},
-    statNapValue: { color: '#7c3aed' },
-    statNappy: {},
-    statNappyValue: { color: '#0d9488' },
-    statActivities: {},
-    statActivitiesValue: { color: '#2563eb' },
-
-    updateCard: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      backgroundColor: colors.card,
-      padding: 14,
-      borderRadius: 12,
-      marginBottom: 10,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
-    updateCardIcon: { marginRight: 12 },
-    updateCardContent: { flex: 1 },
-    updateTime: { fontSize: 12, color: colors.textMuted },
-    updateType: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 4 },
-    updateNotes: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
-    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8 },
   });
 }

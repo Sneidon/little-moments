@@ -13,6 +13,8 @@ export interface NotificationPreferences {
   medication?: boolean;
   incident?: boolean;
   media?: boolean;
+  /** Teacher–parent chat messages. */
+  messages?: boolean;
   announcements?: boolean;
   events?: boolean;
   eventReminders?: boolean;

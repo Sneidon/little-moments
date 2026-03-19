@@ -20,8 +20,12 @@ import {
   updateDoc,
   query,
   orderBy,
+  limit,
+  startAfter,
   onSnapshot,
   getDoc,
+  getDocs,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -32,6 +36,10 @@ import type { RootStackParamList } from '../../navigation/MainTabs';
 import type { ChatMessage, Chat, UserProfile } from '../../../../shared/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatThread'>;
+
+/** Recent messages kept in real time; older pages load on scroll up. */
+const RECENT_PAGE_SIZE = 40;
+const OLDER_PAGE_SIZE = 40;
 
 const GROUP_GAP_MS = 5 * 60 * 1000;
 const AVATAR_COL_WIDTH = 36;
@@ -177,19 +185,51 @@ function buildListItems(messages: ChatMessage[], myUid: string | undefined): Lis
   return items;
 }
 
+function docToChatMessage(d: QueryDocumentSnapshot): ChatMessage {
+  const data = d.data();
+  let createdAt = data.createdAt;
+  if (createdAt && typeof (createdAt as { toDate?: () => Date }).toDate === 'function') {
+    createdAt = (createdAt as { toDate: () => Date }).toDate().toISOString();
+  } else if (typeof createdAt !== 'string') {
+    createdAt = String(createdAt ?? '');
+  }
+  return { id: d.id, ...data, createdAt } as ChatMessage;
+}
+
+function mergeMessagesByIdAsc(a: ChatMessage[], b: ChatMessage[]): ChatMessage[] {
+  const map = new Map<string, ChatMessage>();
+  for (const m of a) map.set(m.id, m);
+  for (const m of b) map.set(m.id, m);
+  return Array.from(map.values()).sort((x, y) => x.createdAt.localeCompare(y.createdAt));
+}
+
 export function ChatThreadScreen({ route }: Props) {
   const { chatId, schoolId } = route.params;
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const themed = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  /** Paginated history (strictly older than the live sliding window). */
+  const [extraOlder, setExtraOlder] = useState<ChatMessage[]>([]);
+  /** Newest-first query window, stored ascending for rendering. */
+  const [liveRecent, setLiveRecent] = useState<ChatMessage[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const liveOldestSnapRef = useRef<QueryDocumentSnapshot | null>(null);
+  const nextOlderCursorRef = useRef<QueryDocumentSnapshot | null>(null);
+  const prevLiveRecentRef = useRef<ChatMessage[]>([]);
+  const loadOlderInFlightRef = useRef(false);
+  const didInitialScrollRef = useRef(false);
+  const stickToBottomAfterSendRef = useRef(false);
+
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const defaultOtherLabel = profile?.role === 'parent' ? 'Daycare staff' : 'Parent';
   const [otherLabel, setOtherLabel] = useState(defaultOtherLabel);
   const [otherInitials, setOtherInitials] = useState(() => getInitials(defaultOtherLabel));
   const flatListRef = useRef<FlatList<ListItem>>(null);
+
+  const messages = useMemo(() => mergeMessagesByIdAsc(extraOlder, liveRecent), [extraOlder, liveRecent]);
 
   const listData = useMemo(
     () => buildListItems(messages, profile?.uid),
@@ -227,15 +267,88 @@ export function ChatThreadScreen({ route }: Props) {
   }, [schoolId, chatId, profile?.role, profile?.uid]);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'schools', schoolId, 'chats', chatId, 'messages'),
-      orderBy('createdAt', 'asc')
-    );
+    setExtraOlder([]);
+    setLiveRecent([]);
+    setHasMoreOlder(true);
+    liveOldestSnapRef.current = null;
+    nextOlderCursorRef.current = null;
+    prevLiveRecentRef.current = [];
+    loadOlderInFlightRef.current = false;
+    didInitialScrollRef.current = false;
+  }, [schoolId, chatId]);
+
+  useEffect(() => {
+    const col = collection(db, 'schools', schoolId, 'chats', chatId, 'messages');
+    const q = query(col, orderBy('createdAt', 'desc'), limit(RECENT_PAGE_SIZE));
     const unsub = onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ChatMessage)));
+      if (snap.empty) {
+        setLiveRecent([]);
+        liveOldestSnapRef.current = null;
+        setHasMoreOlder(false);
+        prevLiveRecentRef.current = [];
+        return;
+      }
+      liveOldestSnapRef.current = snap.docs[snap.docs.length - 1] ?? null;
+      const asc = [...snap.docs].reverse().map(docToChatMessage);
+      const prev = prevLiveRecentRef.current;
+      if (prev.length > 0) {
+        const nextIds = new Set(asc.map((m) => m.id));
+        const evicted = prev.filter((m) => !nextIds.has(m.id));
+        if (evicted.length > 0) {
+          setExtraOlder((p) => mergeMessagesByIdAsc(p, evicted));
+        }
+      }
+      prevLiveRecentRef.current = asc;
+      setLiveRecent(asc);
+      if (snap.docs.length < RECENT_PAGE_SIZE) {
+        setHasMoreOlder(false);
+      } else {
+        setHasMoreOlder(true);
+      }
     });
     return () => unsub();
   }, [schoolId, chatId]);
+
+  useEffect(() => {
+    if (messages.length === 0 || didInitialScrollRef.current) return;
+    didInitialScrollRef.current = true;
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated: false });
+    });
+  }, [messages.length]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (loadOlderInFlightRef.current || loadingOlder || !hasMoreOlder) return;
+    const col = collection(db, 'schools', schoolId, 'chats', chatId, 'messages');
+    const cursor = nextOlderCursorRef.current ?? liveOldestSnapRef.current;
+    if (!cursor) {
+      setHasMoreOlder(false);
+      return;
+    }
+    loadOlderInFlightRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const q = query(col, orderBy('createdAt', 'desc'), startAfter(cursor), limit(OLDER_PAGE_SIZE));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setHasMoreOlder(false);
+        return;
+      }
+      const batchAsc = [...snap.docs].reverse().map(docToChatMessage);
+      setExtraOlder((prev) => mergeMessagesByIdAsc(prev, batchAsc));
+      nextOlderCursorRef.current = snap.docs[snap.docs.length - 1] ?? null;
+      if (snap.docs.length < OLDER_PAGE_SIZE) {
+        setHasMoreOlder(false);
+      }
+    } finally {
+      setLoadingOlder(false);
+      loadOlderInFlightRef.current = false;
+    }
+  }, [schoolId, chatId, hasMoreOlder, loadingOlder]);
+
+  const onStartReached = useCallback(() => {
+    void loadOlderMessages();
+  }, [loadOlderMessages]);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -243,6 +356,7 @@ export function ChatThreadScreen({ route }: Props) {
 
     setSending(true);
     setInput('');
+    stickToBottomAfterSendRef.current = true;
     try {
       const messagesRef = collection(db, 'schools', schoolId, 'chats', chatId, 'messages');
       const chatRef = doc(db, 'schools', schoolId, 'chats', chatId);
@@ -259,6 +373,7 @@ export function ChatThreadScreen({ route }: Props) {
       });
     } catch {
       setInput(text);
+      stickToBottomAfterSendRef.current = false;
     } finally {
       setSending(false);
     }
@@ -381,9 +496,31 @@ export function ChatThreadScreen({ route }: Props) {
             listData.length === 0 && themed.listContentEmpty,
           ]}
           ListEmptyComponent={listEmpty}
+          ListHeaderComponent={
+            loadingOlder ? (
+              <View style={themed.topLoader}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onStartReached={onStartReached}
+          onStartReachedThreshold={0.15}
+          maintainVisibleContentPosition={
+            listData.length > 0
+              ? {
+                  minIndexForVisible: 0,
+                  autoscrollToTopThreshold: 24,
+                }
+              : undefined
+          }
+          onContentSizeChange={() => {
+            if (stickToBottomAfterSendRef.current) {
+              stickToBottomAfterSendRef.current = false;
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
           showsVerticalScrollIndicator={false}
         />
         <View style={[themed.inputRow, { paddingBottom: composerBottomPad }]}>
@@ -430,6 +567,11 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     listContentEmpty: {
       justifyContent: 'center',
       flexGrow: 1,
+    },
+    topLoader: {
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     dateWrap: {
       alignItems: 'center',

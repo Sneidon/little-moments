@@ -27,6 +27,7 @@ import { ParentPhotosScreen } from '../screens/parent/ParentPhotosScreen';
 import { ParentCalendarScreen } from '../screens/parent/ParentCalendarScreen';
 import { ParentEventDetailScreen } from '../screens/parent/ParentEventDetailScreen';
 import { ParentAnnouncementsScreen } from '../screens/parent/ParentAnnouncementsScreen';
+import { ParentAnnouncementDetailScreen } from '../screens/parent/ParentAnnouncementDetailScreen';
 import { ParentSelectChildToMessageScreen } from '../screens/parent/ParentSelectChildToMessageScreen';
 import { DailyCommunicationScreen } from '../screens/teacher/DailyCommunicationScreen';
 import { EditChildProfileScreen } from '../screens/parent/EditChildProfileScreen';
@@ -60,6 +61,7 @@ export type RootStackParamList = {
   Events: undefined;
   ChildProfile: { childId: string; schoolId: string };
   ParentAnnouncements: undefined;
+  ParentAnnouncementDetail: { schoolId: string; announcementId: string };
   SelectChildToMessage: undefined;
   ParentSelectChildToMessage: undefined;
   BroadcastToClass: undefined;
@@ -134,7 +136,7 @@ function TeacherTabs() {
         name="Dashboard"
         component={TeacherHomeScreen}
         options={{
-          headerShown: false,
+          headerShown: true,
           title: 'Dashboard',
           tabBarIcon: tabBarIconPair('grid-outline', 'grid'),
         }}
@@ -265,6 +267,11 @@ export function MainTabs({ role }: { role: UserRole }) {
       <RootStack.Screen name="Events" component={EventsScreen} options={{ title: 'Events' }} />
       <RootStack.Screen name="ChildProfile" component={ParentChildProfileScreen} options={{ title: 'Daily report' }} />
       <RootStack.Screen name="ParentAnnouncements" component={ParentAnnouncementsScreen} options={{ title: 'Announcements' }} />
+      <RootStack.Screen
+        name="ParentAnnouncementDetail"
+        component={ParentAnnouncementDetailScreen}
+        options={{ title: 'Announcement' }}
+      />
       <RootStack.Screen name="SelectChildToMessage" component={SelectChildToMessageScreen} options={{ title: 'Start conversation' }} />
       <RootStack.Screen name="ParentSelectChildToMessage" component={ParentSelectChildToMessageScreen} options={{ title: 'Message teacher' }} />
       <RootStack.Screen name="BroadcastToClass" component={BroadcastToClassScreen} options={{ title: 'Message all in class' }} />

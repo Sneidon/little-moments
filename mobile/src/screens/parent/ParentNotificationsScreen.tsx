@@ -6,7 +6,18 @@ import firebaseApp from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
-const NOTIF_KEYS = ['nappyChange', 'napTime', 'meal', 'medication', 'incident', 'media', 'announcements', 'events', 'eventReminders'] as const;
+const NOTIF_KEYS = [
+  'nappyChange',
+  'napTime',
+  'meal',
+  'medication',
+  'incident',
+  'media',
+  'messages',
+  'announcements',
+  'events',
+  'eventReminders',
+] as const;
 
 const NOTIF_LABELS: Record<(typeof NOTIF_KEYS)[number], string> = {
   nappyChange: 'Nappy changes',
@@ -15,6 +26,7 @@ const NOTIF_LABELS: Record<(typeof NOTIF_KEYS)[number], string> = {
   medication: 'Medication',
   incident: 'Incidents',
   media: 'Photos/media',
+  messages: 'Chat messages',
   announcements: 'Announcements',
   events: 'Events',
   eventReminders: 'Event reminders',
@@ -31,6 +43,7 @@ export function ParentNotificationsScreen() {
     medication: true,
     incident: true,
     media: true,
+    messages: true,
     announcements: true,
     events: true,
     eventReminders: true,

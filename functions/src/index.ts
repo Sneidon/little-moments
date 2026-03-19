@@ -17,6 +17,7 @@ type ParentNotificationPrefKey =
   | 'medication'
   | 'incident'
   | 'media'
+  | 'messages'
   | 'announcements'
   | 'events'
   | 'eventReminders';
@@ -219,15 +220,31 @@ export const onReportCreated = functions.firestore
 async function getFcmTokensForSchool(
   db: admin.firestore.Firestore,
   schoolId: string,
-  options?: { parentPref?: ParentNotificationPrefKey | null }
+  options?: {
+    parentPref?: ParentNotificationPrefKey | null;
+    /** When true, skip staff whose notificationPreferences.announcements === false (teachers/principals). */
+    filterStaffByAnnouncementsPref?: boolean;
+  }
 ): Promise<string[]> {
   const tokens: string[] = [];
   const seen = new Set<string>();
 
   const staffSnap = await db.collection('users').where('schoolId', '==', schoolId).get();
   staffSnap.docs.forEach((d) => {
-    const data = d.data() as { fcmTokens?: string[]; isActive?: boolean };
+    const data = d.data() as {
+      fcmTokens?: string[];
+      isActive?: boolean;
+      role?: string;
+      notificationPreferences?: Record<string, boolean>;
+    };
     if (data.isActive === false) return;
+    if (
+      options?.filterStaffByAnnouncementsPref &&
+      (data.role === 'teacher' || data.role === 'principal') &&
+      !parentNotificationPreferenceAllows(data.notificationPreferences, 'announcements')
+    ) {
+      return;
+    }
     (data.fcmTokens || []).forEach((t: string) => {
       if (t && !seen.has(t)) {
         seen.add(t);
@@ -314,7 +331,10 @@ export const onAnnouncementCreated = functions.firestore
     const body = (data.body && String(data.body).trim()) ? String(data.body).trim().slice(0, 150) : '';
 
     const db = admin.firestore();
-    const tokens = await getFcmTokensForSchool(db, schoolId, { parentPref: 'announcements' });
+    const tokens = await getFcmTokensForSchool(db, schoolId, {
+      parentPref: 'announcements',
+      filterStaffByAnnouncementsPref: true,
+    });
     if (tokens.length === 0) {
       functions.logger.info('onAnnouncementCreated: no FCM tokens for school', schoolId);
       return null;
@@ -366,7 +386,10 @@ export const sendAnnouncementReminders = functions.pubsub
         const ann = annDoc.data() as { reminderSentAt?: string; title?: string };
         if (ann.reminderSentAt) continue;
 
-        const tokens = await getFcmTokensForSchool(db, schoolId, { parentPref: 'announcements' });
+        const tokens = await getFcmTokensForSchool(db, schoolId, {
+          parentPref: 'announcements',
+          filterStaffByAnnouncementsPref: true,
+        });
         if (tokens.length === 0) continue;
 
         const title = (ann.title && String(ann.title).trim()) || 'Announcement';
@@ -388,6 +411,76 @@ export const sendAnnouncementReminders = functions.pubsub
           functions.logger.error('sendAnnouncementReminders: failed', annDoc.id, e);
         }
       }
+    }
+    return null;
+  });
+
+// New chat message: notify the other participant (parent or teacher), respecting notificationPreferences.messages.
+export const onChatMessageCreated = functions.firestore
+  .document('schools/{schoolId}/chats/{chatId}/messages/{messageId}')
+  .onCreate(async (snap, context) => {
+    const { schoolId, chatId } = context.params;
+    const msg = snap.data() as { senderId?: string; text?: string };
+    const senderId = msg.senderId && String(msg.senderId).trim();
+    if (!senderId) return null;
+
+    const rawText = msg.text != null ? String(msg.text).trim() : '';
+    const body =
+      rawText.length > 0 ? (rawText.length > 120 ? `${rawText.slice(0, 120)}…` : rawText) : 'Tap to open the conversation.';
+
+    const db = admin.firestore();
+    const chatSnap = await db.collection('schools').doc(schoolId).collection('chats').doc(chatId).get();
+    if (!chatSnap.exists) return null;
+    const chat = chatSnap.data() as { teacherId?: string; parentId?: string; childId?: string };
+    const { teacherId, parentId, childId } = chat;
+    if (!teacherId || !parentId) return null;
+
+    let recipientId: string | null = null;
+    if (senderId === teacherId) {
+      recipientId = parentId;
+    } else if (senderId === parentId) {
+      recipientId = teacherId;
+    } else {
+      return null;
+    }
+
+    const tokens = await getFcmTokensForParentUserIds(db, [recipientId], 'messages');
+    if (tokens.length === 0) {
+      functions.logger.info('onChatMessageCreated: no FCM tokens for recipient', recipientId);
+      return null;
+    }
+
+    const senderSnap = await db.collection('users').doc(senderId).get();
+    const senderName = senderSnap.exists
+      ? (senderSnap.data() as { displayName?: string })?.displayName?.trim() || 'Someone'
+      : 'Someone';
+
+    let title = `Message from ${senderName}`;
+    if (childId) {
+      const childSnap = await db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('children')
+        .doc(childId)
+        .get();
+      const childName = childSnap.exists
+        ? (childSnap.data() as { name?: string })?.name?.trim()
+        : null;
+      if (childName) title = `${senderName} · ${childName}`;
+    }
+
+    const fcmMsg: admin.messaging.MulticastMessage = {
+      tokens,
+      notification: { title, body },
+      data: { type: 'chat_message', schoolId, chatId },
+      android: { priority: 'high' as const },
+      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+    };
+    try {
+      const res = await admin.messaging().sendEachForMulticast(fcmMsg);
+      functions.logger.info('onChatMessageCreated: sent', res.successCount, 'failed', res.failureCount, chatId);
+    } catch (e) {
+      functions.logger.error('onChatMessageCreated: send failed', e);
     }
     return null;
   });
@@ -1054,6 +1147,34 @@ export const updateParentProfile = functions.https.onCall(async (data, context) 
     updates.notificationPreferences = notificationPreferences;
   }
   await userRef.update(updates);
+  return { ok: true };
+});
+
+// Teacher updates push toggles for messages and school announcements (merged into notificationPreferences).
+export const updateTeacherNotificationPreferences = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const userRef = db.collection('users').doc(uid);
+  const snap = await userRef.get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+  const d = snap.data() as { role?: string; notificationPreferences?: Record<string, boolean> };
+  if (d.role !== 'teacher') {
+    throw new functions.https.HttpsError('permission-denied', 'Only teachers can use this.');
+  }
+  const { notificationPreferences } = data as { notificationPreferences?: Record<string, boolean> };
+  if (!notificationPreferences || typeof notificationPreferences !== 'object') {
+    throw new functions.https.HttpsError('invalid-argument', 'notificationPreferences is required.');
+  }
+  const allowed: ParentNotificationPrefKey[] = ['messages', 'announcements'];
+  const merged: Record<string, boolean> = { ...(d.notificationPreferences || {}) };
+  for (const key of allowed) {
+    if (key in notificationPreferences) merged[key] = Boolean(notificationPreferences[key]);
+  }
+  await userRef.update({
+    notificationPreferences: merged,
+    updatedAt: new Date().toISOString(),
+  });
   return { ok: true };
 });
 

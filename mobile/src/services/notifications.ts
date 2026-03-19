@@ -52,6 +52,7 @@ export type NotificationData = {
   announcementId?: string;
   eventId?: string;
   reportType?: string;
+  chatId?: string;
   [key: string]: string | undefined;
 };
 
@@ -221,4 +222,5 @@ export const NOTIFICATION_DATA_TYPES = {
   announcement: 'announcement',
   announcement_reminder: 'announcement_reminder',
   event_reminder: 'event_reminder',
+  chat_message: 'chat_message',
 } as const;

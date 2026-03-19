@@ -19,130 +19,161 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, doc, getDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { RootStackParamList } from '../../navigation/MainTabs';
 import { db } from '../../config/firebase';
-import type { Child, DailyReport } from '../../../../shared/types';
+import type { Child, ClassRoom } from '../../../../shared/types';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getAge, getInitials, formatTime } from '../../utils';
-import { getParentHomeContentStyles } from './parentHomeContentStyles';
+import {
+  type ReportWithExtras,
+  getReportTitle,
+  reportIcon,
+  reportIconColor,
+  parseTimeWithDate,
+  getReportDateStr,
+} from '../../utils/childDailyReportDisplay';
 import { getOrCreateChat } from '../../api/chat';
 import { EmptyState } from '../../components/EmptyState';
+import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChildProfile'>;
-
-function formatReportTypeLabel(type: string): string {
-  switch (type) {
-    case 'meal':
-      return 'Meal';
-    case 'nap_time':
-      return 'Nap';
-    case 'nappy_change':
-      return 'Nappy change';
-    case 'medication':
-      return 'Medication';
-    case 'incident':
-      return 'Incident';
-    default:
-      return type.replace(/_/g, ' ');
-  }
-}
 
 export function ParentChildProfileScreen({ route, navigation }: Props) {
   const { childId, schoolId } = route.params;
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createChildProfileStyles(colors, width), [colors, width]);
+  const { colors, isDark } = useTheme();
+  const compact = width < 368;
+  const styles = useMemo(() => createStyles(colors, compact, isDark), [colors, compact, isDark]);
 
   const [child, setChild] = useState<Child | null>(null);
   const [className, setClassName] = useState<string | null>(null);
-  const [loadingChild, setLoadingChild] = useState(true);
+  const [childLoading, setChildLoading] = useState(true);
+  const [childMissing, setChildMissing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [reports, setReports] = useState<DailyReport[]>([]);
+  const [reports, setReports] = useState<ReportWithExtras[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [messageLoading, setMessageLoading] = useState(false);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
 
   const isToday = selectedDate === new Date().toISOString().slice(0, 10);
+  const startOfDay = `${selectedDate}T00:00:00.000Z`;
+  const endOfDay = `${selectedDate}T23:59:59.999Z`;
 
-  const openHeaderMenu = useCallback(() => {
-    if (!child) return;
-    Alert.alert('Options', undefined, [
-      {
-        text: 'Edit profile',
-        onPress: () =>
-          (navigation.getParent() as { navigate: (n: string, p?: object) => void } | undefined)?.navigate(
-            'EditChildProfile',
-            { childId: child.id, schoolId }
-          ),
-      },
-      {
-        text: 'Message teacher',
-        onPress: async () => {
-          if (!child.assignedTeacherId) {
-            Alert.alert(
-              'No teacher assigned',
-              'This child does not have an assigned teacher yet.'
-            );
-            return;
-          }
-          try {
-            const { chatId, schoolId: sid } = await getOrCreateChat(
-              schoolId,
-              child.id,
-              child.assignedTeacherId
-            );
-            (navigation.getParent() as { navigate: (n: string, p?: object) => void } | undefined)?.navigate(
-              'ChatThread',
-              { chatId, schoolId: sid }
-            );
-          } catch {
-            Alert.alert('Error', 'Could not open messages. Please try again.');
-          }
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }, [child, navigation, schoolId]);
+  const dayReports = useMemo(() => {
+    return reports.filter((r) => {
+      const t = r.timestamp || r.createdAt;
+      return t >= startOfDay && t <= endOfDay;
+    });
+  }, [reports, startOfDay, endOfDay]);
+
+  const sortedDayReports = useMemo(
+    () =>
+      [...dayReports].sort(
+        (a, b) =>
+          new Date(a.timestamp || a.createdAt).getTime() - new Date(b.timestamp || b.createdAt).getTime()
+      ),
+    [dayReports]
+  );
+
+  const meals = dayReports.filter((r) => r.type === 'meal').length;
+  const naps = dayReports.filter((r) => r.type === 'nap_time');
+  const nappy = dayReports.filter((r) => r.type === 'nappy_change').length;
+  const activities = dayReports.filter((r) => r.type === 'medication' || r.type === 'incident').length;
+
+  let napDuration = '';
+  if (naps.length > 0) {
+    let totalMs = 0;
+    const dateStr = selectedDate;
+    for (const n of naps) {
+      const r = n as ReportWithExtras;
+      const reportDate = getReportDateStr(r) || dateStr;
+      if (r.napStartTime && r.napEndTime) {
+        const startMs = parseTimeWithDate(r.napStartTime, reportDate);
+        const endMs = parseTimeWithDate(r.napEndTime, reportDate);
+        if (!isNaN(startMs) && !isNaN(endMs)) {
+          totalMs += endMs - startMs;
+        } else {
+          totalMs += 1.5 * 60 * 60 * 1000;
+        }
+      } else {
+        totalMs += 1.5 * 60 * 60 * 1000;
+      }
+    }
+    const hours = totalMs / (60 * 60 * 1000);
+    napDuration =
+      Number.isFinite(hours) && hours >= 0
+        ? hours >= 1
+          ? `${hours.toFixed(1)}h`
+          : `${Math.round(hours * 60)}m`
+        : '0h';
+  } else {
+    napDuration = '0h';
+  }
+
+  const onMessageTeacher = useCallback(async () => {
+    if (!child || !teacherId) {
+      Alert.alert('No teacher assigned', 'This child does not have an assigned teacher yet.');
+      return;
+    }
+    setMessageLoading(true);
+    try {
+      const { chatId, schoolId: sid } = await getOrCreateChat(schoolId, child.id, teacherId);
+      navigation.navigate('ChatThread', { chatId, schoolId: sid });
+    } catch {
+      Alert.alert('Error', 'Could not open messages. Please try again.');
+    } finally {
+      setMessageLoading(false);
+    }
+  }, [child, schoolId, navigation, teacherId]);
+
+  const onAnnouncements = useCallback(() => {
+    navigation.navigate('ParentAnnouncements');
+  }, [navigation]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: true,
       title: child?.name ?? 'Daily report',
-      headerRight: child
-        ? () => (
-            <TouchableOpacity
-              onPress={openHeaderMenu}
-              style={{ paddingHorizontal: 12, paddingVertical: 8 }}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="More options"
-            >
-              <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
-            </TouchableOpacity>
-          )
-        : undefined,
     });
-  }, [navigation, child, colors.text, openHeaderMenu]);
+  }, [navigation, child]);
 
   useEffect(() => {
     let cancelled = false;
+    setChildLoading(true);
+    setChildMissing(false);
+    setChild(null);
+    setClassName(null);
+    setTeacherId(null);
     (async () => {
       try {
         const snap = await getDoc(doc(db, 'schools', schoolId, 'children', childId));
         if (cancelled) return;
-        if (snap.exists()) {
-          const c = { id: snap.id, ...snap.data() } as Child;
-          setChild(c);
-          if (c.classId) {
-            const cls = await getDoc(doc(db, 'schools', schoolId, 'classes', c.classId));
-            if (!cancelled && cls.exists()) setClassName((cls.data() as { name?: string }).name ?? null);
-          } else {
-            setClassName(null);
-          }
+        if (!snap.exists()) {
+          setChildMissing(true);
+          return;
         }
+        const c = { id: snap.id, ...snap.data() } as Child;
+        setChild(c);
+        let resolvedTeacherId = c.assignedTeacherId ?? null;
+        if (c.classId) {
+          const cls = await getDoc(doc(db, 'schools', schoolId, 'classes', c.classId));
+          if (!cancelled && cls.exists()) {
+            const classData = cls.data() as ClassRoom;
+            setClassName(classData.name ?? null);
+            if (!resolvedTeacherId) {
+              resolvedTeacherId = classData.assignedTeacherId ?? null;
+            }
+          }
+        } else {
+          setClassName(null);
+        }
+        if (!cancelled) setTeacherId(resolvedTeacherId);
+      } catch {
+        if (!cancelled) setChildMissing(true);
       } finally {
-        if (!cancelled) setLoadingChild(false);
+        if (!cancelled) setChildLoading(false);
       }
     })();
     return () => {
@@ -156,14 +187,10 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
       collection(db, 'schools', schoolId, 'children', childId, 'reports'),
       orderBy('timestamp', 'desc')
     );
-    const start = `${selectedDate}T00:00:00.000Z`;
-    const end = `${selectedDate}T23:59:59.999Z`;
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as DailyReport));
-        const filtered = list.filter((r) => r.timestamp >= start && r.timestamp <= end);
-        setReports(filtered);
+        setReports(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ReportWithExtras)));
         setLoadingReports(false);
         setRefreshing(false);
       },
@@ -173,19 +200,24 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
       }
     );
     return () => unsub();
-  }, [childId, schoolId, selectedDate, refreshTrigger]);
+  }, [childId, schoolId]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setRefreshTrigger((t) => t + 1);
+    setLoadingReports(true);
+    setTimeout(() => {
+      setRefreshing(false);
+      setLoadingReports(false);
+    }, 400);
   }, []);
 
-  const meals = reports.filter((r) => r.type === 'meal').length;
-  const naps = reports.filter((r) => r.type === 'nap_time').length;
-  const nappy = reports.filter((r) => r.type === 'nappy_change').length;
-  const activities = reports.filter(
-    (r) => r.type !== 'meal' && r.type !== 'nap_time' && r.type !== 'nappy_change'
-  ).length;
+  const displayDate = isToday
+    ? 'Today'
+    : new Date(selectedDate).toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
 
   const prevDay = () => {
     const d = new Date(selectedDate);
@@ -206,61 +238,13 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
     if (date) setSelectedDate(date.toISOString().slice(0, 10));
   };
 
-  const reportTypeIcon = (type: string) => {
-    if (type === 'meal') return 'restaurant-outline';
-    if (type === 'nap_time') return 'bed-outline';
-    if (type === 'nappy_change') return 'water-outline';
-    return 'sparkles-outline';
-  };
-
-  const displayDate = isToday
-    ? 'Today'
-    : new Date(selectedDate).toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-
-  const scrollBottomPad = 24 + Math.max(insets.bottom, 12);
-
-  if (loadingChild) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.backgroundSecondary, paddingBottom: insets.bottom }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingHint, { color: colors.textMuted }]}>Loading profile…</Text>
-      </View>
-    );
-  }
-
-  if (!child) {
-    return (
-      <View
-        style={[
-          styles.centered,
-          { backgroundColor: colors.backgroundSecondary, paddingBottom: insets.bottom, paddingHorizontal: 24 },
-        ]}
-      >
-        <Ionicons name="person-outline" size={48} color={colors.textMuted} />
-        <Text style={[styles.notFoundTitle, { color: colors.text }]}>Child not found</Text>
-        <Text style={[styles.notFoundSub, { color: colors.textSecondary }]}>
-          This profile may have been removed or you may not have access.
-        </Text>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.primaryBtnText, { color: colors.primaryContrast }]}>Go back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const scrollBottom = 24 + Math.max(insets.bottom, 8);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.screen}>
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: scrollBottom }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -271,26 +255,44 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.profileSummaryCard}>
-          {child.photoURL ? (
-            <Image source={{ uri: child.photoURL }} style={styles.profileSummaryAvatarImg} />
-          ) : (
-            <View style={[styles.profileSummaryAvatar, { backgroundColor: colors.avatarBg }]}>
-              <Text style={[styles.profileSummaryAvatarText, { color: colors.avatarText }]}>
-                {getInitials(child.name)}
+        {childLoading ? (
+          <View style={styles.profileCard}>
+            <SkeletonCircle size={52} />
+            <View style={styles.profileTextCol}>
+              <Skeleton width="72%" height={20} borderRadius={8} style={{ marginBottom: 10 }} />
+              <Skeleton width="48%" height={14} borderRadius={6} />
+            </View>
+          </View>
+        ) : childMissing || !child ? (
+          <View style={styles.profileCard}>
+            <View style={[styles.profileAvatar, styles.profileAvatarMuted]}>
+              <Ionicons name="person-outline" size={26} color={colors.textMuted} />
+            </View>
+            <View style={styles.profileTextCol}>
+              <Text style={styles.profileName}>Child not found</Text>
+              <Text style={styles.profileMeta}>This profile may have been removed.</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.profileCard}>
+            {child.photoURL ? (
+              <Image source={{ uri: child.photoURL }} style={styles.profileAvatarImg} />
+            ) : (
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>{getInitials(child.name)}</Text>
+              </View>
+            )}
+            <View style={styles.profileTextCol}>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {child.name}
+              </Text>
+              <Text style={styles.profileMeta} numberOfLines={1}>
+                {getAge(child.dateOfBirth)}
+                {className ? ` · ${className}` : ''}
               </Text>
             </View>
-          )}
-          <View style={styles.profileSummaryTextCol}>
-            <Text style={[styles.profileSummaryName, { color: colors.text }]} numberOfLines={1}>
-              {child.name}
-            </Text>
-            <Text style={[styles.profileSummaryMeta, { color: colors.textMuted }]} numberOfLines={1}>
-              {getAge(child.dateOfBirth)}
-              {className ? ` · ${className}` : ''}
-            </Text>
           </View>
-        </View>
+        )}
 
         <View style={styles.dateBar}>
           <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
@@ -331,90 +333,148 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
           </>
         )}
 
-        <View style={styles.sectionTightTop}>
-          <View style={styles.sectionHeaderAligned}>
-            <Text style={styles.sectionOverviewTitleFlex} numberOfLines={2}>
-              {"Today's Overview"}
-            </Text>
-            <TouchableOpacity
-              style={styles.sectionBtnShrink}
-              onPress={() =>
-                (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
-                  'ParentAnnouncements'
-                )
-              }
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sectionBtnText}>Announcements</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.statsRowAligned}>
-            <View style={[styles.statCard, styles.statCell]}>
-              <Text style={[styles.statValue, styles.statMealsValue]}>{meals}</Text>
-              <Text style={styles.statLabel}>Meals</Text>
+        <View style={styles.overviewSection}>
+          {childLoading ? (
+            <Skeleton width={160} height={20} borderRadius={8} style={{ marginBottom: 12 }} />
+          ) : (
+            <Text style={styles.overviewTitle}>{"Today's overview"}</Text>
+          )}
+          {childLoading ? (
+            <View style={styles.summaryRow}>
+              {[0, 1, 2, 3].map((i) => (
+                <View key={i} style={[styles.summaryCard, styles.summarySkeletonCard]}>
+                  <Skeleton width={compact ? 24 : 30} height={compact ? 18 : 22} borderRadius={6} />
+                  <Skeleton width={compact ? 36 : 44} height={10} borderRadius={4} style={{ marginTop: 8 }} />
+                </View>
+              ))}
             </View>
-            <View style={[styles.statCard, styles.statCell]}>
-              <Text style={[styles.statValue, styles.statNapValue]}>{naps}</Text>
-              <Text style={styles.statLabel}>Nap</Text>
+          ) : childMissing ? (
+            <Text style={styles.unavailableHint}>Overview unavailable</Text>
+          ) : (
+            <View style={styles.summaryRow}>
+              <View style={[styles.summaryCard, styles.summaryMeals]}>
+                <Text style={[styles.summaryValue, styles.summaryMealsValue]}>{meals}/3</Text>
+                <Text style={styles.summaryLabel}>Meals</Text>
+              </View>
+              <View style={[styles.summaryCard, styles.summaryNap]}>
+                <Text style={[styles.summaryValue, styles.summaryNapValue]}>{napDuration}</Text>
+                <Text style={styles.summaryLabel}>Nap</Text>
+              </View>
+              <View style={[styles.summaryCard, styles.summaryNappy]}>
+                <Text style={[styles.summaryValue, styles.summaryNappyValue]}>{nappy}</Text>
+                <Text style={styles.summaryLabel}>Nappy</Text>
+              </View>
+              <View style={[styles.summaryCard, styles.summaryActivities]}>
+                <Text style={[styles.summaryValue, styles.summaryActivitiesValue]}>{activities}</Text>
+                <Text style={styles.summaryLabel}>Activities</Text>
+              </View>
             </View>
-            <View style={[styles.statCard, styles.statCell]}>
-              <Text style={[styles.statValue, styles.statNappyValue]}>{nappy}</Text>
-              <Text style={styles.statLabel}>Nappy</Text>
-            </View>
-            <View style={[styles.statCard, styles.statCell]}>
-              <Text style={[styles.statValue, styles.statActivitiesValue]}>{activities}</Text>
-              <Text style={styles.statLabel}>Activities</Text>
-            </View>
-          </View>
+          )}
         </View>
 
+        {!childLoading && !childMissing && child ? (
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[
+                styles.actionBtnOutline,
+                (!teacherId || messageLoading) && styles.actionBtnDisabled,
+              ]}
+              onPress={onMessageTeacher}
+              disabled={messageLoading || !teacherId}
+              activeOpacity={0.75}
+            >
+              {messageLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <Ionicons
+                    name="chatbubble-outline"
+                    size={22}
+                    color={!teacherId ? colors.textMuted : colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.actionBtnOutlineText,
+                      !teacherId && { color: colors.textMuted },
+                    ]}
+                  >
+                    Message teacher
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnPrimary]}
+              onPress={onAnnouncements}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="megaphone-outline" size={22} color={colors.primaryContrast} />
+              <Text style={[styles.actionBtnText, styles.actionBtnPrimaryText]}>Announcements</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <View style={styles.section}>
-          <Text style={styles.sectionBlockTitle}>
-            {isToday ? "Today's Updates" : 'Updates'}
-          </Text>
-          {loadingReports ? (
+          {childLoading ? (
+            <Skeleton width={200} height={20} borderRadius={8} style={{ marginBottom: 14 }} />
+          ) : (
+            <Text style={styles.sectionTitle}>
+              {isToday ? "Today's Updates" : `Updates · ${displayDate}`}
+            </Text>
+          )}
+          {childLoading ? (
+            <View>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={styles.timelineCard}>
+                  <Skeleton width={44} height={44} borderRadius={12} />
+                  <View style={styles.timelineSkeletonCol}>
+                    <Skeleton width={52} height={12} borderRadius={4} />
+                    <Skeleton width="85%" height={16} borderRadius={6} style={{ marginTop: 10 }} />
+                    <Skeleton width="70%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : childMissing ? (
+            <Text style={styles.unavailableHint}>No updates to show.</Text>
+          ) : loadingReports ? (
             <View style={styles.updatesLoading}>
               <ActivityIndicator color={colors.primary} />
-              <Text style={[styles.updatesLoadingText, { color: colors.textMuted }]}>Loading updates…</Text>
             </View>
-          ) : reports.length === 0 ? (
-            <View style={styles.emptyUpdatesWrap}>
-              <EmptyState
-                icon="clipboard-outline"
-                title="No updates for this day"
-                subtitle="When teachers log meals, naps, or activities, they will show up here."
-              />
-            </View>
+          ) : sortedDayReports.length === 0 ? (
+            <EmptyState
+              icon="clipboard-outline"
+              title="No updates for this day"
+              subtitle="When teachers log meals, naps, or activities, they will show up here."
+            />
           ) : (
-            reports.map((item) => (
+            sortedDayReports.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={styles.updateCard}
+                style={styles.timelineCard}
                 onPress={() =>
-                  (navigation.getParent() as { navigate: (n: string, p: object) => void } | undefined)?.navigate(
-                    'ReportDetail',
-                    { schoolId, childId, reportId: item.id }
-                  )
+                  navigation.navigate('ReportDetail', { schoolId, childId, reportId: item.id })
                 }
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`${formatReportTypeLabel(item.type)} details`}
+                accessibilityLabel={`View details: ${getReportTitle(item)}`}
               >
-                <View style={[styles.updateIconCircle, { backgroundColor: colors.primaryMuted }]}>
-                  <Ionicons
-                    name={reportTypeIcon(item.type) as keyof typeof Ionicons.glyphMap}
-                    size={20}
-                    color={colors.primary}
-                  />
+                <View
+                  style={[
+                    styles.timelineIconWrap,
+                    { backgroundColor: reportIconColor(item.type) + (isDark ? '35' : '22') },
+                  ]}
+                >
+                  <Ionicons name={reportIcon(item.type)} size={20} color={reportIconColor(item.type)} />
                 </View>
-                <View style={styles.updateCardContent}>
-                  <View style={styles.updateCardTopRow}>
-                    <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+                <View style={styles.timelineContent}>
+                  <View style={styles.timelineRowTop}>
+                    <Text style={styles.timelineTime}>{formatTime(item.timestamp || item.createdAt)}</Text>
                     <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                   </View>
-                  <Text style={styles.updateType}>{formatReportTypeLabel(item.type)}</Text>
+                  <Text style={styles.timelineTitle}>{getReportTitle(item)}</Text>
                   {item.notes ? (
-                    <Text style={styles.updateNotes} numberOfLines={2}>
+                    <Text style={styles.timelineNotes} numberOfLines={2}>
                       {item.notes}
                     </Text>
                   ) : null}
@@ -428,150 +488,247 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
   );
 }
 
-function createChildProfileStyles(colors: import('../../theme/colors').ColorPalette, screenWidth: number) {
-  const shared = getParentHomeContentStyles(colors);
-  const compactStats = screenWidth < 360;
+function createStyles(
+  colors: import('../../theme/colors').ColorPalette,
+  compact: boolean,
+  isDark: boolean
+) {
   return StyleSheet.create({
-    ...shared,
+    screen: { flex: 1, backgroundColor: colors.backgroundSecondary },
     container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    scroll: { flex: 1 },
-    scrollContent: { flexGrow: 1 },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingHint: {
-      marginTop: 14,
-      fontFamily: font.regular,
-      fontSize: 15,
+    updatesLoading: {
+      alignItems: 'center',
+      paddingVertical: 28,
     },
-    notFoundTitle: {
-      fontFamily: font.semiBold,
-      fontSize: 18,
-      marginTop: 16,
-      textAlign: 'center',
-    },
-    notFoundSub: {
-      fontFamily: font.regular,
-      fontSize: 14,
-      marginTop: 8,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    primaryBtn: {
-      marginTop: 24,
-      paddingVertical: 14,
-      paddingHorizontal: 28,
-      borderRadius: 12,
-    },
-    primaryBtnText: { fontFamily: font.semiBold, fontSize: 16 },
-
-    profileSummaryCard: {
+    profileCard: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       marginHorizontal: 16,
-      marginTop: 12,
+      marginTop: 16,
       padding: 14,
-      borderRadius: 16,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
-    profileSummaryAvatar: {
+    profileAvatar: {
       width: 52,
       height: 52,
       borderRadius: 26,
+      backgroundColor: colors.avatarBg,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    profileSummaryAvatarImg: {
+    profileAvatarMuted: {
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    profileAvatarImg: {
       width: 52,
       height: 52,
       borderRadius: 26,
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
-    profileSummaryAvatarText: {
-      fontFamily: font.bold,
+    profileAvatarText: {
       fontSize: 18,
-    },
-    profileSummaryTextCol: { flex: 1, marginLeft: 14, minWidth: 0 },
-    profileSummaryName: {
       fontFamily: font.bold,
-      fontSize: 17,
+      fontWeight: '700',
+      color: colors.avatarText,
     },
-    profileSummaryMeta: {
-      fontFamily: font.regular,
+    profileTextCol: { marginLeft: 14, flex: 1, minWidth: 0 },
+    profileName: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    profileMeta: {
       fontSize: 14,
+      fontFamily: font.regular,
+      color: colors.textSecondary,
       marginTop: 4,
     },
 
-    sectionTightTop: {
-      marginTop: 18,
-      paddingHorizontal: 16,
-    },
-    sectionHeaderAligned: {
+    dateBar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 12,
-      gap: 10,
-    },
-    sectionOverviewTitleFlex: {
-      flex: 1,
-      minWidth: 0,
-      fontSize: 18,
-      fontFamily: font.bold,
-      color: colors.textSecondary,
-      letterSpacing: -0.2,
-    },
-    sectionBtnShrink: {
-      flexShrink: 0,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 10,
-      backgroundColor: colors.backgroundSecondary,
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.cardBorder,
+    },
+    dateArrow: { padding: 4 },
+    dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    datePickerDone: {
+      marginTop: 8,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      marginHorizontal: 16,
+    },
+    datePickerDoneText: {
+      color: colors.primaryContrast,
+      fontWeight: '600',
+      fontSize: 16,
+      fontFamily: font.semiBold,
     },
 
-    statsRowAligned: {
+    overviewSection: {
+      marginTop: 22,
+      paddingHorizontal: 16,
+    },
+    overviewTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 12,
+      letterSpacing: -0.2,
+    },
+    summaryRow: {
       flexDirection: 'row',
-      flexWrap: 'nowrap',
-      gap: compactStats ? 6 : 10,
+      gap: compact ? 6 : 10,
       alignItems: 'stretch',
     },
-    statCell: {
+    summaryCard: {
       flex: 1,
       minWidth: 0,
-      paddingVertical: compactStats ? 10 : 14,
-      paddingHorizontal: compactStats ? 4 : 14,
+      backgroundColor: colors.card,
+      paddingVertical: compact ? 10 : 14,
+      paddingHorizontal: compact ? 4 : 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+      ...(isDark
+        ? {}
+        : {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.04,
+            shadowRadius: 3,
+            elevation: 1,
+          }),
     },
-    statValue: {
-      fontSize: compactStats ? 22 : 26,
+    summaryValue: {
+      fontSize: compact ? 18 : 22,
       fontFamily: font.bold,
       fontWeight: '800',
       color: colors.textSecondary,
     },
-    statLabel: {
-      fontSize: compactStats ? 11 : 12,
+    summaryLabel: {
+      fontSize: compact ? 10 : 11,
       fontFamily: font.medium,
       color: colors.textMuted,
       marginTop: 4,
       textAlign: 'center',
     },
-
-    updatesLoading: {
+    summaryMeals: {},
+    summaryMealsValue: { color: colors.warning },
+    summaryNap: {},
+    summaryNapValue: { color: '#7c3aed' },
+    summaryNappy: {},
+    summaryNappyValue: { color: '#0d9488' },
+    summaryActivities: {},
+    summaryActivitiesValue: { color: '#2563eb' },
+    summarySkeletonCard: {
+      justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: 28,
+      minHeight: compact ? 68 : 76,
     },
-    updatesLoadingText: {
-      marginTop: 12,
-      fontFamily: font.regular,
+    unavailableHint: {
       fontSize: 14,
+      fontFamily: font.regular,
+      color: colors.textMuted,
+      textAlign: 'center',
+      paddingVertical: 20,
     },
-    emptyUpdatesWrap: {
-      marginHorizontal: -8,
+    timelineSkeletonCol: {
+      flex: 1,
+      marginLeft: 12,
+      minWidth: 0,
+      justifyContent: 'center',
     },
 
-    updateCard: {
+    actionRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginHorizontal: 16,
+      marginTop: 20,
+    },
+    actionBtnOutline: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 15,
+      borderRadius: 14,
+      backgroundColor: colors.card,
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    actionBtnDisabled: {
+      borderColor: colors.border,
+      opacity: 0.85,
+    },
+    actionBtnOutlineText: {
+      fontSize: 15,
+      fontFamily: font.semiBold,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    actionBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 15,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    actionBtnPrimary: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      ...(isDark
+        ? {}
+        : {
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            elevation: 4,
+          }),
+    },
+    actionBtnText: {
+      fontSize: 15,
+      fontFamily: font.semiBold,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    actionBtnPrimaryText: { color: colors.primaryContrast, fontFamily: font.semiBold },
+
+    section: { marginTop: 28, paddingHorizontal: 16, paddingBottom: 8 },
+    sectionTitle: {
+      fontSize: 18,
+      fontFamily: font.bold,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 14,
+      letterSpacing: -0.2,
+    },
+    timelineCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       backgroundColor: colors.card,
@@ -581,36 +738,37 @@ function createChildProfileStyles(colors: import('../../theme/colors').ColorPale
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
-    updateIconCircle: {
-      width: 40,
-      height: 40,
+    timelineIconWrap: {
+      width: 44,
+      height: 44,
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: 12,
     },
-    updateCardContent: { flex: 1, minWidth: 0 },
-    updateCardTopRow: {
+    timelineContent: { flex: 1, minWidth: 0 },
+    timelineRowTop: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    updateTime: {
+    timelineTime: {
       fontSize: 12,
       fontFamily: font.medium,
       color: colors.textMuted,
     },
-    updateType: {
-      fontSize: 15,
+    timelineTitle: {
+      fontSize: 16,
       fontFamily: font.semiBold,
+      fontWeight: '600',
       color: colors.text,
       marginTop: 4,
     },
-    updateNotes: {
+    timelineNotes: {
       fontSize: 14,
       fontFamily: font.regular,
       color: colors.textSecondary,
-      marginTop: 6,
+      marginTop: 8,
       lineHeight: 20,
     },
   });

@@ -25,6 +25,7 @@ import { ParentProfileScreen } from '../screens/parent/ParentProfileScreen';
 import { ParentNotificationsScreen } from '../screens/parent/ParentNotificationsScreen';
 import { ParentPhotosScreen } from '../screens/parent/ParentPhotosScreen';
 import { ParentCalendarScreen } from '../screens/parent/ParentCalendarScreen';
+import { ParentEventDetailScreen } from '../screens/parent/ParentEventDetailScreen';
 import { ParentAnnouncementsScreen } from '../screens/parent/ParentAnnouncementsScreen';
 import { ParentSelectChildToMessageScreen } from '../screens/parent/ParentSelectChildToMessageScreen';
 import { DailyCommunicationScreen } from '../screens/teacher/DailyCommunicationScreen';
@@ -68,6 +69,7 @@ export type RootStackParamList = {
   EditChildProfileTeacher: { childId: string; schoolId: string };
   ParentProfile: undefined;
   ParentNotifications: undefined;
+  ParentEventDetail: { schoolId: string; eventId: string };
 };
 
 const Tab = createBottomTabNavigator();
@@ -272,6 +274,11 @@ export function MainTabs({ role }: { role: UserRole }) {
       <RootStack.Screen name="EditChildProfileTeacher" component={EditChildProfileTeacherScreenWrapper} options={{ title: 'Edit child' }} />
       <RootStack.Screen name="ParentProfile" component={ParentProfileScreen} options={{ title: 'Profile' }} />
       <RootStack.Screen name="ParentNotifications" component={ParentNotificationsScreen} options={{ title: 'Notifications' }} />
+      <RootStack.Screen
+        name="ParentEventDetail"
+        component={ParentEventDetailScreen}
+        options={{ title: 'Event' }}
+      />
     </RootStack.Navigator>
   );
 }

@@ -132,10 +132,7 @@ export function TeacherSettingsScreen() {
         <TouchableOpacity
           style={styles.row}
           onPress={() =>
-            Alert.alert(
-              'FAQ',
-              'How do I log meals or naps? Use Add Update from the dashboard. How do I message parents? Open Messages or Message class. How do I start one chat? Use New chat under Messages. Need more? Tap Contact support.'
-            )
+            Alert.alert('FAQ', 'Not implemented yet.')
           }
           activeOpacity={0.75}
         >
@@ -147,7 +144,7 @@ export function TeacherSettingsScreen() {
         <TouchableOpacity
           style={styles.row}
           onPress={() =>
-            Alert.alert('Contact support', 'Email: support@mylittlemoments.com\n\nWe respond within 1-2 business days.')
+            Alert.alert('Contact support', 'Not implemented yet.')
           }
           activeOpacity={0.75}
         >

@@ -86,6 +86,8 @@ export interface DailyReport {
   forWholeClass?: boolean;
   /** MIME type: image/* or video/*. */
   mediaType?: string;
+  /** Teacher-selected label for photo posts (e.g. Outdoor play). */
+  photoCategory?: string;
 }
 
 /** Daily real-time communication: planned activity for the day, sent to all parents. */

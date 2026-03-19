@@ -125,9 +125,6 @@ export function ParentSettingsScreen() {
               <Text style={[styles.avatarInitials, { color: colors.primary }]}>{initials}</Text>
             </View>
           )}
-          <View style={[styles.editFab, { backgroundColor: colors.primary }]}>
-            <Ionicons name="pencil" size={16} color={colors.primaryContrast} />
-          </View>
         </View>
         <Text style={styles.profileName}>{displayName}</Text>
         <Text style={styles.profileEmail}>{email}</Text>
@@ -160,10 +157,7 @@ export function ParentSettingsScreen() {
         <TouchableOpacity
           style={styles.row}
           onPress={() =>
-            Alert.alert(
-              'FAQ',
-              'Common questions: How do I see updates for my child? Open Home. How do I message the teacher? Use Messages. Need more? Tap Contact support.'
-            )
+            Alert.alert('FAQ', 'Not implemented yet.')
           }
           activeOpacity={0.75}
         >
@@ -181,7 +175,7 @@ export function ParentSettingsScreen() {
         <TouchableOpacity
           style={styles.row}
           onPress={() =>
-            Alert.alert('Contact support', 'Email: support@mylittlemoments.com\n\nWe respond within 1-2 business days.')
+            Alert.alert('Contact support', 'Not implemented yet.')
           }
           activeOpacity={0.75}
         >

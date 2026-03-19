@@ -1,9 +1,13 @@
 import React from 'react';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import type { UserRole } from '../../../shared/types';
+import type { ColorPalette } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
+import { font } from '../theme/typography';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
 import { TeacherStudentsScreen } from '../screens/teacher/TeacherStudentsScreen';
@@ -19,7 +23,7 @@ import { ParentChildProfileScreen } from '../screens/parent/ParentChildProfileSc
 import { ParentSettingsScreen } from '../screens/parent/ParentSettingsScreen';
 import { ParentProfileScreen } from '../screens/parent/ParentProfileScreen';
 import { ParentNotificationsScreen } from '../screens/parent/ParentNotificationsScreen';
-import { PhotosPlaceholderScreen } from '../screens/shared/PhotosPlaceholderScreen';
+import { ParentPhotosScreen } from '../screens/parent/ParentPhotosScreen';
 import { ParentCalendarScreen } from '../screens/parent/ParentCalendarScreen';
 import { ParentAnnouncementsScreen } from '../screens/parent/ParentAnnouncementsScreen';
 import { ParentSelectChildToMessageScreen } from '../screens/parent/ParentSelectChildToMessageScreen';
@@ -71,23 +75,65 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-/** Outline when inactive, filled when active (standard tab pattern). */
+/** Fixed box so glyphs of different shapes align in the tab bar. */
+const TAB_ICON_SLOT = 28;
+
+/**
+ * Outline when inactive, solid when focused (Ionicons `-outline` vs base name).
+ * Centered in a fixed slot so tabs line up visually.
+ */
 function tabBarIconPair(outline: IoniconName, filled: IoniconName) {
   return ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
-    <Ionicons name={focused ? filled : outline} size={size} color={color} />
+    <View
+      style={{
+        width: TAB_ICON_SLOT,
+        height: TAB_ICON_SLOT,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Ionicons name={focused ? filled : outline} size={size} color={color} />
+    </View>
   );
 }
 
+function tabBarStyleOptions(colors: ColorPalette) {
+  return {
+    tabBarActiveTintColor: colors.tabActive,
+    tabBarInactiveTintColor: colors.tabInactive,
+    tabBarStyle: {
+      backgroundColor: colors.tabBarBg,
+      borderTopColor: colors.cardBorder,
+    },
+  };
+}
+
 function TeacherTabs() {
-  const tabHeader = { headerShown: true as const };
+  const { colors, isDark } = useTheme();
+
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        headerStyle: {
+          backgroundColor: colors.card,
+        },
+        headerTintColor: colors.primary,
+        headerTitleStyle: {
+          fontFamily: font.semiBold,
+          fontSize: 17,
+          color: colors.text,
+        },
+        headerShadowVisible: !isDark,
+        ...tabBarStyleOptions(colors),
+      }}
+    >
       <Tab.Screen
         name="Dashboard"
         component={TeacherHomeScreen}
         options={{
+          headerShown: false,
           title: 'Dashboard',
-          ...tabHeader,
           tabBarIcon: tabBarIconPair('grid-outline', 'grid'),
         }}
       />
@@ -95,8 +141,8 @@ function TeacherTabs() {
         name="Students"
         component={TeacherStudentsScreen}
         options={{
+          headerShown: true,
           title: 'Students',
-          ...tabHeader,
           tabBarIcon: tabBarIconPair('school-outline', 'school'),
         }}
       />
@@ -104,18 +150,18 @@ function TeacherTabs() {
         name="MessagesList"
         component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
         options={{
+          headerShown: true,
           title: 'Messages',
-          ...tabHeader,
-          tabBarIcon: tabBarIconPair('mail-outline', 'mail'),
+          tabBarIcon: tabBarIconPair('chatbubbles-outline', 'chatbubbles'),
         }}
       />
       <Tab.Screen
         name="Settings"
         component={TeacherSettingsScreen}
         options={{
-          title: 'Settings',
+          headerShown: true,
+          title: 'Profile',
           tabBarLabel: 'Profile',
-          ...tabHeader,
           tabBarIcon: tabBarIconPair('person-outline', 'person'),
         }}
       />
@@ -124,21 +170,37 @@ function TeacherTabs() {
 }
 
 function ParentTabs() {
+  const { colors, isDark } = useTheme();
   const tabHeader = { headerShown: true as const };
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        headerStyle: {
+          backgroundColor: colors.card,
+        },
+        headerTintColor: colors.primary,
+        headerTitleStyle: {
+          fontFamily: font.semiBold,
+          fontSize: 17,
+          color: colors.text,
+        },
+        headerShadowVisible: !isDark,
+        ...tabBarStyleOptions(colors),
+      }}
+    >
       <Tab.Screen
         name="Home"
         component={ParentHomeScreen}
         options={{
           title: 'Home',
-          headerShown: false,
+          headerShown: true,
           tabBarIcon: tabBarIconPair('home-outline', 'home'),
         }}
       />
       <Tab.Screen
         name="Photos"
-        component={PhotosPlaceholderScreen}
+        component={ParentPhotosScreen}
         options={{
           title: 'Photos',
           ...tabHeader,

@@ -14,6 +14,7 @@ import {
   Animated,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
@@ -308,6 +309,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     }, 1000);
     return () => clearInterval(id);
   }, [napTimerStart, napTimerEnd]);
+
+  useEffect(() => {
+    if (children.length === 0) setForWholeClass(false);
+  }, [children.length]);
 
   // Load meal options (principal-defined) for teacher to select when logging meals
   useEffect(() => {
@@ -1030,37 +1035,60 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 <Text style={styles.formSectionTitle}>Add photo</Text>
               </View>
               <Text style={styles.photoZoneLabel}>Photo</Text>
-              <TouchableOpacity
-                style={[styles.photoUploadZone, photoUri ? styles.photoUploadZoneFilled : null]}
-                onPress={() => {
-                  if (photoUri) return;
-                  showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia);
-                }}
-                disabled={loading}
-              >
-                {photoUri ? (
-                  <View style={styles.photoThumbWrap}>
-                    <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
+              {photoUri ? (
+                <View style={[styles.photoUploadZone, styles.photoUploadZoneFilled]}>
+                  <View style={styles.photoPreviewBlock}>
+                    <View style={styles.photoThumbWrap}>
+                      <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
+                      {photoMimeType?.startsWith('video/') ? (
+                        <View style={styles.photoVideoBadge}>
+                          <Ionicons name="videocam" size={15} color="#FFFFFF" />
+                          <Text style={styles.photoVideoBadgeText}>Video</Text>
+                        </View>
+                      ) : null}
+                      <TouchableOpacity
+                        style={styles.removePhotoBtn}
+                        onPress={() => {
+                          setPhotoUri(null);
+                          setPhotoMimeType(undefined);
+                        }}
+                        disabled={loading}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove photo or video"
+                      >
+                        <View style={styles.removePhotoBtnCircle}>
+                          <Ionicons name="close" size={20} color="#FFFFFF" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
                     <TouchableOpacity
-                      style={styles.removePhotoBtn}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setPhotoUri(null);
-                        setPhotoMimeType(undefined);
-                      }}
+                      style={styles.photoReplaceLink}
+                      onPress={() =>
+                        showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia)
+                      }
                       disabled={loading}
+                      accessibilityRole="button"
+                      accessibilityLabel="Replace photo or video"
                     >
-                      <Ionicons name="close-circle" size={28} color="#64748b" />
+                      <Ionicons name="images-outline" size={18} color={colors.primary} />
+                      <Text style={styles.photoReplaceLinkText}>Replace</Text>
                     </TouchableOpacity>
                   </View>
-                ) : (
-                  <>
-                    <Ionicons name="camera-outline" size={48} color="#94a3b8" />
-                    <Text style={styles.photoUploadHint}>Tap to add photo or video</Text>
-                    <Text style={styles.photoUploadFormats}>Photos & videos</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.photoUploadZone}
+                  onPress={() =>
+                    showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia)
+                  }
+                  disabled={loading}
+                >
+                  <Ionicons name="camera-outline" size={48} color="#94a3b8" />
+                  <Text style={styles.photoUploadHint}>Tap to add photo or video</Text>
+                  <Text style={styles.photoUploadFormats}>Photos & videos</Text>
+                </TouchableOpacity>
+              )}
               <Text style={styles.label}>Caption</Text>
               <TextInput
                 style={[styles.input, styles.inputMultiline]}
@@ -1098,15 +1126,58 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   ))}
                 </View>
               )}
-              <TouchableOpacity
-                style={[styles.optionChip, forWholeClass && styles.optionChipActive, { marginTop: 12 }]}
-                onPress={() => setForWholeClass((x) => !x)}
+              <View
+                style={[
+                  styles.wholeClassCard,
+                  forWholeClass && children.length > 0 ? styles.wholeClassCardOn : null,
+                ]}
               >
-                <Ionicons name={forWholeClass ? 'checkbox' : 'square-outline'} size={20} color={forWholeClass ? colors.primary : colors.textMuted} />
-                <Text style={[styles.optionChipText, forWholeClass && styles.optionChipTextActive, { marginLeft: 8 }]}>
-                  For whole class (notify all parents)
-                </Text>
-              </TouchableOpacity>
+                <View
+                  style={[
+                    styles.wholeClassIconWrap,
+                    {
+                      backgroundColor:
+                        forWholeClass && children.length > 0
+                          ? isDark
+                            ? 'rgba(255,255,255,0.12)'
+                            : colors.card
+                          : colors.primaryMuted,
+                    },
+                  ]}
+                >
+                  <Ionicons name="people" size={22} color={colors.primary} />
+                </View>
+                <View style={styles.wholeClassTextBlock}>
+                  <Text style={styles.wholeClassTitle}>Whole class</Text>
+                  <Text style={styles.wholeClassSubtitle}>
+                    {!classRosterLoaded
+                      ? 'Loading class list...'
+                      : children.length === 0
+                        ? 'No children in your class yet. Add students to use this option.'
+                        : forWholeClass
+                          ? `This update is for all ${children.length} ${children.length === 1 ? 'child' : 'children'}. Every family is notified.`
+                          : `Post once for every child in your class and notify all parents (${children.length} ${children.length === 1 ? 'child' : 'children'}).`}
+                  </Text>
+                </View>
+                <Switch
+                  value={forWholeClass}
+                  onValueChange={setForWholeClass}
+                  disabled={loading || !classRosterLoaded || children.length === 0}
+                  trackColor={{ false: colors.inputBorder, true: colors.primaryMuted }}
+                  thumbColor={
+                    Platform.OS === 'ios'
+                      ? undefined
+                      : forWholeClass
+                        ? colors.primary
+                        : isDark
+                          ? '#4B5563'
+                          : '#F3F4F6'
+                  }
+                  ios_backgroundColor={colors.inputBorder}
+                  accessibilityLabel="Whole class"
+                  accessibilityHint="When on, this update is shared with every family in your class"
+                />
+              </View>
             </View>
           )}
 
@@ -2298,6 +2369,43 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     optionChipText: { fontSize: 14, color: colors.textMuted },
     optionChipTextActive: { color: colors.primary, fontWeight: '600' },
 
+    wholeClassCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 16,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.backgroundSecondary,
+      gap: 12,
+    },
+    wholeClassCardOn: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryMuted,
+    },
+    wholeClassIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    wholeClassTextBlock: { flex: 1, minWidth: 0 },
+    wholeClassTitle: {
+      fontSize: 16,
+      color: colors.text,
+      ...f('semiBold'),
+    },
+    wholeClassSubtitle: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 4,
+      lineHeight: 19,
+      ...f('medium'),
+    },
+
     helperText: { fontSize: 13, color: colors.textMuted, marginBottom: 8, lineHeight: 18, ...f('medium') },
     listViewLink: {
       flexDirection: 'row',
@@ -2442,12 +2550,82 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       justifyContent: 'center',
       padding: 20,
     },
-    photoUploadZoneFilled: { padding: 0, minHeight: 0 },
+    photoUploadZoneFilled: {
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      minHeight: 0,
+      borderWidth: 0,
+      backgroundColor: 'transparent',
+    },
     photoUploadHint: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
     photoUploadFormats: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-    photoThumbWrap: { position: 'relative', width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' },
+    photoPreviewBlock: {
+      width: '100%',
+      alignItems: 'center',
+    },
+    photoThumbWrap: {
+      position: 'relative',
+      alignSelf: 'center',
+      width: 220,
+      maxWidth: '100%',
+      aspectRatio: 1,
+      borderRadius: 16,
+      overflow: 'hidden',
+      backgroundColor: isDark ? '#1a1a1c' : colors.skeletonHighlight,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.cardBorder,
+      ...(!isDark
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 5,
+          }
+        : { elevation: 4 }),
+    },
     photoThumbImage: { width: '100%', height: '100%', backgroundColor: colors.backgroundSecondary },
-    removePhotoBtn: { position: 'absolute', top: 8, right: 8 },
+    photoVideoBadge: {
+      position: 'absolute',
+      left: 10,
+      bottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+      gap: 6,
+      backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    },
+    photoVideoBadgeText: {
+      fontSize: 12,
+      color: '#FFFFFF',
+      ...f('semiBold'),
+    },
+    removePhotoBtn: { position: 'absolute', top: 10, right: 10 },
+    removePhotoBtnCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(0, 0, 0, 0.52)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+    },
+    photoReplaceLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      gap: 8,
+    },
+    photoReplaceLinkText: {
+      fontSize: 15,
+      color: colors.primary,
+      ...f('semiBold'),
+    },
     dropdownOptions: { marginTop: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, maxHeight: 200 },
     dropdownOption: { paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.backgroundSecondary },
     dropdownOptionText: { fontSize: 15, color: colors.textSecondary },

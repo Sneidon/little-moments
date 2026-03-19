@@ -76,6 +76,7 @@ function TeacherTabs() {
   const tabIcon = (name: React.ComponentProps<typeof Ionicons>['name'], focused: boolean) => (
     <Ionicons name={name} size={24} color={focused ? colors.tabActive : colors.tabInactive} />
   );
+  const tabHeader = { headerShown: true as const };
   return (
     <Tab.Navigator
       screenOptions={{
@@ -94,9 +95,7 @@ function TeacherTabs() {
         component={TeacherHomeScreen}
         options={{
           title: 'Dashboard',
-          headerShown: true,
-          headerTitle: '',
-          headerShadowVisible: false,
+          ...tabHeader,
           tabBarIcon: ({ focused }) => tabIcon('grid', focused),
         }}
       />
@@ -105,7 +104,7 @@ function TeacherTabs() {
           component={TeacherStudentsScreen}
           options={{
             title: 'Students',
-            headerShown: true,
+            ...tabHeader,
             tabBarIcon: ({ focused }) => tabIcon('school-outline', focused),
           }}
         />
@@ -113,9 +112,8 @@ function TeacherTabs() {
           name="MessagesList"
           component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
           options={{
-            title: 'Inbox',
-            headerShown: true,
-            headerTitle: 'Messages',
+            title: 'Messages',
+            ...tabHeader,
             tabBarIcon: ({ focused }) => tabIcon('mail-outline', focused),
           }}
         />
@@ -124,7 +122,7 @@ function TeacherTabs() {
           component={TeacherSettingsScreen}
         options={{
           title: 'Profile',
-          headerShown: true,
+          ...tabHeader,
           tabBarIcon: ({ focused }) => tabIcon('person-outline', focused),
         }}
       />
@@ -137,6 +135,7 @@ function ParentTabs() {
   const tabIcon = (name: React.ComponentProps<typeof Ionicons>['name'], focused: boolean) => (
     <Ionicons name={name} size={24} color={focused ? colors.tabActive : colors.tabInactive} />
   );
+  const tabHeader = { headerShown: true as const };
   return (
     <Tab.Navigator
       screenOptions={{
@@ -155,8 +154,7 @@ function ParentTabs() {
         component={ParentHomeScreen}
         options={{
           title: 'Home',
-          headerShown: true,
-          headerTitle: 'Home',
+          headerShown: false,
           tabBarIcon: ({ focused }) => tabIcon('home-outline', focused),
         }}
       />
@@ -165,7 +163,7 @@ function ParentTabs() {
         component={PhotosPlaceholderScreen}
         options={{
           title: 'Photos',
-          headerShown: true,
+          ...tabHeader,
           tabBarIcon: ({ focused }) => tabIcon('images-outline', focused),
         }}
       />
@@ -174,7 +172,7 @@ function ParentTabs() {
         component={ParentCalendarScreen}
         options={{
           title: 'Calendar',
-          headerShown: true,
+          ...tabHeader,
           tabBarIcon: ({ focused }) => tabIcon('calendar-outline', focused),
         }}
       />
@@ -183,7 +181,7 @@ function ParentTabs() {
           component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
           options={{
             title: 'Messages',
-            headerShown: true,
+            ...tabHeader,
             tabBarIcon: ({ focused }) => tabIcon('chatbubbles-outline', focused),
           }}
         />
@@ -192,7 +190,7 @@ function ParentTabs() {
           component={ParentSettingsScreen}
         options={{
           title: 'Settings',
-          headerShown: true,
+          ...tabHeader,
           tabBarIcon: ({ focused }) => tabIcon('settings-outline', focused),
         }}
       />
@@ -203,10 +201,7 @@ function ParentTabs() {
 export function MainTabs({ role }: { role: UserRole }) {
   return (
     <RootStack.Navigator
-      screenOptions={{
-        headerShown: true,
-        headerBackTitle: 'Back',
-      }}
+      screenOptions={{ headerShown: true, headerBackTitle: 'Back' }}
     >
       <RootStack.Screen
         name="MainTabs"
@@ -222,7 +217,7 @@ export function MainTabs({ role }: { role: UserRole }) {
       <RootStack.Screen
         name="AddUpdate"
         component={AddUpdateScreen as React.ComponentType<Record<string, unknown>>}
-        options={{ title: 'Add Update', headerBackTitle: 'Back' }}
+        options={{ title: 'Add Update' }}
       />
       <RootStack.Screen name="Announcements" component={AnnouncementsScreen} options={{ title: 'Announcements' }} />
       <RootStack.Screen name="Events" component={EventsScreen} options={{ title: 'Events' }} />

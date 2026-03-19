@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -35,7 +35,6 @@ type Props = {
   route: { params: ReportsRouteParams };
   navigation: {
     navigate: (name: 'ReportDetail' | 'AddUpdate' | 'ChatThread', params?: object) => void;
-    setOptions: (o: object) => void;
   };
 };
 
@@ -271,13 +270,6 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
     }
   }, [schoolId, childId, child?.parentIds, navigation]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: 'Daily report',
-      headerBackTitle: 'Back',
-    });
-  }, [navigation]);
-
   if (!schoolId) return null;
 
   const scrollBottom = 24 + Math.max(insets.bottom, 8);
@@ -498,21 +490,11 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
           ) : childMissing ? (
             <Text style={styles.unavailableHint}>No updates to show.</Text>
           ) : sortedDayReports.length === 0 ? (
-            <View style={styles.emptyBlock}>
-              <EmptyState
-                icon="create-outline"
-                title="No updates for this day"
-                subtitle="Log meals, naps, nappy changes, or activities so parents stay in the loop."
-              />
-              <TouchableOpacity
-                style={[styles.emptyCta, { backgroundColor: colors.primary }]}
-                onPress={() => navigation.navigate('AddUpdate', { initialChildId: childId })}
-                activeOpacity={0.88}
-              >
-                <Ionicons name="add" size={22} color={colors.primaryContrast} />
-                <Text style={[styles.emptyCtaText, { color: colors.primaryContrast }]}>Add update</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              icon="create-outline"
+              title="No updates for this day"
+              subtitle="Log meals, naps, nappy changes, or activities so parents stay in the loop."
+            />
           ) : (
             sortedDayReports.map((item) => (
               <TouchableOpacity
@@ -804,18 +786,6 @@ function createStyles(
       marginBottom: 14,
       letterSpacing: -0.2,
     },
-    emptyBlock: { marginHorizontal: -8 },
-    emptyCta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      marginTop: 8,
-      marginHorizontal: 24,
-      paddingVertical: 14,
-      borderRadius: 14,
-    },
-    emptyCtaText: { fontSize: 16, fontFamily: font.semiBold, fontWeight: '600' },
     timelineCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',

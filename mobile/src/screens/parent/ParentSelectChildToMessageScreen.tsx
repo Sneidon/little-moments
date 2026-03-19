@@ -9,7 +9,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { SkeletonChildRow } from '../../components/Skeleton';
+import { SkeletonChildPickRow } from '../../components/Skeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -19,8 +19,9 @@ import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../navigation/MainTabs';
 
-type Props = NativeStackScreenProps<{ ParentSelectChildToMessage: undefined }, 'ParentSelectChildToMessage'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'ParentSelectChildToMessage'>;
 
 type ChildWithTeacher = Child & { teacherId: string | null };
 
@@ -62,7 +63,7 @@ export function ParentSelectChildToMessageScreen({ navigation }: Props) {
           let teacherId = child.assignedTeacherId ?? null;
           if (!teacherId && child.classId) {
             const classSnap = await getDoc(doc(db, 'schools', schoolId, 'classes', child.classId));
-            const classData = classSnap.exists ? (classSnap.data() as ClassRoom) : null;
+            const classData = classSnap.exists() ? (classSnap.data() as ClassRoom) : null;
             teacherId = classData?.assignedTeacherId ?? null;
           }
           list.push({ ...child, teacherId });
@@ -134,9 +135,9 @@ export function ParentSelectChildToMessageScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-          <SkeletonChildRow key={i} />
+      <View style={[styles.container, styles.loadingContainer]} accessibilityState={{ busy: true }}>
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <SkeletonChildPickRow key={i} />
         ))}
       </View>
     );
@@ -159,7 +160,8 @@ export function ParentSelectChildToMessageScreen({ navigation }: Props) {
 
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    loadingContainer: { paddingTop: 8 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

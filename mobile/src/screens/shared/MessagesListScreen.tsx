@@ -1,12 +1,31 @@
-import React, { useEffect, useState, useLayoutEffect, useMemo, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
-import { SkeletonChatRow } from '../../components/Skeleton';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+  Platform,
+} from 'react-native';
+import { SkeletonMessageListRow, SkeletonMessagesActionHeader } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, collectionGroup, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  collectionGroup,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  doc,
+  getDoc,
+} from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { font } from '../../theme/typography';
+import { getInitials } from '../../utils';
 import type { Chat } from '../../../../shared/types';
 import type { UserProfile } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
@@ -25,17 +44,27 @@ type ChatWithNames = Chat & {
   childName: string;
 };
 
-function formatMessageTime(iso: string | undefined): string {
+function formatListTime(iso: string | undefined): string {
   if (!iso) return '';
   try {
     const d = new Date(iso);
     const now = new Date();
-    const sameDay =
-      d.getDate() === now.getDate() &&
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear();
-    if (sameDay) {
+    const startToday = new Date(now);
+    startToday.setHours(0, 0, 0, 0);
+    const startYesterday = new Date(startToday);
+    startYesterday.setDate(startYesterday.getDate() - 1);
+    const startMsg = new Date(d);
+    startMsg.setHours(0, 0, 0, 0);
+
+    if (startMsg.getTime() === startToday.getTime()) {
       return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    }
+    if (startMsg.getTime() === startYesterday.getTime()) return 'Yesterday';
+
+    const weekAgo = new Date(startToday);
+    weekAgo.setDate(weekAgo.getDate() - 6);
+    if (startMsg >= weekAgo) {
+      return d.toLocaleDateString(undefined, { weekday: 'short' });
     }
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   } catch {
@@ -45,52 +74,21 @@ function formatMessageTime(iso: string | undefined): string {
 
 export function MessagesListScreen({ navigation }: Props) {
   const { profile } = useAuth();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [chats, setChats] = useState<ChatWithNames[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const rootNav = navigation.getParent() as
+    | { navigate: (name: string, params?: object) => void }
+    | undefined;
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setRefreshTrigger((t) => t + 1);
   }, []);
-
-  useLayoutEffect(() => {
-    const root = navigation.getParent() as { navigate: (name: string) => void } | undefined;
-    if (profile?.role === 'teacher') {
-      navigation.setOptions({
-        headerRight: () => (
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              onPress={() => root?.navigate('BroadcastToClass')}
-              style={styles.headerBtn}
-            >
-              <Text style={styles.headerBtnText}>Message class</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => root?.navigate('SelectChildToMessage')}
-              style={styles.headerBtn}
-            >
-              <Text style={styles.headerBtnText}>New chat</Text>
-            </TouchableOpacity>
-          </View>
-        ),
-      });
-    } else if (profile?.role === 'parent') {
-      navigation.setOptions({
-        headerRight: () => (
-          <TouchableOpacity
-            onPress={() => root?.navigate('ParentSelectChildToMessage')}
-            style={styles.headerBtn}
-          >
-            <Text style={styles.headerBtnText}>Message teacher</Text>
-          </TouchableOpacity>
-        ),
-      });
-    }
-  }, [navigation, profile?.role]);
 
   useEffect(() => {
     const uid = profile?.uid;
@@ -129,17 +127,20 @@ export function MessagesListScreen({ navigation }: Props) {
               try {
                 const userSnap = await getDoc(doc(db, 'users', otherUid));
                 if (userSnap.exists()) {
-                  otherDisplayName = (userSnap.data() as UserProfile).displayName || otherUid.slice(0, 8);
+                  otherDisplayName =
+                    (userSnap.data() as UserProfile).displayName || otherUid.slice(0, 8);
                 }
-              } catch {}
+              } catch {
+                /* ignore */
+              }
               try {
-                const childSnap = await getDoc(
-                  doc(db, 'schools', c.schoolId, 'children', c.childId)
-                );
+                const childSnap = await getDoc(doc(db, 'schools', c.schoolId, 'children', c.childId));
                 if (childSnap.exists()) {
                   childName = (childSnap.data() as Child).name || 'Child';
                 }
-              } catch {}
+              } catch {
+                /* ignore */
+              }
               return {
                 ...c,
                 otherDisplayName,
@@ -166,46 +167,132 @@ export function MessagesListScreen({ navigation }: Props) {
     return () => unsub();
   }, [profile?.uid, profile?.schoolId, profile?.role, refreshTrigger]);
 
-  const renderItem = ({ item }: { item: ChatWithNames }) => (
-    <TouchableOpacity
-      style={styles.row}
-      onPress={() => (navigation.getParent() as { navigate: (name: string, params: { chatId: string; schoolId: string }) => void } | undefined)?.navigate('ChatThread', { chatId: item.id, schoolId: item.schoolId })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {item.otherDisplayName
-            .trim()
-            .split(/\s+/)
-            .map((s) => s[0])
-            .slice(0, 2)
-            .join('')
-            .toUpperCase() || '?'}
-        </Text>
-      </View>
-      <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={1}>
-          {item.otherDisplayName}
-        </Text>
-        <Text style={styles.subtitle} numberOfLines={1}>
-          {item.childName}
-        </Text>
-        {item.lastMessageText ? (
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessageText}
-          </Text>
-        ) : null}
-      </View>
-      <Text style={styles.time}>{formatMessageTime(item.lastMessageAt || item.updatedAt)}</Text>
-    </TouchableOpacity>
+  const renderListHeader = () => {
+    if (profile?.role === 'teacher') {
+      return (
+        <View style={styles.headerActions}>
+          <View style={styles.headerActionsRow}>
+            <TouchableOpacity
+              onPress={() => rootNav?.navigate('BroadcastToClass')}
+              style={styles.actionPill}
+              accessibilityRole="button"
+              accessibilityLabel="Message all parents in a class"
+              activeOpacity={0.85}
+            >
+              <Ionicons name="megaphone-outline" size={20} color={colors.primary} />
+              <Text style={styles.actionPillText}>Message class</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => rootNav?.navigate('SelectChildToMessage')}
+              style={styles.actionPill}
+              accessibilityRole="button"
+              accessibilityLabel="Start a new chat"
+              activeOpacity={0.85}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
+              <Text style={styles.actionPillText}>New chat</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+    if (profile?.role === 'parent') {
+      return (
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => rootNav?.navigate('ParentSelectChildToMessage')}
+            style={[styles.actionPill, styles.actionPillFull]}
+            accessibilityRole="button"
+            accessibilityLabel="Message teacher"
+            activeOpacity={0.85}
+          >
+            <Ionicons name="person-outline" size={20} color={colors.primary} />
+            <Text style={[styles.actionPillText, styles.actionPillTextGrow]}>Message teacher</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return null;
+  };
+
+  const openChat = useCallback(
+    (item: ChatWithNames) => {
+      rootNav?.navigate('ChatThread', { chatId: item.id, schoolId: item.schoolId });
+    },
+    [rootNav]
   );
+
+  const renderItem = useCallback(
+    ({ item }: { item: ChatWithNames }) => {
+      const initials = getInitials(item.otherDisplayName === '…' ? '?' : item.otherDisplayName);
+      const preview = item.lastMessageText?.trim();
+      const timeLabel = formatListTime(item.lastMessageAt || item.updatedAt);
+
+      const cardShadow =
+        !isDark && Platform.OS === 'ios'
+          ? {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.06,
+              shadowRadius: 4,
+            }
+          : {};
+      const cardElevation = !isDark && Platform.OS === 'android' ? { elevation: 2 } : {};
+
+      return (
+        <TouchableOpacity
+          style={[styles.rowCard, cardShadow, cardElevation]}
+          onPress={() => openChat(item)}
+          activeOpacity={0.72}
+        >
+          <View style={[styles.avatar, { backgroundColor: colors.avatarBg }]}>
+            <Text style={[styles.avatarText, { color: colors.avatarText }]}>{initials}</Text>
+          </View>
+          <View style={styles.rowBody}>
+            <View style={styles.rowTop}>
+              <Text style={styles.name} numberOfLines={1}>
+                {item.otherDisplayName}
+              </Text>
+              {timeLabel ? <Text style={styles.time}>{timeLabel}</Text> : null}
+            </View>
+            <View style={styles.childRow}>
+              <Ionicons name="happy-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.childName} numberOfLines={1}>
+                {item.childName}
+              </Text>
+            </View>
+            <Text style={preview ? styles.preview : styles.previewEmpty} numberOfLines={2}>
+              {preview || 'No messages yet'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.rowChevron} />
+        </TouchableOpacity>
+      );
+    },
+    [colors, isDark, openChat, styles]
+  );
+
+  const skeletonStyle = useMemo(
+    () => ({
+      marginHorizontal: 16,
+      marginBottom: 10,
+    }),
+    []
+  );
+
+  const skeletonHeaderVariant =
+    profile?.role === 'teacher' ? 'teacher' : profile?.role === 'parent' ? 'parent' : 'none';
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <SkeletonChatRow key={i} />
-        ))}
+      <View style={styles.container} accessibilityState={{ busy: true }}>
+        <SkeletonMessagesActionHeader variant={skeletonHeaderVariant} />
+        <View style={styles.loadingBlock}>
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <SkeletonMessageListRow key={i} style={skeletonStyle} />
+          ))}
+        </View>
       </View>
     );
   }
@@ -216,18 +303,20 @@ export function MessagesListScreen({ navigation }: Props) {
         data={chats}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        ListHeaderComponent={renderListHeader}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <EmptyState
             icon="chatbubbles-outline"
             title="No conversations yet"
             subtitle={
               profile?.role === 'teacher'
-                ? 'Tap "New chat" above to message a parent, or "Message class" to message all parents in a class.'
-                : 'Tap "Message teacher" above to start a conversation about your child.'
+                ? 'Use Message class or New chat above to reach parents.'
+                : 'Tap Message teacher above to start a conversation.'
             }
           />
         }
@@ -236,35 +325,131 @@ export function MessagesListScreen({ navigation }: Props) {
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette) {
+function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    row: {
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    listContent: {
+      flexGrow: 1,
+      paddingTop: 4,
+      paddingBottom: 28,
+    },
+    loadingBlock: {
+      paddingTop: 4,
+    },
+    headerActions: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 8,
+    },
+    headerActionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    actionPill: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 14,
+      backgroundColor: colors.card,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: colors.cardBorder,
+    },
+    actionPillFull: {
+      width: '100%',
+      justifyContent: 'flex-start',
+      paddingHorizontal: 16,
+    },
+    actionPillText: {
+      fontFamily: font.semiBold,
+      fontSize: 15,
+      color: colors.primary,
+      flexShrink: 1,
+    },
+    actionPillTextGrow: {
+      flex: 1,
+      marginLeft: 4,
+    },
+    rowCard: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
-      padding: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      marginHorizontal: 16,
+      marginBottom: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: colors.cardBorder,
     },
     avatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.primary,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
     },
-    avatarText: { fontSize: 18, fontWeight: '600', color: colors.primaryContrast },
-    content: { flex: 1, minWidth: 0 },
-    name: { fontSize: 16, fontWeight: '600', color: colors.text },
-    subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-    lastMessage: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-    time: { fontSize: 12, color: colors.textMuted, marginLeft: 8 },
-    listContent: { flexGrow: 1 },
-    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    headerBtn: { paddingHorizontal: 12, paddingVertical: 8 },
-    headerBtnText: { color: colors.primary, fontWeight: '600', fontSize: 16 },
+    avatarText: {
+      fontFamily: font.semiBold,
+      fontSize: 17,
+    },
+    rowBody: {
+      flex: 1,
+      minWidth: 0,
+    },
+    rowTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    name: {
+      flex: 1,
+      fontFamily: font.semiBold,
+      fontSize: 16,
+      color: colors.text,
+    },
+    time: {
+      fontFamily: font.regular,
+      fontSize: 12,
+      color: colors.textMuted,
+      flexShrink: 0,
+    },
+    childRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 4,
+      maxWidth: '100%',
+    },
+    childName: {
+      fontFamily: font.medium,
+      fontSize: 12,
+      color: colors.textMuted,
+      flex: 1,
+    },
+    preview: {
+      fontFamily: font.regular,
+      fontSize: 14,
+      lineHeight: 19,
+      color: colors.textSecondary,
+      marginTop: 6,
+    },
+    previewEmpty: {
+      fontFamily: font.regular,
+      fontSize: 14,
+      lineHeight: 19,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginTop: 6,
+    },
+    rowChevron: {
+      marginLeft: 4,
+      opacity: 0.65,
+    },
   });
 }

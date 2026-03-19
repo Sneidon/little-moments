@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,8 @@ import {
   ScrollView,
   RefreshControl,
   Platform,
+  Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -38,10 +38,9 @@ export function TeacherHomeScreen({
     getParent: () => { navigate: (name: string, params?: object) => void } | undefined;
   };
 }) {
-  const tabNavigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -52,7 +51,7 @@ export function TeacherHomeScreen({
   const [presentCount, setPresentCount] = useState(0);
   const [presentChildIds, setPresentChildIds] = useState<Set<string>>(new Set());
 
-  const { children, className, schoolName, loading } = useTeacherClassChildren(refreshTrigger);
+  const { children, loading, className, schoolName } = useTeacherClassChildren(refreshTrigger);
   useNotificationNavigation(false);
 
   const {
@@ -88,106 +87,6 @@ export function TeacherHomeScreen({
   useEffect(() => {
     setRefreshing(false);
   }, [children.length]);
-
-  const daycareDisplay = schoolName?.trim() || 'Daycare center';
-  const classDisplay = className?.trim() || 'My class';
-
-  useLayoutEffect(() => {
-    const nav = tabNavigation as typeof navigation;
-    const headerColors = colors;
-    const dark = isDark;
-    nav.setOptions({
-      headerShown: true,
-      headerShadowVisible: false,
-      headerStyle: {
-        backgroundColor: headerColors.backgroundSecondary,
-        height: undefined,
-      },
-      header: () => (
-        <View
-          style={{
-            backgroundColor: headerColors.backgroundSecondary,
-            paddingTop: insets.top,
-            paddingHorizontal: 16,
-            paddingBottom: 12,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: headerColors.card,
-              borderRadius: 18,
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              borderWidth: dark ? StyleSheet.hairlineWidth : 1,
-              borderColor: headerColors.cardBorder,
-              ...(!dark
-                ? {
-                    shadowColor: '#0f172a',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.08,
-                    shadowRadius: 12,
-                    elevation: 5,
-                  }
-                : {}),
-            }}
-          >
-            <View style={{ flex: 1, marginRight: 12, minWidth: 0 }}>
-              <Text
-                numberOfLines={1}
-                style={{
-                  fontFamily: font.bold,
-                  fontSize: 17,
-                  color: headerColors.text,
-                }}
-              >
-                {daycareDisplay}
-              </Text>
-              <Text
-                style={{
-                  fontFamily: font.medium,
-                  fontSize: 14,
-                  color: headerColors.textMuted,
-                  marginTop: 4,
-                }}
-              >
-                Class:{' '}
-                <Text style={{ color: headerColors.textSecondary, fontFamily: font.semiBold }}>{classDisplay}</Text>
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => nav.navigate('MessagesList' as never)}
-              activeOpacity={0.7}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: headerColors.card,
-                borderWidth: dark ? StyleSheet.hairlineWidth : 1,
-                borderColor: headerColors.cardBorder,
-              }}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={22}
-                color={dark ? headerColors.textSecondary : headerColors.text}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      ),
-    });
-  }, [
-    tabNavigation,
-    daycareDisplay,
-    classDisplay,
-    colors,
-    isDark,
-    insets.top,
-  ]);
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -243,6 +142,14 @@ export function TeacherHomeScreen({
   }, [profile?.schoolId, children, selectedDate, refreshTrigger]);
 
   const teacherName = profile?.displayName?.trim() || profile?.email?.split('@')[0] || 'Teacher';
+  const teacherMetaLine = useMemo(() => {
+    const s = schoolName?.trim();
+    const c = className?.trim();
+    if (s && c) return `${s} · ${c}`;
+    if (c) return c;
+    if (s) return s;
+    return 'Teacher';
+  }, [schoolName, className]);
   const rootStack = navigation.getParent();
 
   const quickActions = [
@@ -346,14 +253,16 @@ export function TeacherHomeScreen({
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.topPad}>
-            <View style={styles.profileRow}>
-              <SkeletonCircle size={56} />
-              <View style={{ marginLeft: 14, flex: 1 }}>
-                <Skeleton width={160} height={20} style={{ marginBottom: 8 }} />
-                <Skeleton width={88} height={16} />
+            <View style={styles.profileSummaryCard}>
+              <SkeletonCircle size={52} />
+              <View style={styles.profileSummaryTextCol}>
+                <Skeleton width={160} height={18} style={{ marginBottom: 8 }} />
+                <Skeleton width={120} height={14} />
               </View>
             </View>
-            <Skeleton width="100%" height={72} style={{ borderRadius: 20, marginTop: 8 }} />
+            <View style={{ marginHorizontal: 16, marginTop: 16 }}>
+              <Skeleton width="100%" height={72} style={{ borderRadius: 20 }} />
+            </View>
           </View>
           <View style={styles.sectionOverview}>
             <View style={styles.sectionTitleRow}>
@@ -423,20 +332,23 @@ export function TeacherHomeScreen({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topPad}>
-          <View style={styles.profileRow}>
-            <View style={styles.avatarWrap}>
-              <View style={styles.avatarLarge}>
-                <Text style={styles.avatarLargeText}>{getInitials(teacherName)}</Text>
+          <View style={styles.profileSummaryCard}>
+            {profile?.photoURL ? (
+              <Image source={{ uri: profile.photoURL }} style={styles.profileSummaryAvatarImg} />
+            ) : (
+              <View style={[styles.profileSummaryAvatar, { backgroundColor: colors.avatarBg }]}>
+                <Text style={[styles.profileSummaryAvatarText, { color: colors.avatarText }]}>
+                  {getInitials(teacherName)}
+                </Text>
               </View>
-              <View style={styles.onlineDot} />
-            </View>
-            <View style={styles.profileText}>
-              <Text style={styles.headerName}>{teacherName}</Text>
-              <View style={styles.roleRow}>
-                <View style={styles.rolePill}>
-                  <Text style={styles.rolePillText}>TEACHER</Text>
-                </View>
-              </View>
+            )}
+            <View style={styles.profileSummaryTextCol}>
+              <Text style={[styles.profileSummaryName, { color: colors.text }]} numberOfLines={1}>
+                {teacherName}
+              </Text>
+              <Text style={[styles.profileSummaryMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                {teacherMetaLine}
+              </Text>
             </View>
           </View>
 
@@ -563,44 +475,41 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     scrollContent: { paddingBottom: 28, flexGrow: 1 },
     bottomPad: { height: 20 },
     topPad: {
-      paddingHorizontal: 20,
       paddingTop: 12,
       paddingBottom: 8,
       backgroundColor: colors.backgroundSecondary,
     },
 
-    profileRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-    avatarWrap: { position: 'relative' },
-    avatarLarge: {
-      width: 56,
-      height: 56,
+    /** Matches parent Child profile `profileSummaryCard` */
+    profileSummaryCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginBottom: 0,
+      padding: 14,
       borderRadius: 16,
-      backgroundColor: colors.avatarBg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    profileSummaryAvatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    avatarLargeText: { fontSize: 20, color: colors.avatarText, ...f('bold') },
-    onlineDot: {
-      position: 'absolute',
-      right: 2,
-      bottom: 2,
-      width: 14,
-      height: 14,
-      borderRadius: 7,
-      backgroundColor: colors.online,
-      borderWidth: 2,
-      borderColor: colors.backgroundSecondary,
+    profileSummaryAvatarImg: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
     },
-    profileText: { marginLeft: 14, flex: 1 },
-    headerName: { fontSize: 18, color: colors.text, ...f('bold') },
-    roleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-    rolePill: {
-      backgroundColor: colors.primaryMuted,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 20,
-    },
-    rolePillText: { fontSize: 10, color: colors.primary, letterSpacing: 0.8, ...f('semiBold') },
+    profileSummaryAvatarText: { fontSize: 18, ...f('bold') },
+    profileSummaryTextCol: { flex: 1, marginLeft: 14, minWidth: 0 },
+    profileSummaryName: { fontSize: 17, ...f('bold') },
+    profileSummaryMeta: { fontSize: 14, marginTop: 4, ...f('regular') },
 
     ctaCard: {
       flexDirection: 'row',
@@ -610,6 +519,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       paddingVertical: 18,
       paddingHorizontal: 18,
       gap: 14,
+      marginHorizontal: 16,
+      marginTop: 16,
     },
     ctaIconCircle: {
       width: 52,

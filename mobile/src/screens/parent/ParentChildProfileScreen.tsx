@@ -106,8 +106,24 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
   }, [child, navigation, schoolId]);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, [navigation]);
+    navigation.setOptions({
+      headerShown: true,
+      title: child?.name ?? 'Daily report',
+      headerRight: child
+        ? () => (
+            <TouchableOpacity
+              onPress={openHeaderMenu}
+              style={{ paddingHorizontal: 12, paddingVertical: 8 }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="More options"
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+            </TouchableOpacity>
+          )
+        : undefined,
+    });
+  }, [navigation, child, colors.text, openHeaderMenu]);
 
   useEffect(() => {
     let cancelled = false;
@@ -255,48 +271,24 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header matches ParentHomeScreen: one row, profile (with back) + menu + same role pill */}
-        <View style={[styles.header, { paddingTop: Math.max(56, insets.top + 12) }]}>
-          <View style={styles.headerMain}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.headerBackWrap}
-              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-            >
-              <Ionicons name="arrow-back" size={24} color={colors.headerText} />
-            </TouchableOpacity>
-            <View style={styles.headerProfile}>
-              {child.photoURL ? (
-                <Image source={{ uri: child.photoURL }} style={styles.avatarPhotoHome} />
-              ) : (
-                <View style={styles.avatarLarge}>
-                  <Text style={styles.avatarLargeText}>{getInitials(child.name)}</Text>
-                </View>
-              )}
-              <View style={styles.headerText}>
-                <Text style={styles.headerName} numberOfLines={1}>
-                  {child.name}
-                </Text>
-                <Text style={styles.headerClass} numberOfLines={1}>
-                  {getAge(child.dateOfBirth)}
-                  {className ? ` · ${className}` : ''}
-                </Text>
-              </View>
+        <View style={styles.profileSummaryCard}>
+          {child.photoURL ? (
+            <Image source={{ uri: child.photoURL }} style={styles.profileSummaryAvatarImg} />
+          ) : (
+            <View style={[styles.profileSummaryAvatar, { backgroundColor: colors.avatarBg }]}>
+              <Text style={[styles.profileSummaryAvatarText, { color: colors.avatarText }]}>
+                {getInitials(child.name)}
+              </Text>
             </View>
-          </View>
-          <TouchableOpacity
-            onPress={openHeaderMenu}
-            style={styles.headerMenuInline}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="More options"
-          >
-            <Ionicons name="ellipsis-horizontal" size={22} color={colors.headerText} />
-          </TouchableOpacity>
-          <View style={styles.roleTag}>
-            <Text style={styles.roleTagText}>Parent</Text>
+          )}
+          <View style={styles.profileSummaryTextCol}>
+            <Text style={[styles.profileSummaryName, { color: colors.text }]} numberOfLines={1}>
+              {child.name}
+            </Text>
+            <Text style={[styles.profileSummaryMeta, { color: colors.textMuted }]} numberOfLines={1}>
+              {getAge(child.dateOfBirth)}
+              {className ? ` · ${className}` : ''}
+            </Text>
           </View>
         </View>
 
@@ -471,68 +463,45 @@ function createChildProfileStyles(colors: import('../../theme/colors').ColorPale
     },
     primaryBtnText: { fontFamily: font.semiBold, fontSize: 16 },
 
-    /** Matches ParentHomeScreen header */
-    header: {
+    profileSummaryCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-      backgroundColor: colors.header,
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginTop: 12,
+      padding: 14,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
     },
-    headerMain: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      minWidth: 0,
-      marginRight: 8,
-    },
-    headerBackWrap: {
-      paddingVertical: 4,
-      paddingRight: 10,
-      marginLeft: -4,
-    },
-    headerProfile: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-      minWidth: 0,
-    },
-    avatarLarge: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.headerAccent,
-      borderWidth: 2,
-      borderColor: colors.headerText,
+    profileSummaryAvatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    avatarPhotoHome: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      borderWidth: 2,
-      borderColor: colors.headerText,
+    profileSummaryAvatarImg: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
     },
-    avatarLargeText: { fontSize: 18, fontWeight: '700', color: colors.headerText },
-    headerText: { marginLeft: 14, flex: 1, minWidth: 0 },
-    headerName: { fontSize: 20, fontWeight: '700', color: colors.headerText },
-    headerClass: { fontSize: 14, color: colors.headerTextMuted, marginTop: 2 },
-    headerMenuInline: {
-      paddingHorizontal: 4,
-      paddingVertical: 8,
-      justifyContent: 'center',
-      flexShrink: 0,
+    profileSummaryAvatarText: {
+      fontFamily: font.bold,
+      fontSize: 18,
     },
-    roleTag: {
-      backgroundColor: colors.headerAccent,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-      flexShrink: 0,
+    profileSummaryTextCol: { flex: 1, marginLeft: 14, minWidth: 0 },
+    profileSummaryName: {
+      fontFamily: font.bold,
+      fontSize: 17,
     },
-    roleTagText: { fontSize: 13, fontWeight: '600', color: colors.headerText },
+    profileSummaryMeta: {
+      fontFamily: font.regular,
+      fontSize: 14,
+      marginTop: 4,
+    },
 
     sectionTightTop: {
       marginTop: 18,

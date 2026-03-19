@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -334,135 +334,6 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   }, [mealType, mealOptions, type]);
 
   const selectedChildren = children.filter((c) => selectedChildIds.includes(c.id));
-
-  useLayoutEffect(() => {
-    const sel = children.filter((c) => selectedChildIds.includes(c.id));
-    const n = sel.length;
-    const a11y =
-      n === 0
-        ? 'Add Update'
-        : `Selected: ${sel.map((c) => c.name).join(', ')}`;
-
-    const navAvatarSize = 28;
-    const overlap = 9;
-    const maxFaces = 3;
-
-    navigation.setOptions({
-      headerTitle: () => (
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            maxWidth: 200,
-            alignSelf: 'center',
-            minHeight: 36,
-          }}
-          accessibilityRole="header"
-          accessibilityLabel={a11y}
-        >
-          {n === 0 ? (
-            <Text
-              style={{
-                fontFamily: font.bold,
-                fontSize: 17,
-                color: colors.text,
-                textAlign: 'center',
-              }}
-            >
-              Add Update
-            </Text>
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {sel.slice(0, maxFaces).map((c, i) => (
-                <View
-                  key={c.id}
-                  style={{
-                    width: navAvatarSize,
-                    height: navAvatarSize,
-                    borderRadius: navAvatarSize / 2,
-                    backgroundColor: colors.avatarBg,
-                    borderWidth: 2,
-                    borderColor: colors.backgroundSecondary,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginLeft: i === 0 ? 0 : -overlap,
-                    zIndex: maxFaces - i,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      fontFamily: font.bold,
-                      color: colors.avatarText,
-                    }}
-                  >
-                    {getInitials(c.name)}
-                  </Text>
-                </View>
-              ))}
-              {n > maxFaces ? (
-                <View
-                  style={{
-                    width: navAvatarSize,
-                    height: navAvatarSize,
-                    borderRadius: navAvatarSize / 2,
-                    backgroundColor: colors.primaryMuted,
-                    borderWidth: 2,
-                    borderColor: colors.backgroundSecondary,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginLeft: -overlap,
-                    zIndex: 0,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      fontFamily: font.bold,
-                      color: colors.primary,
-                    }}
-                  >
-                    +{n - maxFaces}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          )}
-        </View>
-      ),
-      headerTitleAlign: 'center',
-      headerTintColor: colors.text,
-      headerShadowVisible: false,
-      headerStyle: { backgroundColor: colors.backgroundSecondary },
-      headerRight:
-        classRosterLoaded && children.length > 0
-          ? () => (
-              <TouchableOpacity
-                onPress={() => setChildListModalOpen(true)}
-                style={{ paddingHorizontal: 10, paddingVertical: 8, marginRight: 4 }}
-                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-                accessibilityLabel="Search class list"
-                accessibilityRole="button"
-              >
-                <Ionicons name="search-outline" size={24} color={colors.text} />
-              </TouchableOpacity>
-            )
-          : () => null,
-    });
-  }, [
-    navigation,
-    colors.text,
-    colors.backgroundSecondary,
-    colors.avatarBg,
-    colors.avatarText,
-    colors.primary,
-    colors.primaryMuted,
-    selectedChildIds,
-    children,
-    classRosterLoaded,
-    children,
-  ]);
 
   const childrenFilteredForModal = useMemo(() => {
     const q = childListSearch.trim().toLowerCase();
@@ -842,15 +713,24 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           ) : (
             <>
               <View style={styles.whoHeaderBlock}>
-                <View style={styles.sectionTitleRow}>
+                <View style={styles.sectionTitleRowWithActions}>
                   <View style={[styles.sectionAccentBar, { backgroundColor: colors.primary }]} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.sectionEyebrow}>Who</Text>
                     <Text style={styles.sectionTitle}>Receives this update</Text>
                     <Text style={styles.selectionHint}>
-                      Tap a photo to select or deselect. Use the search icon (top right) to open the full class list.
+                      Tap a photo to select or deselect. Use search to open the full class list.
                     </Text>
                   </View>
+                  <TouchableOpacity
+                    onPress={() => setChildListModalOpen(true)}
+                    style={styles.whoSearchBtn}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                    accessibilityLabel="Search class list"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="search-outline" size={22} color={colors.text} />
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -1933,6 +1813,16 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       marginHorizontal: 18,
     },
     sectionTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    sectionTitleRowWithActions: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 4,
+    },
+    whoSearchBtn: {
+      padding: 8,
+      marginLeft: 4,
+      marginTop: 2,
+    },
     sectionAccentBar: {
       width: 4,
       height: 40,

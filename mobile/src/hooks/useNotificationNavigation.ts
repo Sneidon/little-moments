@@ -1,6 +1,6 @@
 /**
  * Subscribes to notification opened (tap) and navigates to the relevant screen.
- * Backend sends data.type: daily_communication | announcement | announcement_reminder | event_reminder.
+ * Backend sends data.type: daily_communication | daily_report | announcement | announcement_reminder | event_reminder.
  */
 
 import { useEffect } from 'react';
@@ -32,6 +32,17 @@ function navigateFromNotification(
   }
   if (type === NOTIFICATION_DATA_TYPES.event_reminder) {
     navigation.navigate('Events');
+    return;
+  }
+  if (type === NOTIFICATION_DATA_TYPES.daily_report && isParent) {
+    const schoolId = data.schoolId;
+    const childId = data.childId;
+    const reportId = data.reportId;
+    if (schoolId && childId && reportId) {
+      navigation.navigate('ReportDetail', { schoolId, childId, reportId });
+    } else if (schoolId && childId) {
+      navigation.navigate('ChildProfile', { schoolId, childId });
+    }
     return;
   }
   if (type === NOTIFICATION_DATA_TYPES.daily_communication && !isParent) {

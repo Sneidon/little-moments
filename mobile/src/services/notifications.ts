@@ -47,8 +47,11 @@ export function registerBackgroundMessageHandler(): void {
 export type NotificationData = {
   type?: string;
   schoolId?: string;
+  childId?: string;
+  reportId?: string;
   announcementId?: string;
   eventId?: string;
+  reportType?: string;
   [key: string]: string | undefined;
 };
 
@@ -214,6 +217,7 @@ export function getInitialNotification(): Promise<RemoteMessage | null> {
 /** Backend data payload types for navigation. */
 export const NOTIFICATION_DATA_TYPES = {
   daily_communication: 'daily_communication',
+  daily_report: 'daily_report',
   announcement: 'announcement',
   announcement_reminder: 'announcement_reminder',
   event_reminder: 'event_reminder',

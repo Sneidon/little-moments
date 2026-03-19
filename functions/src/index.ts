@@ -9,6 +9,124 @@ import * as admin from 'firebase-admin';
 
 admin.initializeApp();
 
+/** Keys aligned with mobile ParentNotificationsScreen / shared NotificationPreferences. */
+type ParentNotificationPrefKey =
+  | 'nappyChange'
+  | 'napTime'
+  | 'meal'
+  | 'medication'
+  | 'incident'
+  | 'media'
+  | 'announcements'
+  | 'events'
+  | 'eventReminders';
+
+function parentNotificationPreferenceAllows(
+  prefs: Record<string, boolean> | undefined,
+  key: ParentNotificationPrefKey
+): boolean {
+  if (!prefs || typeof prefs !== 'object') return true;
+  const v = prefs[key];
+  if (v === false) return false;
+  return true;
+}
+
+/** FCM tokens for parent user ids, respecting one preference key (omit category => always allow). */
+async function getFcmTokensForParentUserIds(
+  db: admin.firestore.Firestore,
+  parentIds: string[],
+  prefKey: ParentNotificationPrefKey | null
+): Promise<string[]> {
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  for (const uid of parentIds) {
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) continue;
+    const data = userSnap.data() as {
+      fcmTokens?: string[];
+      isActive?: boolean;
+      notificationPreferences?: Record<string, boolean>;
+    };
+    if (data.isActive === false) continue;
+    if (prefKey && !parentNotificationPreferenceAllows(data.notificationPreferences, prefKey)) continue;
+    (data.fcmTokens || []).forEach((t: string) => {
+      if (t && !seen.has(t)) {
+        seen.add(t);
+        tokens.push(t);
+      }
+    });
+  }
+  return tokens;
+}
+
+function reportTypeToNotificationPrefKey(reportType: string | undefined): ParentNotificationPrefKey | null {
+  switch (reportType) {
+    case 'nappy_change':
+      return 'nappyChange';
+    case 'nap_time':
+      return 'napTime';
+    case 'meal':
+      return 'meal';
+    case 'medication':
+      return 'medication';
+    case 'incident':
+      return 'media'; // app uses type "incident" for photo/media posts
+    default:
+      return null;
+  }
+}
+
+function buildReportNotificationCopy(
+  report: {
+    type?: string;
+    notes?: string;
+    mealOptionName?: string;
+    photoCategory?: string;
+  },
+  childName: string
+): { title: string; body: string } {
+  const type = report.type;
+  const shortNotes = report.notes && String(report.notes).trim()
+    ? String(report.notes).trim().slice(0, 100)
+    : '';
+  if (type === 'meal') {
+    const meal = (report.mealOptionName && String(report.mealOptionName).trim()) || 'Meal';
+    return {
+      title: `${childName}: ${meal}`,
+      body: shortNotes || 'New meal update from school.',
+    };
+  }
+  if (type === 'nap_time') {
+    return {
+      title: `${childName}: Nap time`,
+      body: shortNotes || 'Sleep update logged.',
+    };
+  }
+  if (type === 'nappy_change') {
+    return {
+      title: `${childName}: Nappy change`,
+      body: shortNotes || 'Nappy update logged.',
+    };
+  }
+  if (type === 'medication') {
+    return {
+      title: `${childName}: Medication`,
+      body: shortNotes || 'Medication logged.',
+    };
+  }
+  if (type === 'incident') {
+    const cat = (report.photoCategory && String(report.photoCategory).trim()) || 'Photo';
+    return {
+      title: `${childName}: New ${cat}`,
+      body: shortNotes || 'New photo or update — tap to view.',
+    };
+  }
+  return {
+    title: `${childName}: Daily update`,
+    body: shortNotes || 'New update from school.',
+  };
+}
+
 // Set custom claims when a user document is created or updated in Firestore
 // so that request.auth.token.role and request.auth.token.schoolId are available in security rules.
 export const setUserClaims = functions.firestore
@@ -30,61 +148,118 @@ export const setUserClaims = functions.firestore
     return null;
   });
 
-// When a daily report is created, trigger notifications (FCM + SendGrid).
-// Proposal: "Trigger notifications via SendGrid for emails and Firebase Cloud Messaging
-// when a teacher submits a daily report."
+// When a daily report is created, send FCM to parents (respects notificationPreferences per report type).
+// Email: SendGrid not wired yet; add when SENDGRID_API_KEY (or similar) is configured.
 export const onReportCreated = functions.firestore
   .document('schools/{schoolId}/children/{childId}/reports/{reportId}')
   .onCreate(async (snap, context) => {
-    const { schoolId, childId } = context.params;
-    const report = snap.data();
-    functions.logger.info('Report created', { schoolId, childId, type: report?.type });
-    // TODO: Fetch child's parentIds from schools/{schoolId}/children/{childId}
-    // TODO: Fetch parent FCM tokens from users collection
-    // TODO: Send FCM to parent devices
-    // TODO: Call SendGrid API to send email to parents
+    const { schoolId, childId, reportId } = context.params;
+    const report = snap.data() as {
+      type?: string;
+      notes?: string;
+      mealOptionName?: string;
+      photoCategory?: string;
+    };
+    functions.logger.info('Report created', { schoolId, childId, reportId, type: report?.type });
+
+    const db = admin.firestore();
+    const childSnap = await db.collection('schools').doc(schoolId).collection('children').doc(childId).get();
+    if (!childSnap.exists) {
+      functions.logger.warn('onReportCreated: child not found', { childId, schoolId });
+      return null;
+    }
+    const child = childSnap.data() as { name?: string; parentIds?: string[] };
+    const parentIds = child.parentIds || [];
+    if (parentIds.length === 0) {
+      functions.logger.info('onReportCreated: no parents linked', { childId });
+      return null;
+    }
+
+    const prefKey = reportTypeToNotificationPrefKey(report.type);
+    const tokens = await getFcmTokensForParentUserIds(db, parentIds, prefKey);
+    if (tokens.length === 0) {
+      functions.logger.info('onReportCreated: no FCM tokens after prefs', { childId, prefKey });
+      return null;
+    }
+
+    const childName = (child.name && String(child.name).trim()) || 'Your child';
+    const { title, body } = buildReportNotificationCopy(report, childName);
+
+    const msg: admin.messaging.MulticastMessage = {
+      tokens,
+      notification: {
+        title: title.slice(0, 200),
+        body: body.slice(0, 200),
+      },
+      data: {
+        type: 'daily_report',
+        schoolId,
+        childId,
+        reportId,
+        reportType: report.type ? String(report.type) : '',
+      },
+      android: { priority: 'high' as const },
+      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+    };
+    try {
+      const res = await admin.messaging().sendEachForMulticast(msg);
+      functions.logger.info('onReportCreated: sent', {
+        success: res.successCount,
+        failed: res.failureCount,
+        schoolId,
+        childId,
+      });
+    } catch (e) {
+      functions.logger.error('onReportCreated: send failed', e);
+    }
     return null;
   });
 
-// Collect all FCM tokens for users who should receive school notifications (staff + parents with children at school).
-async function getFcmTokensForSchool(db: admin.firestore.Firestore, schoolId: string): Promise<string[]> {
+// Collect FCM tokens for staff + parents at school. Parents are filtered by notificationPreferences[key] when parentPref is set.
+async function getFcmTokensForSchool(
+  db: admin.firestore.Firestore,
+  schoolId: string,
+  options?: { parentPref?: ParentNotificationPrefKey | null }
+): Promise<string[]> {
   const tokens: string[] = [];
   const seen = new Set<string>();
 
-  // Staff: users with this schoolId (principal, teachers)
   const staffSnap = await db.collection('users').where('schoolId', '==', schoolId).get();
   staffSnap.docs.forEach((d) => {
     const data = d.data() as { fcmTokens?: string[]; isActive?: boolean };
     if (data.isActive === false) return;
     (data.fcmTokens || []).forEach((t: string) => {
-      if (t && !seen.has(t)) { seen.add(t); tokens.push(t); }
+      if (t && !seen.has(t)) {
+        seen.add(t);
+        tokens.push(t);
+      }
     });
   });
 
-  // Parents: uids from children at this school
   const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
   const parentIds = new Set<string>();
   childrenSnap.docs.forEach((d) => {
     const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
     parentIdsArr.forEach((uid: string) => parentIds.add(uid));
   });
-  for (const uid of parentIds) {
-    const userSnap = await db.collection('users').doc(uid).get();
-    if (!userSnap.exists) continue;
-    const data = userSnap.data() as { fcmTokens?: string[]; isActive?: boolean };
-    if (data.isActive === false) continue;
-    (data.fcmTokens || []).forEach((t: string) => {
-      if (t && !seen.has(t)) { seen.add(t); tokens.push(t); }
-    });
-  }
+
+  const parentPref = options?.parentPref !== undefined ? options.parentPref : null;
+  const parentTokens = await getFcmTokensForParentUserIds(db, Array.from(parentIds), parentPref);
+  parentTokens.forEach((t) => {
+    if (t && !seen.has(t)) {
+      seen.add(t);
+      tokens.push(t);
+    }
+  });
   return tokens;
 }
 
-// Get FCM tokens for parents of children in a specific class.
+// Parents of children in a class. No per-type pref (daily communication has no matching toggle yet).
 async function getFcmTokensForClass(db: admin.firestore.Firestore, schoolId: string, classId: string): Promise<string[]> {
-  const tokens: string[] = [];
-  const seen = new Set<string>();
-  const childrenSnap = await db.collection('schools').doc(schoolId).collection('children')
+  const childrenSnap = await db
+    .collection('schools')
+    .doc(schoolId)
+    .collection('children')
     .where('classId', '==', classId)
     .get();
   const parentIds = new Set<string>();
@@ -92,16 +267,7 @@ async function getFcmTokensForClass(db: admin.firestore.Firestore, schoolId: str
     const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
     parentIdsArr.forEach((uid: string) => parentIds.add(uid));
   });
-  for (const uid of parentIds) {
-    const userSnap = await db.collection('users').doc(uid).get();
-    if (!userSnap.exists) continue;
-    const data = userSnap.data() as { fcmTokens?: string[]; isActive?: boolean };
-    if (data.isActive === false) continue;
-    (data.fcmTokens || []).forEach((t: string) => {
-      if (t && !seen.has(t)) { seen.add(t); tokens.push(t); }
-    });
-  }
-  return tokens;
+  return getFcmTokensForParentUserIds(db, Array.from(parentIds), null);
 }
 
 // When daily communication (planned activity) is created, notify parents in that class.
@@ -148,7 +314,7 @@ export const onAnnouncementCreated = functions.firestore
     const body = (data.body && String(data.body).trim()) ? String(data.body).trim().slice(0, 150) : '';
 
     const db = admin.firestore();
-    const tokens = await getFcmTokensForSchool(db, schoolId);
+    const tokens = await getFcmTokensForSchool(db, schoolId, { parentPref: 'announcements' });
     if (tokens.length === 0) {
       functions.logger.info('onAnnouncementCreated: no FCM tokens for school', schoolId);
       return null;
@@ -200,7 +366,7 @@ export const sendAnnouncementReminders = functions.pubsub
         const ann = annDoc.data() as { reminderSentAt?: string; title?: string };
         if (ann.reminderSentAt) continue;
 
-        const tokens = await getFcmTokensForSchool(db, schoolId);
+        const tokens = await getFcmTokensForSchool(db, schoolId, { parentPref: 'announcements' });
         if (tokens.length === 0) continue;
 
         const title = (ann.title && String(ann.title).trim()) || 'Announcement';
@@ -915,7 +1081,7 @@ export const sendEventReminders = functions.pubsub
       for (const evDoc of eventsSnap.docs) {
         const ev = evDoc.data() as { title?: string; targetType?: string; targetClassIds?: string[] };
         const title = (ev.title && String(ev.title).trim()) || 'Upcoming event';
-        const tokens = await getFcmTokensForSchool(db, schoolId);
+        const tokens = await getFcmTokensForSchool(db, schoolId, { parentPref: 'eventReminders' });
         if (tokens.length === 0) continue;
         const msg: admin.messaging.MulticastMessage = {
           tokens,

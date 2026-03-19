@@ -127,7 +127,7 @@ export function SkeletonMessagesActionHeader({
   );
 }
 
-/** Chat/conversation list row — matches inbox message cards (avatar + name/time + child + preview + chevron) */
+/** Chat/conversation list row; matches inbox message cards (avatar + name/time + child + preview + chevron) */
 export function SkeletonMessageListRow({ style }: { style?: ViewStyle }) {
   const { colors, isDark } = useTheme();
   return (
@@ -169,7 +169,7 @@ export function SkeletonMessageListRow({ style }: { style?: ViewStyle }) {
   );
 }
 
-/** @deprecated Use SkeletonMessageListRow — kept for any legacy imports */
+/** @deprecated Use SkeletonMessageListRow; kept for any legacy imports */
 export function SkeletonChatRow({ style }: { style?: ViewStyle }) {
   return <SkeletonMessageListRow style={style} />;
 }

@@ -40,7 +40,7 @@ export type ColorPalette = {
 
 export const lightColors: ColorPalette = {
   background: '#FFFFFF',
-  /** Page chrome — same as scroll body so sections don’t “band” */
+  /** Page chrome (same as scroll body so sections don’t “band”) */
   backgroundSecondary: '#F0F2F5',
   card: '#FFFFFF',
   cardBorder: '#D1D5DB',

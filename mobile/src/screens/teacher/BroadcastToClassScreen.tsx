@@ -301,7 +301,7 @@ export function BroadcastToClassScreen({ navigation }: Props) {
     : countError
       ? 'Couldn’t load roster. Pull down to retry.'
       : childrenInClass === null || recipientCount === null
-        ? '—'
+        ? '-'
         : recipientCount === 0
           ? 'No linked parents in this class'
           : `${childrenInClass} ${childrenInClass === 1 ? 'child' : 'children'} · ${recipientCount} parent${recipientCount === 1 ? '' : 's'}`;
@@ -328,7 +328,7 @@ export function BroadcastToClassScreen({ navigation }: Props) {
           </View>
           <Text style={styles.heroTitle}>Class broadcast</Text>
           <Text style={styles.heroBody}>
-            One message is copied into each family’s private chat with you — parents don’t see each other’s threads.
+            One message is copied into each family’s private chat with you. Parents don’t see each other’s threads.
           </Text>
         </View>
 

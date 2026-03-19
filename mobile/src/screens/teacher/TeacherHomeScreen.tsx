@@ -317,7 +317,7 @@ export function TeacherHomeScreen({
           <Text style={styles.studentAge}>{getAge(item.dateOfBirth)} old</Text>
         </View>
         <View style={[styles.presentBadge, !present && styles.presentBadgeAbsent]}>
-          <Text style={styles.presentBadgeText}>{present ? 'Present' : '—'}</Text>
+          <Text style={styles.presentBadgeText}>{present ? 'Present' : '-'}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -535,7 +535,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     ctaSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginTop: 4, ...f('medium') },
 
     section: { marginTop: 20, paddingHorizontal: 20 },
-    /** Same surface as page — no extra band above stats */
+    /** Same surface as page; no extra band above stats */
     sectionOverview: { marginTop: 12, paddingHorizontal: 20 },
     sectionTitleRow: {
       flexDirection: 'row',

@@ -3,8 +3,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../context/ThemeContext';
-import { font } from '../theme/typography';
 import type { UserRole } from '../../../shared/types';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
@@ -71,59 +69,54 @@ export type RootStackParamList = {
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
-function TeacherTabs() {
-  const { colors } = useTheme();
-  const tabIcon = (name: React.ComponentProps<typeof Ionicons>['name'], focused: boolean) => (
-    <Ionicons name={name} size={24} color={focused ? colors.tabActive : colors.tabInactive} />
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+/** Outline when inactive, filled when active (standard tab pattern). */
+function tabBarIconPair(outline: IoniconName, filled: IoniconName) {
+  return ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+    <Ionicons name={focused ? filled : outline} size={size} color={color} />
   );
+}
+
+function TeacherTabs() {
   const tabHeader = { headerShown: true as const };
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.tabActive,
-        tabBarInactiveTintColor: colors.tabInactive,
-        tabBarStyle: {
-          backgroundColor: colors.tabBarBg,
-          borderTopColor: colors.cardBorder,
-        },
-        tabBarLabelStyle: { fontFamily: font.medium, fontSize: 10 },
-      }}
-    >
+    <Tab.Navigator screenOptions={{ headerShown: false }}>
       <Tab.Screen
         name="Dashboard"
         component={TeacherHomeScreen}
         options={{
           title: 'Dashboard',
           ...tabHeader,
-          tabBarIcon: ({ focused }) => tabIcon('grid', focused),
+          tabBarIcon: tabBarIconPair('grid-outline', 'grid'),
         }}
       />
-        <Tab.Screen
-          name="Students"
-          component={TeacherStudentsScreen}
-          options={{
-            title: 'Students',
-            ...tabHeader,
-            tabBarIcon: ({ focused }) => tabIcon('school-outline', focused),
-          }}
-        />
-        <Tab.Screen
-          name="MessagesList"
-          component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
-          options={{
-            title: 'Messages',
-            ...tabHeader,
-            tabBarIcon: ({ focused }) => tabIcon('mail-outline', focused),
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={TeacherSettingsScreen}
+      <Tab.Screen
+        name="Students"
+        component={TeacherStudentsScreen}
         options={{
-          title: 'Profile',
+          title: 'Students',
           ...tabHeader,
-          tabBarIcon: ({ focused }) => tabIcon('person-outline', focused),
+          tabBarIcon: tabBarIconPair('school-outline', 'school'),
+        }}
+      />
+      <Tab.Screen
+        name="MessagesList"
+        component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
+        options={{
+          title: 'Messages',
+          ...tabHeader,
+          tabBarIcon: tabBarIconPair('mail-outline', 'mail'),
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={TeacherSettingsScreen}
+        options={{
+          title: 'Settings',
+          tabBarLabel: 'Profile',
+          ...tabHeader,
+          tabBarIcon: tabBarIconPair('person-outline', 'person'),
         }}
       />
     </Tab.Navigator>
@@ -131,31 +124,16 @@ function TeacherTabs() {
 }
 
 function ParentTabs() {
-  const { colors } = useTheme();
-  const tabIcon = (name: React.ComponentProps<typeof Ionicons>['name'], focused: boolean) => (
-    <Ionicons name={name} size={24} color={focused ? colors.tabActive : colors.tabInactive} />
-  );
   const tabHeader = { headerShown: true as const };
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.tabActive,
-        tabBarInactiveTintColor: colors.tabInactive,
-        tabBarStyle: {
-          backgroundColor: colors.tabBarBg,
-          borderTopColor: colors.cardBorder,
-        },
-        tabBarLabelStyle: { fontFamily: font.medium, fontSize: 10 },
-      }}
-    >
+    <Tab.Navigator screenOptions={{ headerShown: false }}>
       <Tab.Screen
         name="Home"
         component={ParentHomeScreen}
         options={{
           title: 'Home',
           headerShown: false,
-          tabBarIcon: ({ focused }) => tabIcon('home-outline', focused),
+          tabBarIcon: tabBarIconPair('home-outline', 'home'),
         }}
       />
       <Tab.Screen
@@ -164,7 +142,7 @@ function ParentTabs() {
         options={{
           title: 'Photos',
           ...tabHeader,
-          tabBarIcon: ({ focused }) => tabIcon('images-outline', focused),
+          tabBarIcon: tabBarIconPair('images-outline', 'images'),
         }}
       />
       <Tab.Screen
@@ -173,25 +151,25 @@ function ParentTabs() {
         options={{
           title: 'Calendar',
           ...tabHeader,
-          tabBarIcon: ({ focused }) => tabIcon('calendar-outline', focused),
+          tabBarIcon: tabBarIconPair('calendar-outline', 'calendar'),
         }}
       />
-        <Tab.Screen
-          name="MessagesList"
-          component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
-          options={{
-            title: 'Messages',
-            ...tabHeader,
-            tabBarIcon: ({ focused }) => tabIcon('chatbubbles-outline', focused),
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={ParentSettingsScreen}
+      <Tab.Screen
+        name="MessagesList"
+        component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
+        options={{
+          title: 'Messages',
+          ...tabHeader,
+          tabBarIcon: tabBarIconPair('chatbubbles-outline', 'chatbubbles'),
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={ParentSettingsScreen}
         options={{
           title: 'Settings',
           ...tabHeader,
-          tabBarIcon: ({ focused }) => tabIcon('settings-outline', focused),
+          tabBarIcon: tabBarIconPair('settings-outline', 'settings'),
         }}
       />
     </Tab.Navigator>

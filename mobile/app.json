@@ -3,6 +3,9 @@
     "name": "My Little Moments",
     "slug": "little-moments",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -23,6 +26,7 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "1",
       "bundleIdentifier": "co.za.mylittlemoments",
       "googleServicesFile": "./firebase/GoogleService-Info.plist",
       "entitlements": {
@@ -33,6 +37,7 @@
       }
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#7B61FF"

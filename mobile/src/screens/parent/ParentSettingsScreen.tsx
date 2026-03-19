@@ -1,5 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Image,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,13 +32,13 @@ import type { School } from '../../../../shared/types';
 export function ParentSettingsScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { profile, selectedChildId } = useAuth();
+  const { profile, selectedChildId, setSelectedChildId } = useAuth();
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const cardShadow = useMemo(() => settingsCardShadow(isDark), [isDark]);
 
   const [children, setChildren] = useState<Child[]>([]);
-  const [school, setSchool] = useState<School | null>(null);
+  const [schoolsById, setSchoolsById] = useState<Record<string, School>>({});
   const [classNames, setClassNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -47,11 +56,17 @@ export function ParentSettingsScreen() {
         snap.docs.forEach((d) => list.push({ id: d.id, ...d.data() } as Child));
       }
       setChildren(list);
-      const firstSchoolId = list[0]?.schoolId;
-      if (firstSchoolId) {
-        const schoolSnap = await getDoc(doc(db, 'schools', firstSchoolId));
-        if (schoolSnap.exists()) setSchool({ id: schoolSnap.id, ...schoolSnap.data() } as School);
-      }
+      const uniqueSchoolIds = [...new Set(list.map((c) => c.schoolId).filter(Boolean))];
+      const schools: Record<string, School> = {};
+      await Promise.all(
+        uniqueSchoolIds.map(async (sid) => {
+          const schoolSnap = await getDoc(doc(db, 'schools', sid));
+          if (schoolSnap.exists()) {
+            schools[sid] = { id: schoolSnap.id, ...schoolSnap.data() } as School;
+          }
+        })
+      );
+      setSchoolsById(schools);
     })();
   }, [profile?.uid]);
 
@@ -63,18 +78,31 @@ export function ParentSettingsScreen() {
       for (const sid of schoolIds) {
         const classesSnap = await getDocs(collection(db, 'schools', sid, 'classes'));
         classesSnap.docs.forEach((d) => {
-          const c = d.data() as ClassRoom;
-          names[c.id] = c.name;
+          const data = d.data() as ClassRoom;
+          const raw = typeof data.name === 'string' ? data.name.trim() : '';
+          const label = raw || d.id;
+          // Composite key so multiple schools never collide; matches child.schoolId + child.classId (class doc id).
+          names[`${sid}:${d.id}`] = label;
         });
       }
       setClassNames(names);
     })();
   }, [children]);
 
+  useEffect(() => {
+    if (children.length === 0) return;
+    if (selectedChildId && !children.some((c) => c.id === selectedChildId)) {
+      setSelectedChildId(children[0].id);
+    }
+  }, [children, selectedChildId, setSelectedChildId]);
+
   const selectedChild = selectedChildId
     ? children.find((c) => c.id === selectedChildId)
     : children[0];
-  const className = selectedChild?.classId ? classNames[selectedChild.classId] ?? selectedChild.classId : null;
+  const className = selectedChild?.classId
+    ? classNames[`${selectedChild.schoolId}:${selectedChild.classId}`] ?? selectedChild.classId
+    : null;
+  const daycareSchool = selectedChild?.schoolId ? schoolsById[selectedChild.schoolId] ?? null : null;
 
   const navigate = useCallback(
     (name: string) => (navigation as { navigate: (n: string) => void }).navigate(name),
@@ -185,45 +213,90 @@ export function ParentSettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {selectedChild ? (
+      {children.length > 0 && selectedChild ? (
         <>
           <Text style={styles.sectionLabel}>Family</Text>
-          <View style={[styles.groupCard, cardShadow]}>
-            <View style={styles.cardBody}>
-              <Text style={styles.rowTitle}>{selectedChild.name}</Text>
-              <Text style={styles.rowSubtitle}>
-                {getAge(selectedChild.dateOfBirth)} old
-                {className ? ` · ${className}` : ''}
-              </Text>
-              {selectedChild.allergies?.length ? (
-                <View style={styles.tagRow}>
-                  {selectedChild.allergies.map((a) => (
-                    <View key={a} style={[styles.tag, { backgroundColor: colors.dangerMuted }]}>
-                      <Text style={[styles.tagText, { color: colors.danger }]}>{a}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-              {selectedChild.emergencyContact ? (
-                <Text style={[styles.emergencyLine, { color: colors.textSecondary }]}>
-                  Emergency: {selectedChild.emergencyContact}
+          <View style={[styles.miniCard, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}>
+            <View style={styles.miniHeaderRow}>
+              <View style={[styles.miniAvatar, { backgroundColor: colors.primaryMuted }]}>
+                {selectedChild.photoURL ? (
+                  <Image source={{ uri: selectedChild.photoURL }} style={styles.miniAvatarImg} />
+                ) : (
+                  <Text style={[styles.miniAvatarText, { color: colors.primary }]}>{getInitials(selectedChild.name)}</Text>
+                )}
+              </View>
+              <View style={styles.miniHeaderTextWrap}>
+                <Text style={[styles.miniName, { color: colors.text }]} numberOfLines={1}>
+                  {selectedChild.name}
                 </Text>
-              ) : null}
+                <Text style={[styles.miniMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                  {getAge(selectedChild.dateOfBirth)} old
+                  {className ? ` · ${className}` : ''}
+                </Text>
+              </View>
             </View>
+
+            {selectedChild.allergies?.length ? (
+              <View style={[styles.miniChip, { backgroundColor: colors.dangerMuted }]}>
+                <Ionicons name="warning-outline" size={14} color={colors.danger} />
+                <Text style={[styles.miniChipText, { color: colors.danger }]} numberOfLines={1}>
+                  {selectedChild.allergies.join(', ')}
+                </Text>
+              </View>
+            ) : null}
+
+            {selectedChild.emergencyContact ? (
+              <>
+                <View style={[styles.miniDivider, { backgroundColor: colors.cardBorder }]} />
+                <View style={styles.miniLine}>
+                  <Text style={[styles.miniLineLabel, { color: colors.textMuted }]}>Emergency</Text>
+                  <Text style={[styles.miniLineValue, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {selectedChild.emergencyContact}
+                  </Text>
+                </View>
+              </>
+            ) : null}
           </View>
         </>
       ) : null}
 
-      {school ? (
+      {daycareSchool ? (
+        <>
+          <Text style={styles.sectionLabel}>Daycare</Text>
+          <View style={[styles.miniCard, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}>
+            <View style={styles.miniHeaderRow}>
+              <View style={[styles.miniAvatar, { backgroundColor: colors.accentTealSoft }]}>
+                <Ionicons name="business-outline" size={18} color={colors.accentTeal} />
+              </View>
+              <View style={styles.miniHeaderTextWrap}>
+                <Text style={[styles.miniName, { color: colors.text }]} numberOfLines={1}>
+                  {daycareSchool.name}
+                </Text>
+                <Text style={[styles.miniMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                  {daycareSchool.contactPhone || daycareSchool.contactEmail || 'No contact info'}
+                </Text>
+              </View>
+            </View>
+
+            {daycareSchool.address ? (
+              <>
+                <View style={[styles.miniDivider, { backgroundColor: colors.cardBorder }]} />
+                <View style={styles.miniLine}>
+                  <Text style={[styles.miniLineLabel, { color: colors.textMuted }]}>Address</Text>
+                  <Text style={[styles.miniLineValue, { color: colors.textSecondary }]} numberOfLines={2}>
+                    {daycareSchool.address}
+                  </Text>
+                </View>
+              </>
+            ) : null}
+          </View>
+        </>
+      ) : selectedChild && !schoolsById[selectedChild.schoolId] ? (
         <>
           <Text style={styles.sectionLabel}>Daycare</Text>
           <View style={[styles.groupCard, cardShadow]}>
             <View style={styles.cardBody}>
-              <Text style={styles.rowTitle}>{school.name}</Text>
-              {school.contactPhone ? <Text style={styles.rowSubtitle}>{school.contactPhone}</Text> : null}
-              {school.contactEmail ? (
-                <Text style={[styles.rowSubtitle, { marginTop: school.contactPhone ? 4 : 0 }]}>{school.contactEmail}</Text>
-              ) : null}
+              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>School details couldn&apos;t be loaded.</Text>
             </View>
           </View>
         </>
@@ -258,9 +331,165 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       letterSpacing: 0.6,
       color: colors.textMuted,
       marginTop: 22,
-      marginBottom: 10,
+      marginBottom: 6,
       textTransform: 'uppercase',
     },
+    miniCard: {
+      borderRadius: 16,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 1,
+      padding: 14,
+      ...(!isDark && Platform.OS === 'ios'
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+          }
+        : {}),
+      ...(!isDark && Platform.OS === 'android' ? { elevation: 2 } : {}),
+    },
+    miniHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+    miniAvatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    miniAvatarImg: { width: 42, height: 42, borderRadius: 12 },
+    miniAvatarText: { fontFamily: font.bold, fontSize: 14 },
+    miniHeaderTextWrap: { flex: 1, minWidth: 0, marginLeft: 12 },
+    miniName: { fontFamily: font.semiBold, fontSize: 16 },
+    miniMeta: { fontFamily: font.regular, fontSize: 13, marginTop: 2 },
+    miniChip: {
+      marginTop: 12,
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      maxWidth: '100%',
+    },
+    miniChipText: { fontFamily: font.semiBold, fontSize: 12, flexShrink: 1 },
+    miniDivider: { height: StyleSheet.hairlineWidth, marginTop: 12, marginBottom: 10 },
+    miniLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    miniLineLabel: { fontFamily: font.medium, fontSize: 12, minWidth: 68 },
+    miniLineValue: { fontFamily: font.regular, fontSize: 13, flex: 1 },
+    sectionHint: {
+      fontFamily: font.regular,
+      fontSize: 13,
+      lineHeight: 18,
+      marginBottom: 12,
+      marginTop: -2,
+    },
+    childChipScrollOuter: { marginBottom: 12, marginHorizontal: -4 },
+    childChipScroll: { flexDirection: 'row', gap: 8, paddingHorizontal: 4, paddingVertical: 2 },
+    childChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 999,
+      borderWidth: 1.5,
+    },
+    childChipText: { fontFamily: font.semiBold, fontSize: 14, maxWidth: 140 },
+    familyCard: {
+      borderRadius: 18,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 1,
+      overflow: 'hidden',
+      paddingBottom: 4,
+      ...(!isDark && Platform.OS === 'ios'
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.06,
+            shadowRadius: 10,
+          }
+        : {}),
+      ...(!isDark && Platform.OS === 'android' ? { elevation: 2 } : {}),
+    },
+    familyCardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+    familyAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    familyAvatarImg: { width: 56, height: 56, borderRadius: 16 },
+    familyAvatarInitials: { fontFamily: font.bold, fontSize: 20 },
+    familyHeaderText: { flex: 1, marginLeft: 14, minWidth: 0 },
+    familyName: { fontFamily: font.bold, fontSize: 18, lineHeight: 24 },
+    familyNickname: { fontFamily: font.regular, fontSize: 14, marginTop: 4 },
+    familyDivider: { height: StyleSheet.hairlineWidth, marginHorizontal: 16 },
+    familyInfoBlock: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
+    allergyBlock: { marginHorizontal: 12, marginBottom: 12, padding: 14, borderRadius: 14 },
+    allergyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    allergyTitle: { fontFamily: font.semiBold, fontSize: 14 },
+    allergyTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+    emergencyCard: {
+      marginHorizontal: 12,
+      marginBottom: 14,
+      padding: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+    },
+    emergencyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    emergencyTitle: { fontFamily: font.semiBold, fontSize: 14 },
+    emergencyName: { fontFamily: font.medium, fontSize: 15, marginBottom: 6 },
+    emergencyTapRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+    emergencyPhone: { fontFamily: font.semiBold, fontSize: 15, flex: 1 },
+    emergencyPlain: { fontFamily: font.regular, fontSize: 14, lineHeight: 20 },
+    daycareCard: {
+      borderRadius: 18,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 1,
+      overflow: 'hidden',
+      ...(!isDark && Platform.OS === 'ios'
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.06,
+            shadowRadius: 10,
+          }
+        : {}),
+      ...(!isDark && Platform.OS === 'android' ? { elevation: 2 } : {}),
+    },
+    daycareBrandBar: { height: 4, width: '100%' },
+    daycareCardInner: { padding: 16 },
+    daycareTitleRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    daycareIconCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    daycareTitleText: { flex: 1, marginLeft: 14, minWidth: 0 },
+    daycareName: { fontFamily: font.bold, fontSize: 19, lineHeight: 24 },
+    daycareDesc: { fontFamily: font.regular, fontSize: 14, lineHeight: 20, marginTop: 6 },
+    daycareInfoRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 14 },
+    daycareInfoIcon: { marginRight: 10, marginTop: 2 },
+    daycareInfoValue: { flex: 1, fontFamily: font.regular, fontSize: 14, lineHeight: 20 },
+    daycareDivider: { height: StyleSheet.hairlineWidth, marginVertical: 14 },
+    daycareActionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      marginBottom: 4,
+    },
+    daycareActionIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    daycareActionBody: { flex: 1, minWidth: 0 },
+    daycareActionLabel: { fontFamily: font.medium, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4 },
+    daycareActionValue: { fontFamily: font.semiBold, fontSize: 15, marginTop: 2 },
     profileCard: {
       backgroundColor: colors.card,
       borderRadius: 16,
@@ -387,11 +616,6 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     tagText: {
       fontFamily: font.medium,
       fontSize: 12,
-    },
-    emergencyLine: {
-      fontFamily: font.regular,
-      fontSize: 14,
-      marginTop: 12,
     },
     versionText: {
       fontFamily: font.regular,

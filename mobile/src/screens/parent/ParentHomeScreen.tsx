@@ -267,67 +267,6 @@ export function ParentHomeScreen({
     [meals, naps, nappy, activities, colors]
   );
 
-  const quickActions = useMemo(
-    () => [
-      {
-        id: 'announcements',
-        label: 'Announcements',
-        icon: 'megaphone' as const,
-        soft: colors.accentPurpleSoft,
-        iconColor: colors.accentPurple,
-        onPress: () => rootStack?.navigate('ParentAnnouncements'),
-      },
-      {
-        id: 'calendar',
-        label: 'Calendar',
-        icon: 'calendar' as const,
-        soft: colors.accentTealSoft,
-        iconColor: colors.accentTeal,
-        onPress: () => navigation.navigate('Calendar'),
-      },
-      {
-        id: 'photos',
-        label: 'Photos',
-        icon: 'images' as const,
-        soft: colors.accentOrangeSoft,
-        iconColor: colors.accentOrange,
-        onPress: () => navigation.navigate('Photos'),
-      },
-      {
-        id: 'messages',
-        label: 'Messages',
-        icon: 'chatbubbles' as const,
-        soft: colors.accentPurpleSoft,
-        iconColor: colors.accentPurple,
-        onPress: () => navigation.navigate('MessagesList'),
-      },
-      {
-        id: 'report',
-        label: 'Daily report',
-        icon: 'document-text' as const,
-        soft: colors.accentTealSoft,
-        iconColor: colors.accentTeal,
-        onPress: () => {
-          if (selectedChild) {
-            rootStack?.navigate('ChildProfile', {
-              childId: selectedChild.id,
-              schoolId: selectedChild.schoolId,
-            });
-          }
-        },
-      },
-      {
-        id: 'notifications',
-        label: 'Notifications',
-        icon: 'notifications' as const,
-        soft: colors.accentOrangeSoft,
-        iconColor: colors.accentOrange,
-        onPress: () => rootStack?.navigate('ParentNotifications'),
-      },
-    ],
-    [colors, navigation, rootStack, selectedChild]
-  );
-
   const reportAccent = useCallback(
     (type: string) => {
       if (type === 'meal')
@@ -485,26 +424,6 @@ export function ParentHomeScreen({
                 <Text style={styles.statLabel}>{s.label}</Text>
                 <Text style={styles.statValue}>{s.value}</Text>
               </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick actions</Text>
-          <View style={styles.quickGrid}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.quickActionBtn}
-                onPress={action.onPress}
-                activeOpacity={0.7}
-                disabled={action.id === 'report' && !selectedChild}
-              >
-                <View style={[styles.quickIconCircle, { backgroundColor: action.soft }]}>
-                  <Ionicons name={action.icon} size={24} color={action.iconColor} />
-                </View>
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-              </TouchableOpacity>
             ))}
           </View>
         </View>

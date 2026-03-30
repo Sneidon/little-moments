@@ -80,7 +80,9 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
   const meals = dayReports.filter((r) => r.type === 'meal').length;
   const naps = dayReports.filter((r) => r.type === 'nap_time');
   const nappy = dayReports.filter((r) => r.type === 'nappy_change').length;
-  const activities = dayReports.filter((r) => r.type === 'medication' || r.type === 'incident').length;
+  const activities = dayReports.filter(
+    (r) => r.type === 'activity' || r.type === 'medication' || r.type === 'incident'
+  ).length;
 
   let napDuration = '';
   if (naps.length > 0) {

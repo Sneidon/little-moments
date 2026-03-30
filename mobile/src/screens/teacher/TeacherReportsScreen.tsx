@@ -83,7 +83,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   const naps = dayReports.filter((r) => r.type === 'nap_time');
   const nappy = dayReports.filter((r) => r.type === 'nappy_change').length;
   const activities = dayReports.filter(
-    (r) => r.type === 'medication' || r.type === 'incident'
+    (r) => r.type === 'activity' || r.type === 'medication' || r.type === 'incident'
   ).length;
 
   let napDuration = '';

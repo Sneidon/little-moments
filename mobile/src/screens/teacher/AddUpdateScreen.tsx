@@ -478,6 +478,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       delete next.activityType;
       delete next.activityTitle;
       delete next.activityDescription;
+      // If we're currently editing "Activity", never keep medication overrides.
+      delete next.medicationName;
+      delete next.medicationDosage;
       if (d.activityType !== activityType) next.activityType = d.activityType;
       if ((d.activityTitle ?? '').trim() !== activityTitle.trim()) next.activityTitle = (d.activityTitle ?? '').trim();
       if ((d.activityDescription ?? '').trim() !== activityDescription.trim())
@@ -486,6 +489,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     if (type === 'medication') {
       delete next.medicationName;
       delete next.medicationDosage;
+      // If we're currently editing "Medication", never keep activity-related overrides.
+      delete next.activityType;
+      delete next.activityTitle;
+      delete next.activityDescription;
       if ((d.medicationName ?? '').trim() !== medicationName.trim()) next.medicationName = (d.medicationName ?? '').trim();
       if ((d.medicationDosage ?? '').trim() !== medicationDosage.trim())
         next.medicationDosage = (d.medicationDosage ?? '').trim();

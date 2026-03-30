@@ -90,6 +90,8 @@ function typeLabel(type: string): string {
       return 'Nap';
     case 'nappy_change':
       return 'Nappy change';
+    case 'activity':
+      return 'Activity';
     case 'medication':
       return 'Medication';
     case 'incident':
@@ -107,6 +109,8 @@ function typeIcon(type: string): keyof typeof Ionicons.glyphMap {
       return 'moon-outline';
     case 'nappy_change':
       return 'water-outline';
+    case 'activity':
+      return 'sparkles-outline';
     case 'medication':
       return 'medical-outline';
     case 'incident':
@@ -120,6 +124,7 @@ const TYPE_COLORS: Record<string, string> = {
   meal: '#ea580c',
   nap_time: '#7c3aed',
   nappy_change: '#0d9488',
+  activity: '#ea580c',
   medication: '#2563eb',
   incident: '#db2777',
 };
@@ -186,7 +191,7 @@ export function ReportDetailScreen({ route }: Props) {
   const type = str(data?.type) ?? 'update';
   const accent = TYPE_COLORS[type] ?? colors.primary;
   const ts = toIso(data?.timestamp) || toIso(data?.createdAt);
-  const cardTitle = data ? getReportTitle(data as ReportWithExtras) : typeLabel(type);
+  const cardTitle = data ? getReportTitle(data as unknown as ReportWithExtras) : typeLabel(type);
 
   const rows: { label: string; value: string }[] = [];
   if (ts) {
@@ -235,11 +240,15 @@ export function ReportDetailScreen({ route }: Props) {
     const sq = formatSleepQuality(data?.sleepQuality);
     if (sq) rows.push({ label: 'Sleep quality', value: sq });
   }
-  if (type === 'medication') {
+  if (type === 'activity') {
     const actType = str(data?.activityType);
     if (actType) rows.push({ label: 'Activity type', value: actType });
-    const titleText = str(data?.activityTitle) ?? str(data?.medicationName);
+    const titleText = str(data?.activityTitle);
     if (titleText) rows.push({ label: 'Title', value: titleText });
+  }
+  if (type === 'medication') {
+    const medName = str(data?.medicationName);
+    if (medName) rows.push({ label: 'Medication', value: medName });
     const d = str(data?.medicationDosage);
     if (d) rows.push({ label: 'Dosage', value: d });
   }

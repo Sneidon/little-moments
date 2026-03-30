@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,51 @@ import { db } from '../../config/firebase';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { formatTime } from '../../utils';
+import { getReportTitle, type ReportWithExtras } from '../../utils/childDailyReportDisplay';
 import type { ColorPalette } from '../../theme/colors';
+
+function formatMealAmount(v: unknown): string | undefined {
+  const s = typeof v === 'string' ? v : undefined;
+  if (!s) return undefined;
+  const map: Record<string, string> = {
+    none: 'None',
+    little: 'A little',
+    half: 'Half',
+    most: 'Most',
+    all: 'All',
+  };
+  return map[s] ?? s;
+}
+
+function formatNappyType(v: unknown): string | undefined {
+  const s = typeof v === 'string' ? v : undefined;
+  if (!s) return undefined;
+  const map: Record<string, string> = { wet: 'Wet', dirty: 'Dirty', both: 'Both' };
+  return map[s] ?? s;
+}
+
+function formatNappyCondition(v: unknown): string | undefined {
+  const s = typeof v === 'string' ? v : undefined;
+  if (!s) return undefined;
+  const map: Record<string, string> = {
+    normal: 'Normal',
+    rash: 'Rash',
+    irritated: 'Irritated',
+  };
+  return map[s] ?? s;
+}
+
+function formatSleepQuality(v: unknown): string | undefined {
+  const s = typeof v === 'string' ? v : undefined;
+  if (!s) return undefined;
+  const map: Record<string, string> = {
+    excellent: 'Excellent — slept soundly',
+    good: 'Good — fell asleep easily',
+    fair: 'Fair — took time to settle',
+    poor: 'Poor — restless sleep',
+  };
+  return map[s] ?? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ');
+}
 
 type ReportDetailParams = { schoolId: string; childId: string; reportId: string };
 type Props = NativeStackScreenProps<{ ReportDetail: ReportDetailParams }, 'ReportDetail'>;
@@ -87,19 +131,47 @@ export function ReportDetailScreen({ route }: Props) {
   const [loading, setLoading] = useState(true);
   const [missing, setMissing] = useState(false);
   const [data, setData] = useState<ReportDoc | null>(null);
+  const [childDisplayName, setChildDisplayName] = useState<string | null>(null);
+  const [reporterDisplayName, setReporterDisplayName] = useState<string | null>(null);
+  const [photoBoxWidth, setPhotoBoxWidth] = useState(0);
+  const [photoIntrinsic, setPhotoIntrinsic] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setChildDisplayName(null);
+    setReporterDisplayName(null);
     (async () => {
       try {
-        const ref = doc(db, 'schools', schoolId, 'children', childId, 'reports', reportId);
-        const snap = await getDoc(ref);
+        const reportRef = doc(db, 'schools', schoolId, 'children', childId, 'reports', reportId);
+        const childRef = doc(db, 'schools', schoolId, 'children', childId);
+        const [reportSnap, childSnap] = await Promise.all([getDoc(reportRef), getDoc(childRef)]);
         if (cancelled) return;
-        if (!snap.exists()) {
+        if (!reportSnap.exists()) {
           setMissing(true);
           return;
         }
-        setData({ id: snap.id, ...snap.data() } as ReportDoc);
+        const docData = { id: reportSnap.id, ...reportSnap.data() } as ReportDoc;
+        setData(docData);
+
+        if (childSnap.exists()) {
+          const c = childSnap.data() as { preferredName?: string; name?: string };
+          const nm = (c.preferredName?.trim() || c.name?.trim() || '') || null;
+          if (!cancelled) setChildDisplayName(nm);
+        }
+
+        const rb = str(docData.reportedBy);
+        if (rb) {
+          try {
+            const userSnap = await getDoc(doc(db, 'users', rb));
+            if (!cancelled && userSnap.exists()) {
+              const u = userSnap.data() as { displayName?: string };
+              const dn = u.displayName?.trim();
+              if (dn) setReporterDisplayName(dn);
+            }
+          } catch {
+            /* ignore missing reporter profile */
+          }
+        }
       } catch {
         if (!cancelled) setMissing(true);
       } finally {
@@ -114,7 +186,7 @@ export function ReportDetailScreen({ route }: Props) {
   const type = str(data?.type) ?? 'update';
   const accent = TYPE_COLORS[type] ?? colors.primary;
   const ts = toIso(data?.timestamp) || toIso(data?.createdAt);
-  const title = typeLabel(type);
+  const cardTitle = data ? getReportTitle(data as ReportWithExtras) : typeLabel(type);
 
   const rows: { label: string; value: string }[] = [];
   if (ts) {
@@ -128,11 +200,25 @@ export function ReportDetailScreen({ route }: Props) {
       })}`,
     });
   }
+  if (childDisplayName) {
+    rows.push({ label: 'Child', value: childDisplayName });
+  }
+  if (reporterDisplayName) {
+    rows.push({ label: 'Logged by', value: reporterDisplayName });
+  }
   if (type === 'meal') {
     const mt = str(data?.mealType);
     if (mt) rows.push({ label: 'Meal', value: mt.charAt(0).toUpperCase() + mt.slice(1) });
     const opt = str(data?.mealOptionName);
     if (opt) rows.push({ label: 'Option', value: opt });
+    const amt = formatMealAmount(data?.mealAmount);
+    if (amt) rows.push({ label: 'Amount eaten', value: amt });
+  }
+  if (type === 'nappy_change') {
+    const nt = formatNappyType(data?.nappyType);
+    if (nt) rows.push({ label: 'Type', value: nt });
+    const nc = formatNappyCondition(data?.nappyCondition);
+    if (nc) rows.push({ label: 'Condition', value: nc });
   }
   if (type === 'nap_time') {
     const start = str(data?.napStartTime);
@@ -146,20 +232,25 @@ export function ReportDetailScreen({ route }: Props) {
         value: mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins} min`,
       });
     }
+    const sq = formatSleepQuality(data?.sleepQuality);
+    if (sq) rows.push({ label: 'Sleep quality', value: sq });
   }
   if (type === 'medication') {
-    const n = str(data?.medicationName);
-    if (n) rows.push({ label: 'Medication', value: n });
+    const actType = str(data?.activityType);
+    if (actType) rows.push({ label: 'Activity type', value: actType });
+    const titleText = str(data?.activityTitle) ?? str(data?.medicationName);
+    if (titleText) rows.push({ label: 'Title', value: titleText });
     const d = str(data?.medicationDosage);
     if (d) rows.push({ label: 'Dosage', value: d });
-    const at = str(data?.activityTitle);
-    if (at) rows.push({ label: 'Activity', value: at });
   }
   if (type === 'incident') {
+    const cat = str(data?.photoCategory);
+    if (cat) rows.push({ label: 'Category', value: cat });
     const det = str(data?.incidentDetails);
     if (det) rows.push({ label: 'Details', value: det });
     const fc = data?.forWholeClass;
     if (fc === true) rows.push({ label: 'Shared with', value: 'Whole class' });
+    else if (fc === false) rows.push({ label: 'Shared with', value: 'This child’s family' });
   }
   const notes = str(data?.notes);
   if (notes) rows.push({ label: 'Notes', value: notes });
@@ -167,6 +258,28 @@ export function ReportDetailScreen({ route }: Props) {
   const imageUrl = str(data?.imageUrl);
   const mediaType = str(data?.mediaType);
   const isVideo = mediaType?.toLowerCase().includes('video');
+
+  useEffect(() => {
+    setPhotoIntrinsic(null);
+  }, [imageUrl]);
+
+  const photoDisplayHeight = useMemo(() => {
+    if (!photoIntrinsic || photoBoxWidth <= 0) return null;
+    const { w: iw, h: ih } = photoIntrinsic;
+    if (iw <= 0 || ih <= 0) return null;
+    const raw = (photoBoxWidth * ih) / iw;
+    return Math.round(Math.min(Math.max(raw, 160), 560));
+  }, [photoIntrinsic, photoBoxWidth]);
+
+  const onPhotoLayout = useCallback((e: { nativeEvent: { layout: { width: number } } }) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 0) setPhotoBoxWidth(w);
+  }, []);
+
+  const onPhotoLoad = useCallback((e: { nativeEvent: { source: { width: number; height: number } } }) => {
+    const { width: w, height: h } = e.nativeEvent.source;
+    if (w > 0 && h > 0) setPhotoIntrinsic({ w, h });
+  }, []);
 
   if (loading) {
     return (
@@ -199,7 +312,7 @@ export function ReportDetailScreen({ route }: Props) {
         <View style={[styles.heroIcon, { backgroundColor: accent + '22' }]}>
           <Ionicons name={typeIcon(type)} size={32} color={accent} />
         </View>
-        <Text style={[styles.heroTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.heroTitle, { color: colors.text }]}>{cardTitle}</Text>
         <Text style={[styles.heroType, { color: colors.textMuted }]}>{typeLabel(type)}</Text>
       </View>
 
@@ -233,7 +346,17 @@ export function ReportDetailScreen({ route }: Props) {
               <Text style={[styles.videoBtnText, { color: colors.primary }]}>Open video</Text>
             </TouchableOpacity>
           ) : (
-            <Image source={{ uri: imageUrl }} style={styles.photo} resizeMode="contain" />
+            <View style={[styles.photoWrap, { backgroundColor: colors.backgroundSecondary }]} onLayout={onPhotoLayout}>
+              <Image
+                source={{ uri: imageUrl }}
+                style={[
+                  styles.photo,
+                  photoDisplayHeight != null ? { height: photoDisplayHeight } : styles.photoSizing,
+                ]}
+                resizeMode="contain"
+                onLoad={onPhotoLoad}
+              />
+            </View>
           )}
         </View>
       ) : null}
@@ -284,12 +407,17 @@ function createStyles(colors: ColorPalette) {
     rowLabel: { fontFamily: font.medium, fontSize: 13, marginBottom: 4 },
     rowValue: { fontFamily: font.regular, fontSize: 16, lineHeight: 22 },
     emptyDetail: { fontFamily: font.regular, fontSize: 15, paddingVertical: 8 },
+    photoWrap: {
+      width: '100%',
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
     photo: {
       width: '100%',
+    },
+    photoSizing: {
       minHeight: 200,
       maxHeight: 360,
-      borderRadius: 12,
-      backgroundColor: colors.backgroundSecondary,
     },
     videoBtn: {
       flexDirection: 'row',

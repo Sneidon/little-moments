@@ -12,6 +12,7 @@ import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
 import { TeacherStudentsScreen } from '../screens/teacher/TeacherStudentsScreen';
 import { TeacherSettingsScreen } from '../screens/teacher/TeacherSettingsScreen';
+import { TeacherNotificationSettingsScreen } from '../screens/teacher/TeacherNotificationSettingsScreen';
 import { AnnouncementsScreen } from '../screens/shared/AnnouncementsScreen';
 import { EventsScreen } from '../screens/shared/EventsScreen';
 import { MessagesListScreen } from '../screens/shared/MessagesListScreen';
@@ -71,6 +72,7 @@ export type RootStackParamList = {
   EditChildProfileTeacher: { childId: string; schoolId: string };
   ParentProfile: undefined;
   ParentNotifications: undefined;
+  TeacherNotificationSettings: undefined;
   ParentEventDetail: { schoolId: string; eventId: string };
 };
 
@@ -281,6 +283,11 @@ export function MainTabs({ role }: { role: UserRole }) {
       <RootStack.Screen name="EditChildProfileTeacher" component={EditChildProfileTeacherScreenWrapper} options={{ title: 'Edit child' }} />
       <RootStack.Screen name="ParentProfile" component={ParentProfileScreen} options={{ title: 'Profile' }} />
       <RootStack.Screen name="ParentNotifications" component={ParentNotificationsScreen} options={{ title: 'Notifications' }} />
+      <RootStack.Screen
+        name="TeacherNotificationSettings"
+        component={TeacherNotificationSettingsScreen}
+        options={{ title: 'Notification settings' }}
+      />
       <RootStack.Screen
         name="ParentEventDetail"
         component={ParentEventDetailScreen}

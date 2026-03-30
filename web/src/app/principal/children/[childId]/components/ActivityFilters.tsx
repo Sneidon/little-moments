@@ -1,3 +1,5 @@
+import { DAYS_WITH_ACTIVITY_JUMP_LIMIT } from '@/lib/reports';
+
 const dayButtonBase =
   'h-10 min-w-[5.5rem] flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors';
 const dayButtonActive = 'border-primary-600 bg-primary-600 text-white shadow-sm';
@@ -20,6 +22,9 @@ export function ActivityFilters({
   daysWithActivity,
 }: ActivityFiltersProps) {
   const hasFilterActive = filterDay !== todayIso;
+  const extraActivityDays = daysWithActivity
+    .filter((d) => d !== todayIso && d !== yesterdayIso)
+    .slice(0, DAYS_WITH_ACTIVITY_JUMP_LIMIT);
 
   return (
     <div className="mb-6">
@@ -59,9 +64,7 @@ export function ActivityFilters({
         >
           Yesterday
         </button>
-        {daysWithActivity
-          .filter((d) => d !== todayIso && d !== yesterdayIso)
-          .map((d) => {
+        {extraActivityDays.map((d) => {
           const label = new Date(d).toLocaleDateString(undefined, {
             weekday: 'short',
             month: 'short',

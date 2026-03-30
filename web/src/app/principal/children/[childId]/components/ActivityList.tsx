@@ -35,7 +35,8 @@ export function ActivityList({
         Day-to-day activities
       </h2>
       <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
-        View and filter by date. Jump to recent days that have recorded activity.
+        View and filter by date. Shortcuts: Today, Yesterday, and up to three other recent days with
+        recorded activity.
       </p>
 
       <ActivityFilters

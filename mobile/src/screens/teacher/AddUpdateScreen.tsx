@@ -49,6 +49,7 @@ export type ChildFormOverrides = Partial<{
   activityType: string | null;
   activityTitle: string;
   activityDescription: string;
+  medicationName: string;
   medicationDosage: string;
   notes: string;
   photoCategory: string | null;
@@ -71,7 +72,8 @@ const ACTIVITY_TABS = [
   { type: 'meal' as ReportType, label: 'Meal', icon: 'restaurant' as const },
   { type: 'nap_time' as ReportType, label: 'Nap', icon: 'moon' as const },
   { type: 'nappy_change' as ReportType, label: 'Nappy', icon: 'water' as const },
-  { type: 'medication' as ReportType, label: 'Activity', icon: 'color-palette' as const },
+  { type: 'medication' as ReportType, label: 'Medication', icon: 'medical' as const },
+  { type: 'activity' as ReportType, label: 'Activity', icon: 'color-palette' as const },
   { type: 'incident' as ReportType, label: 'Photo', icon: 'camera' as const },
 ];
 
@@ -228,6 +230,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [activityType, setActivityType] = useState<string | null>(null);
   const [activityTitle, setActivityTitle] = useState('');
   const [activityDescription, setActivityDescription] = useState('');
+  const [medicationName, setMedicationName] = useState('');
   const [medicationDosage, setMedicationDosage] = useState('');
   const [activityTime, setActivityTime] = useState(() => formatTime(new Date()));
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
@@ -378,6 +381,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       activityType: o.activityType !== undefined ? o.activityType : activityType,
       activityTitle: (o.activityTitle ?? activityTitle).trim(),
       activityDescription: (o.activityDescription ?? activityDescription).trim(),
+      medicationName: (o.medicationName ?? medicationName).trim(),
       medicationDosage: (o.medicationDosage ?? medicationDosage).trim(),
       notes: (o.notes ?? notes).trim(),
       photoCategory: o.photoCategory !== undefined ? o.photoCategory : photoCategory,
@@ -411,6 +415,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       activityType: v.activityType,
       activityTitle: v.activityTitle,
       activityDescription: v.activityDescription,
+      medicationName: v.medicationName ?? '',
       medicationDosage: v.medicationDosage ?? '',
       notes: v.notes,
       photoCategory: v.photoCategory,
@@ -469,10 +474,19 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       if ((d.napStartTime ?? '') !== napStartTime) next.napStartTime = d.napStartTime;
       if ((d.napEndTime ?? '') !== napEndTime) next.napEndTime = d.napEndTime;
     }
-    if (type === 'medication') {
+    if (type === 'activity') {
+      delete next.activityType;
       delete next.activityTitle;
-      delete next.medicationDosage;
+      delete next.activityDescription;
+      if (d.activityType !== activityType) next.activityType = d.activityType;
       if ((d.activityTitle ?? '').trim() !== activityTitle.trim()) next.activityTitle = (d.activityTitle ?? '').trim();
+      if ((d.activityDescription ?? '').trim() !== activityDescription.trim())
+        next.activityDescription = (d.activityDescription ?? '').trim();
+    }
+    if (type === 'medication') {
+      delete next.medicationName;
+      delete next.medicationDosage;
+      if ((d.medicationName ?? '').trim() !== medicationName.trim()) next.medicationName = (d.medicationName ?? '').trim();
       if ((d.medicationDosage ?? '').trim() !== medicationDosage.trim())
         next.medicationDosage = (d.medicationDosage ?? '').trim();
     }
@@ -505,6 +519,35 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     if (type === 'incident' && !photoUri) {
       Alert.alert('Add media', 'Take or choose a photo/video to log.');
       return;
+    }
+    if (type === 'activity') {
+      for (const childId of selectedChildIds) {
+        const v = getValuesForChild(childId);
+        if (!v.activityType) {
+          Alert.alert('Activity type', 'Select an activity type before posting.');
+          return;
+        }
+        if (!v.activityTitle) {
+          Alert.alert('Title required', 'Enter a short title for this activity.');
+          return;
+        }
+      }
+    }
+    if (type === 'medication') {
+      for (const childId of selectedChildIds) {
+        const v = getValuesForChild(childId);
+        if (!v.medicationName) {
+          Alert.alert('Medication name', 'Enter the name of the medication.');
+          return;
+        }
+        if (!v.medicationDosage) {
+          Alert.alert(
+            'Dosage required',
+            'Enter the dosage administered (e.g. 5 ml, 1 tablet).'
+          );
+          return;
+        }
+      }
     }
     setLoading(true);
     try {
@@ -558,12 +601,14 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           payload.napEndTime = v.napEndTime;
           payload.sleepQuality = v.sleepQuality;
         }
-        if (type === 'medication') {
+        if (type === 'activity') {
           payload.activityType = v.activityType || undefined;
           payload.activityTitle = v.activityTitle || undefined;
-          payload.medicationName = v.activityTitle || undefined;
-          payload.medicationDosage = v.medicationDosage?.trim() || undefined;
           if (v.activityDescription) payload.notes = v.activityDescription;
+        }
+        if (type === 'medication') {
+          payload.medicationName = v.medicationName || undefined;
+          payload.medicationDosage = v.medicationDosage?.trim() || undefined;
         }
         if (type === 'incident') {
           if (uploadedUrl) payload.imageUrl = uploadedUrl;
@@ -1376,9 +1421,50 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           {type === 'medication' && (
             <View style={[styles.screenCard, styles.formSection]}>
               <View style={styles.formSectionHead}>
+                <Text style={styles.formSectionTitle}>Medication</Text>
+              </View>
+              <Text style={styles.label}>Medication name</Text>
+              <TextInput
+                style={styles.input}
+                value={medicationName}
+                onChangeText={setMedicationName}
+                placeholder="e.g. Paracetamol"
+                placeholderTextColor={colors.textMuted}
+                editable={!loading}
+                autoCapitalize="words"
+              />
+              <Text style={styles.label}>Dosage administered</Text>
+              <Text style={[styles.labelHint, { color: colors.textMuted }]}>
+                Required. Include amount and unit (e.g. 5 ml, 1 tablet).
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={medicationDosage}
+                onChangeText={setMedicationDosage}
+                placeholder="e.g. 5 ml, 1 tablet"
+                placeholderTextColor={colors.textMuted}
+                editable={!loading}
+              />
+              <Text style={styles.label}>Notes (optional)</Text>
+              <TextInput
+                style={[styles.input, styles.inputMultiline]}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Route, observations, or follow-up…"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={3}
+                editable={!loading}
+              />
+            </View>
+          )}
+
+          {type === 'activity' && (
+            <View style={[styles.screenCard, styles.formSection]}>
+              <View style={styles.formSectionHead}>
                 <Text style={styles.formSectionTitle}>Activity</Text>
               </View>
-              <Text style={styles.label}>Activity Type</Text>
+              <Text style={styles.label}>Activity type</Text>
               <TouchableOpacity
                 style={styles.dropdownRow}
                 onPress={() => setDropdownOpen(dropdownOpen === 'activityType' ? null : 'activityType')}
@@ -1404,30 +1490,21 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   ))}
                 </View>
               )}
-              <Text style={styles.label}>Name of medication / activity</Text>
+              <Text style={styles.label}>Title</Text>
               <TextInput
                 style={styles.input}
                 value={activityTitle}
                 onChangeText={setActivityTitle}
-                placeholder="e.g. Paracetamol, Watercolor Painting"
+                placeholder="e.g. Watercolor painting, Obstacle course"
                 placeholderTextColor={colors.textMuted}
                 editable={!loading}
               />
-              <Text style={styles.label}>Dosage administered (optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={medicationDosage}
-                onChangeText={setMedicationDosage}
-                placeholder="e.g. 5ml, 1 tablet"
-                placeholderTextColor={colors.textMuted}
-                editable={!loading}
-              />
-              <Text style={styles.label}>Notes</Text>
+              <Text style={styles.label}>Description</Text>
               <TextInput
                 style={[styles.input, styles.inputMultiline]}
                 value={activityDescription}
                 onChangeText={setActivityDescription}
-                placeholder="Describe what the child did and how they engaged..."
+                placeholder="Describe what the child did and how they engaged…"
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={4}
@@ -1601,7 +1678,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                     </View>
                   </>
                 )}
-                {(type === 'nap_time' || type === 'medication' || type === 'nappy_change' || type === 'incident') && (
+                {(type === 'nap_time' ||
+                  type === 'medication' ||
+                  type === 'activity' ||
+                  type === 'nappy_change' ||
+                  type === 'incident') && (
                   <>
                     <Text style={styles.label}>Notes (optional)</Text>
                     <TextInput
@@ -1647,21 +1728,81 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 )}
                 {type === 'medication' && (
                   <>
-                    <Text style={styles.label}>Activity / medication name</Text>
+                    <Text style={styles.label}>Medication name</Text>
                     <TextInput
                       style={styles.input}
-                      value={variationDraft.activityTitle ?? ''}
-                      onChangeText={(text) => setVariationDraft((p) => (p ? { ...p, activityTitle: text } : null))}
-                      placeholder="e.g. Paracetamol, Watercolor Painting"
+                      value={variationDraft.medicationName ?? ''}
+                      onChangeText={(text) => setVariationDraft((p) => (p ? { ...p, medicationName: text } : null))}
+                      placeholder="e.g. Paracetamol"
                       placeholderTextColor={colors.textMuted}
                     />
-                    <Text style={styles.label}>Dosage (optional)</Text>
+                    <Text style={styles.label}>Dosage administered</Text>
+                    <Text style={[styles.labelHint, { color: colors.textMuted }]}>
+                      Required. Include amount and unit.
+                    </Text>
                     <TextInput
                       style={styles.input}
                       value={variationDraft.medicationDosage ?? ''}
                       onChangeText={(text) => setVariationDraft((p) => (p ? { ...p, medicationDosage: text } : null))}
-                      placeholder="e.g. 5ml, 1 tablet"
+                      placeholder="e.g. 5 ml, 1 tablet"
                       placeholderTextColor={colors.textMuted}
+                    />
+                  </>
+                )}
+                {type === 'activity' && (
+                  <>
+                    <Text style={styles.label}>Activity type</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownRow}
+                      onPress={() =>
+                        setVariationDropdown(variationDropdown === 'activityType' ? null : 'activityType')
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownText,
+                          !variationDraft.activityType && styles.dropdownPlaceholder,
+                        ]}
+                      >
+                        {variationDraft.activityType || 'Select activity type'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {variationDropdown === 'activityType' && (
+                      <View style={styles.dropdownOptions}>
+                        {ACTIVITY_TYPES.map((t) => (
+                          <TouchableOpacity
+                            key={t}
+                            style={styles.dropdownOption}
+                            onPress={() => {
+                              setVariationDraft((p) => (p ? { ...p, activityType: t } : null));
+                              setVariationDropdown(null);
+                            }}
+                          >
+                            <Text style={styles.dropdownOptionText}>{t}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                    <Text style={styles.label}>Title</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={variationDraft.activityTitle ?? ''}
+                      onChangeText={(text) => setVariationDraft((p) => (p ? { ...p, activityTitle: text } : null))}
+                      placeholder="e.g. Watercolor painting"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                    <Text style={styles.label}>Description</Text>
+                    <TextInput
+                      style={[styles.input, styles.inputMultiline]}
+                      value={variationDraft.activityDescription ?? ''}
+                      onChangeText={(text) =>
+                        setVariationDraft((p) => (p ? { ...p, activityDescription: text } : null))
+                      }
+                      placeholder="What the child did…"
+                      placeholderTextColor={colors.textMuted}
+                      multiline
+                      numberOfLines={3}
                     />
                   </>
                 )}
@@ -2356,6 +2497,13 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     tabLabelActive: { color: colors.primary },
 
     label: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, marginTop: 14, ...f('semiBold') },
+    labelHint: {
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: -4,
+      marginBottom: 8,
+      ...f('regular'),
+    },
     optionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     optionChip: {
       paddingHorizontal: 14,

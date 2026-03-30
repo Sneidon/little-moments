@@ -68,6 +68,8 @@ function reportTypeToNotificationPrefKey(reportType: string | undefined): Parent
       return 'napTime';
     case 'meal':
       return 'meal';
+    case 'activity':
+      return 'medication'; // same parent preference bucket as medication (school activity updates)
     case 'medication':
       return 'medication';
     case 'incident':
@@ -107,6 +109,12 @@ function buildReportNotificationCopy(
     return {
       title: `${childName}: Nappy change`,
       body: shortNotes || 'Nappy update logged.',
+    };
+  }
+  if (type === 'activity') {
+    return {
+      title: `${childName}: Activity`,
+      body: shortNotes || 'New activity update from school.',
     };
   }
   if (type === 'medication') {

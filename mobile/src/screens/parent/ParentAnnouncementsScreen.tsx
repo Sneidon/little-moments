@@ -142,7 +142,7 @@ export function ParentAnnouncementsScreen() {
   return (
     <View style={styles.container}>
       {!schoolId ? (
-        <ScrollView style={styles.container}>
+        <ScrollView style={styles.container} contentContainerStyle={styles.listContent}>
           {[1, 2, 3, 4].map((i) => (
             <SkeletonCard key={i} />
           ))}

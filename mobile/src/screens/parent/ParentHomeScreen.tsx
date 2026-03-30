@@ -558,16 +558,14 @@ export function ParentHomeScreen({
                     />
                   </View>
                   <View style={styles.updateCardContent}>
-                    <View style={styles.updateCardTopRow}>
-                      <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
-                      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                    </View>
+                    <Ionicons style={styles.updateChevron} name="chevron-forward" size={18} color={colors.textMuted} />
                     <Text style={styles.updateType}>{formatParentReportLabel(item.type)}</Text>
                     {item.notes ? (
                       <Text style={styles.updateNotes} numberOfLines={2}>
                         {item.notes}
                       </Text>
                     ) : null}
+                    <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -818,15 +816,16 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       justifyContent: 'center',
       marginRight: 12,
     },
-    updateCardContent: { flex: 1, minWidth: 0 },
-    updateCardTopRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    updateCardContent: { flex: 1, minWidth: 0, position: 'relative', paddingRight: 22 },
+    updateChevron: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
     },
     updateTime: {
       fontSize: 12,
       color: colors.textMuted,
+      marginTop: 6,
       ...f('medium'),
     },
     updateType: {

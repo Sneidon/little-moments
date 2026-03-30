@@ -451,7 +451,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
             </Text>
           )}
           {childLoading ? (
-            <View>
+            <View style={styles.timelineLoadingWrap}>
               {[0, 1, 2].map((i) => (
                 <View key={i} style={styles.timelineCard}>
                   <Skeleton width={44} height={44} borderRadius={12} />
@@ -763,6 +763,9 @@ function createStyles(
       marginBottom: 10,
       borderWidth: 1,
       borderColor: colors.cardBorder,
+    },
+    timelineLoadingWrap: {
+      paddingHorizontal: 8,
     },
     timelineIconWrap: {
       width: 44,

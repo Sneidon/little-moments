@@ -131,6 +131,7 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
   const [rsvpPending, setRsvpPending] = useState<'accepted' | 'declined' | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [heroLoaded, setHeroLoaded] = useState(false);
+  const [heroIntrinsic, setHeroIntrinsic] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 60_000);
@@ -139,6 +140,7 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     setHeroLoaded(false);
+    setHeroIntrinsic(null);
   }, [event?.imageUrl]);
 
   useEffect(() => {
@@ -217,6 +219,13 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
     event?.documents?.filter((d) => d.url && !isLikelyImageUrl(d.url)) ?? [];
 
   const heroWidth = width - 32;
+  const heroHeight = useMemo(() => {
+    if (!heroIntrinsic) return 220;
+    const { w, h } = heroIntrinsic;
+    if (w <= 0 || h <= 0) return 220;
+    const raw = (heroWidth * h) / w;
+    return Math.round(Math.min(Math.max(raw, 180), 520));
+  }, [heroIntrinsic, heroWidth]);
   const bottomPad = insets.bottom + (event && getEventHighlight(event, nowMs) !== 'past' && profile?.uid ? 132 : 28);
 
   if (loading) {
@@ -326,30 +335,25 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
   const heroBlock =
     event.imageUrl ? (
       <View style={[styles.heroCard, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}>
-        <TouchableOpacity
-          activeOpacity={0.92}
-          onPress={() => Linking.openURL(event.imageUrl!)}
-          accessibilityRole="button"
-          accessibilityLabel="Open flyer or image full size"
-        >
-          <View style={[styles.heroImageWrap, { width: heroWidth }]}>
-            {!heroLoaded ? (
-              <View style={styles.heroLoading}>
-                <ActivityIndicator color={colors.primary} />
-              </View>
-            ) : null}
-            <Image
-              source={{ uri: event.imageUrl }}
-              style={[styles.heroImage, { width: heroWidth, opacity: heroLoaded ? 1 : 0 }]}
-              resizeMode="cover"
-              onLoad={() => setHeroLoaded(true)}
-              onError={() => setHeroLoaded(true)}
-            />
-          </View>
-        </TouchableOpacity>
-        <View style={styles.heroFooter}>
-          <Ionicons name="image-outline" size={14} color={colors.textMuted} />
-          <Text style={[styles.heroFooterText, { color: colors.textMuted }]}>Tap image to open full size</Text>
+        <View style={[styles.heroImageWrap, { width: heroWidth, height: heroHeight }]}>
+          {!heroLoaded ? (
+            <View style={styles.heroLoading}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : null}
+          <Image
+            source={{ uri: event.imageUrl }}
+            style={[styles.heroImage, { opacity: heroLoaded ? 1 : 0 }]}
+            resizeMode="contain"
+            onLoad={(e) => {
+              const src = e.nativeEvent?.source;
+              if (src?.width && src?.height) {
+                setHeroIntrinsic({ w: src.width, h: src.height });
+              }
+              setHeroLoaded(true);
+            }}
+            onError={() => setHeroLoaded(true)}
+          />
         </View>
       </View>
     ) : null;
@@ -640,7 +644,6 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       marginBottom: 14,
     },
     heroImageWrap: {
-      height: 220,
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -652,17 +655,10 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       zIndex: 1,
     },
     heroImage: {
-      height: 220,
+      width: '100%',
+      height: '100%',
       borderRadius: 0,
     },
-    heroFooter: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-    },
-    heroFooterText: { fontSize: 12, ...f('medium') },
     sectionCard: {
       borderRadius: 16,
       borderWidth: 1,

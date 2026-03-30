@@ -61,6 +61,33 @@ export type RemoteMessage = {
   data?: NotificationData;
 };
 
+export type ForegroundBannerPayload = {
+  title: string;
+  body?: string;
+  data?: NotificationData;
+};
+
+const foregroundBannerListeners = new Set<(payload: ForegroundBannerPayload) => void>();
+
+export function subscribeForegroundNotificationBanner(
+  listener: (payload: ForegroundBannerPayload) => void
+): () => void {
+  foregroundBannerListeners.add(listener);
+  return () => {
+    foregroundBannerListeners.delete(listener);
+  };
+}
+
+function emitForegroundBanner(payload: ForegroundBannerPayload): void {
+  foregroundBannerListeners.forEach((listener) => {
+    try {
+      listener(payload);
+    } catch {
+      // Keep notification fan-out resilient.
+    }
+  });
+}
+
 let foregroundBridgeUnsubscribe: (() => void) | null = null;
 let tokenRefreshUnsubscribe: (() => void) | null = null;
 
@@ -99,6 +126,11 @@ async function presentLocalNotificationFromRemoteMessage(message: RemoteMessage)
   const title = message.notification?.title?.trim();
   const body = message.notification?.body?.trim();
   if (!title && !body) return;
+  emitForegroundBanner({
+    title: title ?? 'New notification',
+    body: body ?? undefined,
+    data: message.data,
+  });
   try {
     await ensureAndroidChannel();
     await expoNotifications.presentNotificationAsync({

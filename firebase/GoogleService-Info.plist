@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDx0nw7ZqVCX9xOe8b-6aXe1VVdEfOQ92I</string>
+	<key>GCM_SENDER_ID</key>
+	<string>692778727048</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>co.za.mylittlemoments</string>
+	<key>PROJECT_ID</key>
+	<string>little-moments-6647f</string>
+	<key>STORAGE_BUCKET</key>
+	<string>little-moments-6647f.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:692778727048:ios:14734cd28c0c4af9be913d</string>
+</dict>
+</plist>

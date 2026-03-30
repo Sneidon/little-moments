@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { getCached, setCached, LIST_TTL_MS } from '../utils/cache';
@@ -10,17 +10,20 @@ const cacheKeyChildren = (schoolId: string, uid: string) =>
   `teacher:children:${schoolId}:${uid}`;
 const cacheKeyClassName = (schoolId: string, uid: string) =>
   `teacher:className:${schoolId}:${uid}`;
+const cacheKeySchoolName = (schoolId: string) => `teacher:schoolName:${schoolId}`;
 
 export function useTeacherClassChildren(refreshTrigger: number) {
   const { profile } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
   const [className, setClassName] = useState<string | null>(null);
+  const [schoolName, setSchoolName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
     if (!schoolId || !uid) {
+      setSchoolName(null);
       setLoading(false);
       return;
     }
@@ -29,13 +32,22 @@ export function useTeacherClassChildren(refreshTrigger: number) {
     let unsub: (() => void) | null = null;
 
     (async () => {
-      const [cachedChildren, cachedClassName] = await Promise.all([
+      const [cachedChildren, cachedClassName, cachedSchoolName] = await Promise.all([
         getCached<Child[]>(cacheKeyChildren(schoolId, uid)),
         getCached<string | null>(cacheKeyClassName(schoolId, uid)),
+        getCached<string | null>(cacheKeySchoolName(schoolId)),
       ]);
       if (cancelled) return;
       if (cachedChildren) setChildren(cachedChildren);
       if (cachedClassName != null) setClassName(cachedClassName);
+      if (cachedSchoolName != null) setSchoolName(cachedSchoolName);
+
+      const schoolSnap = await getDoc(doc(db, 'schools', schoolId));
+      if (!cancelled && schoolSnap.exists()) {
+        const n = (schoolSnap.data() as { name?: string }).name?.trim() || null;
+        setSchoolName(n);
+        if (n) await setCached(cacheKeySchoolName(schoolId), n, LIST_TTL_MS);
+      }
 
       const classesSnap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
       if (cancelled) return;
@@ -74,5 +86,5 @@ export function useTeacherClassChildren(refreshTrigger: number) {
     };
   }, [profile?.schoolId, profile?.uid, refreshTrigger]);
 
-  return { children, className, loading };
+  return { children, className, schoolName, loading };
 }

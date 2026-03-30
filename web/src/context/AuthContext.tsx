@@ -5,6 +5,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db, app } from '@/config/firebase';
+import { InactivitySignOut } from '@/components/InactivitySignOut';
 import type { UserProfile } from 'shared/types';
 
 interface AuthContextValue {
@@ -29,21 +30,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
+
+      setLoading(true);
+      let shouldSyncClaims = false;
       try {
         const snap = await getDoc(doc(db, 'users', u.uid));
         if (snap.exists()) {
           const profileData = { uid: u.uid, ...snap.data() } as UserProfile;
-          // Sync Firestore role/schoolId to Auth custom claims before exposing profile,
-          // so Firestore rules (e.g. principal/children) see the correct token.
-          try {
-            const functions = getFunctions(app);
-            const syncClaims = httpsCallable(functions, 'syncClaims');
-            await syncClaims({});
-            await u.getIdToken(true);
-          } catch {
-            // Continue; rules may fail until next login if sync fails
-          }
           setProfile(profileData);
+          shouldSyncClaims = true;
         } else {
           setProfile(null);
         }
@@ -51,6 +46,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
       }
       setLoading(false);
+
+      // Do not block UI on syncClaims — if the callable hangs or the region is wrong,
+      // login still completes; rules may lag until this finishes or the next token refresh.
+      if (shouldSyncClaims) {
+        void (async () => {
+          try {
+            const functions = getFunctions(app);
+            const syncClaims = httpsCallable(functions, 'syncClaims');
+            await syncClaims({});
+            await u.getIdToken(true);
+          } catch {
+            // ignore
+          }
+        })();
+      }
     });
     return () => unsub();
   }, []);
@@ -71,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, refreshProfile }}>
+      <InactivitySignOut />
       {children}
     </AuthContext.Provider>
   );

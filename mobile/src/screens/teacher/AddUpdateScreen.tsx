@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,10 @@ import {
   Pressable,
   Image,
   ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
@@ -24,16 +28,12 @@ import type { ClassRoom } from '../../../../shared/types';
 import type { MealOption } from '../../../../shared/types';
 import type { ReportType } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { font } from '../../theme/typography';
 
-type TeacherStackParamList = {
-  TeacherHome: undefined;
-  Reports: { childId: string };
+type AddUpdateStackParamList = {
   AddUpdate: { initialType?: ReportType; initialChildId?: string } | undefined;
-  Announcements: undefined;
-  Events: undefined;
-  Settings: undefined;
 };
-type Props = NativeStackScreenProps<TeacherStackParamList, 'AddUpdate'>;
+type Props = NativeStackScreenProps<AddUpdateStackParamList, 'AddUpdate'>;
 
 /** Per-child overrides for group variations (only set fields that differ from default) */
 export type ChildFormOverrides = Partial<{
@@ -60,17 +60,18 @@ const MEAL_TYPES = [
   { value: 'snack' as const, label: 'Snack' },
 ];
 const MEAL_AMOUNTS = [
-  { value: 'none', label: 'None' },
-  { value: 'some', label: 'Some' },
-  { value: 'most', label: 'Most of it' },
-  { value: 'all', label: 'All of it' },
+  { value: 'none', label: 'None', circleText: 'None' },
+  { value: 'little', label: 'A little', circleText: 'Little' },
+  { value: 'half', label: 'Half', circleText: 'Half' },
+  { value: 'most', label: 'Most', circleText: 'Most' },
+  { value: 'all', label: 'All', circleText: 'All' },
 ];
 
 const ACTIVITY_TABS = [
   { type: 'meal' as ReportType, label: 'Meal', icon: 'restaurant' as const },
-  { type: 'nap_time' as ReportType, label: 'Nap', icon: 'bed' as const },
+  { type: 'nap_time' as ReportType, label: 'Nap', icon: 'moon' as const },
   { type: 'nappy_change' as ReportType, label: 'Nappy', icon: 'water' as const },
-  { type: 'medication' as ReportType, label: 'Activity', icon: 'sparkles' as const },
+  { type: 'medication' as ReportType, label: 'Activity', icon: 'color-palette' as const },
   { type: 'incident' as ReportType, label: 'Photo', icon: 'camera' as const },
 ];
 
@@ -147,11 +148,42 @@ function formatDuration(seconds: number): string {
 
 export function AddUpdateScreen({ navigation, route }: Props) {
   const { profile } = useAuth();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
-  const [childPickerOpen, setChildPickerOpen] = useState(false);
+  const [childListModalOpen, setChildListModalOpen] = useState(false);
+  const [childListSearch, setChildListSearch] = useState('');
+  /** Only auto-pick a default child once; avoids clearing selection on every Firestore snapshot. */
+  const didAutoSelectChildrenRef = useRef(false);
+  /** True after we know class roster (even if empty). */
+  const [classRosterLoaded, setClassRosterLoaded] = useState(false);
+  const rosterSkelPulse = useRef(new Animated.Value(0.42)).current;
+
+  useEffect(() => {
+    if (classRosterLoaded) {
+      rosterSkelPulse.setValue(1);
+      return undefined;
+    }
+    rosterSkelPulse.setValue(0.42);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(rosterSkelPulse, {
+          toValue: 0.92,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rosterSkelPulse, {
+          toValue: 0.38,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [classRosterLoaded, rosterSkelPulse]);
   /** Per-child variations (only children with different values from default) */
   const [childOverrides, setChildOverrides] = useState<Record<string, ChildFormOverrides>>({});
   const [variationModalChildId, setVariationModalChildId] = useState<string | null>(null);
@@ -176,7 +208,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'snack'>('lunch');
   const [mealOptions, setMealOptions] = useState<MealOption[]>([]);
   const [selectedMealOptionId, setSelectedMealOptionId] = useState<string | null>(null);
-  const [mealAmount, setMealAmount] = useState('most');
+  const [mealAmount, setMealAmount] = useState('half');
   const [notes, setNotes] = useState('');
   const [mealTime, setMealTime] = useState(() => formatTime(new Date()));
   const [loading, setLoading] = useState(false);
@@ -203,8 +235,13 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   useEffect(() => {
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
-    if (!schoolId || !uid) return;
+    if (!schoolId || !uid) {
+      setChildren([]);
+      setClassRosterLoaded(true);
+      return;
+    }
 
+    setClassRosterLoaded(false);
     let cancelled = false;
     let unsub: (() => void) | null = null;
 
@@ -218,6 +255,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
       if (classIds.length === 0) {
         setChildren([]);
+        setClassRosterLoaded(true);
         return;
       }
 
@@ -230,13 +268,20 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           if (cancelled) return;
           const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
           setChildren(list);
-          if (list.length > 0 && selectedChildIds.length === 0) setSelectedChildIds([list[0].id]);
+          setClassRosterLoaded(true);
+          if (list.length > 0 && !didAutoSelectChildrenRef.current) {
+            didAutoSelectChildrenRef.current = true;
+            const initId = route.params?.initialChildId;
+            if (initId && list.some((c) => c.id === initId)) setSelectedChildIds([initId]);
+            else setSelectedChildIds([list[0].id]);
+          }
         }
       );
     })();
 
     return () => {
       cancelled = true;
+      didAutoSelectChildrenRef.current = false;
       if (unsub) unsub();
     };
   }, [profile?.schoolId, profile?.uid]);
@@ -265,6 +310,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     return () => clearInterval(id);
   }, [napTimerStart, napTimerEnd]);
 
+  useEffect(() => {
+    if (children.length === 0) setForWholeClass(false);
+  }, [children.length]);
+
   // Load meal options (principal-defined) for teacher to select when logging meals
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -281,7 +330,25 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const mealOptionsForCategory = mealOptions.filter((o) => o.category === mealType);
   const selectedMealOption = mealOptions.find((o) => o.id === selectedMealOptionId);
 
+  useEffect(() => {
+    if (type !== 'meal') return;
+    const opts = mealOptions.filter((o) => o.category === mealType);
+    setSelectedMealOptionId((prev) =>
+      prev && opts.some((o) => o.id === prev) ? prev : null
+    );
+  }, [mealType, mealOptions, type]);
+
   const selectedChildren = children.filter((c) => selectedChildIds.includes(c.id));
+
+  const childrenFilteredForModal = useMemo(() => {
+    const q = childListSearch.trim().toLowerCase();
+    if (!q) return children;
+    return children.filter((c) => c.name.toLowerCase().includes(q));
+  }, [children, childListSearch]);
+
+  useEffect(() => {
+    if (!childListModalOpen) setChildListSearch('');
+  }, [childListModalOpen]);
 
   const toggleChildSelection = (childId: string) => {
     setSelectedChildIds((prev) =>
@@ -350,13 +417,82 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     });
   };
 
-  const saveVariation = () => {
-    if (variationModalChildId && variationDraft) {
-      setChildOverrides((prev) => ({ ...prev, [variationModalChildId]: variationDraft }));
-    }
+  const closeVariationModal = () => {
     setVariationModalChildId(null);
     setVariationDropdown(null);
     setVariationDraft(null);
+  };
+
+  /** Merge variation edits vs main form; drop override entry if nothing differs. */
+  const saveVariation = () => {
+    const id = variationModalChildId;
+    const d = variationDraft;
+    if (!id || !d) {
+      closeVariationModal();
+      return;
+    }
+
+    const next: ChildFormOverrides = { ...childOverrides[id] };
+
+    const clearNotes = () => {
+      delete next.notes;
+    };
+    if ((d.notes ?? '').trim() !== notes.trim()) next.notes = (d.notes ?? '').trim();
+    else clearNotes();
+
+    if (type === 'meal') {
+      delete next.mealType;
+      delete next.mealAmount;
+      delete next.mealOptionId;
+      delete next.mealOptionName;
+      if (d.mealAmount !== mealAmount) next.mealAmount = d.mealAmount;
+      if (d.mealType !== mealType) next.mealType = d.mealType;
+      const mainOpt = selectedMealOptionId ?? null;
+      const draftOpt = d.mealOptionId ?? null;
+      if (draftOpt !== mainOpt) {
+        next.mealOptionId = d.mealOptionId ?? null;
+        if (d.mealOptionId && d.mealOptionName) next.mealOptionName = d.mealOptionName;
+        else delete next.mealOptionName;
+      }
+    }
+    if (type === 'nappy_change') {
+      delete next.nappyType;
+      delete next.nappyCondition;
+      if (d.nappyType !== nappyType) next.nappyType = d.nappyType;
+      if (d.nappyCondition !== nappyCondition) next.nappyCondition = d.nappyCondition;
+    }
+    if (type === 'nap_time') {
+      delete next.sleepQuality;
+      delete next.napStartTime;
+      delete next.napEndTime;
+      if (d.sleepQuality !== sleepQuality) next.sleepQuality = d.sleepQuality;
+      if ((d.napStartTime ?? '') !== napStartTime) next.napStartTime = d.napStartTime;
+      if ((d.napEndTime ?? '') !== napEndTime) next.napEndTime = d.napEndTime;
+    }
+    if (type === 'medication') {
+      delete next.activityTitle;
+      delete next.medicationDosage;
+      if ((d.activityTitle ?? '').trim() !== activityTitle.trim()) next.activityTitle = (d.activityTitle ?? '').trim();
+      if ((d.medicationDosage ?? '').trim() !== medicationDosage.trim())
+        next.medicationDosage = (d.medicationDosage ?? '').trim();
+    }
+    if (type === 'incident') {
+      delete next.photoCategory;
+      const mainCat = photoCategory ?? null;
+      const draftCat = d.photoCategory ?? null;
+      if (draftCat !== mainCat) next.photoCategory = d.photoCategory ?? null;
+    }
+
+    const pruned: ChildFormOverrides = {};
+    (Object.keys(next) as (keyof ChildFormOverrides)[]).forEach((k) => {
+      const v = next[k];
+      if (v === undefined) return;
+      pruned[k] = v as never;
+    });
+    if (Object.keys(pruned).length === 0) clearOverrideForChild(id);
+    else setChildOverrides((prev) => ({ ...prev, [id]: pruned }));
+
+    closeVariationModal();
   };
 
   const submit = async () => {
@@ -398,16 +534,19 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           schoolId,
           type,
           reportedBy: profile!.uid,
-          notes: v.notes || undefined,
           timestamp: now.toISOString(),
           createdAt: now.toISOString(),
         };
+        if (type !== 'meal') {
+          payload.notes = v.notes || undefined;
+        }
         if (type === 'meal') {
           payload.mealType = v.mealType;
           payload.mealAmount = v.mealAmount;
-          if (v.mealOptionId && v.mealOptionName) {
+          if (v.mealOptionId) {
+            const mealOpt = mealOptions.find((o) => o.id === v.mealOptionId);
             payload.mealOptionId = v.mealOptionId;
-            payload.mealOptionName = v.mealOptionName;
+            payload.mealOptionName = mealOpt?.name ?? v.mealOptionName;
           }
         }
         if (type === 'nappy_change') {
@@ -513,124 +652,303 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
-      {/* Select children card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Select children</Text>
-        <TouchableOpacity
-          style={styles.dropdownRow}
-          onPress={() => children.length > 0 && setChildPickerOpen(true)}
-          disabled={children.length === 0}
-        >
-          <Text style={[styles.dropdownText, selectedChildIds.length === 0 && styles.dropdownPlaceholder]}>
-            {selectedChildIds.length === 0
-              ? 'Select children for this activity'
-              : selectedChildIds.length === 1
-                ? selectedChildren[0]?.name ?? '1 child'
-                : `${selectedChildIds.length} children selected`}
-          </Text>
-          <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-        {selectedChildren.length > 0 && (
-          <View style={styles.selectedChildrenWrap}>
-            <View style={styles.selectedChildrenActions}>
-              <TouchableOpacity onPress={selectAllChildren} style={styles.selectedChildrenActionBtn}>
-                <Text style={styles.selectedChildrenActionText}>Select all</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={clearChildSelection} style={styles.selectedChildrenActionBtn}>
-                <Text style={styles.selectedChildrenActionText}>Clear</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.selectedChildrenChips}>
-              {selectedChildren.map((c) => (
-                <View key={c.id} style={[styles.selectedChildChip, childOverrides[c.id] && styles.selectedChildChipVariation]}>
-                  <Text style={styles.selectedChildChipText}>{c.name}</Text>
-                  {selectedChildren.length > 1 && (
-                    <TouchableOpacity
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      onPress={() => openVariationModal(c.id)}
-                      style={styles.selectedChildChipVariationBtn}
+      <View style={styles.heroCard}>
+        <View style={styles.heroBlock}>
+          {!classRosterLoaded ? (
+            <View style={styles.rosterLoadingWrap} accessibilityState={{ busy: true }}>
+              <View style={styles.whoHeaderBlock}>
+                <View style={styles.sectionTitleRow}>
+                  <View style={[styles.sectionAccentBar, { backgroundColor: colors.primary }]} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.sectionEyebrow}>Who</Text>
+                    <Text style={styles.sectionTitle}>Receives this update</Text>
+                    <Text style={styles.selectionHint}>
+                      Fetching your class roster. You can select children here in a moment.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.childrenRow}
+              >
+                {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                  <View key={i} style={styles.childAvatarItem}>
+                    <Animated.View
+                      style={[
+                        styles.childAvatarRing,
+                        styles.rosterSkelRing,
+                        { opacity: rosterSkelPulse },
+                      ]}
                     >
-                      <Ionicons
-                        name={childOverrides[c.id] ? 'create' : 'create-outline'}
-                        size={16}
-                        color={colors.primary}
-                      />
-                    </TouchableOpacity>
-                  )}
+                      <View style={[styles.childAvatarInner, styles.rosterSkelInnerFill]} />
+                    </Animated.View>
+                    <Animated.View
+                      style={[styles.rosterSkelNameBar, styles.rosterSkelNameBarWide, { opacity: rosterSkelPulse }]}
+                    />
+                    <Animated.View
+                      style={[styles.rosterSkelNameBar, styles.rosterSkelNameBarNarrow, { opacity: rosterSkelPulse }]}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+
+              <View style={styles.childActionsRow}>
+                <Animated.View style={[styles.rosterSkelActionPill, { opacity: rosterSkelPulse }]} />
+                <Animated.View style={[styles.rosterSkelActionPillOutline, { opacity: rosterSkelPulse }]} />
+              </View>
+            </View>
+          ) : children.length === 0 ? (
+            <View style={styles.emptyChildrenWrap}>
+              <View style={styles.sectionTitleRow}>
+                <View style={[styles.sectionAccentBar, { backgroundColor: colors.primary }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionEyebrow}>Who</Text>
+                  <Text style={styles.sectionTitle}>Receives this update</Text>
+                </View>
+              </View>
+              <View style={styles.emptyChildrenCard}>
+                <Ionicons name="people-outline" size={40} color={colors.textMuted} />
+                <Text style={styles.emptyChildrenTitle}>No children in your class</Text>
+                <Text style={styles.emptyChildrenHint}>When children are enrolled in your assigned class, they’ll appear here.</Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              <View style={styles.whoHeaderBlock}>
+                <View style={styles.sectionTitleRowWithActions}>
+                  <View style={[styles.sectionAccentBar, { backgroundColor: colors.primary }]} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.sectionEyebrow}>Who</Text>
+                    <Text style={styles.sectionTitle}>Receives this update</Text>
+                    <Text style={styles.selectionHint}>
+                      Tap a photo to select or deselect. Use search to open the full class list.
+                    </Text>
+                  </View>
                   <TouchableOpacity
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    onPress={() => toggleChildSelection(c.id)}
-                    style={styles.selectedChildChipRemove}
+                    onPress={() => setChildListModalOpen(true)}
+                    style={styles.whoSearchBtn}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                    accessibilityLabel="Search class list"
+                    accessibilityRole="button"
                   >
-                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                    <Ionicons name="search-outline" size={22} color={colors.text} />
                   </TouchableOpacity>
                 </View>
-              ))}
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.childrenRow}
+              >
+                {children.map((c) => {
+                  const selected = selectedChildIds.includes(c.id);
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={styles.childAvatarItem}
+                      onPress={() => toggleChildSelection(c.id)}
+                      activeOpacity={0.85}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected }}
+                      accessibilityLabel={`${c.name}, ${selected ? 'selected' : 'not selected'}`}
+                    >
+                      <View
+                        style={[
+                          styles.childAvatarRing,
+                          selected ? styles.childAvatarRingSelected : styles.childAvatarRingIdle,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.childAvatarInner,
+                            selected && styles.childAvatarInnerSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.childAvatarInitials,
+                              selected && styles.childAvatarInitialsSelected,
+                            ]}
+                          >
+                            {getInitials(c.name)}
+                          </Text>
+                        </View>
+                        {selected ? (
+                          <View style={styles.childAvatarCheck}>
+                            <Ionicons name="checkmark" size={14} color="#fff" />
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text
+                        style={[styles.childAvatarName, selected && styles.childAvatarNameSelected]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {c.name.trim().split(/\s+/)[0] || c.name}
+                      </Text>
+                      {c.name.trim().includes(' ') ? (
+                        <Text style={styles.childAvatarSurname} numberOfLines={1}>
+                          {c.name.trim().slice(c.name.trim().indexOf(' ') + 1)}
+                        </Text>
+                      ) : (
+                        <View style={styles.childAvatarNameSpacer} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              {children.length > 5 ? (
+                <Text style={styles.childrenScrollHint}>Swipe sideways for more children →</Text>
+              ) : null}
+
+              <View style={styles.childActionsRow}>
+                <TouchableOpacity style={styles.childActionPill} onPress={selectAllChildren} activeOpacity={0.8}>
+                  <Ionicons name="checkmark-done" size={18} color="#fff" style={styles.childActionPillIcon} />
+                  <Text style={styles.childActionPillText}>All in class</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.childActionPillOutline} onPress={clearChildSelection} activeOpacity={0.8}>
+                  <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} style={styles.childActionPillIcon} />
+                  <Text style={styles.childActionPillOutlineText}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+
+              {selectedChildren.length > 1 && (
+                <>
+                  <Text style={styles.variationSectionLabel}>Different details per child? Tap a name:</Text>
+                  <View style={styles.variationChipsRow}>
+                    {selectedChildren.map((c) => (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[styles.variationChip, childOverrides[c.id] && styles.variationChipActive]}
+                        onPress={() => openVariationModal(c.id)}
+                      >
+                        <Text style={styles.variationChipText} numberOfLines={1}>
+                          {c.name.split(' ')[0]}
+                        </Text>
+                        <Ionicons name="create-outline" size={14} color={colors.primary} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+            </>
+          )}
+        </View>
+
+        <View style={styles.heroDivider} />
+
+        <View style={styles.heroBlock}>
+          <View style={styles.whatHeaderRow}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.sectionAccentBar, { backgroundColor: colors.accentTeal }]} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.sectionEyebrow}>What</Text>
+                <Text style={styles.sectionTitle}>Type of update</Text>
+                <Text style={styles.whatTypeHint}>Pick what you’re logging. You can change it anytime.</Text>
+              </View>
+            </View>
+            <View style={styles.whatTypeBadge}>
+              <Text style={styles.whatTypeBadgeText} numberOfLines={1}>
+                {ACTIVITY_TABS.find((t) => t.type === type)?.label ?? 'Meal'}
+              </Text>
             </View>
           </View>
-        )}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.activityScroll}
+          >
+            {ACTIVITY_TABS.map((tab) => {
+              const active = type === tab.type;
+              return (
+                <TouchableOpacity
+                  key={tab.type}
+                  style={styles.activityItem}
+                  onPress={() => setType(tab.type)}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <View style={[styles.activityCircle, active && styles.activityCircleActive]}>
+                    <Ionicons name={tab.icon} size={active ? 26 : 22} color={active ? '#fff' : colors.textSecondary} />
+                  </View>
+                  <Text style={[styles.activityLabel, active && styles.activityLabelActive]}>{tab.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
       </View>
 
-      {/* Activity type tabs */}
-      <View style={styles.tabsWrapper}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
-          {ACTIVITY_TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab.type}
-              style={[styles.tab, type === tab.type && styles.tabActive]}
-              onPress={() => setType(tab.type)}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={24}
-                color={type === tab.type ? '#6366f1' : '#94a3b8'}
-              />
-              <Text style={[styles.tabLabel, type === tab.type && styles.tabLabelActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      {classRosterLoaded && children.length > 0 && selectedChildren.length === 0 && (
+        <View style={styles.needSelectionCard}>
+          <View style={styles.needSelectionIconWrap}>
+            <Ionicons name="hand-left-outline" size={28} color={colors.primary} />
+          </View>
+          <View style={styles.needSelectionTextWrap}>
+            <Text style={styles.needSelectionTitle}>Who is this update for?</Text>
+            <Text style={styles.needSelectionBody}>
+              Tap photos above, use All in class, or tap the search icon at the top to pick from the full list.
+            </Text>
+          </View>
+        </View>
+      )}
 
       {selectedChildren.length > 0 && (
         <>
-          <View style={styles.timeNoteWrap}>
-            <Ionicons name="time-outline" size={16} color={colors.textMuted} />
-            <Text style={styles.timeNote}>
-              Start time is not editable; current time is used when you save.
-            </Text>
+          <View style={styles.timeNoteBanner}>
+            <View style={styles.timeNoteIconCircle}>
+              <Ionicons name="time-outline" size={18} color={colors.primary} />
+            </View>
+            <View style={styles.timeNoteTextWrap}>
+              <Text style={styles.timeNoteTitle}>Times</Text>
+              <Text style={styles.timeNote}>
+                The time is recorded when you tap Post. You don’t need to set the clock here.
+              </Text>
+            </View>
           </View>
 
           {type === 'meal' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Log Meal</Text>
+            <View style={[styles.screenCard, styles.formSection]}>
+              <View style={styles.formSectionHead}>
+                <Text style={styles.formSectionTitle}>Log meal</Text>
+              </View>
 
               <Text style={styles.label}>Meal Type</Text>
-              <View style={styles.optionsRow}>
+              <View style={styles.mealTypeRow}>
                 {MEAL_TYPES.map((m) => (
                   <TouchableOpacity
                     key={m.value}
-                    style={[styles.optionChip, mealType === m.value && styles.optionChipActive]}
+                    style={[styles.mealTypePill, mealType === m.value && styles.mealTypePillActive]}
                     onPress={() => {
                       setMealType(m.value);
                       setSelectedMealOptionId(null);
                     }}
                   >
-                    <Text style={[styles.optionChipText, mealType === m.value && styles.optionChipTextActive]}>
+                    <Text style={[styles.mealTypePillText, mealType === m.value && styles.mealTypePillTextActive]}>
                       {m.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={styles.label}>Select meal (optional)</Text>
+              <Text style={styles.label}>Menu item (optional)</Text>
               {mealOptionsForCategory.length === 0 ? (
                 <Text style={styles.helperText}>
-                  No options defined for {mealType}. Principal can add options in Meal options.
+                  No menu items for {mealType} yet. You can still post this meal. Your principal can add items in Meal
+                  options later.
                 </Text>
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mealOptionsScroll}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.mealOptionsScroll}
+                  contentContainerStyle={styles.mealOptionsScrollContent}
+                >
                   {mealOptionsForCategory.map((opt: MealOption) => (
                     <TouchableOpacity
                       key={opt.id}
@@ -638,50 +956,66 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                         styles.mealOptionCard,
                         selectedMealOptionId === opt.id && styles.mealOptionCardActive,
                       ]}
-                      onPress={() => setSelectedMealOptionId(selectedMealOptionId === opt.id ? null : opt.id)}
+                      onPress={() =>
+                        setSelectedMealOptionId((prev) => (prev === opt.id ? null : opt.id))
+                      }
+                      activeOpacity={0.85}
                     >
                       {opt.imageUrl ? (
                         <Image source={{ uri: opt.imageUrl }} style={styles.mealOptionImage} resizeMode="cover" />
                       ) : (
                         <View style={[styles.mealOptionImage, styles.mealOptionImagePlaceholder]}>
-                          <Ionicons name="restaurant-outline" size={24} color="#94a3b8" />
+                          <Ionicons name="restaurant-outline" size={24} color={colors.textMuted} />
                         </View>
                       )}
-                      <Text style={styles.mealOptionName} numberOfLines={2}>{opt.name}</Text>
+                      <Text style={styles.mealOptionName} numberOfLines={2}>
+                        {opt.name}
+                      </Text>
                       {opt.description ? (
-                        <Text style={styles.mealOptionDesc} numberOfLines={1}>{opt.description}</Text>
+                        <Text style={styles.mealOptionDesc} numberOfLines={1}>
+                          {opt.description}
+                        </Text>
                       ) : null}
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
               )}
-
-              <Text style={styles.label}>Notes (optional)</Text>
-              <TextInput
-                style={[styles.input, styles.inputMultiline]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Any extra details"
-                placeholderTextColor={colors.textMuted}
-                multiline
-                numberOfLines={2}
-                editable={!loading}
-              />
+              {mealOptionsForCategory.length > 0 ? (
+                <Text style={[styles.helperText, { marginTop: 6 }]}>
+                  Optional. Tap a card to select; tap again to clear.
+                </Text>
+              ) : null}
 
               <Text style={styles.label}>How much did they eat?</Text>
-              <View style={styles.optionsRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.amountScroll}
+              >
                 {MEAL_AMOUNTS.map((a) => (
                   <TouchableOpacity
                     key={a.value}
-                    style={[styles.optionChip, mealAmount === a.value && styles.optionChipActive]}
+                    style={styles.amountItem}
                     onPress={() => setMealAmount(a.value)}
+                    activeOpacity={0.85}
                   >
-                    <Text style={[styles.optionChipText, mealAmount === a.value && styles.optionChipTextActive]}>
+                    <View style={[styles.amountCircle, mealAmount === a.value && styles.amountCircleActive]}>
+                      <Text
+                        style={[
+                          styles.amountCircleText,
+                          mealAmount === a.value && styles.amountCircleTextActive,
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {a.circleText}
+                      </Text>
+                    </View>
+                    <Text style={[styles.amountLabel, mealAmount === a.value && styles.amountLabelActive]}>
                       {a.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
 
               <Text style={styles.label}>Time</Text>
               <TextInput
@@ -692,58 +1026,69 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 editable={false}
               />
 
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={submit}
-                disabled={loading}
-              >
-                <Ionicons name="send" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
-                <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Log Meal'}</Text>
-              </TouchableOpacity>
             </View>
           )}
 
           {type === 'incident' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Upload Photo</Text>
+            <View style={[styles.screenCard, styles.formSection]}>
+              <View style={styles.formSectionHead}>
+                <Text style={styles.formSectionTitle}>Add photo</Text>
+              </View>
               <Text style={styles.photoZoneLabel}>Photo</Text>
-              <TouchableOpacity
-                style={[styles.photoUploadZone, photoUri ? styles.photoUploadZoneFilled : null]}
-                onPress={() => {
-                  if (photoUri) return;
-                  showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia);
-                }}
-                disabled={loading}
-              >
-                {photoUri ? (
-                  <View style={styles.photoThumbWrap}>
-                    <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
+              {photoUri ? (
+                <View style={[styles.photoUploadZone, styles.photoUploadZoneFilled]}>
+                  <View style={styles.photoPreviewBlock}>
+                    <View style={styles.photoThumbWrap}>
+                      <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
+                      {photoMimeType?.startsWith('video/') ? (
+                        <View style={styles.photoVideoBadge}>
+                          <Ionicons name="videocam" size={15} color="#FFFFFF" />
+                          <Text style={styles.photoVideoBadgeText}>Video</Text>
+                        </View>
+                      ) : null}
+                      <TouchableOpacity
+                        style={styles.removePhotoBtn}
+                        onPress={() => {
+                          setPhotoUri(null);
+                          setPhotoMimeType(undefined);
+                        }}
+                        disabled={loading}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove photo or video"
+                      >
+                        <View style={styles.removePhotoBtnCircle}>
+                          <Ionicons name="close" size={20} color="#FFFFFF" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
                     <TouchableOpacity
-                      style={styles.removePhotoBtn}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setPhotoUri(null);
-                        setPhotoMimeType(undefined);
-                      }}
+                      style={styles.photoReplaceLink}
+                      onPress={() =>
+                        showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia)
+                      }
                       disabled={loading}
+                      accessibilityRole="button"
+                      accessibilityLabel="Replace photo or video"
                     >
-                      <Ionicons name="close-circle" size={28} color="#64748b" />
+                      <Ionicons name="images-outline" size={18} color={colors.primary} />
+                      <Text style={styles.photoReplaceLinkText}>Replace</Text>
                     </TouchableOpacity>
                   </View>
-                ) : (
-                  <>
-                    <Ionicons name="camera-outline" size={48} color="#94a3b8" />
-                    <Text style={styles.photoUploadHint}>Tap to add photo or video</Text>
-                    <Text style={styles.photoUploadFormats}>Photos & videos</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-              <View style={styles.actionsRow}>
-                <View style={{ flex: 1 }} />
-                <TouchableOpacity style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryBtnText}>View</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.photoUploadZone}
+                  onPress={() =>
+                    showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia)
+                  }
+                  disabled={loading}
+                >
+                  <Ionicons name="camera-outline" size={48} color="#94a3b8" />
+                  <Text style={styles.photoUploadHint}>Tap to add photo or video</Text>
+                  <Text style={styles.photoUploadFormats}>Photos & videos</Text>
                 </TouchableOpacity>
-              </View>
+              )}
               <Text style={styles.label}>Caption</Text>
               <TextInput
                 style={[styles.input, styles.inputMultiline]}
@@ -781,29 +1126,66 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   ))}
                 </View>
               )}
-              <TouchableOpacity
-                style={[styles.optionChip, forWholeClass && styles.optionChipActive, { marginTop: 12 }]}
-                onPress={() => setForWholeClass((x) => !x)}
+              <View
+                style={[
+                  styles.wholeClassCard,
+                  forWholeClass && children.length > 0 ? styles.wholeClassCardOn : null,
+                ]}
               >
-                <Ionicons name={forWholeClass ? 'checkbox' : 'square-outline'} size={20} color={forWholeClass ? colors.primary : colors.textMuted} />
-                <Text style={[styles.optionChipText, forWholeClass && styles.optionChipTextActive, { marginLeft: 8 }]}>
-                  For whole class (notify all parents)
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={submit}
-                disabled={loading}
-              >
-                <Ionicons name="cloud-upload-outline" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
-                <Text style={styles.primaryButtonText}>{loading ? 'Uploading…' : 'Upload media'}</Text>
-              </TouchableOpacity>
+                <View
+                  style={[
+                    styles.wholeClassIconWrap,
+                    {
+                      backgroundColor:
+                        forWholeClass && children.length > 0
+                          ? isDark
+                            ? 'rgba(255,255,255,0.12)'
+                            : colors.card
+                          : colors.primaryMuted,
+                    },
+                  ]}
+                >
+                  <Ionicons name="people" size={22} color={colors.primary} />
+                </View>
+                <View style={styles.wholeClassTextBlock}>
+                  <Text style={styles.wholeClassTitle}>Whole class</Text>
+                  <Text style={styles.wholeClassSubtitle}>
+                    {!classRosterLoaded
+                      ? 'Loading class list...'
+                      : children.length === 0
+                        ? 'No children in your class yet. Add students to use this option.'
+                        : forWholeClass
+                          ? `This update is for all ${children.length} ${children.length === 1 ? 'child' : 'children'}. Every family is notified.`
+                          : `Post once for every child in your class and notify all parents (${children.length} ${children.length === 1 ? 'child' : 'children'}).`}
+                  </Text>
+                </View>
+                <Switch
+                  value={forWholeClass}
+                  onValueChange={setForWholeClass}
+                  disabled={loading || !classRosterLoaded || children.length === 0}
+                  trackColor={{ false: colors.inputBorder, true: colors.primaryMuted }}
+                  thumbColor={
+                    Platform.OS === 'ios'
+                      ? undefined
+                      : forWholeClass
+                        ? colors.primary
+                        : isDark
+                          ? '#4B5563'
+                          : '#F3F4F6'
+                  }
+                  ios_backgroundColor={colors.inputBorder}
+                  accessibilityLabel="Whole class"
+                  accessibilityHint="When on, this update is shared with every family in your class"
+                />
+              </View>
             </View>
           )}
 
           {type === 'nappy_change' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Log Nappy Change</Text>
+            <View style={[styles.screenCard, styles.formSection]}>
+              <View style={styles.formSectionHead}>
+                <Text style={styles.formSectionTitle}>Nappy change</Text>
+              </View>
               <Text style={styles.label}>Time</Text>
               <TextInput
                 style={[styles.input, styles.inputReadOnly]}
@@ -875,20 +1257,14 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 numberOfLines={3}
                 editable={!loading}
               />
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={submit}
-                disabled={loading}
-              >
-                <Ionicons name="send" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
-                <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Log Nappy Change'}</Text>
-              </TouchableOpacity>
             </View>
           )}
 
           {type === 'nap_time' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Log Nap Time</Text>
+            <View style={[styles.screenCard, styles.formSection]}>
+              <View style={styles.formSectionHead}>
+                <Text style={styles.formSectionTitle}>Nap time</Text>
+              </View>
 
               {/* Timer design */}
               <View style={styles.napTimerWrap}>
@@ -934,7 +1310,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   ) : (
                     <View style={styles.napTimerSummary}>
                       <Text style={styles.napTimerSummaryText}>
-                        Started {napStartTime} · Ended {napEndTime}
+                        Started {napStartTime}, ended {napEndTime}
                       </Text>
                     </View>
                   )}
@@ -994,20 +1370,14 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 numberOfLines={3}
                 editable={!loading}
               />
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={submit}
-                disabled={loading}
-              >
-                <Ionicons name="send" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
-                <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Log Nap'}</Text>
-              </TouchableOpacity>
             </View>
           )}
 
           {type === 'medication' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Add Activity</Text>
+            <View style={[styles.screenCard, styles.formSection]}>
+              <View style={styles.formSectionHead}>
+                <Text style={styles.formSectionTitle}>Activity</Text>
+              </View>
               <Text style={styles.label}>Activity Type</Text>
               <TouchableOpacity
                 style={styles.dropdownRow}
@@ -1064,35 +1434,35 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 editable={!loading}
               />
               <Text style={styles.label}>Time</Text>
-              <View style={styles.timeRow}>
-                <TextInput
-                  style={[styles.input, styles.timeInput, styles.inputReadOnly]}
-                  value={activityTime}
-                  placeholder="10:30"
-                  placeholderTextColor={colors.textMuted}
-                  editable={false}
-                />
-                <TouchableOpacity style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryBtnText}>View</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={submit}
-                disabled={loading}
-              >
-                <Ionicons name="send" size={20} color={colors.primaryContrast} style={styles.primaryButtonIcon} />
-                <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Add Activity'}</Text>
-              </TouchableOpacity>
+              <TextInput
+                style={[styles.input, styles.inputReadOnly]}
+                value={activityTime}
+                placeholder="10:30"
+                placeholderTextColor={colors.textMuted}
+                editable={false}
+              />
             </View>
           )}
+
+          <View style={styles.postUpdateWrap}>
+            <TouchableOpacity
+              style={styles.postUpdateBtn}
+              onPress={submit}
+              disabled={loading}
+              activeOpacity={0.92}
+            >
+              <Ionicons name="paper-plane" size={20} color="#FFFFFF" style={styles.postUpdateIcon} />
+              <Text style={styles.postUpdateBtnText}>{loading ? 'Posting…' : 'Post update'}</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
 
       {children.length === 0 && (
-        <View style={styles.emptyState}>
-          <Ionicons name="people-outline" size={48} color={colors.textMuted} />
+        <View style={[styles.screenCard, styles.emptyState]}>
+          <Ionicons name="people-outline" size={44} color={colors.primary} />
           <Text style={styles.emptyText}>No children assigned to your class.</Text>
+          <Text style={styles.emptySubtext}>Ask your principal to assign your class.</Text>
         </View>
       )}
 
@@ -1100,23 +1470,96 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       <Modal
         visible={variationModalChildId != null}
         transparent
-        animationType="slide"
-        onRequestClose={() => { setVariationModalChildId(null); setVariationDropdown(null); setVariationDraft(null); }}
+        animationType="fade"
+        onRequestClose={closeVariationModal}
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => { setVariationModalChildId(null); setVariationDropdown(null); setVariationDraft(null); }}
+        <KeyboardAvoidingView
+          style={styles.variationModalKb}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 48 : 0}
         >
-          <View style={[styles.modalContent, styles.variationModalContent]} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>
-              Variation for {variationModalChildId ? selectedChildren.find((c) => c.id === variationModalChildId)?.name : ''}
-            </Text>
-            <Text style={styles.variationModalHint}>Set different values for this child. Leave as default to match the main form.</Text>
-            {variationDraft && (
-              <ScrollView style={styles.variationModalScroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.variationModalRoot}>
+            <Pressable
+              style={styles.variationModalDimmer}
+              onPress={closeVariationModal}
+              accessibilityLabel="Dismiss"
+              accessibilityRole="button"
+            />
+            <View style={styles.variationModalCard} pointerEvents="box-none">
+              <View style={styles.variationModalCardInner}>
+                <View style={styles.variationModalHeader}>
+                  <View style={styles.variationModalHeaderText}>
+                    <Text style={styles.variationModalEyebrow}>Different for</Text>
+                    <Text style={styles.variationModalTitle} numberOfLines={2}>
+                      {variationModalChildId
+                        ? selectedChildren.find((c) => c.id === variationModalChildId)?.name ?? 'Child'
+                        : ''}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.variationModalCloseBtn}
+                    onPress={closeVariationModal}
+                    hitSlop={12}
+                    accessibilityLabel="Close"
+                  >
+                    <Ionicons name="close" size={26} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.variationModalHint}>
+                  Only fields you change here differ from the main form. Same as main = no variation.
+                </Text>
+                {variationDraft && (
+                  <ScrollView
+                    style={styles.variationModalScroll}
+                    contentContainerStyle={styles.variationModalScrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                  >
                 {type === 'meal' && (
                   <>
-                    <Text style={styles.label}>How much did they eat?</Text>
+                    <Text style={styles.label}>Menu item (optional)</Text>
+                    {mealOptionsForCategory.length === 0 ? (
+                      <Text style={styles.helperText}>No menu items for {mealType}.</Text>
+                    ) : (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.variationMealOptionsScroll}
+                        contentContainerStyle={styles.variationMealOptionsScrollContent}
+                      >
+                        {mealOptionsForCategory.map((opt: MealOption) => (
+                          <TouchableOpacity
+                            key={opt.id}
+                            style={[
+                              styles.mealOptionCard,
+                              styles.variationMealOptionCard,
+                              variationDraft.mealOptionId === opt.id && styles.mealOptionCardActive,
+                            ]}
+                            onPress={() =>
+                              setVariationDraft((p) => {
+                                if (!p) return null;
+                                if (p.mealOptionId === opt.id) {
+                                  return { ...p, mealOptionId: null, mealOptionName: '' };
+                                }
+                                return { ...p, mealOptionId: opt.id, mealOptionName: opt.name };
+                              })
+                            }
+                          >
+                            {opt.imageUrl ? (
+                              <Image source={{ uri: opt.imageUrl }} style={styles.mealOptionImage} resizeMode="cover" />
+                            ) : (
+                              <View style={[styles.mealOptionImage, styles.mealOptionImagePlaceholder]}>
+                                <Ionicons name="restaurant-outline" size={22} color={colors.textMuted} />
+                              </View>
+                            )}
+                            <Text style={styles.mealOptionName} numberOfLines={2}>
+                              {opt.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
+                    <Text style={[styles.label, styles.labelTightTop]}>How much did they eat?</Text>
                     <View style={styles.optionsRow}>
                       {MEAL_AMOUNTS.map((a) => (
                         <TouchableOpacity
@@ -1158,7 +1601,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                     </View>
                   </>
                 )}
-                {(type === 'nap_time' || type === 'medication' || type === 'meal' || type === 'nappy_change' || type === 'incident') && (
+                {(type === 'nap_time' || type === 'medication' || type === 'nappy_change' || type === 'incident') && (
                   <>
                     <Text style={styles.label}>Notes (optional)</Text>
                     <TextInput
@@ -1252,71 +1695,120 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                     )}
                   </>
                 )}
-              </ScrollView>
-            )}
-            <View style={styles.variationModalActions}>
-              {variationModalChildId && childOverrides[variationModalChildId] && (
-                <TouchableOpacity style={styles.variationModalClearBtn} onPress={() => { clearOverrideForChild(variationModalChildId); setVariationModalChildId(null); setVariationDropdown(null); setVariationDraft(null); }}>
-                  <Text style={styles.variationModalClearText}>Clear variation</Text>
-                </TouchableOpacity>
-              )}
-              <View style={styles.variationModalPrimaryActions}>
-                <TouchableOpacity style={styles.modalDoneBtn} onPress={saveVariation}>
-                  <Text style={styles.modalDoneBtnText}>Save</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.variationModalCancelBtn} onPress={() => { setVariationModalChildId(null); setVariationDropdown(null); setVariationDraft(null); }}>
-                  <Text style={styles.variationModalCancelText}>Cancel</Text>
-                </TouchableOpacity>
+                  </ScrollView>
+                )}
+                <View style={styles.variationModalActions}>
+                  {variationModalChildId && childOverrides[variationModalChildId] && (
+                    <TouchableOpacity
+                      style={styles.variationModalClearBtn}
+                      onPress={() => {
+                        clearOverrideForChild(variationModalChildId);
+                        closeVariationModal();
+                      }}
+                    >
+                      <Text style={styles.variationModalClearText}>Reset to main form</Text>
+                    </TouchableOpacity>
+                  )}
+                  <View style={styles.variationModalPrimaryActions}>
+                    <TouchableOpacity style={styles.variationModalSaveBtn} onPress={saveVariation} activeOpacity={0.85}>
+                      <Text style={styles.variationModalSaveBtnText}>Save</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.variationModalCancelBtn} onPress={closeVariationModal}>
+                      <Text style={styles.variationModalCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
             </View>
           </View>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* Child picker modal */}
       <Modal
-        visible={childPickerOpen}
+        visible={childListModalOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setChildPickerOpen(false)}
+        onRequestClose={() => setChildListModalOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setChildPickerOpen(false)}>
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Select children</Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity onPress={selectAllChildren} style={styles.modalActionBtn}>
-                <Text style={styles.modalActionBtnText}>Select all</Text>
+        <Pressable style={styles.modalBackdrop} onPress={() => setChildListModalOpen(false)}>
+          <View style={[styles.modalContent, styles.childListModalContent]} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>Class list</Text>
+            <Text style={styles.childListModalSubtitle}>Tap a row to toggle selection (same as the photos above).</Text>
+            <View style={styles.childListSearchWrap}>
+              <Ionicons name="search" size={20} color={colors.textMuted} style={styles.childListSearchIcon} />
+              <TextInput
+                style={styles.childListSearchInput}
+                placeholder="Search by name…"
+                placeholderTextColor={colors.textMuted}
+                value={childListSearch}
+                onChangeText={setChildListSearch}
+                autoCorrect={false}
+                autoCapitalize="words"
+              />
+              {childListSearch.length > 0 ? (
+                <TouchableOpacity onPress={() => setChildListSearch('')} hitSlop={12}>
+                  <Ionicons name="close-circle" size={22} color={colors.textMuted} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <View style={styles.childListModalActions}>
+              <TouchableOpacity onPress={selectAllChildren} style={styles.childListModalQuickBtn}>
+                <Ionicons name="checkmark-done-outline" size={18} color={colors.primary} />
+                <Text style={styles.childListModalQuickBtnText}>All</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={clearChildSelection} style={styles.modalActionBtn}>
-                <Text style={styles.modalActionBtnText}>Clear</Text>
+              <TouchableOpacity onPress={clearChildSelection} style={styles.childListModalQuickBtn}>
+                <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
+                <Text style={[styles.childListModalQuickBtnText, styles.childListModalQuickBtnTextMuted]}>None</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
-              {children.map((c) => {
-                const isSelected = selectedChildIds.includes(c.id);
-                return (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
-                    onPress={() => toggleChildSelection(c.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.modalCheckbox, isSelected && styles.modalCheckboxChecked]}>
-                      {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
-                    </View>
-                    <View style={styles.modalOptionTextWrap}>
-                      <Text style={styles.modalOptionText}>{c.name}</Text>
-                      <Text style={styles.modalOptionAge}>{getAge(c.dateOfBirth)} old</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+            <ScrollView style={styles.childListModalScroll} keyboardShouldPersistTaps="handled">
+              {childrenFilteredForModal.length === 0 ? (
+                <Text style={styles.childListEmptySearch}>No names match “{childListSearch.trim()}”</Text>
+              ) : (
+                childrenFilteredForModal.map((c) => {
+                  const isSelected = selectedChildIds.includes(c.id);
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.childListRow, isSelected && styles.childListRowSelected]}
+                      onPress={() => toggleChildSelection(c.id)}
+                      activeOpacity={0.65}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isSelected }}
+                    >
+                      <View
+                        style={[
+                          styles.childListRowAvatar,
+                          isSelected && styles.childListRowAvatarSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.childListRowInitials,
+                            isSelected && styles.childListRowInitialsSelected,
+                          ]}
+                        >
+                          {getInitials(c.name)}
+                        </Text>
+                      </View>
+                      <View style={styles.modalOptionTextWrap}>
+                        <Text style={[styles.childListRowName, isSelected && styles.childListRowNameSelected]}>
+                          {c.name}
+                        </Text>
+                        <Text style={styles.modalOptionAge}>{getAge(c.dateOfBirth)} old</Text>
+                      </View>
+                      <View style={[styles.modalCheckbox, isSelected && styles.modalCheckboxChecked]}>
+                        {isSelected ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
             </ScrollView>
-            <TouchableOpacity
-              style={styles.modalDoneBtn}
-              onPress={() => setChildPickerOpen(false)}
-            >
-              <Text style={styles.modalDoneBtnText}>Done</Text>
+            <TouchableOpacity style={styles.modalDoneBtn} onPress={() => setChildListModalOpen(false)}>
+              <Text style={styles.modalDoneBtnText}>
+                Done ({selectedChildIds.length} selected)
+              </Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -1341,12 +1833,441 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette) {
+function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
+  const f = (weight: 'regular' | 'medium' | 'semiBold' | 'bold') => ({ fontFamily: font[weight] });
+  const activityIdleBg = isDark ? '#252525' : '#F0F2F5';
+
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    content: { padding: 16, paddingBottom: 40 },
+    content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40 },
     pageTitle: { fontSize: 28, fontWeight: '800', color: colors.text },
     pageSubtitle: { fontSize: 15, color: colors.textMuted, marginTop: 4, marginBottom: 24 },
+
+    screenCard: {
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: 16,
+      marginBottom: 14,
+      ...(!isDark
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.06,
+            shadowRadius: 10,
+            elevation: 3,
+          }
+        : {}),
+    },
+    heroCard: {
+      backgroundColor: colors.card,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      marginBottom: 16,
+      overflow: 'hidden',
+      ...(!isDark
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.07,
+            shadowRadius: 14,
+            elevation: 4,
+          }
+        : {}),
+    },
+    heroBlock: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16 },
+    heroDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.cardBorder,
+      marginHorizontal: 18,
+    },
+    sectionTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    sectionTitleRowWithActions: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 4,
+    },
+    whoSearchBtn: {
+      padding: 8,
+      marginLeft: 4,
+      marginTop: 2,
+    },
+    sectionAccentBar: {
+      width: 4,
+      height: 40,
+      borderRadius: 2,
+      marginRight: 12,
+    },
+    sectionEyebrow: {
+      fontSize: 11,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: colors.textMuted,
+      ...f('semiBold'),
+    },
+    sectionTitle: { fontSize: 18, color: colors.text, marginTop: 2, ...f('bold') },
+    childActionsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+    childActionPill: {
+      flex: 1,
+      flexDirection: 'row',
+      backgroundColor: colors.primary,
+      paddingVertical: 13,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    childActionPillIcon: { marginRight: -2 },
+    childActionPillText: { fontSize: 15, color: '#FFFFFF', ...f('semiBold') },
+    childActionPillOutline: {
+      flex: 1,
+      flexDirection: 'row',
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      backgroundColor: isDark ? 'transparent' : colors.backgroundSecondary,
+      paddingVertical: 13,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    childActionPillOutlineText: { fontSize: 15, color: colors.text, ...f('semiBold') },
+    rosterLoadingWrap: { width: '100%', paddingBottom: 4 },
+    rosterSkelRing: {
+      borderColor: colors.skeleton,
+      backgroundColor: isDark ? 'transparent' : colors.skeletonHighlight,
+    },
+    rosterSkelInnerFill: {
+      backgroundColor: colors.skeleton,
+    },
+    rosterSkelNameBar: {
+      height: 11,
+      borderRadius: 5,
+      backgroundColor: colors.skeleton,
+      alignSelf: 'center',
+    },
+    rosterSkelNameBarWide: { width: 52, marginTop: 10 },
+    rosterSkelNameBarNarrow: { width: 36, marginTop: 5 },
+    rosterSkelActionPill: {
+      flex: 1,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: colors.skeleton,
+    },
+    rosterSkelActionPillOutline: {
+      flex: 1,
+      height: 48,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      backgroundColor: isDark ? 'transparent' : colors.backgroundSecondary,
+    },
+    whatHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      marginBottom: 6,
+    },
+    whatTypeHint: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 8,
+      lineHeight: 19,
+      ...f('medium'),
+    },
+    whatTypeBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 12,
+      backgroundColor: colors.accentTealSoft,
+      maxWidth: 110,
+      marginTop: 4,
+    },
+    whatTypeBadgeText: { fontSize: 13, color: colors.text, ...f('semiBold') },
+    needSelectionCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 14,
+      padding: 18,
+      borderRadius: 18,
+      marginBottom: 16,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      ...(!isDark
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            elevation: 2,
+          }
+        : {}),
+    },
+    needSelectionIconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      backgroundColor: colors.primaryMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    needSelectionTextWrap: { flex: 1, minWidth: 0 },
+    needSelectionTitle: { fontSize: 17, color: colors.text, ...f('semiBold') },
+    needSelectionBody: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 6,
+      lineHeight: 21,
+      ...f('medium'),
+    },
+    emptyChildrenWrap: { width: '100%' },
+    emptyChildrenCard: {
+      alignItems: 'center',
+      paddingVertical: 28,
+      paddingHorizontal: 20,
+      marginTop: 8,
+      borderRadius: 16,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    emptyChildrenTitle: { fontSize: 17, color: colors.text, marginTop: 14, textAlign: 'center', ...f('semiBold') },
+    emptyChildrenHint: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 8,
+      textAlign: 'center',
+      lineHeight: 20,
+      ...f('medium'),
+    },
+    whoHeaderBlock: { width: '100%', marginBottom: 14 },
+    selectionHint: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 8,
+      lineHeight: 19,
+      ...f('medium'),
+    },
+    variationSectionLabel: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 14,
+      marginBottom: 4,
+      ...f('medium'),
+    },
+    activityScroll: {
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
+      gap: 12,
+      paddingRight: 12,
+      paddingVertical: 6,
+      alignItems: 'flex-start',
+    },
+    sectionLabel: {
+      fontSize: 17,
+      color: colors.text,
+      marginBottom: 14,
+      ...f('bold'),
+    },
+    childrenRow: { flexDirection: 'row', gap: 14, paddingRight: 16, paddingBottom: 8, paddingTop: 4 },
+    childAvatarItem: { width: 80, alignItems: 'center' },
+    childAvatarRing: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 3,
+    },
+    childAvatarRingIdle: {
+      borderColor: colors.cardBorder,
+      backgroundColor: isDark ? 'transparent' : 'rgba(0,0,0,0.02)',
+    },
+    childAvatarRingSelected: {
+      borderColor: colors.primary,
+      backgroundColor: isDark ? 'transparent' : colors.primaryMuted,
+    },
+    childAvatarInner: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: colors.avatarBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    childAvatarInnerSelected: {
+      backgroundColor: isDark ? colors.avatarBg : colors.card,
+    },
+    childAvatarCheck: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2.5,
+      borderColor: colors.card,
+    },
+    childAvatarInitials: { fontSize: 19, color: colors.avatarText, ...f('bold') },
+    childAvatarInitialsSelected: { color: colors.primary },
+    childAvatarName: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 10,
+      maxWidth: 76,
+      ...f('semiBold'),
+    },
+    childAvatarNameSelected: { color: colors.primary, ...f('bold') },
+    childAvatarSurname: {
+      fontSize: 11,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 2,
+      maxWidth: 76,
+      ...f('medium'),
+    },
+    childAvatarNameSpacer: { height: 15 },
+    childrenScrollHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 4,
+      marginBottom: 2,
+      ...f('medium'),
+    },
+    variationChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12, marginBottom: 0 },
+    variationChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.primaryMuted,
+      maxWidth: '48%',
+    },
+    variationChipActive: { borderWidth: 1, borderColor: colors.primary },
+    variationChipText: { fontSize: 13, color: colors.text, flexShrink: 1, ...f('semiBold') },
+
+    activityItem: { alignItems: 'center', minWidth: 72, paddingHorizontal: 2 },
+    activityCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: isDark ? activityIdleBg : colors.primaryMuted,
+      borderWidth: 1.5,
+      borderColor: isDark ? colors.cardBorder : 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    activityCircleActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      transform: [{ scale: 1.06 }],
+      ...(!isDark
+        ? {
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.35,
+            shadowRadius: 8,
+            elevation: 6,
+          }
+        : {}),
+    },
+    activityLabel: { fontSize: 11, color: colors.textSecondary, marginTop: 8, textAlign: 'center', ...f('semiBold') },
+    activityLabelActive: { color: colors.primary, ...f('bold') },
+
+    formSection: { marginBottom: 0 },
+    formSectionHead: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.cardBorder,
+      paddingBottom: 12,
+      marginBottom: 16,
+    },
+    formSectionTitle: { fontSize: 19, color: colors.text, marginBottom: 0, marginTop: 0, ...f('bold') },
+    mealTypeRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+    mealTypePill: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.card,
+      alignItems: 'center',
+    },
+    mealTypePillActive: {
+      borderColor: colors.primary,
+      backgroundColor: isDark ? colors.primaryMuted : colors.card,
+    },
+    mealTypePillText: { fontSize: 14, color: colors.textSecondary, ...f('semiBold') },
+    mealTypePillTextActive: { color: colors.primary, ...f('bold') },
+    amountScroll: {
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
+      gap: 10,
+      paddingVertical: 6,
+      paddingRight: 8,
+    },
+    amountItem: { alignItems: 'center', minWidth: 62 },
+    amountCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      backgroundColor: activityIdleBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    amountCircleActive: {
+      borderColor: colors.primary,
+      backgroundColor: isDark ? colors.primaryMuted : colors.primaryMuted,
+    },
+    amountCircleText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      ...f('semiBold'),
+      paddingHorizontal: 4,
+    },
+    amountCircleTextActive: { color: colors.primary, ...f('bold') },
+    amountLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 6, textAlign: 'center', ...f('semiBold') },
+    amountLabelActive: { color: colors.primary, ...f('bold') },
+
+    postUpdateWrap: { marginTop: 8, marginBottom: 8 },
+    postUpdateBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      backgroundColor: colors.ctaPurple,
+      paddingVertical: 17,
+      borderRadius: 18,
+      ...(!isDark
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+          }
+        : {}),
+      elevation: 5,
+    },
+    postUpdateBtnText: { fontSize: 17, color: '#FFFFFF', ...f('bold') },
+    postUpdateIcon: { marginTop: 1 },
+
+    variationMealOptionsScroll: { marginBottom: 4, maxHeight: 200 },
+    variationMealOptionsScrollContent: { paddingRight: 8, gap: 10, flexDirection: 'row', alignItems: 'flex-start' },
+    variationMealOptionCard: { marginRight: 10, maxWidth: 108 },
+    modalSecondaryBtn: { paddingVertical: 12, alignItems: 'center' },
+    modalSecondaryBtnText: { fontSize: 15, color: colors.textMuted, ...f('medium') },
 
     card: {
       backgroundColor: colors.card,
@@ -1361,14 +2282,14 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     dropdownRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.background,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.backgroundSecondary,
     },
-    dropdownText: { flex: 1, fontSize: 15, color: colors.textSecondary, fontWeight: '500' },
+    dropdownText: { flex: 1, fontSize: 15, color: colors.text, ...f('medium') },
     dropdownPlaceholder: { color: colors.textMuted },
     presentTag: {
       backgroundColor: colors.success,
@@ -1434,7 +2355,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     tabLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 6 },
     tabLabelActive: { color: colors.primary },
 
-    label: { fontSize: 14, fontWeight: '600', color: colors.textMuted, marginBottom: 8, marginTop: 12 },
+    label: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, marginTop: 14, ...f('semiBold') },
     optionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     optionChip: {
       paddingHorizontal: 14,
@@ -1448,21 +2369,81 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     optionChipText: { fontSize: 14, color: colors.textMuted },
     optionChipTextActive: { color: colors.primary, fontWeight: '600' },
 
-    helperText: { fontSize: 13, color: colors.textMuted, marginBottom: 8 },
-    timeNoteWrap: {
+    wholeClassCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      marginHorizontal: 16,
-      marginTop: 12,
-      marginBottom: 4,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      marginTop: 16,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
       backgroundColor: colors.backgroundSecondary,
-      borderRadius: 8,
+      gap: 12,
     },
-    timeNote: { fontSize: 13, color: colors.textMuted, flex: 1 },
-    inputReadOnly: { backgroundColor: colors.backgroundSecondary, color: colors.textMuted },
+    wholeClassCardOn: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryMuted,
+    },
+    wholeClassIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    wholeClassTextBlock: { flex: 1, minWidth: 0 },
+    wholeClassTitle: {
+      fontSize: 16,
+      color: colors.text,
+      ...f('semiBold'),
+    },
+    wholeClassSubtitle: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 4,
+      lineHeight: 19,
+      ...f('medium'),
+    },
+
+    helperText: { fontSize: 13, color: colors.textMuted, marginBottom: 8, lineHeight: 18, ...f('medium') },
+    listViewLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
+      marginTop: 12,
+    },
+    listViewLinkText: { fontSize: 14, color: colors.primary, ...f('semiBold') },
+    labelTightTop: { marginTop: 8 },
+    timeNoteBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 14,
+      backgroundColor: colors.primaryMuted,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      borderRadius: 18,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: isDark ? colors.cardBorder : 'rgba(0,0,0,0.05)',
+    },
+    timeNoteIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? colors.card : colors.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? colors.cardBorder : 'rgba(0,0,0,0.06)',
+    },
+    timeNoteTextWrap: { flex: 1, minWidth: 0 },
+    timeNoteTitle: { fontSize: 13, color: colors.primary, marginBottom: 4, ...f('semiBold') },
+    timeNote: { fontSize: 14, color: colors.textSecondary, lineHeight: 21, ...f('medium') },
+    inputReadOnly: { backgroundColor: colors.backgroundSecondary, color: colors.textSecondary, ...f('semiBold') },
 
     napTimerWrap: { marginBottom: 20 },
     napTimerCircle: {
@@ -1511,7 +2492,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     napTimerBtnEndText: { fontSize: 16, fontWeight: '700', color: '#fff' },
     napTimerSummary: { paddingVertical: 8, paddingHorizontal: 16 },
     napTimerSummaryText: { fontSize: 14, color: colors.textMuted },
-    mealOptionsScroll: { marginBottom: 8, marginHorizontal: -16 },
+    /** Aligned with meal type pills (no negative bleed). */
+    mealOptionsScroll: { marginBottom: 10, marginTop: 2 },
+    mealOptionsScrollContent: { paddingRight: 16, paddingLeft: 0 },
     mealOptionCard: {
       width: 120,
       marginRight: 10,
@@ -1532,17 +2515,16 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     mealOptionDesc: { fontSize: 11, color: colors.textMuted, paddingHorizontal: 6, paddingBottom: 6 },
 
     input: {
-      borderWidth: 1,
-      borderColor: colors.inputBorder,
-      borderRadius: 8,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      borderRadius: 12,
       padding: 14,
       fontSize: 15,
-      backgroundColor: colors.inputBackground,
+      backgroundColor: colors.backgroundSecondary,
       color: colors.text,
+      ...f('medium'),
     },
     inputMultiline: { minHeight: 88, textAlignVertical: 'top' },
-    secondaryBtn: { alignSelf: 'flex-start', marginTop: 8 },
-    secondaryBtnText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
     primaryButton: {
       flexDirection: 'row',
@@ -1556,33 +2538,101 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     primaryButtonIcon: { marginRight: 8 },
     primaryButtonText: { fontSize: 16, fontWeight: '700', color: colors.primaryContrast },
 
-    photoZoneLabel: { fontSize: 14, fontWeight: '600', color: colors.textMuted, marginBottom: 8 },
+    photoZoneLabel: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, ...f('semiBold') },
     photoUploadZone: {
       minHeight: 160,
       borderWidth: 2,
       borderStyle: 'dashed',
-      borderColor: colors.border,
-      borderRadius: 10,
-      backgroundColor: colors.background,
+      borderColor: colors.cardBorder,
+      borderRadius: 16,
+      backgroundColor: colors.backgroundSecondary,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 20,
     },
-    photoUploadZoneFilled: { padding: 0, minHeight: 0 },
+    photoUploadZoneFilled: {
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      minHeight: 0,
+      borderWidth: 0,
+      backgroundColor: 'transparent',
+    },
     photoUploadHint: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
     photoUploadFormats: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-    actionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-    photoThumbWrap: { position: 'relative', width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' },
+    photoPreviewBlock: {
+      width: '100%',
+      alignItems: 'center',
+    },
+    photoThumbWrap: {
+      position: 'relative',
+      alignSelf: 'center',
+      width: 220,
+      maxWidth: '100%',
+      aspectRatio: 1,
+      borderRadius: 16,
+      overflow: 'hidden',
+      backgroundColor: isDark ? '#1a1a1c' : colors.skeletonHighlight,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.cardBorder,
+      ...(!isDark
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 5,
+          }
+        : { elevation: 4 }),
+    },
     photoThumbImage: { width: '100%', height: '100%', backgroundColor: colors.backgroundSecondary },
-    removePhotoBtn: { position: 'absolute', top: 8, right: 8 },
+    photoVideoBadge: {
+      position: 'absolute',
+      left: 10,
+      bottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+      gap: 6,
+      backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    },
+    photoVideoBadgeText: {
+      fontSize: 12,
+      color: '#FFFFFF',
+      ...f('semiBold'),
+    },
+    removePhotoBtn: { position: 'absolute', top: 10, right: 10 },
+    removePhotoBtnCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(0, 0, 0, 0.52)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+    },
+    photoReplaceLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      gap: 8,
+    },
+    photoReplaceLinkText: {
+      fontSize: 15,
+      color: colors.primary,
+      ...f('semiBold'),
+    },
     dropdownOptions: { marginTop: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, maxHeight: 200 },
     dropdownOption: { paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.backgroundSecondary },
     dropdownOptionText: { fontSize: 15, color: colors.textSecondary },
-    timeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    timeInput: { flex: 1 },
 
-    emptyState: { alignItems: 'center', paddingVertical: 48 },
-    emptyText: { fontSize: 15, color: colors.textMuted, marginTop: 12 },
+    emptyState: { alignItems: 'center', paddingVertical: 36 },
+    emptyText: { fontSize: 16, color: colors.text, marginTop: 14, textAlign: 'center', ...f('semiBold') },
+    emptySubtext: { fontSize: 14, color: colors.textMuted, marginTop: 6, textAlign: 'center', ...f('medium') },
 
     savingOverlay: {
       flex: 1,
@@ -1613,6 +2663,84 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       padding: 20,
       maxHeight: '70%',
     },
+    childListModalContent: { maxHeight: '88%', width: '100%', maxWidth: 400, alignSelf: 'center' },
+    childListModalSubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: -4,
+      marginBottom: 14,
+      lineHeight: 20,
+      ...f('medium'),
+    },
+    childListSearchWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    childListSearchIcon: { marginRight: 8 },
+    childListSearchInput: {
+      flex: 1,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: colors.text,
+      ...f('regular'),
+    },
+    childListModalActions: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+    childListModalQuickBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    childListModalQuickBtnText: { fontSize: 14, color: colors.primary, ...f('semiBold') },
+    childListModalQuickBtnTextMuted: { color: colors.textSecondary },
+    childListModalScroll: { maxHeight: 360, marginHorizontal: -4 },
+    childListEmptySearch: {
+      paddingVertical: 28,
+      textAlign: 'center',
+      color: colors.textMuted,
+      fontSize: 15,
+      ...f('medium'),
+    },
+    childListRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      borderRadius: 14,
+      marginBottom: 8,
+      gap: 12,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      backgroundColor: isDark ? colors.backgroundSecondary : colors.card,
+    },
+    childListRowSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryMuted,
+    },
+    childListRowAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.avatarBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    childListRowAvatarSelected: { backgroundColor: isDark ? colors.avatarBg : colors.card },
+    childListRowInitials: { fontSize: 16, color: colors.avatarText, ...f('bold') },
+    childListRowInitialsSelected: { color: colors.primary },
+    childListRowName: { fontSize: 16, color: colors.text, ...f('semiBold') },
+    childListRowNameSelected: { color: colors.primary },
     modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 },
     modalActions: { flexDirection: 'row', gap: 12, marginBottom: 12 },
     modalActionBtn: { paddingVertical: 6, paddingHorizontal: 12 },
@@ -1653,14 +2781,104 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     },
     modalDoneBtnText: { fontSize: 16, fontWeight: '700', color: colors.primaryContrast },
 
-    variationModalContent: { maxHeight: '80%' },
-    variationModalHint: { fontSize: 13, color: colors.textMuted, marginBottom: 12 },
-    variationModalScroll: { maxHeight: 280 },
-    variationModalActions: { marginTop: 16, gap: 10 },
-    variationModalClearBtn: { paddingVertical: 10, alignItems: 'center' },
-    variationModalClearText: { fontSize: 14, color: colors.danger, fontWeight: '600' },
-    variationModalPrimaryActions: { flexDirection: 'row', gap: 12, justifyContent: 'center' },
-    variationModalCancelBtn: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 10, backgroundColor: colors.backgroundSecondary },
-    variationModalCancelText: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
+    variationModalKb: { flex: 1 },
+    variationModalRoot: {
+      flex: 1,
+    },
+    variationModalDimmer: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+    },
+    variationModalCard: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 24,
+    },
+    variationModalCardInner: {
+      backgroundColor: colors.card,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      maxHeight: '88%',
+      width: '100%',
+      maxWidth: 420,
+      alignSelf: 'center',
+      ...(!isDark
+        ? {
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.12,
+            shadowRadius: 24,
+            elevation: 8,
+          }
+        : {}),
+    },
+    variationModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+      marginBottom: 8,
+    },
+    variationModalHeaderText: { flex: 1, minWidth: 0 },
+    variationModalEyebrow: {
+      fontSize: 11,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+      color: colors.textMuted,
+      ...f('semiBold'),
+    },
+    variationModalTitle: { fontSize: 20, color: colors.text, marginTop: 4, ...f('bold') },
+    variationModalCloseBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundSecondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    variationModalHint: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 16,
+      lineHeight: 20,
+      ...f('medium'),
+    },
+    variationModalScroll: { maxHeight: 320 },
+    variationModalScrollContent: { flexGrow: 1, paddingBottom: 8 },
+    variationModalActions: {
+      marginTop: 12,
+      paddingTop: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.cardBorder,
+      gap: 12,
+    },
+    variationModalClearBtn: { paddingVertical: 8, alignItems: 'center' },
+    variationModalClearText: { fontSize: 15, color: colors.danger, ...f('semiBold') },
+    variationModalPrimaryActions: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
+    variationModalSaveBtn: {
+      flex: 1,
+      paddingVertical: 15,
+      borderRadius: 14,
+      backgroundColor: colors.ctaPurple,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    variationModalSaveBtnText: { fontSize: 16, color: '#FFFFFF', ...f('bold') },
+    variationModalCancelBtn: {
+      paddingVertical: 15,
+      paddingHorizontal: 20,
+      borderRadius: 14,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    variationModalCancelText: { fontSize: 16, color: colors.textSecondary, ...f('semiBold') },
   });
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "692778727048",
+    "project_id": "little-moments-6647f",
+    "storage_bucket": "little-moments-6647f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:692778727048:android:1f4b773632b1411bbe913d",
+        "android_client_info": {
+          "package_name": "co.za.mylittlemoments"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKPcDAngcXP54ZWDqgwpFl-dM96hNxNOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

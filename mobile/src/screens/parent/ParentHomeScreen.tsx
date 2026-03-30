@@ -9,10 +9,12 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import {
   collection,
   query,
@@ -31,10 +33,40 @@ import { useTheme } from '../../context/ThemeContext';
 import { Skeleton } from '../../components/Skeleton';
 import { getAge, getInitials, formatTime } from '../../utils';
 import { getCached, setCached, LIST_TTL_MS } from '../../utils/cache';
+import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
+import { useDateNavigation } from '../../hooks/useDateNavigation';
+import { font } from '../../theme/typography';
 
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 import type { DailyReport } from '../../../../shared/types';
+
+type RootNav = { navigate: (name: string, params?: object) => void } | undefined;
+
+function formatParentReportLabel(type: string): string {
+  switch (type) {
+    case 'meal':
+      return 'Meal';
+    case 'nap_time':
+      return 'Nap';
+    case 'nappy_change':
+      return 'Nappy change';
+    case 'medication':
+      return 'Activity';
+    case 'incident':
+      return 'Photo';
+    default:
+      return type.replace(/_/g, ' ');
+  }
+}
+
+function reportTypeIconName(type: string): keyof typeof Ionicons.glyphMap {
+  if (type === 'meal') return 'restaurant';
+  if (type === 'nap_time') return 'moon';
+  if (type === 'nappy_change') return 'water';
+  if (type === 'incident') return 'camera';
+  return 'color-palette';
+}
 
 export function ParentHomeScreen({
   navigation,
@@ -45,20 +77,34 @@ export function ParentHomeScreen({
   };
 }) {
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
+  /** Native header already clears the status bar; avoid double top inset. */
+  const homeTopPadding = headerHeight > 0 ? 8 : Math.max(insets.top + 8, 12);
   const { profile, selectedChildId, setSelectedChildId } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useNotificationNavigation(true);
+
+  const {
+    selectedDate,
+    showDatePicker,
+    setShowDatePicker,
+    prevDay,
+    nextDay,
+    onDatePickerChange,
+    maxDate,
+    isToday,
+  } = useDateNavigation();
+
   const [children, setChildren] = useState<Child[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  });
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [className, setClassName] = useState<string | null>(null);
   const [messageLoading, setMessageLoading] = useState(false);
+
+  const selectedChild = children.find((c) => c.id === selectedChildId) ?? children[0];
+  const rootStack = navigation.getParent() as RootNav;
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -80,14 +126,13 @@ export function ParentHomeScreen({
         selectedChild.id,
         selectedChild.assignedTeacherId
       );
-      const rootStack = navigation.getParent();
-      (rootStack as { navigate: (name: string, params?: object) => void } | undefined)?.navigate('ChatThread', { chatId, schoolId: sid });
-    } catch (e) {
+      rootStack?.navigate('ChatThread', { chatId, schoolId: sid });
+    } catch {
       Alert.alert('Error', 'Could not open messages. Please try again.');
     } finally {
       setMessageLoading(false);
     }
-  }, [selectedChild, navigation]);
+  }, [selectedChild, rootStack]);
 
   useEffect(() => {
     const uid = profile?.uid;
@@ -122,8 +167,6 @@ export function ParentHomeScreen({
       }
     })();
   }, [profile?.uid, setSelectedChildId, refreshTrigger]);
-
-  const selectedChild = children.find((c) => c.id === selectedChildId) ?? children[0];
 
   useEffect(() => {
     if (!selectedChild?.schoolId || !selectedChild?.classId) {
@@ -163,94 +206,202 @@ export function ParentHomeScreen({
     return () => unsub();
   }, [selectedChild?.id, selectedChild?.schoolId, selectedDate, refreshTrigger]);
 
-  const isToday = selectedDate === new Date().toISOString().slice(0, 10);
-  const onDatePickerChange = (event: { type: string }, date?: Date) => {
-    if (Platform.OS === 'android') setShowDatePicker(false);
-    if (event.type === 'dismissed') return;
-    if (date) setSelectedDate(date.toISOString().slice(0, 10));
-  };
+  const overviewDateLabel = useMemo(
+    () =>
+      new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+      }),
+    [selectedDate]
+  );
+
   const meals = reports.filter((r) => r.type === 'meal').length;
   const naps = reports.filter((r) => r.type === 'nap_time').length;
   const nappy = reports.filter((r) => r.type === 'nappy_change').length;
-  const activities = reports.filter((r) => r.type !== 'meal' && r.type !== 'nap_time' && r.type !== 'nappy_change').length;
+  const activities = reports.filter(
+    (r) => r.type !== 'meal' && r.type !== 'nap_time' && r.type !== 'nappy_change'
+  ).length;
 
-  const prevDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().slice(0, 10));
-  };
-  const nextDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().slice(0, 10));
-  };
+  const overviewStats = useMemo(
+    () => [
+      {
+        key: 'meals',
+        label: 'MEALS',
+        value: meals,
+        icon: 'restaurant' as const,
+        border: colors.accentOrange,
+        soft: colors.accentOrangeSoft,
+        iconColor: colors.accentOrange,
+      },
+      {
+        key: 'naps',
+        label: 'NAPS',
+        value: naps,
+        icon: 'moon' as const,
+        border: colors.accentPurple,
+        soft: colors.accentPurpleSoft,
+        iconColor: colors.accentPurple,
+      },
+      {
+        key: 'nappy',
+        label: 'NAPPY',
+        value: nappy,
+        icon: 'water' as const,
+        border: colors.accentTeal,
+        soft: colors.accentTealSoft,
+        iconColor: colors.accentTeal,
+      },
+      {
+        key: 'activities',
+        label: 'OTHER UPDATES',
+        value: activities,
+        icon: 'sparkles' as const,
+        border: colors.accentPurple,
+        soft: colors.accentPurpleSoft,
+        iconColor: colors.accentPurple,
+      },
+    ],
+    [meals, naps, nappy, activities, colors]
+  );
 
-  const reportTypeIcon = (type: string) => {
-    if (type === 'meal') return 'restaurant-outline';
-    if (type === 'nap_time') return 'bed-outline';
-    if (type === 'nappy_change') return 'water-outline';
-    return 'sparkles-outline';
-  };
+  const quickActions = useMemo(
+    () => [
+      {
+        id: 'announcements',
+        label: 'Announcements',
+        icon: 'megaphone' as const,
+        soft: colors.accentPurpleSoft,
+        iconColor: colors.accentPurple,
+        onPress: () => rootStack?.navigate('ParentAnnouncements'),
+      },
+      {
+        id: 'calendar',
+        label: 'Calendar',
+        icon: 'calendar' as const,
+        soft: colors.accentTealSoft,
+        iconColor: colors.accentTeal,
+        onPress: () => navigation.navigate('Calendar'),
+      },
+      {
+        id: 'photos',
+        label: 'Photos',
+        icon: 'images' as const,
+        soft: colors.accentOrangeSoft,
+        iconColor: colors.accentOrange,
+        onPress: () => navigation.navigate('Photos'),
+      },
+      {
+        id: 'messages',
+        label: 'Messages',
+        icon: 'chatbubbles' as const,
+        soft: colors.accentPurpleSoft,
+        iconColor: colors.accentPurple,
+        onPress: () => navigation.navigate('MessagesList'),
+      },
+      {
+        id: 'report',
+        label: 'Daily report',
+        icon: 'document-text' as const,
+        soft: colors.accentTealSoft,
+        iconColor: colors.accentTeal,
+        onPress: () => {
+          if (selectedChild) {
+            rootStack?.navigate('ChildProfile', {
+              childId: selectedChild.id,
+              schoolId: selectedChild.schoolId,
+            });
+          }
+        },
+      },
+      {
+        id: 'notifications',
+        label: 'Notifications',
+        icon: 'notifications' as const,
+        soft: colors.accentOrangeSoft,
+        iconColor: colors.accentOrange,
+        onPress: () => rootStack?.navigate('ParentNotifications'),
+      },
+    ],
+    [colors, navigation, rootStack, selectedChild]
+  );
 
-  const displayDate = isToday
-    ? 'Today'
-    : new Date(selectedDate).toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
+  const reportAccent = useCallback(
+    (type: string) => {
+      if (type === 'meal')
+        return { soft: colors.accentOrangeSoft, icon: colors.accentOrange };
+      if (type === 'nap_time')
+        return { soft: colors.accentPurpleSoft, icon: colors.accentPurple };
+      if (type === 'nappy_change')
+        return { soft: colors.accentTealSoft, icon: colors.accentTeal };
+      if (type === 'incident')
+        return { soft: colors.accentTealSoft, icon: colors.accentTeal };
+      return { soft: colors.accentOrangeSoft, icon: colors.accentOrange };
+    },
+    [colors]
+  );
+
+  const childMetaLine = useMemo(() => {
+    const age = selectedChild ? getAge(selectedChild.dateOfBirth) : '';
+    const cls = className?.trim();
+    if (age && cls) return `${age} · ${cls}`;
+    if (cls) return cls;
+    return age || 'Your child';
+  }, [selectedChild, className]);
 
   return (
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.backgroundSecondary }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header: purple, child-focused (like Teacher header but for child) */}
-        <View style={[styles.header, { paddingTop: Math.max(56, insets.top + 12) }]}>
+        <View style={[styles.topPad, { paddingTop: homeTopPadding }]}>
           <TouchableOpacity
-            style={styles.headerProfile}
+            style={styles.profileSummaryCard}
             onPress={() =>
               selectedChild &&
-              (navigation.getParent() as { navigate: (name: string, params?: object) => void } | undefined)?.navigate('ChildProfile', {
+              rootStack?.navigate('ChildProfile', {
                 childId: selectedChild.id,
                 schoolId: selectedChild.schoolId,
               })
             }
-            activeOpacity={selectedChild ? 0.8 : 1}
+            activeOpacity={selectedChild ? 0.92 : 1}
             disabled={!selectedChild}
+            accessibilityRole="button"
+            accessibilityLabel="Open daily report for this child"
           >
-            <View style={styles.avatarLarge}>
-              <Text style={styles.avatarLargeText}>
-                {selectedChild ? getInitials(selectedChild.name) : '…'}
-              </Text>
-            </View>
-            <View style={styles.headerText}>
+            {selectedChild?.photoURL ? (
+              <Image source={{ uri: selectedChild.photoURL }} style={styles.profileSummaryAvatarImg} />
+            ) : (
+              <View style={[styles.profileSummaryAvatar, { backgroundColor: colors.avatarBg }]}>
+                <Text style={[styles.profileSummaryAvatarText, { color: colors.avatarText }]}>
+                  {selectedChild ? getInitials(selectedChild.name) : '…'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.profileSummaryTextCol}>
               {selectedChild?.name ? (
-                <Text style={styles.headerName}>{selectedChild.name}</Text>
+                <Text style={[styles.profileSummaryName, { color: colors.text }]} numberOfLines={1}>
+                  {selectedChild.name}
+                </Text>
               ) : (
-                <Skeleton width={120} height={20} style={{ marginBottom: 4 }} />
+                <Skeleton width={160} height={18} style={{ marginBottom: 8 }} />
               )}
-              <Text style={styles.headerClass}>
-                {selectedChild ? getAge(selectedChild.dateOfBirth) : ''}
-                {className ? ` · ${className}` : ''}
+              <Text style={[styles.profileSummaryMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                {selectedChild ? childMetaLine : ' '}
               </Text>
             </View>
           </TouchableOpacity>
-          <View style={styles.roleTag}>
-            <Text style={styles.roleTagText}>Parent</Text>
-          </View>
-        </View>
-        {children.length > 1 ? (
-          <View style={styles.childChipsWrap}>
+
+          {children.length > 1 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.childChipsContent}
+              style={styles.childChipsScroll}
             >
               {children.map((c) => (
                 <TouchableOpacity
@@ -269,118 +420,155 @@ export function ParentHomeScreen({
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
-        ) : null}
+          ) : null}
 
-        {/* Message teacher - links to Messages tab */}
+          <TouchableOpacity
+            style={styles.ctaCard}
+            onPress={() => rootStack?.navigate('ParentAnnouncements')}
+            activeOpacity={0.92}
+          >
+            <View style={styles.ctaIconCircle}>
+              <Ionicons name="megaphone" size={26} color={colors.ctaPurple} />
+            </View>
+            <View style={styles.ctaTextWrap}>
+              <Text style={styles.ctaTitle}>School announcements</Text>
+              <Text style={styles.ctaSubtitle}>News and reminders from your school</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.95)" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionOverview}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.overviewHeading}>{"Today's Overview"}</Text>
+            <View style={styles.dateNav}>
+              <TouchableOpacity onPress={prevDay} hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}>
+                <Ionicons name="chevron-back" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.datePill}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.datePillText}>{overviewDateLabel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={nextDay} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </View>
+          {showDatePicker && (
+            <>
+              <DateTimePicker
+                value={new Date(selectedDate + 'T12:00:00')}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onDatePickerChange}
+                maximumDate={maxDate}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity style={styles.dateDone} onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.dateDoneText}>Done</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+          <View style={styles.statsGrid}>
+            {overviewStats.map((s) => (
+              <View key={s.key} style={[styles.statCard, { borderTopColor: s.border }]}>
+                <View style={[styles.statIconCircle, { backgroundColor: s.soft }]}>
+                  <Ionicons name={s.icon} size={22} color={s.iconColor} />
+                </View>
+                <Text style={styles.statLabel}>{s.label}</Text>
+                <Text style={styles.statValue}>{s.value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick actions</Text>
+          <View style={styles.quickGrid}>
+            {quickActions.map((action) => (
+              <TouchableOpacity
+                key={action.id}
+                style={styles.quickActionBtn}
+                onPress={action.onPress}
+                activeOpacity={0.7}
+                disabled={action.id === 'report' && !selectedChild}
+              >
+                <View style={[styles.quickIconCircle, { backgroundColor: action.soft }]}>
+                  <Ionicons name={action.icon} size={24} color={action.iconColor} />
+                </View>
+                <Text style={styles.quickActionLabel}>{action.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {selectedChild?.assignedTeacherId ? (
           <TouchableOpacity
             style={styles.messageTeacherBtn}
             onPress={onMessageTeacher}
             disabled={messageLoading}
+            activeOpacity={0.75}
           >
-            {messageLoading ? (
-              <ActivityIndicator size="small" color={colors.primaryContrast} />
-            ) : (
-              <>
-                <Ionicons name="chatbubble-outline" size={20} color={colors.primaryContrast} />
-                <Text style={styles.messageTeacherBtnText}>Message teacher</Text>
-              </>
-            )}
+            <View style={[styles.messageIconCircle, { backgroundColor: colors.accentPurpleSoft }]}>
+              {messageLoading ? (
+                <ActivityIndicator size="small" color={colors.accentPurple} />
+              ) : (
+                <Ionicons name="chatbubble-ellipses" size={22} color={colors.accentPurple} />
+              )}
+            </View>
+            <Text style={styles.messageTeacherText}>Message teacher</Text>
           </TouchableOpacity>
         ) : null}
 
-        <View style={styles.dateBar}>
-          <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-back" size={24} color={colors.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.dateCenter}
-            onPress={() => setShowDatePicker(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
-            <Text style={styles.dateText}>{displayDate}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={nextDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-forward" size={24} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-
-        {showDatePicker && (
-          <>
-            <DateTimePicker
-              value={new Date(selectedDate + 'T12:00:00')}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'calendar' : 'default'}
-              onChange={onDatePickerChange}
-              maximumDate={new Date()}
-            />
-            {Platform.OS === 'ios' && (
-              <TouchableOpacity
-                style={styles.datePickerDone}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.datePickerDoneText}>Done</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
-            <TouchableOpacity
-              style={styles.sectionBtn}
-              onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('ParentAnnouncements')}
-            >
-              <Text style={styles.sectionBtnText}>Announcements</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, styles.statMeals]}>
-              <Text style={[styles.statValue, styles.statMealsValue]}>{meals}</Text>
-              <Text style={styles.statLabel}>Meals</Text>
-            </View>
-            <View style={[styles.statCard, styles.statNap]}>
-              <Text style={[styles.statValue, styles.statNapValue]}>{naps}</Text>
-              <Text style={styles.statLabel}>Nap</Text>
-            </View>
-            <View style={[styles.statCard, styles.statNappy]}>
-              <Text style={[styles.statValue, styles.statNappyValue]}>{nappy}</Text>
-              <Text style={styles.statLabel}>Nappy</Text>
-            </View>
-            <View style={[styles.statCard, styles.statActivities]}>
-              <Text style={[styles.statValue, styles.statActivitiesValue]}>{activities}</Text>
-              <Text style={styles.statLabel}>Activities</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {isToday ? "Today's Updates" : 'Updates'}
-          </Text>
+          <Text style={styles.sectionTitle}>{isToday ? "Today's updates" : 'Updates'}</Text>
           {reports.length === 0 ? (
             <Text style={styles.empty}>No updates for this day.</Text>
           ) : (
-            reports.map((item) => (
-              <View key={item.id} style={styles.updateCard}>
-                <Ionicons
-                  name={reportTypeIcon(item.type) as keyof typeof Ionicons.glyphMap}
-                  size={22}
-                  color={colors.primary}
-                  style={styles.updateCardIcon}
-                />
-                <View style={styles.updateCardContent}>
-                  <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
-                  <Text style={styles.updateType}>{item.type.replace('_', ' ')}</Text>
-                  {item.notes ? (
-                    <Text style={styles.updateNotes}>{item.notes}</Text>
-                  ) : null}
-                </View>
-              </View>
-            ))
+            reports.map((item) => {
+              const accent = reportAccent(item.type);
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.updateCard}
+                  onPress={() =>
+                    selectedChild &&
+                    rootStack?.navigate('ReportDetail', {
+                      schoolId: selectedChild.schoolId,
+                      childId: selectedChild.id,
+                      reportId: item.id,
+                    })
+                  }
+                  activeOpacity={0.7}
+                  disabled={!selectedChild}
+                  accessibilityRole="button"
+                >
+                  <View style={[styles.updateIconCircle, { backgroundColor: accent.soft }]}>
+                    <Ionicons
+                      name={reportTypeIconName(item.type)}
+                      size={20}
+                      color={accent.icon}
+                    />
+                  </View>
+                  <View style={styles.updateCardContent}>
+                    <View style={styles.updateCardTopRow}>
+                      <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
+                      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                    </View>
+                    <Text style={styles.updateType}>{formatParentReportLabel(item.type)}</Text>
+                    {item.notes ? (
+                      <Text style={styles.updateNotes} numberOfLines={2}>
+                        {item.notes}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
         </View>
 
@@ -391,152 +579,266 @@ export function ParentHomeScreen({
 }
 
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  const f = (weight: 'regular' | 'medium' | 'semiBold' | 'bold') => ({ fontFamily: font[weight] });
+
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    scroll: { flex: 1 },
-    scrollContent: { paddingBottom: 24 },
-    bottomPad: { height: 24 },
+    scroll: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    scrollContent: { paddingBottom: 28, flexGrow: 1 },
+    bottomPad: { height: 20 },
 
-    header: {
+    topPad: {
+      paddingBottom: 8,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    profileSummaryCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-      backgroundColor: colors.header,
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginBottom: 0,
+      padding: 14,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
     },
-    headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    avatarLarge: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.headerAccent,
-      borderWidth: 2,
-      borderColor: colors.headerText,
+    profileSummaryAvatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    avatarLargeText: { fontSize: 18, fontWeight: '700', color: colors.headerText },
-    headerText: { marginLeft: 14 },
-    headerName: { fontSize: 20, fontWeight: '700', color: colors.headerText },
-    headerClass: { fontSize: 14, color: colors.headerTextMuted, marginTop: 2 },
-    roleTag: {
-      backgroundColor: colors.headerAccent,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
+    profileSummaryAvatarImg: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
     },
-    roleTagText: { fontSize: 13, fontWeight: '600', color: colors.headerText },
+    profileSummaryAvatarText: { fontSize: 18, ...f('bold') },
+    profileSummaryTextCol: { flex: 1, marginLeft: 14, minWidth: 0 },
+    profileSummaryName: { fontSize: 17, ...f('bold') },
+    profileSummaryMeta: { fontSize: 14, marginTop: 4, ...f('regular') },
 
-    childChipsWrap: { backgroundColor: colors.header, paddingBottom: 12, paddingHorizontal: 4 },
-    childChipsContent: { paddingHorizontal: 16 },
+    childChipsScroll: {
+      marginTop: 10,
+      marginBottom: 0,
+      maxHeight: 44,
+    },
+    childChipsContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      gap: 8,
+    },
     childChip: {
       paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 20,
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.4)',
-      backgroundColor: 'rgba(255,255,255,0.15)',
-      marginRight: 8,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.card,
     },
-    childChipActive: { borderColor: colors.headerText, backgroundColor: 'rgba(255,255,255,0.35)' },
-    childChipText: { fontSize: 14, color: colors.headerTextMuted },
-    childChipTextActive: { color: colors.headerText, fontWeight: '600' },
+    childChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryMuted,
+    },
+    childChipText: { fontSize: 14, color: colors.textSecondary, ...f('medium') },
+    childChipTextActive: { color: colors.primary, ...f('semiBold') },
+
+    ctaCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.ctaPurple,
+      borderRadius: 20,
+      paddingVertical: 18,
+      paddingHorizontal: 18,
+      gap: 14,
+      marginHorizontal: 16,
+      marginTop: 16,
+    },
+    ctaIconCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ctaTextWrap: { flex: 1 },
+    ctaTitle: { fontSize: 17, color: '#FFFFFF', ...f('bold') },
+    ctaSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginTop: 4, ...f('medium') },
+
+    sectionOverview: { marginTop: 12, paddingHorizontal: 20 },
+    sectionTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    overviewHeading: { fontSize: 17, color: colors.text, ...f('bold') },
+    dateNav: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    datePill: {
+      backgroundColor: colors.card,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    datePillText: { fontSize: 13, color: colors.textSecondary, ...f('semiBold') },
+    dateDone: {
+      marginTop: 8,
+      paddingVertical: 12,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 14,
+    },
+    dateDoneText: { color: colors.primaryContrast, ...f('semiBold'), fontSize: 16 },
+
+    statsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    statCard: {
+      width: '47%',
+      flexGrow: 1,
+      minWidth: '45%',
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderTopWidth: 3,
+      shadowColor: '#0f172a',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    statIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+    },
+    statLabel: {
+      fontSize: 10,
+      color: colors.textMuted,
+      letterSpacing: 0.6,
+      ...f('semiBold'),
+    },
+    statValue: { fontSize: 28, color: colors.text, marginTop: 6, ...f('bold') },
+
+    section: { marginTop: 20, paddingHorizontal: 20 },
+    sectionTitle: { fontSize: 17, color: colors.text, marginBottom: 14, ...f('bold') },
+    quickGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    quickActionBtn: {
+      width: '30%',
+      flexGrow: 1,
+      minWidth: '28%',
+      backgroundColor: colors.card,
+      paddingVertical: 16,
+      paddingHorizontal: 8,
+      borderRadius: 18,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    quickIconCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+    },
+    quickActionLabel: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      ...f('semiBold'),
+    },
 
     messageTeacherBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8,
-      backgroundColor: colors.header,
-      marginHorizontal: 16,
-      marginTop: 12,
-      paddingVertical: 12,
+      marginHorizontal: 20,
+      marginTop: 20,
+      paddingVertical: 16,
       paddingHorizontal: 20,
-      borderRadius: 12,
-    },
-    messageTeacherBtnText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
-
-    dateBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
       backgroundColor: colors.card,
-      marginHorizontal: 16,
-      marginTop: 16,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 12,
+      borderRadius: 18,
+      gap: 12,
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
-    dateArrow: { padding: 4 },
-    dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
-    datePickerDone: {
-      marginTop: 8,
-      marginHorizontal: 16,
-      paddingVertical: 10,
+    messageIconCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       alignItems: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: 8,
+      justifyContent: 'center',
     },
-    datePickerDoneText: { color: colors.primaryContrast, fontWeight: '600', fontSize: 16 },
-
-    section: { marginTop: 24, paddingHorizontal: 16 },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 12,
+    messageTeacherText: {
+      fontSize: 16,
+      color: colors.text,
+      ...f('medium'),
     },
-    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
-    sectionBtn: {
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: colors.backgroundSecondary,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    sectionBtnText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
-
-    statsRow: { flexDirection: 'row', gap: 10 },
-    statCard: {
-      flex: 1,
-      backgroundColor: colors.card,
-      padding: 14,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      alignItems: 'center',
-    },
-    statValue: { fontSize: 26, fontWeight: '800', color: colors.textSecondary },
-    statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-    statMeals: {},
-    statMealsValue: { color: colors.warning },
-    statNap: {},
-    statNapValue: { color: '#7c3aed' },
-    statNappy: {},
-    statNappyValue: { color: '#0d9488' },
-    statActivities: {},
-    statActivitiesValue: { color: '#2563eb' },
 
     updateCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       backgroundColor: colors.card,
       padding: 14,
-      borderRadius: 12,
+      borderRadius: 16,
       marginBottom: 10,
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
-    updateCardIcon: { marginRight: 12 },
-    updateCardContent: { flex: 1 },
-    updateTime: { fontSize: 12, color: colors.textMuted },
-    updateType: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 4 },
-    updateNotes: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
-    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8 },
+    updateIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    updateCardContent: { flex: 1, minWidth: 0 },
+    updateCardTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    updateTime: {
+      fontSize: 12,
+      color: colors.textMuted,
+      ...f('medium'),
+    },
+    updateType: {
+      fontSize: 15,
+      color: colors.text,
+      marginTop: 4,
+      ...f('semiBold'),
+    },
+    updateNotes: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 6,
+      lineHeight: 20,
+      ...f('regular'),
+    },
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8, ...f('medium') },
   });
 }

@@ -4,6 +4,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app, { auth, db } from '../config/firebase';
 import { getCached, setCached, removeCached, PROFILE_TTL_MS } from '../utils/cache';
+import { registerForPushNotifications } from '../services/notifications';
 import type { UserProfile, UserRole } from '../../../shared/types';
 
 interface AuthContextValue {
@@ -45,6 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch { /* rules may fail until next login if sync fails */ }
           setProfile(profileData);
           await setCached(cacheKey, profileData, PROFILE_TTL_MS);
+          // Register FCM token with backend for push notifications (no-op in Expo Go).
+          registerForPushNotifications().catch(() => {});
         } else {
           setProfile(null);
           await removeCached(cacheKey);

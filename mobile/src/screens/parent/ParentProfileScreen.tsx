@@ -66,7 +66,7 @@ export function ParentProfileScreen() {
           placeholderTextColor={colors.textMuted}
         /> 
         <Text style={styles.label}>Email (read-only)</Text>
-        <Text style={styles.row}>{profile?.email ?? '—'}</Text>
+        <Text style={styles.row}>{profile?.email ?? '-'}</Text>
         <Text style={styles.label}>Phone</Text>
         <TextInput
           style={styles.input}

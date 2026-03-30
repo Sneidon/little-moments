@@ -22,6 +22,7 @@ import { exportChildrenToExcel } from '@/lib/exportChildrenExcel';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 import { PageHero, SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
+import { DateOfBirthField, isValidIsoDateString } from '@/components/DateOfBirthField';
 
 export default function ChildrenPage() {
   const { profile } = useAuth();
@@ -94,7 +95,10 @@ export default function ChildrenPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const schoolId = profile?.schoolId;
-    if (!schoolId || !form.name.trim() || !form.dateOfBirth) return;
+    if (!schoolId || !form.name.trim() || !isValidIsoDateString(form.dateOfBirth)) return;
+    if (!form.emergencyContactName.trim() || !form.emergencyContact.trim()) return;
+    const enrollmentTrimmed = form.enrollmentDate.trim();
+    if (enrollmentTrimmed && !isValidIsoDateString(enrollmentTrimmed)) return;
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
@@ -103,22 +107,20 @@ export default function ChildrenPage() {
         name: form.name.trim(),
         dateOfBirth: form.dateOfBirth,
         allergies: form.allergies.filter(Boolean),
-        emergencyContact: form.emergencyContact.trim() || null,
+        emergencyContact: form.emergencyContact.trim(),
         classId: form.classId || null,
         updatedAt: now,
       };
       const preferredName = form.preferredName.trim();
       const medicalNotes = form.medicalNotes.trim();
-      const enrollmentDate = form.enrollmentDate || null;
-      const emergencyContactName = form.emergencyContactName.trim();
+      const enrollmentDate = enrollmentTrimmed && isValidIsoDateString(enrollmentTrimmed) ? enrollmentTrimmed : null;
       if (preferredName) base.preferredName = preferredName;
       else base.preferredName = null;
       if (medicalNotes) base.medicalNotes = medicalNotes;
       else base.medicalNotes = null;
       if (enrollmentDate) base.enrollmentDate = enrollmentDate;
       else base.enrollmentDate = null;
-      if (emergencyContactName) base.emergencyContactName = emergencyContactName;
-      else base.emergencyContactName = null;
+      base.emergencyContactName = form.emergencyContactName.trim();
       if (editingId) {
         const existing = children.find((c) => c.id === editingId);
         const updateData = { ...base, parentIds: existing?.parentIds ?? [], createdAt: existing?.createdAt ?? now };
@@ -348,22 +350,28 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Date of birth</label>
-              <input
-                type="date"
+              <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Date of birth
+              </span>
+              <DateOfBirthField
+                id="child-dob"
                 value={form.dateOfBirth}
-                onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
-                className="input-base"
+                onChange={(iso) => setForm((f) => ({ ...f, dateOfBirth: iso }))}
                 required
+                inputClassName="input-base w-full"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Enrollment date</label>
-              <input
-                type="date"
+              <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Enrollment date
+              </span>
+              <DateOfBirthField
+                id="child-enrollment"
+                purpose="enrollment"
                 value={form.enrollmentDate}
-                onChange={(e) => setForm((f) => ({ ...f, enrollmentDate: e.target.value }))}
-                className="input-base"
+                onChange={(iso) => setForm((f) => ({ ...f, enrollmentDate: iso }))}
+                required={false}
+                inputClassName="input-base w-full"
               />
             </div>
             <div>
@@ -420,23 +428,31 @@ export default function ChildrenPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Emergency contact name</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Emergency contact name <span className="text-red-600 dark:text-red-400">*</span>
+              </label>
               <input
                 type="text"
                 value={form.emergencyContactName}
                 onChange={(e) => setForm((f) => ({ ...f, emergencyContactName: e.target.value }))}
-                placeholder="e.g. Parent name"
+                placeholder="e.g. Parent or guardian name"
                 className="input-base"
+                required
+                autoComplete="name"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Emergency contact phone</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Emergency contact phone <span className="text-red-600 dark:text-red-400">*</span>
+              </label>
               <input
-                type="text"
+                type="tel"
                 value={form.emergencyContact}
                 onChange={(e) => setForm((f) => ({ ...f, emergencyContact: e.target.value }))}
                 placeholder="Phone number"
                 className="input-base"
+                required
+                autoComplete="tel"
               />
             </div>
           </div>

@@ -8,43 +8,44 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
-import { SkeletonChildRow } from '../../components/Skeleton';
+import { SkeletonChildPickRow } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { font } from '../../theme/typography';
+import { getInitials } from '../../utils';
 import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
-import type { UserProfile } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MessagesStackParamList } from '../shared/MessagesListScreen';
+import type { RootStackParamList } from '../../navigation/MainTabs';
 
-type Props = NativeStackScreenProps<MessagesStackParamList, 'SelectChildToMessage'>;
-
-/** One row: parent + child = one chat conversation. */
-type ParentChildRow = {
-  parentId: string;
-  parentDisplayName: string;
-  child: Child;
-};
+type Props = NativeStackScreenProps<RootStackParamList, 'SelectChildToMessage'>;
 
 export function SelectChildToMessageScreen({ navigation }: Props) {
   const { profile } = useAuth();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [children, setChildren] = useState<Child[]>([]);
   const [classNames, setClassNames] = useState<Record<string, string>>({});
-  const [parentRows, setParentRows] = useState<ParentChildRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [startingKey, setStartingKey] = useState<string | null>(null);
+  const [startingChildId, setStartingChildId] = useState<string | null>(null);
+  const [noAssignedClasses, setNoAssignedClasses] = useState(false);
 
   const schoolId = profile?.schoolId;
   const uid = profile?.uid;
+
+  const sortedChildren = useMemo(
+    () => [...children].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, { sensitivity: 'base' })),
+    [children]
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -71,17 +72,18 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
         names[d.id] = c.name ?? d.id;
       });
       setClassNames(names);
+
       if (classIds.length === 0) {
+        setNoAssignedClasses(true);
         setChildren([]);
         setLoading(false);
         setRefreshing(false);
         return;
       }
+
+      setNoAssignedClasses(false);
       unsub = onSnapshot(
-        query(
-          collection(db, 'schools', schoolId, 'children'),
-          where('classId', 'in', classIds)
-        ),
+        query(collection(db, 'schools', schoolId, 'children'), where('classId', 'in', classIds)),
         (snap) => {
           if (cancelled) return;
           setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
@@ -96,118 +98,106 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
     };
   }, [schoolId, uid, refreshTrigger]);
 
-  useEffect(() => {
-    if (children.length === 0) {
-      setParentRows([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const rows: ParentChildRow[] = [];
-      const parentIds = new Set<string>();
-      for (const child of children) {
-        for (const parentId of child.parentIds ?? []) {
-          parentIds.add(parentId);
-        }
-      }
-      const parentProfiles: Record<string, string> = {};
-      await Promise.all(
-        Array.from(parentIds).map(async (parentId) => {
-          if (cancelled) return;
-          try {
-            const snap = await getDoc(doc(db, 'users', parentId));
-            if (snap.exists()) {
-              const p = snap.data() as UserProfile;
-              parentProfiles[parentId] = p.displayName || p.preferredName || parentId.slice(0, 8);
-            } else {
-              parentProfiles[parentId] = parentId.slice(0, 8);
-            }
-          } catch {
-            parentProfiles[parentId] = parentId.slice(0, 8);
-          }
-        })
-      );
-      if (cancelled) return;
-      for (const child of children) {
-        for (const parentId of child.parentIds ?? []) {
-          rows.push({
-            parentId,
-            parentDisplayName: parentProfiles[parentId] ?? parentId.slice(0, 8),
-            child,
-          });
-        }
-      }
-      rows.sort((a, b) => {
-        const nameA = a.parentDisplayName.toLowerCase();
-        const nameB = b.parentDisplayName.toLowerCase();
-        if (nameA !== nameB) return nameA.localeCompare(nameB);
-        return (a.child.name ?? '').localeCompare(b.child.name ?? '');
-      });
-      setParentRows(rows);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [children]);
-
-  const onSelect = useCallback(
-    async (row: ParentChildRow) => {
+  const onSelectChild = useCallback(
+    async (child: Child) => {
       if (!schoolId) return;
-      const key = `${row.parentId}_${row.child.id}`;
-      setStartingKey(key);
+      const parentId = child.parentIds?.[0];
+      if (!parentId) {
+        Alert.alert('No parent linked', 'This child does not have a linked parent yet.');
+        return;
+      }
+      setStartingChildId(child.id);
       try {
-        const { chatId, schoolId: sid } = await getOrCreateChat(schoolId, row.child.id, row.parentId);
+        const { chatId, schoolId: sid } = await getOrCreateChat(schoolId, child.id, parentId);
         navigation.replace('ChatThread', { chatId, schoolId: sid });
-      } catch (e) {
-        Alert.alert('Error', 'Could not start conversation. Please try again.');
+      } catch {
+        Alert.alert('Error', 'Could not open conversation. Please try again.');
       } finally {
-        setStartingKey(null);
+        setStartingChildId(null);
       }
     },
     [schoolId, navigation]
   );
 
-  const renderItem = ({ item }: { item: ParentChildRow }) => {
-    const key = `${item.parentId}_${item.child.id}`;
-    const isStarting = startingKey === key;
-    const className = item.child.classId ? classNames[item.child.classId] ?? item.child.classId : null;
-    return (
-      <TouchableOpacity
-        style={styles.row}
-        onPress={() => onSelect(item)}
-        disabled={isStarting}
-      >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {item.parentDisplayName
-              .trim()
-              .split(/\s+/)
-              .map((s) => s[0])
-              .slice(0, 2)
-              .join('')
-              .toUpperCase() || '?'}
-          </Text>
-        </View>
-        <View style={styles.content}>
-          <Text style={styles.name}>{item.parentDisplayName}</Text>
-          <Text style={styles.subtitle}>
-            {item.child.name}{className ? ` · ${className}` : ''}
-          </Text>
-        </View>
-        {isStarting ? (
-          <ActivityIndicator size="small" color={colors.primary} />
-        ) : (
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        )}
-      </TouchableOpacity>
-    );
-  };
+  const renderItem = useCallback(
+    ({ item }: { item: Child }) => {
+      const hasParent = !!(item.parentIds && item.parentIds.length > 0);
+      const isStarting = startingChildId === item.id;
+      const className = item.classId ? classNames[item.classId] ?? null : null;
+
+      const cardShadow =
+        !isDark && Platform.OS === 'ios'
+          ? {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.06,
+              shadowRadius: 4,
+            }
+          : {};
+      const cardElevation = !isDark && Platform.OS === 'android' ? { elevation: 2 } : {};
+
+      return (
+        <TouchableOpacity
+          style={[styles.rowCard, cardShadow, cardElevation, !hasParent && styles.rowDisabled]}
+          onPress={() => onSelectChild(item)}
+          disabled={!hasParent || isStarting}
+          activeOpacity={0.72}
+        >
+          <View style={[styles.avatar, { backgroundColor: colors.avatarBg }]}>
+            <Text style={[styles.avatarText, { color: colors.avatarText }]}>
+              {getInitials(item.name || '?')}
+            </Text>
+          </View>
+          <View style={styles.rowBody}>
+            <Text style={styles.childName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={hasParent ? styles.subtitle : styles.subtitleMuted} numberOfLines={1}>
+              {hasParent
+                ? className
+                  ? className
+                  : 'Parent linked'
+                : 'No parent linked'}
+            </Text>
+          </View>
+          {isStarting ? (
+            <ActivityIndicator size="small" color={colors.primary} style={styles.rowTrailing} />
+          ) : (
+            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} style={styles.rowTrailing} />
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [classNames, colors, isDark, onSelectChild, startingChildId, styles]
+  );
+
+  const listEmpty = useMemo(() => {
+    if (noAssignedClasses) {
+      return (
+        <EmptyState
+          icon="school-outline"
+          title="No classes assigned"
+          subtitle="When you’re assigned to a class, children in that class will show up here."
+        />
+      );
+    }
+    if (sortedChildren.length === 0 && !loading) {
+      return (
+        <EmptyState
+          icon="people-outline"
+          title="No children yet"
+          subtitle="There are no children in your classes yet."
+        />
+      );
+    }
+    return null;
+  }, [noAssignedClasses, sortedChildren.length, loading]);
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-          <SkeletonChildRow key={i} />
+      <View style={[styles.container, styles.loadingPad]} accessibilityState={{ busy: true }}>
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <SkeletonChildPickRow key={i} />
         ))}
       </View>
     );
@@ -216,42 +206,80 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <FlatList
-        data={parentRows}
-        keyExtractor={(item) => `${item.parentId}_${item.child.id}`}
+        data={sortedChildren}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No parents linked to children in your classes yet.</Text>
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={listEmpty}
       />
     </View>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette) {
+function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    row: {
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    loadingPad: { paddingTop: 8 },
+    listContent: {
+      flexGrow: 1,
+      paddingTop: 8,
+      paddingBottom: 28,
+    },
+    rowCard: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
-      padding: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      marginHorizontal: 16,
+      marginBottom: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: colors.cardBorder,
+    },
+    rowDisabled: {
+      opacity: 0.55,
     },
     avatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.primary,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
     },
-    avatarText: { fontSize: 16, fontWeight: '600', color: colors.primaryContrast },
-    content: { flex: 1 },
-    name: { fontSize: 16, fontWeight: '600', color: colors.text },
-    subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
+    avatarText: {
+      fontFamily: font.semiBold,
+      fontSize: 17,
+    },
+    rowBody: {
+      flex: 1,
+      minWidth: 0,
+    },
+    childName: {
+      fontFamily: font.semiBold,
+      fontSize: 16,
+      color: colors.text,
+    },
+    subtitle: {
+      fontFamily: font.regular,
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    subtitleMuted: {
+      fontFamily: font.regular,
+      fontSize: 14,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginTop: 4,
+    },
+    rowTrailing: {
+      marginLeft: 8,
+    },
   });
 }

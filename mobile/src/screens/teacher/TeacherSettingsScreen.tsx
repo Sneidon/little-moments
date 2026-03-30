@@ -1,123 +1,442 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
-import { collection, getDocs } from 'firebase/firestore';
-import { auth, db } from '../../config/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import firebaseApp, { auth, db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme, type ThemeMode } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
+import { font } from '../../theme/typography';
+import {
+  SettingsIconBox,
+  themeSubtitle,
+  themePickerLabel,
+  settingsCardShadow,
+} from '../../components/SettingsSection';
+import { getInitials, formatSettingsVersionFooter } from '../../utils';
 import type { ClassRoom } from '../../../../shared/types';
+import type { School } from '../../../../shared/types';
 
 export function TeacherSettingsScreen() {
+  const insets = useSafeAreaInsets();
   const { profile } = useAuth();
-  const { colors, themeMode, setThemeMode } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, themeMode, setThemeMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const cardShadow = useMemo(() => settingsCardShadow(isDark), [isDark]);
+
   const [className, setClassName] = useState<string | null>(null);
+  const [school, setSchool] = useState<School | null>(null);
+  const [schoolLoading, setSchoolLoading] = useState(false);
+  const [notifMessages, setNotifMessages] = useState(true);
+  const [notifAnnouncements, setNotifAnnouncements] = useState(true);
+  const [notifSaving, setNotifSaving] = useState(false);
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
-    if (!schoolId || !uid) return;
+    if (!schoolId || !uid) {
+      setClassName(null);
+      setSchool(null);
+      setSchoolLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setSchoolLoading(true);
+    setSchool(null);
     (async () => {
-      const snap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
-      const myClass = snap.docs.find(
-        (d) => (d.data() as ClassRoom).assignedTeacherId === uid
-      );
-      setClassName(myClass ? (myClass.data() as ClassRoom).name : null);
+      try {
+        const snap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
+        if (cancelled) return;
+        const myClass = snap.docs.find((d) => (d.data() as ClassRoom).assignedTeacherId === uid);
+        setClassName(myClass ? (myClass.data() as ClassRoom).name : null);
+
+        const schoolSnap = await getDoc(doc(db, 'schools', schoolId));
+        if (cancelled) return;
+        if (schoolSnap.exists()) {
+          setSchool({ id: schoolSnap.id, ...schoolSnap.data() } as School);
+        } else {
+          setSchool(null);
+        }
+      } finally {
+        if (!cancelled) setSchoolLoading(false);
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [profile?.schoolId, profile?.uid]);
 
-  const handleSignOut = () => {
-    signOut(auth);
-  };
+  useEffect(() => {
+    const p = (profile as { notificationPreferences?: Record<string, boolean> } | null)?.notificationPreferences;
+    setNotifMessages(p?.messages !== false);
+    setNotifAnnouncements(p?.announcements !== false);
+  }, [profile?.uid, profile]);
 
-  const cycleTheme = () => {
-    const next: ThemeMode = themeMode === 'system' ? 'dark' : themeMode === 'dark' ? 'light' : 'system';
-    setThemeMode(next);
-  };
+  const saveTeacherNotifications = useCallback(async () => {
+    setNotifSaving(true);
+    try {
+      const fn = httpsCallable<
+        { notificationPreferences: Record<string, boolean> },
+        { ok: boolean }
+      >(getFunctions(firebaseApp), 'updateTeacherNotificationPreferences');
+      await fn({
+        notificationPreferences: {
+          messages: notifMessages,
+          announcements: notifAnnouncements,
+        },
+      });
+      Alert.alert('Saved', 'Notification preferences updated.');
+    } catch {
+      Alert.alert('Error', 'Could not save. Please try again.');
+    } finally {
+      setNotifSaving(false);
+    }
+  }, [notifMessages, notifAnnouncements]);
 
-  const themeLabel = themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light';
+  const openThemePicker = useCallback(() => {
+    Alert.alert('Theme', 'Choose appearance', [
+      { text: 'Light', onPress: () => setThemeMode('light') },
+      { text: 'Dark', onPress: () => setThemeMode('dark') },
+      { text: 'System', onPress: () => setThemeMode('system') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [setThemeMode]);
+
+  const handleSignOut = useCallback(() => {
+    Alert.alert('Sign out?', 'You will need to sign in again.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: () => void signOut(auth) },
+    ]);
+  }, []);
+
+  const onProfilePress = useCallback(() => {
+    Alert.alert(
+      'Profile',
+      'To update your name or photo, contact your school administrator. You can also use the web app if your account has access.'
+    );
+  }, []);
+
+  const displayName = profile?.displayName?.trim() || 'Teacher';
+  const email = profile?.email ?? '-';
+  const photoURL = profile?.photoURL;
+  const initials = getInitials(displayName);
+
+  const bottomPad = Math.max(insets.bottom, 24);
 
   return (
-    <View style={styles.container}>
-      
-      <View style={styles.card}>
-        <View style={styles.cardTitleRow}>
-          <Ionicons name="person-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.cardTitle}>Profile</Text>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <TouchableOpacity
+        style={[styles.profileCard, cardShadow]}
+        onPress={onProfilePress}
+        activeOpacity={0.92}
+        accessibilityRole="button"
+        accessibilityLabel="Profile information"
+      >
+        <View style={styles.avatarWrap}>
+          {photoURL ? (
+            <Image source={{ uri: photoURL }} style={styles.avatarImg} />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primaryMuted }]}>
+              <Text style={[styles.avatarInitials, { color: colors.primary }]}>{initials}</Text>
+            </View>
+          )}
         </View>
-        <Text style={styles.row}>{profile?.displayName ?? '—'}</Text>
-        <Text style={styles.row}>{profile?.email}</Text>
+        <Text style={styles.profileName}>{displayName}</Text>
+        <Text style={styles.profileEmail}>{email}</Text>
         {className ? (
-          <Text style={[styles.row, styles.room]}>Class: {className}</Text>
+          <View style={[styles.classBadge, { backgroundColor: colors.primaryMuted }]}>
+            <Text style={[styles.classBadgeText, { color: colors.primary }]} numberOfLines={1}>
+              CLASS: {className.toUpperCase()}
+            </Text>
+          </View>
         ) : null}
-      </View>
+      </TouchableOpacity>
 
-      <View style={styles.card}>
-        <View style={styles.cardTitleRow}>
-          <Ionicons name="help-circle-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.cardTitle}>Support</Text>
-        </View>
-        <TouchableOpacity style={styles.themeRow} onPress={() => Alert.alert('FAQ', 'How to log meals? Use Add Update → Meal. How to add planned activity? Use Planned activity quick action. Need more? support@mylittlemoments.com')} activeOpacity={0.7}>
-          <Text style={styles.themeLabel}>FAQ</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.themeRow} onPress={() => Alert.alert('Contact support', 'Email: support@mylittlemoments.com')} activeOpacity={0.7}>
-          <Text style={styles.themeLabel}>Contact support</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.cardTitleRow}>
-          <Ionicons name="moon-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.cardTitle}>Appearance</Text>
-        </View>
-        <TouchableOpacity style={styles.themeRow} onPress={cycleTheme} activeOpacity={0.7}>
-          <Text style={styles.themeLabel}>Theme</Text>
-          <Text style={styles.themeValue}>{themeLabel}</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      <Text style={styles.sectionLabel}>Appearance</Text>
+      <View style={[styles.groupCard, cardShadow]}>
+        <TouchableOpacity style={styles.row} onPress={openThemePicker} activeOpacity={0.75}>
+          <SettingsIconBox name="contrast-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Theme</Text>
+            <Text style={styles.rowSubtitle}>{themeSubtitle(themeMode)}</Text>
+          </View>
+          <View style={[styles.themePill, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}>
+            <Text style={[styles.themePillText, { color: colors.text }]}>{themePickerLabel(themeMode)}</Text>
+            <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+          </View>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.cardTitleRow}>
-          <Ionicons name="log-out-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.cardTitle}>Account</Text>
-        </View>
-        <Text style={styles.signOutHint}>Sign out to switch account or use the web app as principal.</Text>
-        <Text style={styles.signOutLink} onPress={handleSignOut}>
-          Sign out
-        </Text>
+      <Text style={styles.sectionLabel}>Notifications</Text>
+      <View style={[styles.groupCard, cardShadow]}>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => setNotifMessages((v) => !v)}
+          activeOpacity={0.75}
+        >
+          <SettingsIconBox name="chatbubbles-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Chat messages</Text>
+          <Ionicons
+            name={notifMessages ? 'notifications' : 'notifications-off'}
+            size={20}
+            color={notifMessages ? colors.primary : colors.textMuted}
+          />
+        </TouchableOpacity>
+        <View style={[styles.hairline, { backgroundColor: colors.cardBorder }]} />
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => setNotifAnnouncements((v) => !v)}
+          activeOpacity={0.75}
+        >
+          <SettingsIconBox name="megaphone-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Announcements</Text>
+          <Ionicons
+            name={notifAnnouncements ? 'notifications' : 'notifications-off'}
+            size={20}
+            color={notifAnnouncements ? colors.primary : colors.textMuted}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.notifSaveBtn, notifSaving && styles.notifSaveBtnDisabled]}
+          onPress={saveTeacherNotifications}
+          disabled={notifSaving}
+        >
+          {notifSaving ? (
+            <ActivityIndicator size="small" color={colors.primaryContrast} />
+          ) : (
+            <Text style={[styles.notifSaveBtnText, { color: colors.primaryContrast }]}>Save preferences</Text>
+          )}
+        </TouchableOpacity>
       </View>
-    </View>
+
+      <Text style={styles.sectionLabel}>Support</Text>
+      <View style={[styles.groupCard, cardShadow]}>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() =>
+            Alert.alert('FAQ', 'Not implemented yet.')
+          }
+          activeOpacity={0.75}
+        >
+          <SettingsIconBox name="help-circle-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>FAQ</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+        <View style={[styles.hairline, { backgroundColor: colors.cardBorder }]} />
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() =>
+            Alert.alert('Contact support', 'Not implemented yet.')
+          }
+          activeOpacity={0.75}
+        >
+          <SettingsIconBox name="headset-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Contact support</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      {profile?.schoolId ? (
+        <>
+          <Text style={styles.sectionLabel}>School</Text>
+          {schoolLoading ? (
+            <View style={[styles.groupCard, cardShadow]}>
+              <View style={styles.cardBody}>
+                <Text style={[styles.rowSubtitle, { color: colors.textMuted, marginTop: 0 }]}>Loading…</Text>
+              </View>
+            </View>
+          ) : school ? (
+            <View style={[styles.groupCard, cardShadow]}>
+              <View style={styles.row}>
+                <SettingsIconBox
+                  name="business-outline"
+                  backgroundColor={colors.accentTealSoft}
+                  iconColor={colors.accentTeal}
+                />
+                <Text style={[styles.rowTitle, styles.rowTitleFlex]} numberOfLines={2}>
+                  {school.name}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.groupCard, cardShadow]}>
+              <View style={styles.cardBody}>
+                <Text style={[styles.rowSubtitle, { color: colors.textMuted, marginTop: 0 }]}>
+                  Couldn&apos;t load school.
+                </Text>
+              </View>
+            </View>
+          )}
+        </>
+      ) : null}
+
+      <Text style={styles.sectionLabel}>Account</Text>
+      <View style={[styles.groupCard, cardShadow]}>
+        <TouchableOpacity style={styles.row} onPress={handleSignOut} activeOpacity={0.75}>
+          <SettingsIconBox name="log-out-outline" backgroundColor={colors.dangerMuted} iconColor={colors.danger} />
+          <Text style={[styles.rowTitle, styles.rowTitleFlex, { color: colors.danger }]}>Sign out</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.versionText}>{formatSettingsVersionFooter()}</Text>
+    </ScrollView>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette) {
+function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
   return StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: colors.background },
-    card: {
+    screen: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
+    },
+    sectionLabel: {
+      fontFamily: font.semiBold,
+      fontSize: 12,
+      letterSpacing: 0.6,
+      color: colors.textMuted,
+      marginTop: 22,
+      marginBottom: 10,
+      textTransform: 'uppercase',
+    },
+    profileCard: {
       backgroundColor: colors.card,
-      padding: 16,
-      borderRadius: 12,
-      marginBottom: 12,
-      borderWidth: 1,
+      borderRadius: 16,
+      paddingVertical: 24,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      marginTop: 4,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
       borderColor: colors.cardBorder,
     },
-    cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-    cardTitle: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
-    themeRow: {
+    avatarWrap: {
+      position: 'relative',
+      marginBottom: 14,
+    },
+    avatarImg: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      borderWidth: 2,
+      borderColor: colors.cardBorder,
+    },
+    avatarPlaceholder: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarInitials: {
+      fontFamily: font.bold,
+      fontSize: 32,
+    },
+    profileName: {
+      fontFamily: font.bold,
+      fontSize: 22,
+      color: colors.text,
+      textAlign: 'center',
+    },
+    profileEmail: {
+      fontFamily: font.regular,
+      fontSize: 15,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 6,
+    },
+    classBadge: {
+      marginTop: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      maxWidth: '100%',
+    },
+    classBadgeText: {
+      fontFamily: font.semiBold,
+      fontSize: 12,
+      letterSpacing: 0.5,
+      textAlign: 'center',
+    },
+    groupCard: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      paddingVertical: 4,
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+      borderColor: colors.cardBorder,
+      overflow: 'hidden',
+    },
+    cardBody: {
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    row: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 4,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      gap: 14,
     },
-    themeLabel: { fontSize: 14, color: colors.text },
-    themeValue: { fontSize: 14, color: colors.textMuted },
-    row: { fontSize: 14, color: colors.text, marginBottom: 4 },
-    room: { color: colors.primary, fontWeight: '500' },
-    signOutHint: { fontSize: 13, color: colors.textMuted, marginBottom: 12 },
-    signOutLink: { fontSize: 14, color: colors.danger, fontWeight: '600' },
+    rowText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    rowTitle: {
+      fontFamily: font.semiBold,
+      fontSize: 16,
+      color: colors.text,
+    },
+    rowTitleFlex: {
+      flex: 1,
+    },
+    rowSubtitle: {
+      fontFamily: font.regular,
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    themePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+    },
+    themePillText: {
+      fontFamily: font.medium,
+      fontSize: 14,
+    },
+    hairline: {
+      height: StyleSheet.hairlineWidth,
+      marginLeft: 74,
+    },
+    notifSaveBtn: {
+      marginHorizontal: 16,
+      marginVertical: 12,
+      paddingVertical: 12,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+    },
+    notifSaveBtnDisabled: { opacity: 0.6 },
+    notifSaveBtnText: { fontFamily: font.semiBold, fontSize: 15 },
+    versionText: {
+      fontFamily: font.regular,
+      fontSize: 11,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 28,
+      letterSpacing: 0.3,
+    },
   });
 }

@@ -163,3 +163,40 @@ If you see “index required” errors in the app, create composite indexes in *
 2. **Mobile** (Expo in `mobile/`): sign in as `teacher@test.com` → you should see “Rainbow Room” and the child; as `parent@test.com` → you should see the child and reports (after adding some as teacher).
 
 Remove or change test users and passwords before going to production.
+
+---
+
+## 7. Push notifications (mobile)
+
+### Firebase config files (Android & iOS)
+
+The mobile app expects Firebase config files in **`mobile/firebase/`** (so the app is self-contained for EAS Build):
+
+- **Android**: `mobile/firebase/google-services.json`
+- **iOS**: `mobile/firebase/GoogleService-Info.plist`
+
+Download these from Firebase Console → Project settings → Your apps (add Android/iOS apps with package `co.za.mylittlemoments` and bundle ID `co.za.mylittlemoments` if needed). The Expo config plugin `@react-native-firebase/app` copies them into the native projects at prebuild.
+
+### Backend alignment
+
+The **Cloud Functions** send push notifications via **Firebase Cloud Messaging (FCM)**:
+
+- **`saveFcmToken`** (callable): mobile calls this after login with the device FCM token; tokens are stored in `users/{uid}.fcmTokens` (max 20 per user).
+- **Triggers that send FCM**:
+  - **Daily communication** created → parents in that class get a notification (`type: daily_communication`).
+  - **Announcement** created → all school staff and parents get a notification (`type: announcement`).
+  - **Announcement reminder** (scheduled) → reminder for announcements 24–48h old (`type: announcement_reminder`).
+  - **Event reminder** (scheduled) → events happening tomorrow (`type: event_reminder`).
+
+All messages use `admin.messaging().sendEachForMulticast()` with `notification` (title, body) and `data` (e.g. `type`, `schoolId`, `announcementId`, `eventId`). The mobile app registers the FCM token on login and handles notification-opened navigation (e.g. tap opens Announcements or Events).
+
+### Building the mobile app for push (EAS Build)
+
+Push requires a **native build** (Expo Go does not include FCM). Build with EAS from the **mobile** directory:
+
+```bash
+cd mobile
+eas build --platform android   # or --platform ios, or both
+```
+
+Ensure `mobile/firebase/google-services.json` and `mobile/firebase/GoogleService-Info.plist` exist before building so the plugin can copy them into the native projects. The mobile app uses this local `firebase/` folder so it is self-contained and works with EAS Build without depending on the repo root.

@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, Image, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SkeletonCard } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,10 +9,34 @@ import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import type { RootStackParamList } from '../../navigation/MainTabs';
 import type { Announcement } from '../../../../shared/types';
+
+function announcementPreviewMeta(item: Announcement): { chips: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] } {
+  const chips: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [];
+  if (item.imageUrl) chips.push({ key: 'hero', icon: 'image-outline', label: 'Image' });
+  const docCount = item.documents?.length ?? 0;
+  if (docCount > 0) {
+    chips.push({
+      key: 'docs',
+      icon: 'document-text-outline',
+      label: docCount === 1 ? '1 file' : `${docCount} files`,
+    });
+  }
+  const linkCount = item.links?.length ?? 0;
+  if (linkCount > 0) {
+    chips.push({
+      key: 'links',
+      icon: 'link-outline',
+      label: linkCount === 1 ? '1 link' : `${linkCount} links`,
+    });
+  }
+  return { chips };
+}
 
 export function ParentAnnouncementsScreen() {
   const { profile } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [schoolId, setSchoolId] = useState<string | null>(null);
@@ -55,28 +81,63 @@ export function ParentAnnouncementsScreen() {
     return () => unsub();
   }, [schoolId, refreshTrigger]);
 
-  const renderItem = ({ item }: { item: Announcement }) => (
-    <View style={styles.card}>
-      <Ionicons name="megaphone" size={24} color={colors.primary} style={styles.cardIcon} />
-      <View style={styles.cardContent}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.body}>{item.body}</Text>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.announcementImage} resizeMode="cover" />
-        ) : null}
-        {item.documents && item.documents.length > 0 ? (
-          <View style={styles.documents}>
-            {item.documents.map((d, i) => (
-              <TouchableOpacity key={i} onPress={() => d.url && Linking.openURL(d.url)}>
-                <Text style={styles.docLink}>{d.label || d.name || d.url}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : null}
-        <Text style={styles.meta}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-      </View>
-    </View>
+  const openDetail = useCallback(
+    (item: Announcement) => {
+      if (!schoolId) return;
+      navigation.navigate('ParentAnnouncementDetail', { schoolId, announcementId: item.id });
+    },
+    [navigation, schoolId]
   );
+
+  const renderItem = ({ item }: { item: Announcement }) => {
+    const { chips } = announcementPreviewMeta(item);
+    const dateLabel = new Date(item.createdAt).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => openDetail(item)}
+        activeOpacity={0.72}
+        accessibilityRole="button"
+        accessibilityHint="Opens full announcement"
+      >
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} resizeMode="cover" />
+        ) : (
+          <View style={[styles.thumbnailPlaceholder, { backgroundColor: colors.primaryMuted }]}>
+            <Ionicons name="megaphone" size={28} color={colors.primary} />
+          </View>
+        )}
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.title} numberOfLines={2}>
+              {item.title}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.chevron} />
+          </View>
+          {item.body?.trim() ? (
+            <Text style={styles.bodyPreview} numberOfLines={3}>
+              {item.body.trim()}
+            </Text>
+          ) : null}
+          {chips.length > 0 ? (
+            <View style={styles.chipRow}>
+              {chips.map((c) => (
+                <View key={c.key} style={[styles.chip, { backgroundColor: colors.backgroundSecondary }]}>
+                  <Ionicons name={c.icon} size={14} color={colors.textSecondary} style={styles.chipIcon} />
+                  <Text style={[styles.chipLabel, { color: colors.textSecondary }]}>{c.label}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          <Text style={styles.meta}>{dateLabel}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -113,22 +174,44 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     container: { flex: 1, backgroundColor: colors.background },
     card: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'stretch',
       backgroundColor: colors.card,
-      padding: 16,
-      borderRadius: 12,
+      padding: 12,
+      borderRadius: 14,
       marginBottom: 12,
       borderWidth: 1,
       borderColor: colors.cardBorder,
+      overflow: 'hidden',
     },
-    cardIcon: { marginRight: 12 },
-    cardContent: { flex: 1 },
-    title: { fontSize: 16, fontWeight: '600', color: colors.text },
-    body: { fontSize: 14, color: colors.textMuted, marginTop: 8 },
-    announcementImage: { width: '100%', height: 160, borderRadius: 8, marginTop: 8 },
-    documents: { marginTop: 8, gap: 4 },
-    docLink: { fontSize: 14, color: colors.primary, textDecorationLine: 'underline' },
-    meta: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
+    thumbnail: {
+      width: 88,
+      height: 88,
+      borderRadius: 10,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    thumbnailPlaceholder: {
+      width: 88,
+      height: 88,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardContent: { flex: 1, marginLeft: 12, minWidth: 0 },
+    cardHeaderRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    title: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text, paddingRight: 4 },
+    chevron: { marginTop: 2 },
+    bodyPreview: { fontSize: 14, color: colors.textMuted, marginTop: 6, lineHeight: 20 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    chipIcon: { marginRight: 4 },
+    chipLabel: { fontSize: 12, fontWeight: '500' },
+    meta: { fontSize: 12, color: colors.textMuted, marginTop: 10 },
     listContent: { flexGrow: 1, padding: 16 },
   });
 }

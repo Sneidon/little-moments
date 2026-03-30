@@ -4,11 +4,11 @@
 
 Keep a consistent order:
 
-1. **React** – `React`, hooks (`useState`, `useEffect`, etc.)
-2. **React Native** – `View`, `Text`, `StyleSheet`, etc.
-3. **Third-party** – `@expo/vector-icons`, `firebase/firestore`, etc.
-4. **Internal** – `config`, `context`, `components`, `hooks`, `utils` (blank line before if needed)
-5. **Types** – `type { X } from '...'` (prefer type-only imports)
+1. **React** - `React`, hooks (`useState`, `useEffect`, etc.)
+2. **React Native** - `View`, `Text`, `StyleSheet`, etc.
+3. **Third-party** - `@expo/vector-icons`, `firebase/firestore`, etc.
+4. **Internal** - `config`, `context`, `components`, `hooks`, `utils` (blank line before if needed)
+5. **Types** - `type { X } from '...'` (prefer type-only imports)
 
 Use path aliases or relative paths consistently (e.g. `../../hooks`, `../../utils`).
 

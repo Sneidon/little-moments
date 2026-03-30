@@ -35,14 +35,25 @@ function DocumentRow({
         onChange={(e) => onLabelChange(index, e.target.value)}
         className={`min-w-[140px] flex-1 ${inputBase} py-1.5 text-sm`}
       />
+      {docRow.existingUrl && !docRow.file && (
+        <a
+          href={docRow.existingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center text-xs font-medium text-primary-600 hover:underline dark:text-primary-400"
+        >
+          View current file
+        </a>
+      )}
       <input
         type="file"
         accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onChange={(e) => onFileChange(index, e.target.files?.[0] ?? null)}
-        className={`flex-1 ${inputBase} ${inputFile} py-1.5`}
+        className={`min-w-[160px] flex-1 ${inputBase} ${inputFile} py-1.5`}
+        title={docRow.existingUrl ? 'Choose a file to replace the current attachment' : undefined}
       />
       {docRow.file && (
-        <span className="text-xs text-slate-500 dark:text-slate-400">{docRow.file.name}</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">New: {docRow.file.name}</span>
       )}
       <button
         type="button"
@@ -161,7 +172,7 @@ export function AnnouncementForm({ form, classes }: AnnouncementFormProps) {
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Optional documents (upload files; add a label for each)
+            Optional documents (labels, upload or replace files; remove a row to delete an attachment)
           </span>
           <button
             type="button"
@@ -186,7 +197,7 @@ export function AnnouncementForm({ form, classes }: AnnouncementFormProps) {
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Optional links (label + URL for each)
+            Optional links (edit label or URL; remove a row to delete)
           </span>
           <button
             type="button"

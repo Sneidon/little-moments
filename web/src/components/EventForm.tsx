@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import type { PendingDocument, PendingLink, UseEventFormResult } from '@/hooks/useEventForm';
 import type { ClassRoom } from 'shared/types';
 
@@ -8,9 +10,33 @@ const inputBase =
 const inputFile =
   'text-sm file:mr-3 file:rounded file:border-0 file:bg-primary-100 file:px-3 file:py-1 file:text-primary-700';
 
+const btnGhost =
+  'inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700';
+
+function formatScheduleSummary(startAt: string, durationMinutes: number): string {
+  if (!startAt) return '—';
+  const start = new Date(startAt);
+  if (Number.isNaN(start.getTime())) return '—';
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  const startStr = start.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const endStr = end.toLocaleTimeString(undefined, { timeStyle: 'short' });
+  return `${startStr} – ${endStr}`;
+}
+
+function audienceSummary(
+  targetType: 'everyone' | 'classes',
+  targetClassIds: string[],
+  classNamesMap: Record<string, string>
+): string {
+  if (targetType === 'everyone') return 'Everyone';
+  if (!targetClassIds.length) return '—';
+  return targetClassIds.map((id) => classNamesMap[id] || id).join(', ');
+}
+
 export interface EventFormProps {
   form: UseEventFormResult;
   classes: ClassRoom[];
+  classNamesMap?: Record<string, string>;
 }
 
 function DocumentRow({
@@ -35,14 +61,25 @@ function DocumentRow({
         onChange={(e) => onLabelChange(index, e.target.value)}
         className={`min-w-[140px] flex-1 ${inputBase} py-1.5 text-sm`}
       />
+      {docRow.existingUrl && !docRow.file && (
+        <a
+          href={docRow.existingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center text-xs font-medium text-primary-600 hover:underline dark:text-primary-400"
+        >
+          View current file
+        </a>
+      )}
       <input
         type="file"
         accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onChange={(e) => onFileChange(index, e.target.files?.[0] ?? null)}
-        className={`flex-1 ${inputBase} ${inputFile} py-1.5`}
+        className={`min-w-[160px] flex-1 ${inputBase} ${inputFile} py-1.5`}
+        title={docRow.existingUrl ? 'Choose a file to replace the current attachment' : undefined}
       />
       {docRow.file && (
-        <span className="text-xs text-slate-500 dark:text-slate-400">{docRow.file.name}</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">New: {docRow.file.name}</span>
       )}
       <button
         type="button"
@@ -97,7 +134,7 @@ function LinkRow({
   );
 }
 
-export function EventForm({ form, classes }: EventFormProps) {
+export function EventForm({ form, classes, classNamesMap = {} }: EventFormProps) {
   const {
     title,
     setTitle,
@@ -109,6 +146,7 @@ export function EventForm({ form, classes }: EventFormProps) {
     setDurationMinutes,
     imageFile,
     setImageFile,
+    existingImageUrl,
     documents,
     addDocument,
     removeDocument,
@@ -130,11 +168,114 @@ export function EventForm({ form, classes }: EventFormProps) {
     canSubmit,
   } = form;
 
+  const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!imageFile) {
+      setNewImagePreview(null);
+      return;
+    }
+    const u = URL.createObjectURL(imageFile);
+    setNewImagePreview(u);
+    return () => URL.revokeObjectURL(u);
+  }, [imageFile]);
+
   return (
     <form onSubmit={submit} className="card mb-8 p-6">
       <h2 className="mb-4 font-semibold text-slate-800 dark:text-slate-100">
         {editingId ? 'Edit event' : 'New event'}
       </h2>
+
+      {editingId && (
+        <div className="mb-6 space-y-4 rounded-xl border border-slate-200 bg-slate-50/90 p-4 dark:border-slate-600 dark:bg-slate-800/60">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Event details
+          </p>
+          <dl className="grid gap-4 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="font-medium text-slate-600 dark:text-slate-300">When</dt>
+                <dd className="mt-0.5 text-slate-900 dark:text-slate-100">
+                  {formatScheduleSummary(startAt, durationMinutes)}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-slate-600 dark:text-slate-300">Audience</dt>
+                <dd className="mt-0.5 text-slate-900 dark:text-slate-100">
+                  {audienceSummary(targetType, targetClassIds, classNamesMap)}
+                </dd>
+              </div>
+            </div>
+            <div>
+              <dt className="font-medium text-slate-600 dark:text-slate-300">Description</dt>
+              <dd className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-slate-900 dark:text-slate-100">
+                {description.trim() ? description : <span className="text-slate-400">No description</span>}
+              </dd>
+            </div>
+            {(existingImageUrl || documents.some((d) => d.existingUrl || d.file) || links.some((l) => l.url.trim())) && (
+              <div>
+                <dt className="font-medium text-slate-600 dark:text-slate-300">Attachments & links</dt>
+                <dd className="mt-1 space-y-2">
+                  {existingImageUrl && !imageFile && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Event image below (replace using the image field).
+                    </p>
+                  )}
+                  <ul className="list-inside list-disc space-y-1 text-slate-800 dark:text-slate-200">
+                    {documents.map((d, i) => {
+                      const label = d.label?.trim() || `Document ${i + 1}`;
+                      if (d.existingUrl) {
+                        return (
+                          <li key={`d-${i}-e`}>
+                            <a
+                              href={d.existingUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary-600 hover:underline dark:text-primary-400"
+                            >
+                              {label}
+                            </a>
+                            <span className="text-slate-400"> (file)</span>
+                          </li>
+                        );
+                      }
+                      if (d.file) {
+                        return (
+                          <li key={`d-${i}-n`}>
+                            {label}
+                            <span className="text-slate-400"> — new upload: {d.file.name}</span>
+                          </li>
+                        );
+                      }
+                      return null;
+                    })}
+                    {links.map((l, i) =>
+                      l.url.trim() ? (
+                        <li key={`l-${i}`}>
+                          <a
+                            href={l.url.trim()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:underline dark:text-primary-400"
+                          >
+                            {l.label?.trim() || l.url.trim()}
+                          </a>
+                          <span className="text-slate-400"> (link)</span>
+                        </li>
+                      ) : null
+                    )}
+                  </ul>
+                </dd>
+              </div>
+            )}
+          </dl>
+          <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-600">
+            <Link href={`/principal/events/${editingId}/rsvps`} className={btnGhost}>
+              View RSVP responses
+            </Link>
+          </div>
+        </div>
+      )}
+
       <input
         type="text"
         placeholder="Event title"
@@ -146,7 +287,7 @@ export function EventForm({ form, classes }: EventFormProps) {
         placeholder="Description (optional)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        rows={2}
+        rows={4}
         className={`${inputBase} mb-3 w-full resize-y`}
       />
 
@@ -154,24 +295,43 @@ export function EventForm({ form, classes }: EventFormProps) {
         <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
           Optional image
         </label>
+        {existingImageUrl && !imageFile && (
+          <div className="mb-2">
+            <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Current image</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={existingImageUrl}
+              alt=""
+              className="max-h-56 max-w-full rounded-lg border border-slate-200 object-contain dark:border-slate-600"
+            />
+          </div>
+        )}
+        {newImagePreview && (
+          <div className="mb-2">
+            <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">New image preview</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={newImagePreview}
+              alt=""
+              className="max-h-56 max-w-full rounded-lg border border-slate-200 object-contain dark:border-slate-600"
+            />
+          </div>
+        )}
         <input
           type="file"
           accept="image/*"
           onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
           className={`${inputBase} w-full text-sm ${inputFile}`}
+          title={existingImageUrl ? 'Choose an image to replace the current one' : undefined}
         />
       </div>
 
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Optional documents (upload files; add a label for each)
+            Optional documents (labels, upload or replace files; remove a row to delete an attachment)
           </span>
-          <button
-            type="button"
-            onClick={addDocument}
-            className="text-sm text-primary-600 hover:underline"
-          >
+          <button type="button" onClick={addDocument} className="text-sm text-primary-600 hover:underline">
             Add document
           </button>
         </div>
@@ -190,13 +350,9 @@ export function EventForm({ form, classes }: EventFormProps) {
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Optional links (label + URL for each)
+            Optional links (edit label or URL; remove a row to delete)
           </span>
-          <button
-            type="button"
-            onClick={addLink}
-            className="text-sm text-primary-600 hover:underline"
-          >
+          <button type="button" onClick={addLink} className="text-sm text-primary-600 hover:underline">
             Add link
           </button>
         </div>

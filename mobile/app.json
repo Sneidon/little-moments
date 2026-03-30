@@ -3,13 +3,16 @@
     "name": "My Little Moments",
     "slug": "little-moments",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6366f1"
+      "backgroundColor": "#7B61FF"
     },
     "plugins": [
       "expo-notifications",
@@ -23,16 +26,27 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "co.za.mylittlemoments"
+      "buildNumber": "1",
+      "bundleIdentifier": "co.za.mylittlemoments",
+      "googleServicesFile": "./firebase/GoogleService-Info.plist",
+      "entitlements": {
+        "aps-environment": "production"
+      },
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6366f1"
+        "backgroundColor": "#7B61FF"
       },
       "package": "co.za.mylittlemoments",
+      "googleServicesFile": "./firebase/google-services.json",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "extra": {

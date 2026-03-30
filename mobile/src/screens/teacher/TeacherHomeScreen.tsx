@@ -6,15 +6,18 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, getDocs } from 'firebase/firestore';
 
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { DateBar } from '../../components/DateBar';
+import { font } from '../../theme/typography';
 import {
   Skeleton,
   SkeletonCircle,
@@ -22,6 +25,7 @@ import {
   SkeletonStudentCard,
 } from '../../components/Skeleton';
 import { useDateNavigation, useTeacherClassChildren } from '../../hooks';
+import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { getAge, getInitials } from '../../utils';
 
 import type { Child } from '../../../../shared/types';
@@ -42,12 +46,14 @@ export function TeacherHomeScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [reportsToday, setReportsToday] = useState(0);
   const [mealsToday, setMealsToday] = useState(0);
+  const [photosToday, setPhotosToday] = useState(0);
   const [presentCount, setPresentCount] = useState(0);
   const [presentChildIds, setPresentChildIds] = useState<Set<string>>(new Set());
 
-  const { children, className, loading } = useTeacherClassChildren(refreshTrigger);
+  const { children, loading, className, schoolName } = useTeacherClassChildren(refreshTrigger);
+  useNotificationNavigation(false);
+
   const {
     selectedDate,
     showDatePicker,
@@ -55,9 +61,17 @@ export function TeacherHomeScreen({
     prevDay,
     nextDay,
     onDatePickerChange,
-    displayDate,
     maxDate,
   } = useDateNavigation();
+
+  const overviewDateLabel = useMemo(
+    () =>
+      new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+      }),
+    [selectedDate]
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -74,12 +88,11 @@ export function TeacherHomeScreen({
     setRefreshing(false);
   }, [children.length]);
 
-  // Today's stats: present count, meals, total reports
   useEffect(() => {
     const schoolId = profile?.schoolId;
     if (!schoolId || children.length === 0) {
-      setReportsToday(0);
       setMealsToday(0);
+      setPhotosToday(0);
       setPresentCount(0);
       setPresentChildIds(new Set());
       return;
@@ -98,8 +111,8 @@ export function TeacherHomeScreen({
     };
 
     const check = async () => {
-      let total = 0;
       let meals = 0;
+      let photos = 0;
       const presentIds = new Set<string>();
       for (const child of children) {
         const snap = await getDocs(
@@ -109,15 +122,15 @@ export function TeacherHomeScreen({
           const data = d.data() as { timestamp?: unknown; createdAt?: unknown; type?: string };
           const ts = toIso(data.timestamp) || toIso(data.createdAt);
           if (ts && ts >= dayStart && ts <= dayEnd) {
-            total++;
             if (data.type === 'meal') meals++;
+            if (data.type === 'incident') photos++;
             presentIds.add(child.id);
           }
         });
       }
       if (!cancelled) {
-        setReportsToday(total);
         setMealsToday(meals);
+        setPhotosToday(photos);
         setPresentCount(presentIds.size);
         setPresentChildIds(presentIds);
       }
@@ -129,7 +142,14 @@ export function TeacherHomeScreen({
   }, [profile?.schoolId, children, selectedDate, refreshTrigger]);
 
   const teacherName = profile?.displayName?.trim() || profile?.email?.split('@')[0] || 'Teacher';
-
+  const teacherMetaLine = useMemo(() => {
+    const s = schoolName?.trim();
+    const c = className?.trim();
+    if (s && c) return `${s} · ${c}`;
+    if (c) return c;
+    if (s) return s;
+    return 'Teacher';
+  }, [schoolName, className]);
   const rootStack = navigation.getParent();
 
   const quickActions = [
@@ -137,76 +157,119 @@ export function TeacherHomeScreen({
       id: 'meal',
       label: 'Log Meal',
       icon: 'restaurant' as const,
-      color: '#ea580c',
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'meal' }),
+      soft: colors.accentOrangeSoft,
+      iconColor: colors.accentOrange,
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'meal' }),
     },
     {
       id: 'nap',
       label: 'Log Nap',
-      icon: 'bed' as const,
-      color: '#7c3aed',
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'nap_time' }),
+      icon: 'moon' as const,
+      soft: colors.accentPurpleSoft,
+      iconColor: colors.accentPurple,
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'nap_time' }),
     },
     {
       id: 'nappy',
       label: 'Log Nappy',
       icon: 'water' as const,
-      color: '#0d9488',
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'nappy_change' }),
+      soft: colors.accentTealSoft,
+      iconColor: colors.accentTeal,
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'nappy_change' }),
     },
     {
       id: 'activity',
       label: 'Add Activity',
-      icon: 'sparkles' as const,
-      color: '#2563eb',
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'medication' }),
+      icon: 'color-palette' as const,
+      soft: colors.accentOrangeSoft,
+      iconColor: colors.accentOrange,
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'medication' }),
     },
     {
       id: 'photo',
       label: 'Add Photo',
       icon: 'camera' as const,
-      color: '#db2777',
-      onPress: () => navigation.navigate('AddUpdate', { initialType: 'incident' }),
+      soft: colors.accentTealSoft,
+      iconColor: colors.accentTeal,
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'incident' }),
     },
     {
       id: 'planned',
-      label: 'Planned activity',
-      icon: 'megaphone' as const,
-      color: '#16a34a',
+      label: 'Planned',
+      icon: 'calendar' as const,
+      soft: colors.accentPurpleSoft,
+      iconColor: colors.accentPurple,
       onPress: () => rootStack?.navigate('DailyCommunication'),
-    },
-    {
-      id: 'message',
-      label: 'Message Parent',
-      icon: 'chatbubble' as const,
-      color: '#0891b2',
-      onPress: () => rootStack?.navigate('Announcements'),
     },
   ];
 
   const isChildPresentToday = (childId: string): boolean => presentChildIds.has(childId);
 
+  const overviewStats = [
+    {
+      key: 'present',
+      label: 'PRESENT',
+      value: presentCount,
+      icon: 'checkmark-circle' as const,
+      border: colors.accentPurple,
+      soft: colors.accentPurpleSoft,
+      iconColor: colors.accentPurple,
+    },
+    {
+      key: 'total',
+      label: 'TOTAL STUDENTS',
+      value: children.length,
+      icon: 'people' as const,
+      border: colors.accentTeal,
+      soft: colors.accentTealSoft,
+      iconColor: colors.accentTeal,
+    },
+    {
+      key: 'meals',
+      label: 'MEALS LOGGED',
+      value: mealsToday,
+      icon: 'restaurant' as const,
+      border: colors.accentOrange,
+      soft: colors.accentOrangeSoft,
+      iconColor: colors.accentOrange,
+    },
+    {
+      key: 'photos',
+      label: 'PHOTOS SHARED',
+      value: photosToday,
+      icon: 'images' as const,
+      border: colors.accentPurple,
+      soft: colors.accentPurpleSoft,
+      iconColor: colors.accentPurple,
+    },
+  ];
+
   if (initialLoading) {
     return (
       <View style={styles.container}>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={[styles.header, { paddingTop: Math.max(56, insets.top + 12) }]}>
-            <View style={styles.headerProfile}>
-              <SkeletonCircle size={48} />
-              <View style={{ marginLeft: 14 }}>
-                <Skeleton width={140} height={20} style={{ marginBottom: 6 }} />
-                <Skeleton width={80} height={14} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.backgroundSecondary }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.topPad}>
+            <View style={styles.profileSummaryCard}>
+              <SkeletonCircle size={52} />
+              <View style={styles.profileSummaryTextCol}>
+                <Skeleton width={160} height={18} style={{ marginBottom: 8 }} />
+                <Skeleton width={120} height={14} />
               </View>
             </View>
+            <View style={{ marginHorizontal: 16, marginTop: 16 }}>
+              <Skeleton width="100%" height={72} style={{ borderRadius: 20 }} />
+            </View>
           </View>
-          <View style={styles.dateBar}>
-            <Skeleton width={32} height={24} />
-            <Skeleton width={120} height={20} />
-            <Skeleton width={32} height={24} />
-          </View>
-          <View style={styles.section}>
-            <Skeleton width={160} height={18} style={{ marginBottom: 12 }} />
-            <View style={styles.statsRow}>
+          <View style={styles.sectionOverview}>
+            <View style={styles.sectionTitleRow}>
+              <Skeleton width={140} height={18} />
+              <Skeleton width={100} height={32} style={{ borderRadius: 20 }} />
+            </View>
+            <View style={styles.statsGrid}>
               {[1, 2, 3, 4].map((i) => (
                 <SkeletonStatCard key={i} />
               ))}
@@ -214,7 +277,7 @@ export function TeacherHomeScreen({
           </View>
           <View style={styles.section}>
             <Skeleton width={120} height={18} style={{ marginBottom: 12 }} />
-            <View style={styles.quickActionsGrid}>
+            <View style={styles.quickGrid}>
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <View key={i} style={styles.quickActionBtn}>
                   <SkeletonCircle size={48} />
@@ -224,8 +287,11 @@ export function TeacherHomeScreen({
             </View>
           </View>
           <View style={styles.section}>
+            <Skeleton width="100%" height={52} style={{ borderRadius: 16 }} />
+          </View>
+          <View style={styles.section}>
             <Skeleton width={140} height={18} style={{ marginBottom: 12 }} />
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3].map((i) => (
               <SkeletonStudentCard key={i} />
             ))}
           </View>
@@ -251,7 +317,7 @@ export function TeacherHomeScreen({
           <Text style={styles.studentAge}>{getAge(item.dateOfBirth)} old</Text>
         </View>
         <View style={[styles.presentBadge, !present && styles.presentBadgeAbsent]}>
-          <Text style={styles.presentBadgeText}>{present ? 'Present' : '—'}</Text>
+          <Text style={styles.presentBadgeText}>{present ? 'Present' : '-'}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -261,69 +327,101 @@ export function TeacherHomeScreen({
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.backgroundSecondary }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header: gradient-style (solid purple) with profile and Teacher tag */}
-        <View style={[styles.header, { paddingTop: Math.max(56, insets.top + 12) }]}>
-          <View style={styles.headerProfile}>
-            <View style={styles.avatarLarge}>
-              <Text style={styles.avatarLargeText}>{getInitials(teacherName)}</Text>
-            </View>
-            <View style={styles.headerText}>
-              <Text style={styles.headerName}>{teacherName}</Text>
-              <Text style={styles.headerClass}>{className || 'My class'}</Text>
+        <View style={styles.topPad}>
+          <View style={styles.profileSummaryCard}>
+            {profile?.photoURL ? (
+              <Image source={{ uri: profile.photoURL }} style={styles.profileSummaryAvatarImg} />
+            ) : (
+              <View style={[styles.profileSummaryAvatar, { backgroundColor: colors.avatarBg }]}>
+                <Text style={[styles.profileSummaryAvatarText, { color: colors.avatarText }]}>
+                  {getInitials(teacherName)}
+                </Text>
+              </View>
+            )}
+            <View style={styles.profileSummaryTextCol}>
+              <Text style={[styles.profileSummaryName, { color: colors.text }]} numberOfLines={1}>
+                {teacherName}
+              </Text>
+              <Text style={[styles.profileSummaryMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                {teacherMetaLine}
+              </Text>
             </View>
           </View>
-          <View style={styles.roleTag}>
-            <Text style={styles.roleTagText}>Teacher</Text>
-          </View>
+
+          {/* Add Daily Update CTA */}
+          <TouchableOpacity
+            style={styles.ctaCard}
+            onPress={() => rootStack?.navigate('AddUpdate')}
+            activeOpacity={0.92}
+          >
+            <View style={styles.ctaIconCircle}>
+              <Ionicons name="add" size={28} color={colors.ctaPurple} />
+            </View>
+            <View style={styles.ctaTextWrap}>
+              <Text style={styles.ctaTitle}>Add Daily Update</Text>
+              <Text style={styles.ctaSubtitle}>Log attendance, meals, or photos</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.95)" />
+          </TouchableOpacity>
         </View>
 
-        <DateBar
-          selectedDate={selectedDate}
-          displayDate={displayDate}
-          onPrevDay={prevDay}
-          onNextDay={nextDay}
-          onOpenPicker={() => setShowDatePicker(true)}
-          showPicker={showDatePicker}
-          onPickerChange={onDatePickerChange}
-          onClosePicker={() => setShowDatePicker(false)}
-          maxDate={maxDate}
-        />
-
         {/* Today's Overview */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{"Today's Overview"}</Text>
+        <View style={styles.sectionOverview}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.overviewHeading}>{"Today's Overview"}</Text>
+            <View style={styles.dateNav}>
+              <TouchableOpacity onPress={prevDay} hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}>
+                <Ionicons name="chevron-back" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.datePill}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.datePillText}>{overviewDateLabel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={nextDay} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, styles.statPresent]}>
-              <Text style={[styles.statValue, styles.statPresentValue]}>{presentCount}</Text>
-              <Text style={styles.statLabel}>Present</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{children.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-            <View style={[styles.statCard, styles.statMeals]}>
-              <Text style={[styles.statValue, styles.statMealsValue]}>{mealsToday}</Text>
-              <Text style={styles.statLabel}>Meals</Text>
-            </View>
-            <View style={[styles.statCard, styles.statPhotos]}>
-              <Text style={[styles.statValue, styles.statPhotosValue]}>0</Text>
-              <Text style={styles.statLabel}>Photos</Text>
-            </View>
+          {showDatePicker && (
+            <>
+              <DateTimePicker
+                value={new Date(selectedDate + 'T12:00:00')}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onDatePickerChange}
+                maximumDate={maxDate}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity style={styles.dateDone} onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.dateDoneText}>Done</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+          <View style={styles.statsGrid}>
+            {overviewStats.map((s) => (
+              <View key={s.key} style={[styles.statCard, { borderTopColor: s.border }]}>
+                <View style={[styles.statIconCircle, { backgroundColor: s.soft }]}>
+                  <Ionicons name={s.icon} size={22} color={s.iconColor} />
+                </View>
+                <Text style={styles.statLabel}>{s.label}</Text>
+                <Text style={styles.statValue}>{s.value}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.quickActionsGrid}>
+          <View style={styles.quickGrid}>
             {quickActions.map((action) => (
               <TouchableOpacity
                 key={action.id}
@@ -331,8 +429,8 @@ export function TeacherHomeScreen({
                 onPress={action.onPress}
                 activeOpacity={0.7}
               >
-                <View style={[styles.quickActionIcon, { backgroundColor: action.color }]}>
-                  <Ionicons name={action.icon} size={24} color={colors.primaryContrast} />
+                <View style={[styles.quickIconCircle, { backgroundColor: action.soft }]}>
+                  <Ionicons name={action.icon} size={24} color={action.iconColor} />
                 </View>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
               </TouchableOpacity>
@@ -340,16 +438,24 @@ export function TeacherHomeScreen({
           </View>
         </View>
 
-        {/* My Students */}
+        <TouchableOpacity
+          style={styles.messageParentsBtn}
+          onPress={() => rootStack?.navigate('SelectChildToMessage')}
+          activeOpacity={0.75}
+        >
+          <View style={[styles.messageIconCircle, { backgroundColor: colors.accentPurpleSoft }]}>
+            <Ionicons name="chatbubbles" size={22} color={colors.accentPurple} />
+          </View>
+          <Text style={styles.messageParentsText}>Message Parents</Text>
+        </TouchableOpacity>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>My Students ({children.length})</Text>
           {children.length === 0 ? (
             <Text style={styles.empty}>No children assigned yet.</Text>
           ) : (
             children.map((item) => (
-              <View key={item.id}>
-                {renderChild({ item })}
-              </View>
+              <View key={item.id}>{renderChild({ item })}</View>
             ))
           )}
         </View>
@@ -361,114 +467,208 @@ export function TeacherHomeScreen({
 }
 
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
+  const f = (weight: 'regular' | 'medium' | 'semiBold' | 'bold') => ({ fontFamily: font[weight] });
+
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    scroll: { flex: 1 },
-    scrollContent: { paddingBottom: 24 },
-    bottomPad: { height: 24 },
+    scroll: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    scrollContent: { paddingBottom: 28, flexGrow: 1 },
+    bottomPad: { height: 20 },
+    topPad: {
+      paddingTop: 12,
+      paddingBottom: 8,
+      backgroundColor: colors.backgroundSecondary,
+    },
 
-    header: {
+    /** Matches parent Child profile `profileSummaryCard` */
+    profileSummaryCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-      backgroundColor: colors.header,
-    },
-    headerProfile: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    avatarLarge: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.headerAccent,
-      borderWidth: 2,
-      borderColor: colors.headerText,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarLargeText: { fontSize: 18, fontWeight: '700', color: colors.headerText },
-    headerText: { marginLeft: 14 },
-    headerName: { fontSize: 20, fontWeight: '700', color: colors.headerText },
-    headerClass: { fontSize: 14, color: colors.headerTextMuted, marginTop: 2 },
-    roleTag: {
-      backgroundColor: colors.headerAccent,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-    },
-    roleTagText: { fontSize: 13, fontWeight: '600', color: colors.headerText },
-
-    dateBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
       backgroundColor: colors.card,
       marginHorizontal: 16,
-      marginTop: 16,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 12,
+      marginBottom: 0,
+      padding: 14,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
-    section: { marginTop: 24, paddingHorizontal: 16 },
-    sectionHeader: {
+    profileSummaryAvatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    profileSummaryAvatarImg: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    profileSummaryAvatarText: { fontSize: 18, ...f('bold') },
+    profileSummaryTextCol: { flex: 1, marginLeft: 14, minWidth: 0 },
+    profileSummaryName: { fontSize: 17, ...f('bold') },
+    profileSummaryMeta: { fontSize: 14, marginTop: 4, ...f('regular') },
+
+    ctaCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.ctaPurple,
+      borderRadius: 20,
+      paddingVertical: 18,
+      paddingHorizontal: 18,
+      gap: 14,
+      marginHorizontal: 16,
+      marginTop: 16,
+    },
+    ctaIconCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ctaTextWrap: { flex: 1 },
+    ctaTitle: { fontSize: 17, color: '#FFFFFF', ...f('bold') },
+    ctaSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginTop: 4, ...f('medium') },
+
+    section: { marginTop: 20, paddingHorizontal: 20 },
+    /** Same surface as page; no extra band above stats */
+    sectionOverview: { marginTop: 12, paddingHorizontal: 20 },
+    sectionTitleRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 12,
+      flexWrap: 'wrap',
+      gap: 10,
     },
-    sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 },
-
-    statsRow: { flexDirection: 'row', gap: 10 },
-    statCard: {
-      flex: 1,
+    overviewHeading: { fontSize: 17, color: colors.text, ...f('bold') },
+    sectionTitle: { fontSize: 17, color: colors.text, marginBottom: 14, ...f('bold') },
+    dateNav: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    datePill: {
       backgroundColor: colors.card,
-      padding: 14,
-      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      alignItems: 'center',
     },
-    statValue: { fontSize: 26, fontWeight: '800', color: colors.textSecondary },
-    statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-    statPresent: {},
-    statPresentValue: { color: colors.success },
-    statMeals: {},
-    statMealsValue: { color: colors.warning },
-    statPhotos: {},
-    statPhotosValue: { color: '#db2777' },
+    datePillText: { fontSize: 13, color: colors.textSecondary, ...f('semiBold') },
+    dateDone: {
+      marginTop: 8,
+      paddingVertical: 12,
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 14,
+    },
+    dateDoneText: { color: colors.primaryContrast, ...f('semiBold'), fontSize: 16 },
 
-    quickActionsGrid: {
+    statsGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 12,
     },
-    quickActionBtn: {
-      width: '31%',
+    statCard: {
+      width: '47%',
+      flexGrow: 1,
+      minWidth: '45%',
       backgroundColor: colors.card,
-      padding: 14,
-      borderRadius: 12,
+      borderRadius: 18,
+      padding: 16,
       borderWidth: 1,
       borderColor: colors.cardBorder,
-      alignItems: 'center',
+      borderTopWidth: 3,
+      shadowColor: '#0f172a',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 3,
     },
-    quickActionIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+    statIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 8,
+      marginBottom: 10,
     },
-    quickActionLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
+    statLabel: {
+      fontSize: 10,
+      color: colors.textMuted,
+      letterSpacing: 0.6,
+      ...f('semiBold'),
+    },
+    statValue: { fontSize: 28, color: colors.text, marginTop: 6, ...f('bold') },
+
+    quickGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginTop: 0,
+    },
+    quickActionBtn: {
+      width: '30%',
+      flexGrow: 1,
+      minWidth: '28%',
+      backgroundColor: colors.card,
+      paddingVertical: 16,
+      paddingHorizontal: 8,
+      borderRadius: 18,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    quickIconCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+    },
+    quickActionLabel: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      ...f('semiBold'),
+    },
+
+    messageParentsBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginHorizontal: 20,
+      marginTop: 20,
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    messageIconCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    messageParentsText: {
+      fontSize: 16,
+      color: colors.text,
+      ...f('medium'),
+    },
 
     studentCard: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       padding: 14,
-      borderRadius: 12,
+      borderRadius: 16,
       marginBottom: 10,
       borderWidth: 1,
       borderColor: colors.cardBorder,
@@ -482,10 +682,10 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       justifyContent: 'center',
       marginRight: 12,
     },
-    avatarText: { fontSize: 16, fontWeight: '700', color: colors.avatarText },
+    avatarText: { fontSize: 16, color: colors.avatarText, ...f('bold') },
     studentCardContent: { flex: 1 },
-    studentName: { fontSize: 16, fontWeight: '700', color: colors.textSecondary },
-    studentAge: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    studentName: { fontSize: 16, color: colors.text, ...f('semiBold') },
+    studentAge: { fontSize: 13, color: colors.textMuted, marginTop: 2, ...f('medium') },
     presentBadge: {
       backgroundColor: colors.success,
       paddingHorizontal: 10,
@@ -493,8 +693,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       borderRadius: 12,
     },
     presentBadgeAbsent: { backgroundColor: colors.textMuted },
-    presentBadgeText: { fontSize: 12, fontWeight: '600', color: colors.primaryContrast },
+    presentBadgeText: { fontSize: 12, color: '#FFFFFF', ...f('semiBold') },
 
-    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8 },
+    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8, ...f('medium') },
   });
 }

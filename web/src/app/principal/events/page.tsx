@@ -66,7 +66,7 @@ export default function EventsPage() {
         }
       />
 
-      {form.showForm && <EventForm form={form} classes={classes} />}
+      {form.showForm && <EventForm form={form} classes={classes} classNamesMap={classNamesMap} />}
 
       {loading ? (
         <SectionCard topBar="accent" padding="none">

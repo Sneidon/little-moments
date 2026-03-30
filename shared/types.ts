@@ -13,6 +13,8 @@ export interface NotificationPreferences {
   medication?: boolean;
   incident?: boolean;
   media?: boolean;
+  /** Teacher–parent chat messages. */
+  messages?: boolean;
   announcements?: boolean;
   events?: boolean;
   eventReminders?: boolean;
@@ -86,6 +88,8 @@ export interface DailyReport {
   forWholeClass?: boolean;
   /** MIME type: image/* or video/*. */
   mediaType?: string;
+  /** Teacher-selected label for photo posts (e.g. Outdoor play). */
+  photoCategory?: string;
 }
 
 /** Daily real-time communication: planned activity for the day, sent to all parents. */

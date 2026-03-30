@@ -6,12 +6,13 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useEvent } from '@/hooks/useEvent';
 import { useEventRSVPs } from '@/hooks/useEventRSVPs';
+import { useClasses } from '@/hooks/useClasses';
 import { useSchoolName } from '@/hooks/useSchoolName';
 import { downloadEventRsvpsCsv } from '@/lib/exportEventRsvpsCsv';
 import { exportEventRsvpsToExcel } from '@/lib/exportEventRsvpsExcel';
 import { exportEventRsvpsToPdf } from '@/lib/exportEventRsvpsPdf';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
+import { PageHero, SectionCard, SectionHeading, TableSkeleton } from '@/components/ui';
 
 export default function EventRsvpsPage() {
   const params = useParams();
@@ -21,6 +22,7 @@ export default function EventRsvpsPage() {
   const schoolName = useSchoolName(schoolId);
 
   const { event, loading: eventLoading } = useEvent(schoolId, eventId);
+  const { classes } = useClasses(schoolId);
   const { entries, loading: rsvpsLoading } = useEventRSVPs(
     event?.schoolId,
     event?.parentResponses
@@ -59,6 +61,17 @@ export default function EventRsvpsPage() {
   const eventDate = event.endAt
     ? `${start.toLocaleString()} – ${new Date(endMs).toLocaleTimeString()}`
     : `${start.toLocaleString()} (1 hr)`;
+
+  const audienceLabel =
+    event.targetType === 'everyone' || !event.targetType
+      ? 'Everyone'
+      : (() => {
+          const ids = event.targetClassIds ?? [];
+          if (!ids.length) return '—';
+          const map = Object.fromEntries(classes.map((c) => [c.id, c.name]));
+          return ids.map((id) => map[id] || id).join(', ');
+        })();
+
   const loading = eventLoading || rsvpsLoading;
   const acceptedCount = entries.filter((e) => e.response === 'accepted').length;
   const declinedCount = entries.filter((e) => e.response === 'declined').length;
@@ -150,6 +163,84 @@ export default function EventRsvpsPage() {
           </div>
         }
       />
+
+      <SectionCard topBar="accent" className="mb-8">
+        <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Event details</h2>
+        <div className="space-y-6">
+          {event.imageUrl && (
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Image
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={event.imageUrl}
+                alt=""
+                className="max-h-80 max-w-full rounded-xl border border-slate-200 object-contain dark:border-slate-600"
+              />
+            </div>
+          )}
+          <dl className="grid gap-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="font-medium text-slate-600 dark:text-slate-300">When</dt>
+              <dd className="mt-1 text-slate-900 dark:text-slate-100">{eventDate}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-slate-600 dark:text-slate-300">Audience</dt>
+              <dd className="mt-1 text-slate-900 dark:text-slate-100">{audienceLabel}</dd>
+            </div>
+          </dl>
+          {event.description?.trim() && (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Description</h3>
+              <p className="whitespace-pre-wrap text-slate-800 dark:text-slate-200">{event.description}</p>
+            </div>
+          )}
+          {(event.documents?.length ?? 0) > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Documents</h3>
+              <ul className="space-y-2">
+                {event.documents!.map((d, i) => (
+                  <li key={`doc-${i}-${d.url}`}>
+                    <a
+                      href={d.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                    >
+                      {d.label || d.name || 'Download document'}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {(event.links?.length ?? 0) > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Links</h3>
+              <ul className="space-y-2">
+                {event.links!.map((d, i) => (
+                  <li key={`link-${i}-${d.url}`} className="text-sm">
+                    <a
+                      href={d.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                    >
+                      {d.label || d.name || 'Open link'}
+                    </a>
+                    {(d.label || d.name) && (
+                      <p className="mt-0.5 break-all text-xs text-slate-500 dark:text-slate-400">{d.url}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionHeading>Parent responses</SectionHeading>
 
       {loading ? (
         <SectionCard topBar="accent" padding="none">

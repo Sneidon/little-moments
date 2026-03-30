@@ -9,6 +9,8 @@ import type { Event, EventDocumentLink } from 'shared/types';
 export interface PendingDocument {
   label: string;
   file: File | null;
+  /** When editing, URL of a file already stored for this event. */
+  existingUrl?: string;
 }
 
 export interface PendingLink {
@@ -35,6 +37,8 @@ export interface UseEventFormResult {
   setDurationMinutes: (v: number) => void;
   imageFile: File | null;
   setImageFile: (f: File | null) => void;
+  /** Current Storage image URL when editing (hidden after choosing a replacement file). */
+  existingImageUrl: string | null;
   documents: PendingDocument[];
   addDocument: () => void;
   removeDocument: (i: number) => void;
@@ -69,7 +73,13 @@ export function useEventForm({
   const [description, setDescription] = useState('');
   const [startAt, setStartAt] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(DEFAULT_DURATION_MINUTES);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFile, setImageFileState] = useState<File | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+
+  const setImageFile = useCallback((f: File | null) => {
+    setImageFileState(f);
+    if (f) setExistingImageUrl(null);
+  }, []);
   const [documents, setDocuments] = useState<PendingDocument[]>([]);
   const [links, setLinks] = useState<PendingLink[]>([]);
   const [targetType, setTargetType] = useState<'everyone' | 'classes'>('everyone');
@@ -84,7 +94,8 @@ export function useEventForm({
     setDescription('');
     setStartAt('');
     setDurationMinutes(DEFAULT_DURATION_MINUTES);
-    setImageFile(null);
+    setImageFileState(null);
+    setExistingImageUrl(null);
     setDocuments([]);
     setLinks([]);
     setTargetType('everyone');
@@ -105,7 +116,8 @@ export function useEventForm({
       setStartAt('');
     }
     setDurationMinutes(DEFAULT_DURATION_MINUTES);
-    setImageFile(null);
+    setImageFileState(null);
+    setExistingImageUrl(null);
     setDocuments([]);
     setLinks([]);
     setTargetType('everyone');
@@ -128,9 +140,21 @@ export function useEventForm({
     }
     setTargetType(event.targetType || 'everyone');
     setTargetClassIds(event.targetClassIds || []);
-    setImageFile(null);
-    setDocuments([]);
-    setLinks([]);
+    setImageFileState(null);
+    setExistingImageUrl(event.imageUrl ?? null);
+    setDocuments(
+      (event.documents ?? []).map((d) => ({
+        label: (d.label || d.name || '').trim(),
+        file: null,
+        existingUrl: d.url,
+      }))
+    );
+    setLinks(
+      (event.links ?? []).map((d) => ({
+        label: (d.label || d.name || '').trim(),
+        url: d.url || '',
+      }))
+    );
     setShowForm(true);
   }, []);
 
@@ -153,7 +177,13 @@ export function useEventForm({
   }, []);
 
   const setDocumentFile = useCallback((i: number, file: File | null) => {
-    setDocuments((d) => d.map((row, idx) => (idx === i ? { ...row, file } : row)));
+    setDocuments((d) =>
+      d.map((row, idx) => {
+        if (idx !== i) return row;
+        if (file) return { ...row, file, existingUrl: undefined };
+        return { ...row, file: null };
+      })
+    );
   }, []);
 
   const addLink = useCallback(() => {
@@ -193,6 +223,39 @@ export function useEventForm({
           if (imageFile) {
             updates.imageUrl = await uploadEventImage(imageFile, schoolId, editingId);
           }
+
+          const finalDocs: EventDocumentLink[] = [];
+          for (let idx = 0; idx < documents.length; idx++) {
+            const d = documents[idx];
+            if (d.file) {
+              const url = await uploadEventDocument(
+                d.file,
+                schoolId,
+                editingId,
+                `doc-${idx}-${Date.now()}`
+              );
+              finalDocs.push({
+                label: d.label?.trim() || undefined,
+                name: d.label?.trim() || undefined,
+                url,
+              });
+            } else if (d.existingUrl) {
+              finalDocs.push({
+                label: d.label?.trim() || undefined,
+                name: d.label?.trim() || undefined,
+                url: d.existingUrl,
+              });
+            }
+          }
+          updates.documents = finalDocs;
+
+          const validLinks = links.filter((l) => l.url?.trim());
+          updates.links = validLinks.map((l) => ({
+            label: l.label?.trim() || undefined,
+            name: l.label?.trim() || undefined,
+            url: l.url.trim(),
+          }));
+
           await updateDoc(doc(db, 'schools', schoolId, 'events', editingId), updates);
           closeForm();
           return;
@@ -275,6 +338,7 @@ export function useEventForm({
     setDurationMinutes,
     imageFile,
     setImageFile,
+    existingImageUrl,
     documents,
     addDocument,
     removeDocument,

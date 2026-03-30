@@ -10,6 +10,7 @@ export interface NotificationPreferences {
   nappyChange?: boolean;
   napTime?: boolean;
   meal?: boolean;
+  activity?: boolean;
   medication?: boolean;
   incident?: boolean;
   media?: boolean;

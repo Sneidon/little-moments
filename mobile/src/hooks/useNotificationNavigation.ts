@@ -38,7 +38,13 @@ export function navigateFromNotificationData(
     return;
   }
   if (type === NOTIFICATION_DATA_TYPES.event_reminder) {
-    navigation.navigate('Events');
+    const schoolId = data.schoolId;
+    const eventId = data.eventId;
+    if (isParent && schoolId && eventId) {
+      navigation.navigate('ParentEventDetail', { schoolId, eventId });
+    } else {
+      navigation.navigate('Events');
+    }
     return;
   }
   if (type === NOTIFICATION_DATA_TYPES.daily_report && isParent) {

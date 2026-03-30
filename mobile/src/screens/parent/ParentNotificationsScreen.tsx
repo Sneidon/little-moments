@@ -10,9 +10,9 @@ const NOTIF_KEYS = [
   'nappyChange',
   'napTime',
   'meal',
+  'activity',
   'medication',
   'incident',
-  'media',
   'messages',
   'announcements',
   'events',
@@ -23,9 +23,9 @@ const NOTIF_LABELS: Record<(typeof NOTIF_KEYS)[number], string> = {
   nappyChange: 'Nappy changes',
   napTime: 'Nap time',
   meal: 'Meals',
+  activity: 'Activities',
   medication: 'Medication',
   incident: 'Incidents',
-  media: 'Photos/media',
   messages: 'Chat messages',
   announcements: 'Announcements',
   events: 'Events',
@@ -40,9 +40,9 @@ export function ParentNotificationsScreen() {
     nappyChange: true,
     napTime: true,
     meal: true,
+    activity: true,
     medication: true,
     incident: true,
-    media: true,
     messages: true,
     announcements: true,
     events: true,
@@ -52,7 +52,16 @@ export function ParentNotificationsScreen() {
 
   useEffect(() => {
     const prefs = (profile as { notificationPreferences?: Record<string, boolean> })?.notificationPreferences;
-    if (prefs) setNotifPrefs((p) => ({ ...p, ...prefs }));
+    if (prefs) {
+      setNotifPrefs((p) => {
+        const merged = { ...p, ...prefs };
+        // Backward compatibility: older builds used "media" for photo/incident notifications.
+        if (prefs.incident === undefined && prefs.media !== undefined) {
+          merged.incident = Boolean(prefs.media);
+        }
+        return merged;
+      });
+    }
   }, [profile?.uid]);
 
   const toggleNotif = (key: string) => {

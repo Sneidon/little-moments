@@ -14,6 +14,7 @@ type ParentNotificationPrefKey =
   | 'nappyChange'
   | 'napTime'
   | 'meal'
+  | 'activity'
   | 'medication'
   | 'incident'
   | 'media'
@@ -69,11 +70,11 @@ function reportTypeToNotificationPrefKey(reportType: string | undefined): Parent
     case 'meal':
       return 'meal';
     case 'activity':
-      return 'medication'; // same parent preference bucket as medication (school activity updates)
+      return 'activity';
     case 'medication':
       return 'medication';
     case 'incident':
-      return 'media'; // app uses type "incident" for photo/media posts
+      return 'incident';
     default:
       return null;
   }

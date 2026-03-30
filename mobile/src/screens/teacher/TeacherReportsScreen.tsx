@@ -45,6 +45,32 @@ type Props = {
   };
 };
 
+function getUpdateTypeLeadLabel(type: string): string {
+  switch (type) {
+    case 'meal':
+      return 'Meal';
+    case 'nap_time':
+      return 'Nap Time';
+    case 'nappy_change':
+      return 'Nappy Change';
+    case 'activity':
+      return 'Activity';
+    case 'medication':
+      return 'Medication';
+    case 'incident':
+      return 'Photo';
+    default:
+      return type.replace(/_/g, ' ');
+  }
+}
+
+function getTimelineTitle(item: ReportWithExtras): string {
+  const lead = getUpdateTypeLeadLabel(item.type);
+  const details = getReportTitle(item);
+  if (details.trim().toLowerCase() === lead.trim().toLowerCase()) return lead;
+  return `${lead}: ${details}`;
+}
+
 export function TeacherReportsScreen({ route, navigation }: Props) {
   const { childId } = route.params;
   const insets = useSafeAreaInsets();
@@ -458,7 +484,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
                 }
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`View details: ${getReportTitle(item)}`}
+                accessibilityLabel={`View details: ${getTimelineTitle(item)}`}
               >
                 <View
                   style={[
@@ -473,18 +499,14 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
                   />
                 </View>
                 <View style={styles.timelineContent}>
-                  <View style={styles.timelineRowTop}>
-                    <Text style={styles.timelineTime}>
-                      {formatTime(item.timestamp || item.createdAt)}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                  </View>
-                  <Text style={styles.timelineTitle}>{getReportTitle(item)}</Text>
+                  <Ionicons style={styles.timelineChevron} name="chevron-forward" size={18} color={colors.textMuted} />
+                  <Text style={styles.timelineTitle}>{getTimelineTitle(item)}</Text>
                   {item.notes ? (
                     <Text style={styles.timelineNotes} numberOfLines={2}>
                       {item.notes}
                     </Text>
                   ) : null}
+                  <Text style={styles.timelineTime}>{formatTime(item.timestamp || item.createdAt)}</Text>
                 </View>
               </TouchableOpacity>
             ))
@@ -752,23 +774,24 @@ function createStyles(
       justifyContent: 'center',
       marginRight: 12,
     },
-    timelineContent: { flex: 1, minWidth: 0 },
-    timelineRowTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    timelineContent: { flex: 1, minWidth: 0, position: 'relative', paddingRight: 22 },
+    timelineChevron: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
     },
     timelineTime: {
       fontSize: 12,
       fontFamily: font.medium,
       color: colors.textMuted,
+      marginTop: 6,
     },
     timelineTitle: {
       fontSize: 16,
       fontFamily: font.semiBold,
       fontWeight: '600',
       color: colors.text,
-      marginTop: 4,
+      marginTop: 0,
     },
     timelineNotes: {
       fontSize: 14,

@@ -1,6 +1,9 @@
 import type { DailyReport } from 'shared/types';
 import { REPORT_TYPE_LABELS } from '@/constants/reports';
 
+/** Max dates offered as “jump to day with activity” shortcuts (see `getDaysWithActivity`). */
+export const DAYS_WITH_ACTIVITY_JUMP_LIMIT = 3;
+
 /** Filter reports to a single day (ISO date string YYYY-MM-DD) and sort by timestamp descending. */
 export function getReportsForDay(reports: DailyReport[], filterDay: string): DailyReport[] {
   return reports
@@ -14,8 +17,11 @@ export function getReportsForDay(reports: DailyReport[], filterDay: string): Dai
     .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
 }
 
-/** Unique dates (YYYY-MM-DD) that have at least one report, sorted descending, capped. */
-export function getDaysWithActivity(reports: DailyReport[], limit = 14): string[] {
+/** Unique dates (YYYY-MM-DD) that have at least one report, sorted descending, capped (for “jump to” shortcuts). */
+export function getDaysWithActivity(
+  reports: DailyReport[],
+  limit = DAYS_WITH_ACTIVITY_JUMP_LIMIT
+): string[] {
   const days = Array.from(
     new Set(reports.map((r) => r.timestamp?.slice(0, 10)).filter(Boolean)) as Set<string>
   ).sort((a, b) => b.localeCompare(a));

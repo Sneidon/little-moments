@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { REPORT_TYPE_LABELS } from '@/constants/reports';
+import { DAYS_WITH_ACTIVITY_JUMP_LIMIT } from '@/lib/reports';
 import type { ClassReportRow } from '@/hooks/useClassDetail';
 import { SectionCard } from '@/components/ui';
 
@@ -61,8 +62,11 @@ export function ClassActivitiesSection({
           <p className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">
             Jump to a day with activity
           </p>
+          <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+            Up to three most recent days with activity (use the date field for any other day).
+          </p>
           <div className="flex flex-wrap gap-2">
-            {daysWithActivity.map((d) => (
+            {daysWithActivity.slice(0, DAYS_WITH_ACTIVITY_JUMP_LIMIT).map((d) => (
               <button
                 key={d}
                 type="button"

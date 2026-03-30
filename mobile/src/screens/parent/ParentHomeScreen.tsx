@@ -51,8 +51,10 @@ function formatParentReportLabel(type: string): string {
       return 'Nap';
     case 'nappy_change':
       return 'Nappy change';
-    case 'medication':
+    case 'activity':
       return 'Activity';
+    case 'medication':
+      return 'Medication';
     case 'incident':
       return 'Photo';
     default:
@@ -64,6 +66,7 @@ function reportTypeIconName(type: string): keyof typeof Ionicons.glyphMap {
   if (type === 'meal') return 'restaurant';
   if (type === 'nap_time') return 'moon';
   if (type === 'nappy_change') return 'water';
+  if (type === 'medication') return 'medical';
   if (type === 'incident') return 'camera';
   return 'color-palette';
 }
@@ -264,67 +267,6 @@ export function ParentHomeScreen({
     [meals, naps, nappy, activities, colors]
   );
 
-  const quickActions = useMemo(
-    () => [
-      {
-        id: 'announcements',
-        label: 'Announcements',
-        icon: 'megaphone' as const,
-        soft: colors.accentPurpleSoft,
-        iconColor: colors.accentPurple,
-        onPress: () => rootStack?.navigate('ParentAnnouncements'),
-      },
-      {
-        id: 'calendar',
-        label: 'Calendar',
-        icon: 'calendar' as const,
-        soft: colors.accentTealSoft,
-        iconColor: colors.accentTeal,
-        onPress: () => navigation.navigate('Calendar'),
-      },
-      {
-        id: 'photos',
-        label: 'Photos',
-        icon: 'images' as const,
-        soft: colors.accentOrangeSoft,
-        iconColor: colors.accentOrange,
-        onPress: () => navigation.navigate('Photos'),
-      },
-      {
-        id: 'messages',
-        label: 'Messages',
-        icon: 'chatbubbles' as const,
-        soft: colors.accentPurpleSoft,
-        iconColor: colors.accentPurple,
-        onPress: () => navigation.navigate('MessagesList'),
-      },
-      {
-        id: 'report',
-        label: 'Daily report',
-        icon: 'document-text' as const,
-        soft: colors.accentTealSoft,
-        iconColor: colors.accentTeal,
-        onPress: () => {
-          if (selectedChild) {
-            rootStack?.navigate('ChildProfile', {
-              childId: selectedChild.id,
-              schoolId: selectedChild.schoolId,
-            });
-          }
-        },
-      },
-      {
-        id: 'notifications',
-        label: 'Notifications',
-        icon: 'notifications' as const,
-        soft: colors.accentOrangeSoft,
-        iconColor: colors.accentOrange,
-        onPress: () => rootStack?.navigate('ParentNotifications'),
-      },
-    ],
-    [colors, navigation, rootStack, selectedChild]
-  );
-
   const reportAccent = useCallback(
     (type: string) => {
       if (type === 'meal')
@@ -486,26 +428,6 @@ export function ParentHomeScreen({
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick actions</Text>
-          <View style={styles.quickGrid}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.quickActionBtn}
-                onPress={action.onPress}
-                activeOpacity={0.7}
-                disabled={action.id === 'report' && !selectedChild}
-              >
-                <View style={[styles.quickIconCircle, { backgroundColor: action.soft }]}>
-                  <Ionicons name={action.icon} size={24} color={action.iconColor} />
-                </View>
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {selectedChild?.assignedTeacherId ? (
           <TouchableOpacity
             style={styles.messageTeacherBtn}
@@ -555,16 +477,14 @@ export function ParentHomeScreen({
                     />
                   </View>
                   <View style={styles.updateCardContent}>
-                    <View style={styles.updateCardTopRow}>
-                      <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
-                      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                    </View>
+                    <Ionicons style={styles.updateChevron} name="chevron-forward" size={18} color={colors.textMuted} />
                     <Text style={styles.updateType}>{formatParentReportLabel(item.type)}</Text>
                     {item.notes ? (
                       <Text style={styles.updateNotes} numberOfLines={2}>
                         {item.notes}
                       </Text>
                     ) : null}
+                    <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -815,15 +735,16 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       justifyContent: 'center',
       marginRight: 12,
     },
-    updateCardContent: { flex: 1, minWidth: 0 },
-    updateCardTopRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    updateCardContent: { flex: 1, minWidth: 0, position: 'relative', paddingRight: 22 },
+    updateChevron: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
     },
     updateTime: {
       fontSize: 12,
       color: colors.textMuted,
+      marginTop: 6,
       ...f('medium'),
     },
     updateType: {

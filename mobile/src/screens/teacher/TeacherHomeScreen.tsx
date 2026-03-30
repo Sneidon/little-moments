@@ -178,12 +178,20 @@ export function TeacherHomeScreen({
       onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'nappy_change' }),
     },
     {
+      id: 'medication',
+      label: 'Log Medication',
+      icon: 'medical' as const,
+      soft: colors.primaryMuted,
+      iconColor: colors.primary,
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'medication' }),
+    },
+    {
       id: 'activity',
       label: 'Add Activity',
       icon: 'color-palette' as const,
       soft: colors.accentOrangeSoft,
       iconColor: colors.accentOrange,
-      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'medication' }),
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'activity' }),
     },
     {
       id: 'photo',

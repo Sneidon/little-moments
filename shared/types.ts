@@ -10,6 +10,7 @@ export interface NotificationPreferences {
   nappyChange?: boolean;
   napTime?: boolean;
   meal?: boolean;
+  activity?: boolean;
   medication?: boolean;
   incident?: boolean;
   media?: boolean;
@@ -62,7 +63,13 @@ export interface Child {
   updatedAt: string;
 }
 
-export type ReportType = 'nappy_change' | 'meal' | 'nap_time' | 'medication' | 'incident';
+export type ReportType =
+  | 'nappy_change'
+  | 'meal'
+  | 'nap_time'
+  | 'activity'
+  | 'medication'
+  | 'incident';
 
 export interface DailyReport {
   id: string;

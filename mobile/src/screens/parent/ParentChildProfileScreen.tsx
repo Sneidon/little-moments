@@ -37,6 +37,32 @@ import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChildProfile'>;
 
+function getUpdateTypeLeadLabel(type: string): string {
+  switch (type) {
+    case 'meal':
+      return 'Meal';
+    case 'nap_time':
+      return 'Nap Time';
+    case 'nappy_change':
+      return 'Nappy Change';
+    case 'activity':
+      return 'Activity';
+    case 'medication':
+      return 'Medication';
+    case 'incident':
+      return 'Photo';
+    default:
+      return type.replace(/_/g, ' ');
+  }
+}
+
+function getTimelineTitle(item: ReportWithExtras): string {
+  const lead = getUpdateTypeLeadLabel(item.type);
+  const details = getReportTitle(item);
+  if (details.trim().toLowerCase() === lead.trim().toLowerCase()) return lead;
+  return `${lead}: ${details}`;
+}
+
 export function ParentChildProfileScreen({ route, navigation }: Props) {
   const { childId, schoolId } = route.params;
   const insets = useSafeAreaInsets();
@@ -80,7 +106,9 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
   const meals = dayReports.filter((r) => r.type === 'meal').length;
   const naps = dayReports.filter((r) => r.type === 'nap_time');
   const nappy = dayReports.filter((r) => r.type === 'nappy_change').length;
-  const activities = dayReports.filter((r) => r.type === 'medication' || r.type === 'incident').length;
+  const activities = dayReports.filter(
+    (r) => r.type === 'activity' || r.type === 'medication' || r.type === 'incident'
+  ).length;
 
   let napDuration = '';
   if (naps.length > 0) {
@@ -423,7 +451,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
             </Text>
           )}
           {childLoading ? (
-            <View>
+            <View style={styles.timelineLoadingWrap}>
               {[0, 1, 2].map((i) => (
                 <View key={i} style={styles.timelineCard}>
                   <Skeleton width={44} height={44} borderRadius={12} />
@@ -457,7 +485,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
                 }
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`View details: ${getReportTitle(item)}`}
+                accessibilityLabel={`View details: ${getTimelineTitle(item)}`}
               >
                 <View
                   style={[
@@ -468,16 +496,14 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
                   <Ionicons name={reportIcon(item.type)} size={20} color={reportIconColor(item.type)} />
                 </View>
                 <View style={styles.timelineContent}>
-                  <View style={styles.timelineRowTop}>
-                    <Text style={styles.timelineTime}>{formatTime(item.timestamp || item.createdAt)}</Text>
-                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                  </View>
-                  <Text style={styles.timelineTitle}>{getReportTitle(item)}</Text>
+                  <Ionicons style={styles.timelineChevron} name="chevron-forward" size={18} color={colors.textMuted} />
+                  <Text style={styles.timelineTitle}>{getTimelineTitle(item)}</Text>
                   {item.notes ? (
                     <Text style={styles.timelineNotes} numberOfLines={2}>
                       {item.notes}
                     </Text>
                   ) : null}
+                  <Text style={styles.timelineTime}>{formatTime(item.timestamp || item.createdAt)}</Text>
                 </View>
               </TouchableOpacity>
             ))
@@ -738,6 +764,9 @@ function createStyles(
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
+    timelineLoadingWrap: {
+      paddingHorizontal: 8,
+    },
     timelineIconWrap: {
       width: 44,
       height: 44,
@@ -746,23 +775,24 @@ function createStyles(
       justifyContent: 'center',
       marginRight: 12,
     },
-    timelineContent: { flex: 1, minWidth: 0 },
-    timelineRowTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    timelineContent: { flex: 1, minWidth: 0, position: 'relative', paddingRight: 22 },
+    timelineChevron: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
     },
     timelineTime: {
       fontSize: 12,
       fontFamily: font.medium,
       color: colors.textMuted,
+      marginTop: 6,
     },
     timelineTitle: {
       fontSize: 16,
       fontFamily: font.semiBold,
       fontWeight: '600',
       color: colors.text,
-      marginTop: 4,
+      marginTop: 0,
     },
     timelineNotes: {
       fontSize: 14,

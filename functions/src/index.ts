@@ -14,6 +14,7 @@ type ParentNotificationPrefKey =
   | 'nappyChange'
   | 'napTime'
   | 'meal'
+  | 'activity'
   | 'medication'
   | 'incident'
   | 'media'
@@ -68,10 +69,12 @@ function reportTypeToNotificationPrefKey(reportType: string | undefined): Parent
       return 'napTime';
     case 'meal':
       return 'meal';
+    case 'activity':
+      return 'activity';
     case 'medication':
       return 'medication';
     case 'incident':
-      return 'media'; // app uses type "incident" for photo/media posts
+      return 'incident';
     default:
       return null;
   }
@@ -107,6 +110,12 @@ function buildReportNotificationCopy(
     return {
       title: `${childName}: Nappy change`,
       body: shortNotes || 'Nappy update logged.',
+    };
+  }
+  if (type === 'activity') {
+    return {
+      title: `${childName}: Activity`,
+      body: shortNotes || 'New activity update from school.',
     };
   }
   if (type === 'medication') {

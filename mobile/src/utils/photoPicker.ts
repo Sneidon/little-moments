@@ -1,9 +1,59 @@
 import * as ImagePicker from 'expo-image-picker';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Alert, Linking } from 'react-native';
 
 export type PhotoResult = { uri: string } | null;
 
 export type MediaResult = { uri: string; mimeType?: string } | null;
+
+/** Expo Go cannot load native crop UI; use expo-image-picker editing fallback. */
+function useNativeCropPicker(): boolean {
+  return Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+}
+
+function normalizePickerPathToUri(path: string): string {
+  const p = path.trim();
+  if (p.startsWith('file://') || p.startsWith('content://')) return p;
+  return `file://${p}`;
+}
+
+const NATIVE_CROP_OPTIONS = {
+  cropping: true,
+  freeStyleCropEnabled: true,
+  cropperToolbarTitle: 'Crop photo',
+  cropperChooseText: 'Use photo',
+  cropperCancelText: 'Cancel',
+  compressImageQuality: 0.88,
+  mediaType: 'photo' as const,
+  includeBase64: false,
+  forceJpg: true,
+};
+
+async function takePhotoWithNativeCrop(): Promise<PhotoResult> {
+  const ImageCropPicker = require('react-native-image-crop-picker').default as typeof import('react-native-image-crop-picker');
+  try {
+    const image = await ImageCropPicker.openCamera(NATIVE_CROP_OPTIONS);
+    if (!image?.path) return null;
+    return { uri: normalizePickerPathToUri(image.path) };
+  } catch (e: unknown) {
+    const code = e && typeof e === 'object' && 'code' in e ? String((e as { code: string }).code) : '';
+    if (code === 'E_PICKER_CANCELLED') return null;
+    throw e;
+  }
+}
+
+async function pickPhotoWithNativeCrop(): Promise<PhotoResult> {
+  const ImageCropPicker = require('react-native-image-crop-picker').default as typeof import('react-native-image-crop-picker');
+  try {
+    const image = await ImageCropPicker.openPicker(NATIVE_CROP_OPTIONS);
+    if (!image?.path) return null;
+    return { uri: normalizePickerPathToUri(image.path) };
+  } catch (e: unknown) {
+    const code = e && typeof e === 'object' && 'code' in e ? String((e as { code: string }).code) : '';
+    if (code === 'E_PICKER_CANCELLED') return null;
+    throw e;
+  }
+}
 
 /**
  * Request camera permission and show alert if denied. Returns true if granted.
@@ -46,8 +96,19 @@ async function ensureMediaLibraryPermission(): Promise<boolean> {
 /**
  * Launch camera to take a photo. Handles permission request and denial.
  * Returns { uri } if user took a photo, null if cancelled or permission denied.
+ * On dev/production builds, opens a crop step after capture.
  */
 export async function takePhotoAsync(): Promise<PhotoResult> {
+  if (useNativeCropPicker()) {
+    const granted = await ensureCameraPermission();
+    if (!granted) return null;
+    try {
+      return await takePhotoWithNativeCrop();
+    } catch {
+      return null;
+    }
+  }
+
   const granted = await ensureCameraPermission();
   if (!granted) return null;
 
@@ -65,8 +126,19 @@ export async function takePhotoAsync(): Promise<PhotoResult> {
 /**
  * Open photo library to pick an image. Handles permission request and denial.
  * Returns { uri } if user picked a photo, null if cancelled or permission denied.
+ * On dev/production builds, opens a crop step after selection.
  */
 export async function pickPhotoAsync(): Promise<PhotoResult> {
+  if (useNativeCropPicker()) {
+    const granted = await ensureMediaLibraryPermission();
+    if (!granted) return null;
+    try {
+      return await pickPhotoWithNativeCrop();
+    } catch {
+      return null;
+    }
+  }
+
   const granted = await ensureMediaLibraryPermission();
   if (!granted) return null;
 

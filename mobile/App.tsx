@@ -1,20 +1,30 @@
-import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, ActivityIndicator, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthStack } from './src/navigation/AuthStack';
+import type { RootStackParamList } from './src/navigation/MainTabs';
 import { MainTabs } from './src/navigation/MainTabs';
 import { AccessDeniedScreen } from './src/screens/auth/AccessDeniedScreen';
-import { configureNotifications, registerBackgroundMessageHandler } from './src/services/notifications';
+import {
+  configureNotifications,
+  registerBackgroundMessageHandler,
+  subscribeForegroundNotificationBanner,
+  type NotificationData,
+} from './src/services/notifications';
+import { navigateFromNotificationData } from './src/hooks/useNotificationNavigation';
 
 // Register FCM background handler as early as possible (required by react-native-firebase).
 registerBackgroundMessageHandler();
 configureNotifications();
 
 const ALLOWED_ROLES = ['teacher', 'parent'] as const;
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 function Loader() {
   const { colors } = useTheme();
@@ -38,8 +48,37 @@ function RootNavigator() {
 
 function AppContent() {
   const { isDark } = useTheme();
+  const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
+  const [banner, setBanner] = useState<{ title: string; body?: string; data?: NotificationData } | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeForegroundNotificationBanner((payload) => {
+      setBanner({ title: payload.title, body: payload.body, data: payload.data });
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => setBanner(null), 3200);
+    });
+    return () => {
+      unsubscribe();
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
+  const onBannerPress = () => {
+    if (!banner?.data || !navigationRef.isReady()) return;
+    const isParent = profile?.role === 'parent';
+    navigateFromNotificationData(
+      navigationRef as unknown as import('@react-navigation/native-stack').NativeStackNavigationProp<RootStackParamList>,
+      banner.data,
+      isParent
+    );
+    setBanner(null);
+  };
+
   return (
     <NavigationContainer
+      ref={navigationRef}
       theme={{
         dark: isDark,
         colors: {
@@ -53,10 +92,61 @@ function AppContent() {
       }}
     >
       <RootNavigator />
+      {banner ? (
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={onBannerPress}
+          style={[
+            styles.banner,
+            {
+              top: Math.max(insets.top, 10),
+              backgroundColor: isDark ? '#1f2937' : '#111827',
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Open notification details"
+        >
+          <Text style={styles.bannerTitle} numberOfLines={1}>
+            {banner.title}
+          </Text>
+          {banner.body ? (
+            <Text style={styles.bannerBody} numberOfLines={2}>
+              {banner.body}
+            </Text>
+          ) : null}
+        </TouchableOpacity>
+      ) : null}
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  banner: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  bannerTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  bannerBody: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    marginTop: 2,
+    fontFamily: 'Inter_400Regular',
+  },
+});
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -73,10 +163,12 @@ export default function App() {
     );
   }
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

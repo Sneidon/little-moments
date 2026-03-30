@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import firebaseApp, { auth, db } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
+import type { RootStackParamList } from '../../navigation/MainTabs';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
@@ -20,6 +22,7 @@ import type { ClassRoom } from '../../../../shared/types';
 import type { School } from '../../../../shared/types';
 
 export function TeacherSettingsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
@@ -29,10 +32,6 @@ export function TeacherSettingsScreen() {
   const [className, setClassName] = useState<string | null>(null);
   const [school, setSchool] = useState<School | null>(null);
   const [schoolLoading, setSchoolLoading] = useState(false);
-  const [notifMessages, setNotifMessages] = useState(true);
-  const [notifAnnouncements, setNotifAnnouncements] = useState(true);
-  const [notifSaving, setNotifSaving] = useState(false);
-
   useEffect(() => {
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
@@ -67,33 +66,6 @@ export function TeacherSettingsScreen() {
       cancelled = true;
     };
   }, [profile?.schoolId, profile?.uid]);
-
-  useEffect(() => {
-    const p = (profile as { notificationPreferences?: Record<string, boolean> } | null)?.notificationPreferences;
-    setNotifMessages(p?.messages !== false);
-    setNotifAnnouncements(p?.announcements !== false);
-  }, [profile?.uid, profile]);
-
-  const saveTeacherNotifications = useCallback(async () => {
-    setNotifSaving(true);
-    try {
-      const fn = httpsCallable<
-        { notificationPreferences: Record<string, boolean> },
-        { ok: boolean }
-      >(getFunctions(firebaseApp), 'updateTeacherNotificationPreferences');
-      await fn({
-        notificationPreferences: {
-          messages: notifMessages,
-          announcements: notifAnnouncements,
-        },
-      });
-      Alert.alert('Saved', 'Notification preferences updated.');
-    } catch {
-      Alert.alert('Error', 'Could not save. Please try again.');
-    } finally {
-      setNotifSaving(false);
-    }
-  }, [notifMessages, notifAnnouncements]);
 
   const openThemePicker = useCallback(() => {
     Alert.alert('Theme', 'Choose appearance', [
@@ -177,41 +149,12 @@ export function TeacherSettingsScreen() {
       <View style={[styles.groupCard, cardShadow]}>
         <TouchableOpacity
           style={styles.row}
-          onPress={() => setNotifMessages((v) => !v)}
+          onPress={() => navigation.navigate('TeacherNotificationSettings')}
           activeOpacity={0.75}
         >
-          <SettingsIconBox name="chatbubbles-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
-          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Chat messages</Text>
-          <Ionicons
-            name={notifMessages ? 'notifications' : 'notifications-off'}
-            size={20}
-            color={notifMessages ? colors.primary : colors.textMuted}
-          />
-        </TouchableOpacity>
-        <View style={[styles.hairline, { backgroundColor: colors.cardBorder }]} />
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => setNotifAnnouncements((v) => !v)}
-          activeOpacity={0.75}
-        >
-          <SettingsIconBox name="megaphone-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
-          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Announcements</Text>
-          <Ionicons
-            name={notifAnnouncements ? 'notifications' : 'notifications-off'}
-            size={20}
-            color={notifAnnouncements ? colors.primary : colors.textMuted}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.notifSaveBtn, notifSaving && styles.notifSaveBtnDisabled]}
-          onPress={saveTeacherNotifications}
-          disabled={notifSaving}
-        >
-          {notifSaving ? (
-            <ActivityIndicator size="small" color={colors.primaryContrast} />
-          ) : (
-            <Text style={[styles.notifSaveBtnText, { color: colors.primaryContrast }]}>Save preferences</Text>
-          )}
+          <SettingsIconBox name="notifications-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Notification settings</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -420,16 +363,6 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       height: StyleSheet.hairlineWidth,
       marginLeft: 74,
     },
-    notifSaveBtn: {
-      marginHorizontal: 16,
-      marginVertical: 12,
-      paddingVertical: 12,
-      borderRadius: 10,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-    },
-    notifSaveBtnDisabled: { opacity: 0.6 },
-    notifSaveBtnText: { fontFamily: font.semiBold, fontSize: 15 },
     versionText: {
       fontFamily: font.regular,
       fontSize: 11,

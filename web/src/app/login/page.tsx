@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { HeartIcon } from '@/components/HeartIcon';
@@ -14,12 +14,35 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  /** Cleared after profile resolves following a successful credential check. */
+  const awaitingProfileAfterSignIn = useRef(false);
 
   useEffect(() => {
     if (profile?.role === 'principal') router.replace('/principal');
     else if (profile?.role === 'super_admin') router.replace('/admin');
   }, [profile?.role, router]);
+
+  useEffect(() => {
+    if (!awaitingProfileAfterSignIn.current || !loading) return;
+    if (authLoading) return;
+    if (!user) return;
+
+    if (profile?.role === 'principal' || profile?.role === 'super_admin') {
+      awaitingProfileAfterSignIn.current = false;
+      setLoading(false);
+      return;
+    }
+
+    awaitingProfileAfterSignIn.current = false;
+    setLoading(false);
+    if (!profile) {
+      setError('No profile found for this account. Contact support if this is a mistake.');
+    } else {
+      setError('This account cannot use the web admin. Use the mobile app.');
+    }
+    void signOut(auth);
+  }, [loading, authLoading, user, profile]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,10 +51,15 @@ export default function LoginPage() {
       setError('Please enter email and password.');
       return;
     }
+    awaitingProfileAfterSignIn.current = true;
     setLoading(true);
     try {
+      // Session persistence for all web roles: auth ends with the browser session
+      // (shared machines, no multi-day local tokens).
+      await setPersistence(auth, browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (err: unknown) {
+      awaitingProfileAfterSignIn.current = false;
       setLoading(false);
       setError(err instanceof Error ? err.message : 'Login failed');
     }

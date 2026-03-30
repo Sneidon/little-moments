@@ -9,6 +9,8 @@ import type { Announcement, EventDocumentLink } from 'shared/types';
 export interface PendingDocument {
   label: string;
   file: File | null;
+  /** When editing, URL of a file already stored for this announcement. */
+  existingUrl?: string;
 }
 
 export interface PendingLink {
@@ -102,8 +104,19 @@ export function useAnnouncementForm({
     setTargetType(announcement.targetType || 'everyone');
     setTargetClassIds(announcement.targetClassIds || []);
     setImageFile(null);
-    setDocuments([]);
-    setLinks([]);
+    setDocuments(
+      (announcement.documents ?? []).map((d) => ({
+        label: (d.label || d.name || '').trim(),
+        file: null,
+        existingUrl: d.url,
+      }))
+    );
+    setLinks(
+      (announcement.links ?? []).map((d) => ({
+        label: (d.label || d.name || '').trim(),
+        url: d.url || '',
+      }))
+    );
     setShowForm(true);
   }, []);
 
@@ -126,7 +139,13 @@ export function useAnnouncementForm({
   }, []);
 
   const setDocumentFile = useCallback((i: number, file: File | null) => {
-    setDocuments((d) => d.map((row, idx) => (idx === i ? { ...row, file } : row)));
+    setDocuments((d) =>
+      d.map((row, idx) => {
+        if (idx !== i) return row;
+        if (file) return { ...row, file, existingUrl: undefined };
+        return { ...row, file: null };
+      })
+    );
   }, []);
 
   const addLink = useCallback(() => {
@@ -161,6 +180,39 @@ export function useAnnouncementForm({
           if (imageFile) {
             updates.imageUrl = await uploadAnnouncementImage(imageFile, schoolId, editingId);
           }
+
+          const finalDocs: EventDocumentLink[] = [];
+          for (let idx = 0; idx < documents.length; idx++) {
+            const d = documents[idx];
+            if (d.file) {
+              const url = await uploadAnnouncementDocument(
+                d.file,
+                schoolId,
+                editingId,
+                `doc-${idx}-${Date.now()}`
+              );
+              finalDocs.push({
+                label: d.label?.trim() || undefined,
+                name: d.label?.trim() || undefined,
+                url,
+              });
+            } else if (d.existingUrl) {
+              finalDocs.push({
+                label: d.label?.trim() || undefined,
+                name: d.label?.trim() || undefined,
+                url: d.existingUrl,
+              });
+            }
+          }
+          updates.documents = finalDocs;
+
+          const validLinks = links.filter((l) => l.url?.trim());
+          updates.links = validLinks.map((l) => ({
+            label: l.label?.trim() || undefined,
+            name: l.label?.trim() || undefined,
+            url: l.url.trim(),
+          }));
+
           await updateDoc(doc(db, 'schools', schoolId, 'announcements', editingId), updates);
           closeForm();
           return;

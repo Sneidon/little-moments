@@ -131,25 +131,12 @@ async function presentLocalNotificationFromRemoteMessage(message: RemoteMessage)
     body: body ?? undefined,
     data: message.data,
   });
-  try {
-    await ensureAndroidChannel();
-    await expoNotifications.presentNotificationAsync({
-      content: {
-        title: title ?? '',
-        body: body ?? '',
-        data: (message.data ?? {}) as Record<string, unknown>,
-      },
-      trigger: null,
-    });
-  } catch {
-    // ignore
-  }
 }
 
 /**
  * Call once at app startup (native builds). Ensures:
  * - Android has a notification channel
- * - Foreground notifications show as local notifications (FCM does not show system UI in foreground)
+ * - Foreground notifications can show in-app UI (FCM does not show system UI in foreground)
  */
 export function configureNotifications(): void {
   configureExpoNotificationHandler();

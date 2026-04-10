@@ -10,6 +10,8 @@ export interface NotificationPreferences {
   nappyChange?: boolean;
   napTime?: boolean;
   meal?: boolean;
+  checkIn?: boolean;
+  checkOut?: boolean;
   activity?: boolean;
   medication?: boolean;
   incident?: boolean;
@@ -67,6 +69,8 @@ export type ReportType =
   | 'nappy_change'
   | 'meal'
   | 'nap_time'
+  | 'check_in'
+  | 'check_out'
   | 'activity'
   | 'medication'
   | 'incident';

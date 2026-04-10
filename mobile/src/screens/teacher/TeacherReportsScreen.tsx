@@ -53,6 +53,10 @@ function getUpdateTypeLeadLabel(type: string): string {
       return 'Nap Time';
     case 'nappy_change':
       return 'Nappy Change';
+    case 'check_in':
+      return 'Check In';
+    case 'check_out':
+      return 'Check Out';
     case 'activity':
       return 'Activity';
     case 'medication':
@@ -109,7 +113,12 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   const naps = dayReports.filter((r) => r.type === 'nap_time');
   const nappy = dayReports.filter((r) => r.type === 'nappy_change').length;
   const activities = dayReports.filter(
-    (r) => r.type === 'activity' || r.type === 'medication' || r.type === 'incident'
+    (r) =>
+      r.type === 'activity' ||
+      r.type === 'medication' ||
+      r.type === 'incident' ||
+      r.type === 'check_in' ||
+      r.type === 'check_out'
   ).length;
 
   let napDuration = '';

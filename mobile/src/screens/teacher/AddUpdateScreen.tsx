@@ -69,6 +69,8 @@ const MEAL_AMOUNTS = [
 ];
 
 const ACTIVITY_TABS = [
+  { type: 'check_in' as ReportType, label: 'Check in', icon: 'log-in' as const },
+  { type: 'check_out' as ReportType, label: 'Check out', icon: 'log-out' as const },
   { type: 'meal' as ReportType, label: 'Meal', icon: 'restaurant' as const },
   { type: 'nap_time' as ReportType, label: 'Nap', icon: 'moon' as const },
   { type: 'nappy_change' as ReportType, label: 'Nappy', icon: 'water' as const },
@@ -1528,6 +1530,32 @@ export function AddUpdateScreen({ navigation, route }: Props) {
             </View>
           )}
 
+          {(type === 'check_in' || type === 'check_out') && (
+            <View style={[styles.screenCard, styles.formSection]}>
+              <View style={styles.formSectionHead}>
+                <Text style={styles.formSectionTitle}>{type === 'check_in' ? 'Check in' : 'Check out'}</Text>
+              </View>
+              <Text style={styles.helperText}>
+                The current time will be saved when you post this update.
+              </Text>
+              <Text style={styles.label}>Notes (optional)</Text>
+              <TextInput
+                style={[styles.input, styles.inputMultiline]}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder={
+                  type === 'check_in'
+                    ? 'Add any check-in details...'
+                    : 'Add any check-out details...'
+                }
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={3}
+                editable={!loading}
+              />
+            </View>
+          )}
+
           <View style={styles.postUpdateWrap}>
             <TouchableOpacity
               style={styles.postUpdateBtn}
@@ -1689,6 +1717,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   type === 'medication' ||
                   type === 'activity' ||
                   type === 'nappy_change' ||
+                  type === 'check_in' ||
+                  type === 'check_out' ||
                   type === 'incident') && (
                   <>
                     <Text style={styles.label}>Notes (optional)</Text>

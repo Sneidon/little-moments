@@ -14,6 +14,8 @@ type ParentNotificationPrefKey =
   | 'nappyChange'
   | 'napTime'
   | 'meal'
+  | 'checkIn'
+  | 'checkOut'
   | 'activity'
   | 'medication'
   | 'incident'
@@ -69,6 +71,10 @@ function reportTypeToNotificationPrefKey(reportType: string | undefined): Parent
       return 'napTime';
     case 'meal':
       return 'meal';
+    case 'check_in':
+      return 'checkIn';
+    case 'check_out':
+      return 'checkOut';
     case 'activity':
       return 'activity';
     case 'medication':
@@ -110,6 +116,18 @@ function buildReportNotificationCopy(
     return {
       title: `${childName}: Nappy change`,
       body: shortNotes || 'Nappy update logged.',
+    };
+  }
+  if (type === 'check_in') {
+    return {
+      title: `${childName}: Check in`,
+      body: shortNotes || 'Checked in at school.',
+    };
+  }
+  if (type === 'check_out') {
+    return {
+      title: `${childName}: Check out`,
+      body: shortNotes || 'Checked out from school.',
     };
   }
   if (type === 'activity') {
@@ -1159,7 +1177,7 @@ export const updateParentProfile = functions.https.onCall(async (data, context) 
   return { ok: true };
 });
 
-// Teacher updates push toggles for messages and school announcements (merged into notificationPreferences).
+// Teacher updates push toggles (merged into notificationPreferences).
 export const updateTeacherNotificationPreferences = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
   const uid = context.auth.uid;
@@ -1175,7 +1193,7 @@ export const updateTeacherNotificationPreferences = functions.https.onCall(async
   if (!notificationPreferences || typeof notificationPreferences !== 'object') {
     throw new functions.https.HttpsError('invalid-argument', 'notificationPreferences is required.');
   }
-  const allowed: ParentNotificationPrefKey[] = ['messages', 'announcements'];
+  const allowed: ParentNotificationPrefKey[] = ['messages', 'announcements', 'checkIn', 'checkOut'];
   const merged: Record<string, boolean> = { ...(d.notificationPreferences || {}) };
   for (const key of allowed) {
     if (key in notificationPreferences) merged[key] = Boolean(notificationPreferences[key]);

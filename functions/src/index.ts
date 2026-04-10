@@ -35,6 +35,85 @@ function parentNotificationPreferenceAllows(
   return true;
 }
 
+type InAppNotificationPayload = {
+  title: string;
+  body: string;
+  data: Record<string, string>;
+};
+
+async function createInAppNotificationsForUserIds(
+  db: admin.firestore.Firestore,
+  userIds: string[],
+  payload: InAppNotificationPayload
+): Promise<void> {
+  if (userIds.length === 0) return;
+  const uniqueUserIds = Array.from(new Set(userIds.filter((id) => !!id)));
+  if (uniqueUserIds.length === 0) return;
+  const now = new Date().toISOString();
+  let batch = db.batch();
+  let ops = 0;
+  for (const uid of uniqueUserIds) {
+    const ref = db.collection('users').doc(uid).collection('notifications').doc();
+    batch.set(ref, {
+      title: payload.title,
+      body: payload.body,
+      createdAt: now,
+      read: false,
+      ...payload.data,
+    });
+    ops++;
+    if (ops >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      ops = 0;
+    }
+  }
+  if (ops > 0) await batch.commit();
+}
+
+async function getEligibleParentUserIds(
+  db: admin.firestore.Firestore,
+  parentIds: string[],
+  prefKey: ParentNotificationPrefKey | null
+): Promise<string[]> {
+  const allowed: string[] = [];
+  for (const uid of Array.from(new Set(parentIds))) {
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) continue;
+    const data = userSnap.data() as { isActive?: boolean; notificationPreferences?: Record<string, boolean> };
+    if (data.isActive === false) continue;
+    if (prefKey && !parentNotificationPreferenceAllows(data.notificationPreferences, prefKey)) continue;
+    allowed.push(uid);
+  }
+  return allowed;
+}
+
+async function getStaffUserIdsForSchool(
+  db: admin.firestore.Firestore,
+  schoolId: string,
+  options?: { filterStaffByAnnouncementsPref?: boolean }
+): Promise<string[]> {
+  const staffIds: string[] = [];
+  const staffSnap = await db.collection('users').where('schoolId', '==', schoolId).get();
+  staffSnap.docs.forEach((d) => {
+    const data = d.data() as {
+      isActive?: boolean;
+      role?: string;
+      notificationPreferences?: Record<string, boolean>;
+    };
+    if (data.isActive === false) return;
+    if (
+      options?.filterStaffByAnnouncementsPref &&
+      (data.role === 'teacher' || data.role === 'principal') &&
+      !parentNotificationPreferenceAllows(data.notificationPreferences, 'announcements')
+    ) {
+      return;
+    }
+    staffIds.push(d.id);
+  });
+  return staffIds;
+}
+
 /** FCM tokens for parent user ids, respecting one preference key (omit category => always allow). */
 async function getFcmTokensForParentUserIds(
   db: admin.firestore.Firestore,
@@ -204,7 +283,8 @@ export const onReportCreated = functions.firestore
     }
 
     const prefKey = reportTypeToNotificationPrefKey(report.type);
-    const tokens = await getFcmTokensForParentUserIds(db, parentIds, prefKey);
+    const eligibleParentIds = await getEligibleParentUserIds(db, parentIds, prefKey);
+    const tokens = await getFcmTokensForParentUserIds(db, eligibleParentIds, prefKey);
     if (tokens.length === 0) {
       functions.logger.info('onReportCreated: no FCM tokens after prefs', { childId, prefKey });
       return null;
@@ -212,6 +292,17 @@ export const onReportCreated = functions.firestore
 
     const childName = (child.name && String(child.name).trim()) || 'Your child';
     const { title, body } = buildReportNotificationCopy(report, childName);
+    await createInAppNotificationsForUserIds(db, eligibleParentIds, {
+      title,
+      body,
+      data: {
+        type: 'daily_report',
+        schoolId,
+        childId,
+        reportId,
+        reportType: report.type ? String(report.type) : '',
+      },
+    });
 
     const msg: admin.messaging.MulticastMessage = {
       tokens,
@@ -324,6 +415,23 @@ export const onDailyCommunicationCreated = functions.firestore
     if (!classId) return null;
     const message = (data.message && String(data.message).trim()) ? String(data.message).trim().slice(0, 120) : 'Planned activity for today';
     const db = admin.firestore();
+    const childrenSnap = await db
+      .collection('schools')
+      .doc(schoolId)
+      .collection('children')
+      .where('classId', '==', classId)
+      .get();
+    const parentIds = new Set<string>();
+    childrenSnap.docs.forEach((d) => {
+      const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+      parentIdsArr.forEach((uid: string) => parentIds.add(uid));
+    });
+    const parentUserIds = await getEligibleParentUserIds(db, Array.from(parentIds), null);
+    await createInAppNotificationsForUserIds(db, parentUserIds, {
+      title: 'Planned activity for today',
+      body: message.length >= 120 ? `${message}…` : message,
+      data: { type: 'daily_communication', schoolId },
+    });
     const tokens = await getFcmTokensForClass(db, schoolId, classId);
     if (tokens.length === 0) {
       functions.logger.info('onDailyCommunicationCreated: no FCM tokens for class', classId);
@@ -358,6 +466,21 @@ export const onAnnouncementCreated = functions.firestore
     const body = (data.body && String(data.body).trim()) ? String(data.body).trim().slice(0, 150) : '';
 
     const db = admin.firestore();
+    const staffUserIds = await getStaffUserIdsForSchool(db, schoolId, { filterStaffByAnnouncementsPref: true });
+    const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
+    const parentIds = new Set<string>();
+    childrenSnap.docs.forEach((d) => {
+      const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+      parentIdsArr.forEach((uid: string) => parentIds.add(uid));
+    });
+    const parentUserIds = await getEligibleParentUserIds(db, Array.from(parentIds), 'announcements');
+    const notifTitle = `New: ${title}`;
+    const notifBody = body ? (body.length >= 150 ? `${body}…` : body) : 'Tap to view.';
+    await createInAppNotificationsForUserIds(db, [...staffUserIds, ...parentUserIds], {
+      title: notifTitle,
+      body: notifBody,
+      data: { type: 'announcement', schoolId, announcementId: context.params.announcementId },
+    });
     const tokens = await getFcmTokensForSchool(db, schoolId, {
       parentPref: 'announcements',
       filterStaffByAnnouncementsPref: true,
@@ -412,14 +535,26 @@ export const sendAnnouncementReminders = functions.pubsub
       for (const annDoc of annSnap.docs) {
         const ann = annDoc.data() as { reminderSentAt?: string; title?: string };
         if (ann.reminderSentAt) continue;
+        const title = (ann.title && String(ann.title).trim()) || 'Announcement';
 
         const tokens = await getFcmTokensForSchool(db, schoolId, {
           parentPref: 'announcements',
           filterStaffByAnnouncementsPref: true,
         });
+        const staffUserIds = await getStaffUserIdsForSchool(db, schoolId, { filterStaffByAnnouncementsPref: true });
+        const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
+        const parentIds = new Set<string>();
+        childrenSnap.docs.forEach((d) => {
+          const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+          parentIdsArr.forEach((uid: string) => parentIds.add(uid));
+        });
+        const parentUserIds = await getEligibleParentUserIds(db, Array.from(parentIds), 'announcements');
+        await createInAppNotificationsForUserIds(db, [...staffUserIds, ...parentUserIds], {
+          title: `Reminder: ${title}`,
+          body: 'Tap to view this announcement.',
+          data: { type: 'announcement_reminder', schoolId, announcementId: annDoc.id },
+        });
         if (tokens.length === 0) continue;
-
-        const title = (ann.title && String(ann.title).trim()) || 'Announcement';
         const message: admin.messaging.MulticastMessage = {
           tokens,
           notification: {
@@ -471,7 +606,9 @@ export const onChatMessageCreated = functions.firestore
       return null;
     }
 
-    const tokens = await getFcmTokensForParentUserIds(db, [recipientId], 'messages');
+    const eligibleRecipientIds = await getEligibleParentUserIds(db, [recipientId], 'messages');
+    if (eligibleRecipientIds.length === 0) return null;
+    const tokens = await getFcmTokensForParentUserIds(db, eligibleRecipientIds, 'messages');
     if (tokens.length === 0) {
       functions.logger.info('onChatMessageCreated: no FCM tokens for recipient', recipientId);
       return null;
@@ -504,6 +641,11 @@ export const onChatMessageCreated = functions.firestore
       apns: { payload: { aps: { sound: 'default', badge: 1 } } },
     };
     try {
+      await createInAppNotificationsForUserIds(db, eligibleRecipientIds, {
+        title,
+        body,
+        data: { type: 'chat_message', schoolId, chatId },
+      });
       const res = await admin.messaging().sendEachForMulticast(fcmMsg);
       functions.logger.info('onChatMessageCreated: sent', res.successCount, 'failed', res.failureCount, chatId);
     } catch (e) {
@@ -1229,6 +1371,19 @@ export const sendEventReminders = functions.pubsub
       for (const evDoc of eventsSnap.docs) {
         const ev = evDoc.data() as { title?: string; targetType?: string; targetClassIds?: string[] };
         const title = (ev.title && String(ev.title).trim()) || 'Upcoming event';
+        const staffUserIds = await getStaffUserIdsForSchool(db, schoolId);
+        const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
+        const parentIds = new Set<string>();
+        childrenSnap.docs.forEach((d) => {
+          const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+          parentIdsArr.forEach((uid: string) => parentIds.add(uid));
+        });
+        const parentUserIds = await getEligibleParentUserIds(db, Array.from(parentIds), 'eventReminders');
+        await createInAppNotificationsForUserIds(db, [...staffUserIds, ...parentUserIds], {
+          title: `Reminder: ${title}`,
+          body: 'Happens tomorrow. Tap to view.',
+          data: { type: 'event_reminder', schoolId, eventId: evDoc.id },
+        });
         const tokens = await getFcmTokensForSchool(db, schoolId, { parentPref: 'eventReminders' });
         if (tokens.length === 0) continue;
         const msg: admin.messaging.MulticastMessage = {

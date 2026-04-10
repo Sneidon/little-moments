@@ -57,7 +57,7 @@ function AppContent() {
     const unsubscribe = subscribeForegroundNotificationBanner((payload) => {
       setBanner({ title: payload.title, body: payload.body, data: payload.data });
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = setTimeout(() => setBanner(null), 3200);
+      hideTimerRef.current = setTimeout(() => setBanner(null), 30000);
     });
     return () => {
       unsubscribe();
@@ -93,9 +93,7 @@ function AppContent() {
     >
       <RootNavigator />
       {banner ? (
-        <TouchableOpacity
-          activeOpacity={0.92}
-          onPress={onBannerPress}
+        <View
           style={[
             styles.banner,
             {
@@ -103,18 +101,33 @@ function AppContent() {
               backgroundColor: isDark ? '#1f2937' : '#111827',
             },
           ]}
-          accessibilityRole="button"
-          accessibilityLabel="Open notification details"
         >
-          <Text style={styles.bannerTitle} numberOfLines={1}>
-            {banner.title}
-          </Text>
-          {banner.body ? (
-            <Text style={styles.bannerBody} numberOfLines={2}>
-              {banner.body}
+          <TouchableOpacity
+            activeOpacity={0.92}
+            onPress={onBannerPress}
+            style={styles.bannerMainTap}
+            accessibilityRole="button"
+            accessibilityLabel="Open notification details"
+          >
+            <Text style={styles.bannerTitle} numberOfLines={1}>
+              {banner.title}
             </Text>
-          ) : null}
-        </TouchableOpacity>
+            {banner.body ? (
+              <Text style={styles.bannerBody} numberOfLines={2}>
+                {banner.body}
+              </Text>
+            ) : null}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.bannerDismissBtn}
+            onPress={() => setBanner(null)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss notification banner"
+          >
+            <Text style={styles.bannerDismissText}>Dismiss</Text>
+          </TouchableOpacity>
+        </View>
       ) : null}
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationContainer>
@@ -134,6 +147,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 8,
     elevation: 5,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  bannerMainTap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  bannerDismissBtn: {
+    marginLeft: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  bannerDismissText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
   },
   bannerTitle: {
     color: '#fff',

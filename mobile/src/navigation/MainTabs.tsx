@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -36,6 +36,7 @@ import { useEditChildProfileParams } from '../screens/parent/useEditChildProfile
 import { EditChildProfileTeacherScreen } from '../screens/teacher/EditChildProfileTeacherScreen';
 import { AddUpdateScreen } from '../screens/teacher/AddUpdateScreen';
 import { ReportDetailScreen } from '../screens/shared/ReportDetailScreen';
+import { UserNotificationsScreen } from '../screens/shared/UserNotificationsScreen';
 
 function EditChildProfileScreenWrapper() {
   const navigation = useNavigation();
@@ -74,6 +75,7 @@ export type RootStackParamList = {
   ParentNotifications: undefined;
   TeacherNotificationSettings: undefined;
   ParentEventDetail: { schoolId: string; eventId: string };
+  UserNotifications: undefined;
 };
 
 const Tab = createBottomTabNavigator();
@@ -119,7 +121,7 @@ function TeacherTabs() {
 
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
         headerShown: false,
         headerStyle: {
           backgroundColor: colors.card,
@@ -131,8 +133,18 @@ function TeacherTabs() {
           color: colors.text,
         },
         headerShadowVisible: !isDark,
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('UserNotifications')}
+            style={{ paddingHorizontal: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        ),
         ...tabBarStyleOptions(colors),
-      }}
+      })}
     >
       <Tab.Screen
         name="Dashboard"
@@ -180,7 +192,7 @@ function ParentTabs() {
   const tabHeader = { headerShown: true as const };
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
         headerShown: false,
         headerStyle: {
           backgroundColor: colors.card,
@@ -192,8 +204,18 @@ function ParentTabs() {
           color: colors.text,
         },
         headerShadowVisible: !isDark,
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('UserNotifications')}
+            style={{ paddingHorizontal: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        ),
         ...tabBarStyleOptions(colors),
-      }}
+      })}
     >
       <Tab.Screen
         name="Home"
@@ -292,6 +314,11 @@ export function MainTabs({ role }: { role: UserRole }) {
         name="ParentEventDetail"
         component={ParentEventDetailScreen}
         options={{ title: 'Event' }}
+      />
+      <RootStack.Screen
+        name="UserNotifications"
+        component={UserNotificationsScreen}
+        options={{ title: 'Notifications' }}
       />
     </RootStack.Navigator>
   );

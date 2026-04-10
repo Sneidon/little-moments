@@ -21,6 +21,8 @@ export function getReportTitle(item: ReportWithExtras): string {
     );
   if (item.type === 'nap_time') return 'Nap Time';
   if (item.type === 'nappy_change') return 'Nappy Change';
+  if (item.type === 'check_in') return 'Check In';
+  if (item.type === 'check_out') return 'Check Out';
   if (item.type === 'activity') return item.activityTitle || item.activityType || 'Activity';
   if (item.type === 'medication') return item.medicationName || 'Medication';
   if (item.type === 'incident') return 'Photo';
@@ -31,6 +33,8 @@ export function reportIcon(type: string): IonName {
   if (type === 'meal') return 'restaurant-outline';
   if (type === 'nap_time') return 'moon-outline';
   if (type === 'nappy_change') return 'water-outline';
+  if (type === 'check_in') return 'log-in-outline';
+  if (type === 'check_out') return 'log-out-outline';
   if (type === 'activity') return 'sparkles-outline';
   if (type === 'medication') return 'medical-outline';
   if (type === 'incident') return 'camera-outline';
@@ -41,6 +45,8 @@ export function reportIconColor(type: string): string {
   if (type === 'meal') return '#ea580c';
   if (type === 'nap_time') return '#7c3aed';
   if (type === 'nappy_change') return '#0d9488';
+  if (type === 'check_in') return '#16a34a';
+  if (type === 'check_out') return '#b45309';
   if (type === 'activity') return '#ea580c';
   if (type === 'medication') return '#2563eb';
   if (type === 'incident') return '#db2777';

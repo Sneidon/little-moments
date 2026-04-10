@@ -27,12 +27,16 @@ export function TeacherNotificationSettingsScreen() {
 
   const [notifMessages, setNotifMessages] = useState(true);
   const [notifAnnouncements, setNotifAnnouncements] = useState(true);
+  const [notifCheckIn, setNotifCheckIn] = useState(true);
+  const [notifCheckOut, setNotifCheckOut] = useState(true);
   const [notifSaving, setNotifSaving] = useState(false);
 
   useEffect(() => {
     const p = (profile as { notificationPreferences?: Record<string, boolean> } | null)?.notificationPreferences;
     setNotifMessages(p?.messages !== false);
     setNotifAnnouncements(p?.announcements !== false);
+    setNotifCheckIn(p?.checkIn !== false);
+    setNotifCheckOut(p?.checkOut !== false);
   }, [profile?.uid, profile]);
 
   const saveTeacherNotifications = useCallback(async () => {
@@ -46,6 +50,8 @@ export function TeacherNotificationSettingsScreen() {
         notificationPreferences: {
           messages: notifMessages,
           announcements: notifAnnouncements,
+          checkIn: notifCheckIn,
+          checkOut: notifCheckOut,
         },
       });
       Alert.alert('Saved', 'Notification preferences updated.');
@@ -54,7 +60,7 @@ export function TeacherNotificationSettingsScreen() {
     } finally {
       setNotifSaving(false);
     }
-  }, [notifMessages, notifAnnouncements]);
+  }, [notifMessages, notifAnnouncements, notifCheckIn, notifCheckOut]);
 
   const bottomPad = Math.max(insets.bottom, 24);
 
@@ -66,6 +72,40 @@ export function TeacherNotificationSettingsScreen() {
     >
 
       <View style={[styles.groupCard, cardShadow]}>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => setNotifCheckIn((v) => !v)}
+          activeOpacity={0.75}
+        >
+          <SettingsIconBox name="log-in-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Check in updates</Text>
+            <Text style={styles.rowSubtitle}>Alerts when children are checked in</Text>
+          </View>
+          <Ionicons
+            name={notifCheckIn ? 'notifications' : 'notifications-off'}
+            size={22}
+            color={notifCheckIn ? colors.primary : colors.textMuted}
+          />
+        </TouchableOpacity>
+        <View style={[styles.hairline, { backgroundColor: colors.cardBorder }]} />
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => setNotifCheckOut((v) => !v)}
+          activeOpacity={0.75}
+        >
+          <SettingsIconBox name="log-out-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Check out updates</Text>
+            <Text style={styles.rowSubtitle}>Alerts when children are checked out</Text>
+          </View>
+          <Ionicons
+            name={notifCheckOut ? 'notifications' : 'notifications-off'}
+            size={22}
+            color={notifCheckOut ? colors.primary : colors.textMuted}
+          />
+        </TouchableOpacity>
+        <View style={[styles.hairline, { backgroundColor: colors.cardBorder }]} />
         <TouchableOpacity
           style={styles.row}
           onPress={() => setNotifMessages((v) => !v)}

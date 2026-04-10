@@ -90,6 +90,10 @@ function typeLabel(type: string): string {
       return 'Nap';
     case 'nappy_change':
       return 'Nappy change';
+    case 'check_in':
+      return 'Check in';
+    case 'check_out':
+      return 'Check out';
     case 'activity':
       return 'Activity';
     case 'medication':
@@ -109,6 +113,10 @@ function typeIcon(type: string): keyof typeof Ionicons.glyphMap {
       return 'moon-outline';
     case 'nappy_change':
       return 'water-outline';
+    case 'check_in':
+      return 'log-in-outline';
+    case 'check_out':
+      return 'log-out-outline';
     case 'activity':
       return 'sparkles-outline';
     case 'medication':
@@ -124,6 +132,8 @@ const TYPE_COLORS: Record<string, string> = {
   meal: '#ea580c',
   nap_time: '#7c3aed',
   nappy_change: '#0d9488',
+  check_in: '#16a34a',
+  check_out: '#b45309',
   activity: '#ea580c',
   medication: '#2563eb',
   incident: '#db2777',

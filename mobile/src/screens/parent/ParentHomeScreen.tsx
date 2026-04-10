@@ -51,6 +51,10 @@ function formatParentReportLabel(type: string): string {
       return 'Nap';
     case 'nappy_change':
       return 'Nappy change';
+    case 'check_in':
+      return 'Check in';
+    case 'check_out':
+      return 'Check out';
     case 'activity':
       return 'Activity';
     case 'medication':
@@ -66,6 +70,8 @@ function reportTypeIconName(type: string): keyof typeof Ionicons.glyphMap {
   if (type === 'meal') return 'restaurant';
   if (type === 'nap_time') return 'moon';
   if (type === 'nappy_change') return 'water';
+  if (type === 'check_in') return 'log-in';
+  if (type === 'check_out') return 'log-out';
   if (type === 'medication') return 'medical';
   if (type === 'incident') return 'camera';
   return 'color-palette';

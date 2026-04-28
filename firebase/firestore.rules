@@ -20,6 +20,11 @@ service cloud.firestore {
     function isParentOf(childDoc) {
       return isAuthenticated() && request.auth.uid in childDoc.data.parentIds;
     }
+    function isActiveParent() {
+      return isAuthenticated()
+        && request.auth.token.role == 'parent'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.parentStatus == 'ACTIVE';
+    }
     function isParentOfChildId(schoolId, childId) {
       return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)/children/$(childId)).data.parentIds;
     }
@@ -47,20 +52,23 @@ service cloud.firestore {
     }
 
     match /schools/{schoolId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (request.auth.token.role != 'parent' || isActiveParent());
       allow create, delete: if isSuperAdmin();
       allow update: if isSuperAdmin() || isPrincipal(schoolId);
       match /classes/{classId} {
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated() && (request.auth.token.role != 'parent' || isActiveParent());
         allow create, update, delete: if isTeacher(schoolId) || isPrincipal(schoolId);
       }
       match /children/{childId} {
-        allow read: if isSuperAdmin() || isTeacher(schoolId) || isPrincipal(schoolId) || (isAuthenticated() && request.auth.uid in resource.data.parentIds);
+        allow read: if isSuperAdmin()
+          || isTeacher(schoolId)
+          || isPrincipal(schoolId)
+          || (isActiveParent() && request.auth.uid in resource.data.parentIds);
         allow create, update: if isTeacher(schoolId) || isPrincipal(schoolId);
         allow delete: if isPrincipal(schoolId) || isSuperAdmin();
         allow update: if isAuthenticated() && request.auth.uid in resource.data.parentIds;
         match /reports/{reportId} {
-          allow read: if isSuperAdmin() || isTeacher(schoolId) || isPrincipal(schoolId) || isParentOfChildId(schoolId, childId);
+          allow read: if isSuperAdmin() || isTeacher(schoolId) || isPrincipal(schoolId) || (isActiveParent() && isParentOfChildId(schoolId, childId));
           allow create, update: if isTeacher(schoolId);
           allow delete: if isTeacher(schoolId) || isPrincipal(schoolId);
         }

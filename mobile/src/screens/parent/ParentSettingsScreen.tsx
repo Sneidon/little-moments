@@ -180,6 +180,15 @@ export function ParentSettingsScreen() {
         </TouchableOpacity>
       </View>
 
+      <Text style={styles.sectionLabel}>Family</Text>
+      <View style={[styles.groupCard, cardShadow]}>
+        <TouchableOpacity style={styles.row} onPress={() => navigate('ParentAddSibling')} activeOpacity={0.75}>
+          <SettingsIconBox name="add-circle-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Add another child</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.sectionLabel}>Support</Text>
       <View style={[styles.groupCard, cardShadow]}>
         <TouchableOpacity

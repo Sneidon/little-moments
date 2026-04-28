@@ -6,8 +6,229 @@
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import * as crypto from 'crypto';
+import QRCode = require('qrcode');
+import sharp = require('sharp');
 
 admin.initializeApp();
+
+function isoNow(): string {
+  return new Date().toISOString();
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function slugifySchoolName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '')
+    .slice(0, 50);
+}
+
+function randomToken(bytes = 24): string {
+  // base64url without padding
+  return crypto.randomBytes(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function reserveUniqueSchoolSlug(db: admin.firestore.Firestore, schoolName: string): Promise<string> {
+  const base = slugifySchoolName(schoolName) || 'school';
+  for (let i = 0; i < 10; i++) {
+    const suffix = i === 0 ? '' : `-${Math.floor(Math.random() * 9000 + 1000)}`;
+    const slug = `${base}${suffix}`;
+    const slugRef = db.collection('schoolSlugs').doc(slug);
+    try {
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(slugRef);
+        if (snap.exists) throw new Error('slug_taken');
+        tx.set(slugRef, { slug, createdAt: isoNow() });
+      });
+      return slug;
+    } catch (e) {
+      if (e instanceof Error && e.message === 'slug_taken') continue;
+    }
+  }
+  // last resort tokenized slug
+  const slug = `${base}-${randomToken(6)}`;
+  await db.collection('schoolSlugs').doc(slug).set({ slug, createdAt: isoNow() });
+  return slug;
+}
+
+async function sendResendEmail(params: { to: string; subject: string; html: string }): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM;
+  if (!apiKey || !from) {
+    functions.logger.warn('Resend not configured (missing RESEND_API_KEY or RESEND_FROM). Skipping email send.');
+    return;
+  }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [params.to],
+      subject: params.subject,
+      html: params.html,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    functions.logger.error('Resend send failed', res.status, text);
+  }
+}
+
+async function requireCallerProfile(db: admin.firestore.Firestore, uid: string): Promise<{ role?: string; schoolId?: string; displayName?: string }> {
+  const snap = await db.collection('users').doc(uid).get();
+  if (!snap.exists) return {};
+  return snap.data() as { role?: string; schoolId?: string; displayName?: string };
+}
+
+function requireRoleAllowed(
+  caller: { role?: string; schoolId?: string },
+  allowed: Array<'super_admin' | 'principal' | 'teacher' | 'parent'>,
+  opts?: { schoolId?: string; message?: string }
+): void {
+  if (!caller.role || !allowed.includes(caller.role as any)) {
+    throw new functions.https.HttpsError('permission-denied', opts?.message || 'Not allowed.');
+  }
+  if (opts?.schoolId && caller.schoolId !== opts.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', opts.message || 'Wrong school.');
+  }
+}
+
+async function storageUploadPngAndGetSignedUrl(params: {
+  schoolId: string;
+  path: string;
+  buffer: Buffer;
+  cacheControl?: string;
+}): Promise<string> {
+  const bucket = admin.storage().bucket();
+  const file = bucket.file(params.path);
+  await file.save(params.buffer, {
+    contentType: 'image/png',
+    resumable: false,
+    metadata: {
+      cacheControl: params.cacheControl ?? 'public, max-age=31536000, immutable',
+    },
+  });
+  const [url] = await file.getSignedUrl({
+    action: 'read',
+    // ~10 years
+    expires: Date.now() + 1000 * 60 * 60 * 24 * 365 * 10,
+  });
+  return url;
+}
+
+async function fetchImageBuffer(url: string): Promise<Buffer | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const ab = await res.arrayBuffer();
+    return Buffer.from(ab);
+  } catch {
+    return null;
+  }
+}
+
+function isIsoExpired(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return false;
+  return t < Date.now();
+}
+
+function json(res: functions.Response, status: number, body: unknown): void {
+  res.status(status);
+  res.set('Content-Type', 'application/json; charset=utf-8');
+  res.set('Cache-Control', 'no-store');
+  res.send(JSON.stringify(body));
+}
+
+function setCors(req: functions.Request, res: functions.Response): boolean {
+  const origin = req.headers.origin || '*';
+  res.set('Access-Control-Allow-Origin', origin);
+  res.set('Vary', 'Origin');
+  res.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Max-Age', '86400');
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return true;
+  }
+  return false;
+}
+
+async function readJsonBody(req: functions.Request): Promise<any> {
+  if (req.body && typeof req.body === 'object') return req.body;
+  const chunks: Buffer[] = [];
+  await new Promise<void>((resolve, reject) => {
+    req.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(String(c))));
+    req.on('end', () => resolve());
+    req.on('error', (e) => reject(e));
+  });
+  const raw = Buffer.concat(chunks).toString('utf8');
+  if (!raw) return {};
+  return JSON.parse(raw);
+}
+
+function sha256Hex(input: string): string {
+  return crypto.createHash('sha256').update(input).digest('hex');
+}
+
+function normalizeSaMobile(input: string): string | null {
+  const raw = (input || '').trim();
+  if (!raw) return null;
+  const digits = raw.replace(/[^\d+]/g, '');
+  // Accept 0xx... or +27xx...
+  if (/^0\d{9}$/.test(digits)) return `+27${digits.slice(1)}`;
+  if (/^\+27\d{9}$/.test(digits)) return digits;
+  if (/^27\d{9}$/.test(digits)) return `+${digits}`;
+  return null;
+}
+
+function isValidEmail(email: string): boolean {
+  const e = email.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+}
+
+function principalWelcomeEmailHtml(params: {
+  schoolName: string;
+  principalName: string;
+  acceptUrl: string;
+  expiresInDays: number;
+}): string {
+  const { schoolName, principalName, acceptUrl, expiresInDays } = params;
+  return `
+  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
+    <div style="max-width:560px;margin:0 auto;padding:24px">
+      <h1 style="margin:0 0 12px;font-size:22px">You're invited to set up ${escapeHtml(schoolName)} on My Little Moments</h1>
+      <p style="margin:0 0 16px">Hi ${escapeHtml(principalName)},</p>
+      <p style="margin:0 0 16px">Welcome to <strong>My Little Moments</strong>. Click below to accept your invite and set up your school.</p>
+      <p style="margin:24px 0">
+        <a href="${acceptUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
+          Accept Invite &amp; Set Up Your School
+        </a>
+      </p>
+      <p style="margin:0 0 16px;color:#475569;font-size:13px">This link expires in ${expiresInDays} days.</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+    </div>
+  </div>
+  `;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 /** Keys aligned with mobile ParentNotificationsScreen / shared NotificationPreferences. */
 type ParentNotificationPrefKey =
@@ -864,6 +1085,1224 @@ export const createSchoolWithPrincipal = functions.https.onCall(async (data, con
   });
 
   return { schoolId, principalUid };
+});
+
+// Invite-based principal onboarding (preferred external onboarding).
+// Callable by super_admin only. Creates: school doc (status=PENDING), inviteTokens/{token} doc, sends email via Resend.
+export const adminInvitePrincipal = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
+  if (callerRole !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can invite principals.');
+  }
+
+  const { schoolName, principalName, principalEmail, logoUrl } = data as {
+    schoolName?: string;
+    principalName?: string;
+    principalEmail?: string;
+    schoolLogo?: string;
+    logoUrl?: string;
+  };
+  if (!schoolName || typeof schoolName !== 'string' || !schoolName.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolName is required.');
+  }
+  if (!principalEmail || typeof principalEmail !== 'string' || !principalEmail.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'principalEmail is required.');
+  }
+
+  const now = isoNow();
+  const schoolRef = db.collection('schools').doc();
+  const schoolId = schoolRef.id;
+  const slug = await reserveUniqueSchoolSlug(db, schoolName);
+  // Backfill mapping doc to schoolId for fast public lookups.
+  await db.collection('schoolSlugs').doc(slug).set({ slug, schoolId, createdAt: now }, { merge: true });
+
+  await schoolRef.set({
+    name: schoolName.trim(),
+    slug,
+    status: 'PENDING',
+    logoUrl: (logoUrl && typeof logoUrl === 'string' && logoUrl.trim()) ? logoUrl.trim() : undefined,
+    principalEmail: principalEmail.trim(),
+    principalName: (principalName && typeof principalName === 'string' && principalName.trim()) ? principalName.trim() : undefined,
+    subscriptionStatus: 'active',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const token = randomToken(24);
+  const expiresAt = addDays(new Date(), 7).toISOString();
+  await db.collection('inviteTokens').doc(token).set({
+    token,
+    schoolId,
+    email: principalEmail.trim(),
+    role: 'principal',
+    expiresAt,
+    createdAt: now,
+  });
+
+  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(token)}`;
+  await sendResendEmail({
+    to: principalEmail.trim(),
+    subject: `You're invited to set up ${schoolName.trim()} on My Little Moments`,
+    html: principalWelcomeEmailHtml({
+      schoolName: schoolName.trim(),
+      principalName: (principalName && principalName.trim()) ? principalName.trim() : 'there',
+      acceptUrl,
+      expiresInDays: 7,
+    }),
+  });
+
+  return { schoolId, token, expiresAt, slug };
+});
+
+// Accept an invite token (principal onboarding). Creates principal Auth user + users/{uid} profile and activates the school.
+export const acceptInviteToken = functions.https.onCall(async (data, context) => {
+  // Public-ish: no auth required (token is bearer secret).
+  const { token, password, displayName } = data as { token?: string; password?: string; displayName?: string };
+  if (!token || typeof token !== 'string' || !token.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'token is required.');
+  }
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    throw new functions.https.HttpsError('invalid-argument', 'password must be at least 6 characters.');
+  }
+
+  const db = admin.firestore();
+  const ref = db.collection('inviteTokens').doc(token.trim());
+  const snap = await ref.get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'Invite token not found.');
+  const invite = snap.data() as {
+    token: string;
+    schoolId: string;
+    email: string;
+    role: string;
+    expiresAt: string;
+    usedAt?: string;
+  };
+  if (invite.usedAt) throw new functions.https.HttpsError('failed-precondition', 'Invite token already used.');
+  if (invite.role !== 'principal') throw new functions.https.HttpsError('failed-precondition', 'Invite token role mismatch.');
+  if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) {
+    throw new functions.https.HttpsError('failed-precondition', 'Invite token expired.');
+  }
+
+  const email = invite.email.trim();
+  const now = isoNow();
+
+  // Create or reuse existing auth user for this email.
+  let principalUid: string;
+  try {
+    const existing = await admin.auth().getUserByEmail(email);
+    principalUid = existing.uid;
+    await admin.auth().updateUser(principalUid, {
+      password,
+      displayName: (displayName && typeof displayName === 'string' && displayName.trim()) ? displayName.trim() : existing.displayName ?? email,
+    });
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+    if (code !== 'auth/user-not-found') throw err;
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: (displayName && typeof displayName === 'string' && displayName.trim()) ? displayName.trim() : email,
+    });
+    principalUid = userRecord.uid;
+  }
+
+  const schoolRef = db.collection('schools').doc(invite.schoolId);
+  const schoolSnap = await schoolRef.get();
+  if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found for this invite.');
+
+  await db.collection('users').doc(principalUid).set(
+    {
+      email,
+      displayName: (displayName && typeof displayName === 'string' && displayName.trim()) ? displayName.trim() : email,
+      role: 'principal',
+      schoolId: invite.schoolId,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    { merge: true }
+  );
+
+  await Promise.all([
+    ref.update({ usedAt: now }),
+    schoolRef.update({ status: 'ACTIVE', principalUid, updatedAt: now }),
+  ]);
+
+  // Create a custom token so the web can sign in without needing password again.
+  const customToken = await admin.auth().createCustomToken(principalUid);
+  return { ok: true, principalUid, schoolId: invite.schoolId, customToken };
+});
+
+type QrMode = 'WEB_FORM' | 'WHATSAPP_DEEP_LINK';
+type QrSource = 'POSTER' | 'WHATSAPP' | 'EMAIL' | 'OPEN_DAY';
+
+async function getSchoolOrThrow(db: admin.firestore.Firestore, schoolId: string) {
+  const snap = await db.collection('schools').doc(schoolId).get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'School not found.');
+  return { id: schoolId, ...(snap.data() as any) } as {
+    id: string;
+    name?: string;
+    slug?: string;
+    logoUrl?: string;
+    status?: string;
+    principalUid?: string;
+    contactPhone?: string;
+  };
+}
+
+function buildJoinUrl(schoolSlug: string): string {
+  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+  return `${baseUrl}/join/${encodeURIComponent(schoolSlug)}`;
+}
+
+function buildWhatsAppDeepLink(params: { schoolName: string; schoolSlug: string; principalWhatsApp?: string | null }): string {
+  const number = params.principalWhatsApp ? params.principalWhatsApp.replace(/[^\d+]/g, '') : '';
+  const text = `Hi, I'd like to register my child at ${params.schoolName}.`;
+  // wa.me expects international without +, but whatsapp://send allows +; simplest: use wa.me when we have a number.
+  if (number) {
+    const n = number.startsWith('+') ? number.slice(1) : number;
+    return `https://wa.me/${encodeURIComponent(n)}?text=${encodeURIComponent(text)}`;
+  }
+  // Fallback: share the web join link
+  return buildJoinUrl(params.schoolSlug);
+}
+
+async function buildQrPngWithLogo(params: { data: string; logoUrl?: string | null }): Promise<Buffer> {
+  const qrPng = await QRCode.toBuffer(params.data, {
+    type: 'png',
+    width: 1024,
+    margin: 1,
+    errorCorrectionLevel: 'H',
+    color: { dark: '#0f172a', light: '#ffffff' },
+  });
+  if (!params.logoUrl) return qrPng;
+  const logo = await fetchImageBuffer(params.logoUrl);
+  if (!logo) return qrPng;
+  const base = sharp(qrPng);
+  const qrMeta = await base.metadata();
+  const size = Math.floor(Math.min(qrMeta.width ?? 1024, qrMeta.height ?? 1024) * 0.22);
+  const logoPng = await sharp(logo)
+    .resize(size, size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+    .png()
+    .toBuffer();
+  const pad = Math.floor(size * 0.18);
+  const bgSize = size + pad * 2;
+  const bg = await sharp({
+    create: {
+      width: bgSize,
+      height: bgSize,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  })
+    .png()
+    .toBuffer();
+  return base
+    .composite([
+      { input: bg, gravity: 'center' },
+      { input: logoPng, gravity: 'center' },
+    ])
+    .png()
+    .toBuffer();
+}
+
+async function buildA4PosterPng(params: { qrPng: Buffer; schoolName: string; joinUrl: string }): Promise<Buffer> {
+  // A4 @ 300dpi portrait: 2480x3508
+  const width = 2480;
+  const height = 3508;
+  const qrSize = 1500;
+  const qr = await sharp(params.qrPng).resize(qrSize, qrSize).png().toBuffer();
+  const bg = sharp({
+    create: {
+      width,
+      height,
+      channels: 3,
+      background: { r: 255, g: 255, b: 255 },
+    },
+  });
+  const titleSvg = Buffer.from(
+    `<svg width="${width}" height="420" xmlns="http://www.w3.org/2000/svg">
+      <text x="50%" y="120" text-anchor="middle" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="92" font-weight="800" fill="#0f172a">New parent?</text>
+      <text x="50%" y="230" text-anchor="middle" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="64" font-weight="700" fill="#f97316">Scan to join ${escapeXml(params.schoolName)}</text>
+      <text x="50%" y="330" text-anchor="middle" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="34" font-weight="500" fill="#475569">${escapeXml(params.joinUrl)}</text>
+    </svg>`
+  );
+  return bg
+    .composite([
+      { input: titleSvg, top: 200, left: 0 },
+      { input: qr, top: 700, left: Math.floor((width - qrSize) / 2) },
+    ])
+    .png()
+    .toBuffer();
+}
+
+function escapeXml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function createQrCodeInternal(params: {
+  db: admin.firestore.Firestore;
+  schoolId: string;
+  createdByUid: string;
+  classId: string | null;
+  expiresAt: string | null;
+  maxRegistrations: number | null;
+  source: QrSource;
+  mode: QrMode;
+}): Promise<{ qrCodeId: string; imageUrl: string; a4ImageUrl: string; inviteUrl: string; joinUrl: string; schoolSlug: string }> {
+  const { db, schoolId, createdByUid } = params;
+  const school = await getSchoolOrThrow(db, schoolId);
+  if (!school.slug) {
+    const slug = await reserveUniqueSchoolSlug(db, school.name || 'school');
+    await db.collection('schoolSlugs').doc(slug).set({ slug, schoolId, createdAt: isoNow() }, { merge: true });
+    await db.collection('schools').doc(schoolId).update({ slug, updatedAt: isoNow() });
+    school.slug = slug;
+  }
+
+  const now = isoNow();
+  const qrRef = db.collection('schools').doc(schoolId).collection('qrCodes').doc();
+  const qrCodeId = qrRef.id;
+
+  const joinUrl = buildJoinUrl(school.slug);
+  const webInviteUrl = `${joinUrl}?qr=${encodeURIComponent(qrCodeId)}`;
+  const inviteUrl =
+    params.mode === 'WHATSAPP_DEEP_LINK'
+      ? buildWhatsAppDeepLink({
+          schoolName: school.name || 'My Little Moments',
+          schoolSlug: school.slug,
+          principalWhatsApp: school.contactPhone || null,
+        })
+      : webInviteUrl;
+
+  const qrPng = await buildQrPngWithLogo({ data: inviteUrl, logoUrl: school.logoUrl || null });
+  const a4Png = await buildA4PosterPng({ qrPng, schoolName: school.name || 'Your school', joinUrl });
+
+  const imageUrl = await storageUploadPngAndGetSignedUrl({
+    schoolId,
+    path: `schools/${schoolId}/qr/${qrCodeId}.png`,
+    buffer: qrPng,
+  });
+  const a4ImageUrl = await storageUploadPngAndGetSignedUrl({
+    schoolId,
+    path: `schools/${schoolId}/qr/${qrCodeId}_A4.png`,
+    buffer: a4Png,
+  });
+
+  await qrRef.set({
+    id: qrCodeId,
+    schoolId,
+    schoolSlug: school.slug,
+    classId: params.classId,
+    childId: null,
+    inviteUrl,
+    joinUrl,
+    imageUrl,
+    a4ImageUrl,
+    mode: params.mode,
+    source: params.source,
+    expiresAt: params.expiresAt,
+    maxRegistrations: params.maxRegistrations,
+    scanCount: 0,
+    registrationCount: 0,
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: createdByUid,
+  });
+
+  return { qrCodeId, imageUrl, a4ImageUrl, inviteUrl, joinUrl, schoolSlug: school.slug };
+}
+
+// Create or update a QR code for a school (and optionally a class).
+export const createOrUpdateQrCode = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const caller = await requireCallerProfile(db, uid);
+
+  const { schoolId, classId, expiresAt, maxRegistrations, source, mode } = data as {
+    schoolId?: string;
+    classId?: string | null;
+    expiresAt?: string | null;
+    maxRegistrations?: number | null;
+    source?: QrSource;
+    mode?: QrMode;
+  };
+  if (!schoolId || typeof schoolId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolId is required.');
+  }
+  requireRoleAllowed(caller, ['principal', 'teacher'], { schoolId, message: 'Only staff can manage QR codes.' });
+  const qrMode: QrMode = mode === 'WHATSAPP_DEEP_LINK' ? 'WHATSAPP_DEEP_LINK' : 'WEB_FORM';
+  const src: QrSource = source && ['POSTER', 'WHATSAPP', 'EMAIL', 'OPEN_DAY'].includes(source) ? source : 'POSTER';
+  const result = await createQrCodeInternal({
+    db,
+    schoolId,
+    createdByUid: uid,
+    classId: classId && typeof classId === 'string' ? classId : null,
+    expiresAt: expiresAt && typeof expiresAt === 'string' ? expiresAt : null,
+    maxRegistrations: typeof maxRegistrations === 'number' ? Math.max(0, Math.floor(maxRegistrations)) : null,
+    source: src,
+    mode: qrMode,
+  });
+  return { ok: true, ...result };
+});
+
+// Rotating QR codes: invalidate an old one and issue a new one.
+export const regenerateQrCode = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const caller = await requireCallerProfile(db, uid);
+
+  const { schoolId, qrCodeId } = data as { schoolId?: string; qrCodeId?: string };
+  if (!schoolId || !qrCodeId || typeof schoolId !== 'string' || typeof qrCodeId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolId and qrCodeId are required.');
+  }
+  requireRoleAllowed(caller, ['principal', 'teacher'], { schoolId, message: 'Only staff can rotate QR codes.' });
+
+  const oldRef = db.collection('schools').doc(schoolId).collection('qrCodes').doc(qrCodeId);
+  const oldSnap = await oldRef.get();
+  if (!oldSnap.exists) throw new functions.https.HttpsError('not-found', 'QR code not found.');
+  const old = oldSnap.data() as { classId?: string | null; expiresAt?: string | null; maxRegistrations?: number | null; source?: QrSource; mode?: QrMode };
+  await oldRef.update({ isActive: false, updatedAt: isoNow() });
+  const result = await createQrCodeInternal({
+    db,
+    schoolId,
+    createdByUid: uid,
+    classId: old.classId ?? null,
+    expiresAt: old.expiresAt ?? null,
+    maxRegistrations: typeof old.maxRegistrations === 'number' ? old.maxRegistrations : null,
+    source: old.source ?? 'POSTER',
+    mode: old.mode === 'WHATSAPP_DEEP_LINK' ? 'WHATSAPP_DEEP_LINK' : 'WEB_FORM',
+  });
+  return { ok: true, ...result };
+});
+
+// Premium: upload roster CSV and generate personalised per-child QR codes.
+export const generatePersonalisedQrsFromCsv = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const caller = await requireCallerProfile(db, uid);
+  if (caller.role !== 'principal' || !caller.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can generate personalised QRs.');
+  }
+  const schoolId = caller.schoolId;
+  const { csvText } = data as { csvText?: string };
+  if (!csvText || typeof csvText !== 'string' || !csvText.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'csvText is required.');
+  }
+
+  const schoolSnap = await db.collection('schools').doc(schoolId).get();
+  const school = schoolSnap.exists ? (schoolSnap.data() as { features?: any; subscriptionStatus?: string }) : null;
+  const enabled = Boolean(school?.features?.personalisedQr);
+  if (!enabled) {
+    throw new functions.https.HttpsError('failed-precondition', 'Personalised QR is a premium feature for this school.');
+  }
+  if (school?.subscriptionStatus && school.subscriptionStatus !== 'active') {
+    throw new functions.https.HttpsError('failed-precondition', 'Subscription is not active.');
+  }
+
+  const classesSnap = await db.collection('schools').doc(schoolId).collection('classes').get();
+  const classByName = new Map<string, string>();
+  classesSnap.docs.forEach((d) => {
+    const n = (d.data() as { name?: string }).name?.trim().toLowerCase();
+    if (n) classByName.set(n, d.id);
+  });
+
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 2) {
+    throw new functions.https.HttpsError('invalid-argument', 'CSV must include a header row and at least one data row.');
+  }
+  const header = lines[0].split(',').map((h) => h.trim());
+  const idxFirst = header.findIndex((h) => h === 'childFirstName');
+  const idxSur = header.findIndex((h) => h === 'childSurname');
+  const idxClass = header.findIndex((h) => h === 'class');
+  if (idxFirst < 0 || idxSur < 0 || idxClass < 0) {
+    throw new functions.https.HttpsError('invalid-argument', 'CSV headers must include childFirstName, childSurname, class');
+  }
+
+  const created: Array<{ qrCodeId: string; childFirstName: string; childSurname: string; classId: string }> = [];
+  for (const line of lines.slice(1).slice(0, 200)) {
+    const cols = line.split(',').map((c) => c.trim());
+    const firstName = (cols[idxFirst] || '').trim();
+    const surname = (cols[idxSur] || '').trim();
+    const className = (cols[idxClass] || '').trim().toLowerCase();
+    if (!firstName || !surname || !className) continue;
+    const classId = classByName.get(className);
+    if (!classId) continue;
+    const result = await createQrCodeInternal({
+      db,
+      schoolId,
+      createdByUid: uid,
+      classId,
+      expiresAt: null,
+      maxRegistrations: null,
+      source: 'OPEN_DAY',
+      mode: 'WEB_FORM',
+    });
+    await db.collection('schools').doc(schoolId).collection('qrCodes').doc(result.qrCodeId).set(
+      {
+        childId: null,
+        prefillChildFirstName: firstName,
+        prefillChildSurname: surname,
+      },
+      { merge: true }
+    );
+    created.push({ qrCodeId: result.qrCodeId, childFirstName: firstName, childSurname: surname, classId });
+  }
+
+  return { ok: true, createdCount: created.length, created };
+});
+
+// Public: fetch branded school join info and record a scan.
+export const joinSchoolInfo = functions.https.onRequest(async (req, res) => {
+  if (setCors(req, res)) return;
+  if (req.method !== 'GET') return json(res, 405, { ok: false, error: 'method_not_allowed' });
+
+  const slug = typeof req.query.slug === 'string' ? req.query.slug.trim() : '';
+  if (!slug) return json(res, 400, { ok: false, error: 'missing_slug' });
+
+  const db = admin.firestore();
+  const slugSnap = await db.collection('schoolSlugs').doc(slug).get();
+  const schoolId = slugSnap.exists ? (slugSnap.data() as { schoolId?: string }).schoolId : null;
+  if (!schoolId) return json(res, 404, { ok: false, error: 'school_not_found' });
+
+  const schoolSnap = await db.collection('schools').doc(schoolId).get();
+  if (!schoolSnap.exists) return json(res, 404, { ok: false, error: 'school_not_found' });
+  const school = schoolSnap.data() as { name?: string; logoUrl?: string; principalName?: string; status?: string };
+  if (school.status && school.status !== 'ACTIVE') {
+    return json(res, 403, { ok: false, error: 'school_inactive' });
+  }
+
+  const requestedQrId = typeof req.query.qr === 'string' ? req.query.qr.trim() : '';
+  let qrDoc: admin.firestore.QueryDocumentSnapshot | admin.firestore.DocumentSnapshot;
+  if (requestedQrId) {
+    const snap = await db.collection('schools').doc(schoolId).collection('qrCodes').doc(requestedQrId).get();
+    if (!snap.exists) return json(res, 404, { ok: false, error: 'qr_not_found' });
+    qrDoc = snap;
+  } else {
+    const qrSnap = await db
+      .collection('schools')
+      .doc(schoolId)
+      .collection('qrCodes')
+      .where('isActive', '==', true)
+      .where('classId', '==', null)
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+    if (qrSnap.empty) return json(res, 404, { ok: false, error: 'qr_not_found' });
+    qrDoc = qrSnap.docs[0];
+  }
+  const qrId = qrDoc.id;
+  const qr = qrDoc.data() as {
+    isActive?: boolean;
+    expiresAt?: string | null;
+    maxRegistrations?: number | null;
+    registrationCount?: number;
+    scanCount?: number;
+    mode?: QrMode;
+    inviteUrl?: string;
+    joinUrl?: string;
+    classId?: string | null;
+    prefillChildFirstName?: string;
+    prefillChildSurname?: string;
+  };
+  if (qr.isActive === false) return json(res, 410, { ok: false, error: 'qr_inactive' });
+
+  if (isIsoExpired(qr.expiresAt ?? null)) return json(res, 410, { ok: false, error: 'qr_expired' });
+  if (typeof qr.maxRegistrations === 'number' && typeof qr.registrationCount === 'number' && qr.registrationCount >= qr.maxRegistrations) {
+    return json(res, 410, { ok: false, error: 'qr_limit_reached' });
+  }
+
+  // Scan log
+  const ip = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0] : req.ip) || '';
+  const ipSalt = process.env.IP_HASH_SALT || '';
+  const ipHash = ip ? sha256Hex(`${ipSalt}:${ip}`) : null;
+  const now = isoNow();
+  await Promise.all([
+    qrDoc.ref.collection('scanLogs').doc().set({
+      qrCodeId: qrId,
+      schoolId,
+      scannedAt: now,
+      ipHash,
+      outcome: 'SCANNED',
+    }),
+    qrDoc.ref.update({ scanCount: (qr.scanCount ?? 0) + 1, updatedAt: now }),
+    db.collection('analyticsEvents').doc().set({
+      type: 'qr_scanned',
+      createdAt: now,
+      schoolId,
+      qrCodeId: qrId,
+      props: { slug, requestedQrId: requestedQrId || null },
+    }),
+  ]);
+
+  return json(res, 200, {
+    ok: true,
+    schoolId,
+    schoolSlug: slug,
+    schoolName: school.name ?? 'My Little Moments',
+    logoUrl: school.logoUrl ?? null,
+    principalName: school.principalName ?? null,
+    qrCodeId: qrId,
+    qrMode: (qr.mode ?? 'WEB_FORM') as QrMode,
+    inviteUrl: qr.inviteUrl ?? null,
+    joinUrl: (qr as any).joinUrl ?? null,
+    classId: qr.classId ?? null,
+    prefillChildFirstName: qr.prefillChildFirstName ?? null,
+    prefillChildSurname: qr.prefillChildSurname ?? null,
+  });
+});
+
+// Public: create a short-lived join session token after scan.
+export const createJoinSession = functions.https.onRequest(async (req, res) => {
+  if (setCors(req, res)) return;
+  if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'method_not_allowed' });
+  let body: any;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return json(res, 400, { ok: false, error: 'invalid_json' });
+  }
+  const { schoolSlug, qrCodeId } = body as { schoolSlug?: string; qrCodeId?: string };
+  if (!schoolSlug || !qrCodeId) return json(res, 400, { ok: false, error: 'missing_fields' });
+  const slug = String(schoolSlug).trim();
+  const qid = String(qrCodeId).trim();
+  const db = admin.firestore();
+  const slugSnap = await db.collection('schoolSlugs').doc(slug).get();
+  const schoolId = slugSnap.exists ? (slugSnap.data() as { schoolId?: string }).schoolId : null;
+  if (!schoolId) return json(res, 404, { ok: false, error: 'school_not_found' });
+
+  const qrRef = db.collection('schools').doc(schoolId).collection('qrCodes').doc(qid);
+  const qrSnap = await qrRef.get();
+  if (!qrSnap.exists) return json(res, 404, { ok: false, error: 'qr_not_found' });
+  const qr = qrSnap.data() as { isActive?: boolean; expiresAt?: string | null; maxRegistrations?: number | null; registrationCount?: number };
+  if (qr.isActive === false) return json(res, 410, { ok: false, error: 'qr_inactive' });
+  if (isIsoExpired(qr.expiresAt ?? null)) return json(res, 410, { ok: false, error: 'qr_expired' });
+  if (typeof qr.maxRegistrations === 'number' && typeof qr.registrationCount === 'number' && qr.registrationCount >= qr.maxRegistrations) {
+    return json(res, 410, { ok: false, error: 'qr_limit_reached' });
+  }
+
+  const now = isoNow();
+  const sessionId = randomToken(24);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  await db.collection('joinSessions').doc(sessionId).set({
+    id: sessionId,
+    schoolId,
+    schoolSlug: slug,
+    qrCodeId: qid,
+    expiresAt,
+    createdAt: now,
+  });
+  await db.collection('analyticsEvents').doc().set({
+    type: 'join_session_created',
+    createdAt: now,
+    schoolId,
+    qrCodeId: qid,
+    joinSessionId: sessionId,
+  });
+  return json(res, 200, { ok: true, sessionToken: sessionId, expiresAt });
+});
+
+// Public: register parent + child via QR (creates pending approval).
+export const registerParentViaQr = functions.https.onRequest(async (req, res) => {
+  if (setCors(req, res)) return;
+  if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'method_not_allowed' });
+  let body: any;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return json(res, 400, { ok: false, error: 'invalid_json' });
+  }
+  const {
+    sessionToken,
+    parentName,
+    parentEmail,
+    parentMobile,
+    whatsappOptIn,
+    childFirstName,
+    childSurname,
+    dob,
+    classId,
+    popiaConsent,
+    childPhotoUrl,
+  } = body as Record<string, any>;
+
+  if (!sessionToken || typeof sessionToken !== 'string') return json(res, 400, { ok: false, error: 'missing_session' });
+  const email = typeof parentEmail === 'string' ? parentEmail.trim().toLowerCase() : '';
+  const name = typeof parentName === 'string' ? parentName.trim() : '';
+  const mobileNorm = typeof parentMobile === 'string' ? normalizeSaMobile(parentMobile) : null;
+  if (!name) return json(res, 400, { ok: false, error: 'missing_parent_name' });
+  if (!email || !isValidEmail(email)) return json(res, 400, { ok: false, error: 'invalid_email' });
+  if (!mobileNorm) return json(res, 400, { ok: false, error: 'invalid_mobile' });
+  if (!childFirstName || !childSurname || !dob || !classId) return json(res, 400, { ok: false, error: 'missing_child_fields' });
+  if (popiaConsent !== true) return json(res, 400, { ok: false, error: 'popia_required' });
+
+  const db = admin.firestore();
+  const sessionRef = db.collection('joinSessions').doc(String(sessionToken).trim());
+  const sessionSnap = await sessionRef.get();
+  if (!sessionSnap.exists) return json(res, 404, { ok: false, error: 'session_not_found' });
+  const session = sessionSnap.data() as { schoolId: string; schoolSlug: string; qrCodeId: string; expiresAt: string; usedAt?: string };
+  if (session.usedAt) return json(res, 409, { ok: false, error: 'session_used' });
+  if (isIsoExpired(session.expiresAt)) return json(res, 410, { ok: false, error: 'session_expired' });
+
+  const schoolId = session.schoolId;
+  const qrRef = db.collection('schools').doc(schoolId).collection('qrCodes').doc(session.qrCodeId);
+  const qrSnap = await qrRef.get();
+  if (!qrSnap.exists) return json(res, 404, { ok: false, error: 'qr_not_found' });
+  const qr = qrSnap.data() as { isActive?: boolean; expiresAt?: string | null; maxRegistrations?: number | null; registrationCount?: number; scanCount?: number };
+  if (qr.isActive === false) return json(res, 410, { ok: false, error: 'qr_inactive' });
+  if (isIsoExpired(qr.expiresAt ?? null)) return json(res, 410, { ok: false, error: 'qr_expired' });
+  if (typeof qr.maxRegistrations === 'number' && typeof qr.registrationCount === 'number' && qr.registrationCount >= qr.maxRegistrations) {
+    return json(res, 410, { ok: false, error: 'qr_limit_reached' });
+  }
+
+  // Validate class exists
+  const classRef = db.collection('schools').doc(schoolId).collection('classes').doc(String(classId));
+  const classSnap = await classRef.get();
+  if (!classSnap.exists) return json(res, 400, { ok: false, error: 'invalid_class' });
+  const classData = classSnap.data() as { assignedTeacherId?: string; name?: string };
+  const teacherId = classData.assignedTeacherId || null;
+
+  // Create/reuse Auth user for parent (passwordless registration => temp password).
+  let parentUid: string;
+  try {
+    const existing = await admin.auth().getUserByEmail(email);
+    parentUid = existing.uid;
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+    if (code !== 'auth/user-not-found') {
+      functions.logger.error('registerParentViaQr: auth lookup failed', err);
+      return json(res, 500, { ok: false, error: 'auth_error' });
+    }
+    const tmpPassword = randomToken(18);
+    const userRecord = await admin.auth().createUser({
+      email,
+      password: tmpPassword,
+      displayName: name,
+    });
+    parentUid = userRecord.uid;
+  }
+
+  const now = isoNow();
+  const childName = `${String(childFirstName).trim()} ${String(childSurname).trim()}`.trim();
+  const childRef = db.collection('schools').doc(schoolId).collection('children').doc();
+  const childIdCreated = childRef.id;
+  const regRef = db.collection('schools').doc(schoolId).collection('pendingRegistrations').doc();
+  const regId = regRef.id;
+
+  const batch = db.batch();
+  batch.set(
+    db.collection('users').doc(parentUid),
+    {
+      email,
+      displayName: name,
+      phone: mobileNorm,
+      whatsappOptIn: Boolean(whatsappOptIn),
+      role: 'parent',
+      schoolId,
+      parentStatus: 'PENDING_APPROVAL',
+      isActive: true,
+      updatedAt: now,
+      createdAt: now,
+    },
+    { merge: true }
+  );
+  batch.set(childRef, {
+    schoolId,
+    name: childName || 'Child',
+    dateOfBirth: String(dob),
+    classId: String(classId),
+    assignedTeacherId: teacherId || undefined,
+    parentIds: [parentUid],
+    photoURL: typeof childPhotoUrl === 'string' && childPhotoUrl.trim() ? childPhotoUrl.trim() : undefined,
+    popiaConsent: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+  batch.set(regRef, {
+    id: regId,
+    schoolId,
+    classId: String(classId),
+    teacherId,
+    parentUid,
+    childId: childIdCreated,
+    qrCodeId: session.qrCodeId,
+    status: 'PENDING',
+    createdAt: now,
+  });
+  batch.update(qrRef, {
+    registrationCount: (qr.registrationCount ?? 0) + 1,
+    updatedAt: now,
+  });
+  batch.update(sessionRef, { usedAt: now });
+  batch.set(qrRef.collection('scanLogs').doc(), {
+    qrCodeId: session.qrCodeId,
+    schoolId,
+    scannedAt: now,
+    outcome: 'REGISTERED',
+    ipHash: null,
+  });
+  batch.set(db.collection('analyticsEvents').doc(), {
+    type: 'registration_completed',
+    createdAt: now,
+    schoolId,
+    qrCodeId: session.qrCodeId,
+    joinSessionId: sessionRef.id,
+    registrationId: regId,
+    userId: parentUid,
+    props: { className: classData.name || null },
+  });
+  await batch.commit();
+
+  if (teacherId) {
+    await db
+      .collection('users')
+      .doc(teacherId)
+      .collection('notifications')
+      .doc()
+      .set({
+        title: 'New registration',
+        body: `${name} → ${childName} (${classData.name || 'Class'})`,
+        createdAt: now,
+        read: false,
+        type: 'pending_registration',
+        schoolId,
+        registrationId: regId,
+        parentUid,
+        childId: childIdCreated,
+        classId: String(classId),
+      });
+  }
+
+  // Parent welcome email (review pending)
+  const schoolSnap = await db.collection('schools').doc(schoolId).get();
+  const schoolName = schoolSnap.exists ? (schoolSnap.data() as { name?: string }).name || 'My Little Moments' : 'My Little Moments';
+  await sendResendEmail({
+    to: email,
+    subject: `Welcome to My Little Moments — ${schoolName}`,
+    html: `<div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a"><div style="max-width:560px;margin:0 auto;padding:24px"><h1 style="margin:0 0 12px;font-size:22px">Welcome, ${escapeHtml(name)}!</h1><p style="margin:0 0 16px">We received your registration for <strong>${escapeHtml(childName)}</strong> at <strong>${escapeHtml(schoolName)}</strong>.</p><p style="margin:0 0 16px">Your registration is being reviewed by the class teacher. We'll email you as soon as you’re approved.</p><hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" /><p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p></div></div>`,
+  });
+  let teacherName: string | null = null;
+  if (teacherId) {
+    const tSnap = await db.collection('users').doc(teacherId).get();
+    if (tSnap.exists) {
+      teacherName = (tSnap.data() as { displayName?: string; preferredName?: string }).preferredName
+        ? String((tSnap.data() as any).preferredName)
+        : (tSnap.data() as any).displayName
+          ? String((tSnap.data() as any).displayName)
+          : null;
+    }
+  }
+
+  return json(res, 200, { ok: true, registrationId: regId, childId: childIdCreated, teacherId, teacherName, className: classData.name || null });
+});
+
+// Public: list classes for registration dropdown.
+export const joinSchoolClasses = functions.https.onRequest(async (req, res) => {
+  if (setCors(req, res)) return;
+  if (req.method !== 'GET') return json(res, 405, { ok: false, error: 'method_not_allowed' });
+  const slug = typeof req.query.slug === 'string' ? req.query.slug.trim() : '';
+  if (!slug) return json(res, 400, { ok: false, error: 'missing_slug' });
+  const db = admin.firestore();
+  const slugSnap = await db.collection('schoolSlugs').doc(slug).get();
+  const schoolId = slugSnap.exists ? (slugSnap.data() as { schoolId?: string }).schoolId : null;
+  if (!schoolId) return json(res, 404, { ok: false, error: 'school_not_found' });
+
+  const classesSnap = await db.collection('schools').doc(schoolId).collection('classes').get();
+  const classes = classesSnap.docs.map((d) => {
+    const c = d.data() as { name?: string; minAgeMonths?: number | null; maxAgeMonths?: number | null };
+    return {
+      id: d.id,
+      name: c.name ?? 'Class',
+      minAgeMonths: c.minAgeMonths ?? null,
+      maxAgeMonths: c.maxAgeMonths ?? null,
+    };
+  });
+  return json(res, 200, { ok: true, schoolId, classes });
+});
+
+// Public: upload an optional child photo during onboarding (base64 payload).
+export const uploadChildPhoto = functions.https.onRequest(async (req, res) => {
+  if (setCors(req, res)) return;
+  if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'method_not_allowed' });
+  let body: any;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return json(res, 400, { ok: false, error: 'invalid_json' });
+  }
+  const { sessionToken, mimeType, base64Data } = body as { sessionToken?: string; mimeType?: string; base64Data?: string };
+  if (!sessionToken || !base64Data) return json(res, 400, { ok: false, error: 'missing_fields' });
+  const mt = typeof mimeType === 'string' ? mimeType : 'image/jpeg';
+  if (!/^image\/(jpeg|png|webp)$/.test(mt)) return json(res, 400, { ok: false, error: 'unsupported_type' });
+  const raw = String(base64Data).replace(/^data:[^;]+;base64,/, '');
+  const buf = Buffer.from(raw, 'base64');
+  if (buf.length > 1024 * 1024) return json(res, 413, { ok: false, error: 'too_large' });
+
+  const db = admin.firestore();
+  const sessionRef = db.collection('joinSessions').doc(String(sessionToken).trim());
+  const sessionSnap = await sessionRef.get();
+  if (!sessionSnap.exists) return json(res, 404, { ok: false, error: 'session_not_found' });
+  const session = sessionSnap.data() as { schoolId: string; expiresAt: string };
+  if (isIsoExpired(session.expiresAt)) return json(res, 410, { ok: false, error: 'session_expired' });
+
+  const resized = await sharp(buf).resize(600, 600, { fit: 'cover' }).jpeg({ quality: 82 }).toBuffer();
+  const schoolId = session.schoolId;
+  const path = `schools/${schoolId}/onboarding/childPhotos/${sessionRef.id}.jpg`;
+  const bucket = admin.storage().bucket();
+  const file = bucket.file(path);
+  await file.save(resized, { contentType: 'image/jpeg', resumable: false, metadata: { cacheControl: 'public, max-age=31536000, immutable' } });
+  const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 1000 * 60 * 60 * 24 * 365 * 5 });
+  return json(res, 200, { ok: true, photoUrl: url });
+});
+
+// Public: lightweight analytics tracking (step completion, abandonment, first photo viewed).
+export const trackAnalyticsEvent = functions.https.onRequest(async (req, res) => {
+  if (setCors(req, res)) return;
+  if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'method_not_allowed' });
+  let body: any;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return json(res, 400, { ok: false, error: 'invalid_json' });
+  }
+  const { type, schoolId, qrCodeId, joinSessionId, step, props } = body as {
+    type?: string;
+    schoolId?: string;
+    qrCodeId?: string;
+    joinSessionId?: string;
+    step?: number;
+    props?: Record<string, unknown>;
+  };
+  const allowed = new Set([
+    'registration_step_completed',
+    'registration_abandoned',
+    'first_photo_viewed',
+  ]);
+  if (!type || typeof type !== 'string' || !allowed.has(type)) {
+    return json(res, 400, { ok: false, error: 'invalid_type' });
+  }
+  const now = isoNow();
+  await admin.firestore().collection('analyticsEvents').doc().set({
+    type,
+    createdAt: now,
+    ...(schoolId ? { schoolId: String(schoolId) } : {}),
+    ...(qrCodeId ? { qrCodeId: String(qrCodeId) } : {}),
+    ...(joinSessionId ? { joinSessionId: String(joinSessionId) } : {}),
+    ...(typeof step === 'number' ? { step } : {}),
+    ...(props && typeof props === 'object' ? { props } : {}),
+  });
+  return json(res, 200, { ok: true });
+});
+
+function parentApprovedEmailHtml(params: { parentName: string; schoolName: string; resetUrl: string }): string {
+  return `
+  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
+    <div style="max-width:560px;margin:0 auto;padding:24px">
+      <h1 style="margin:0 0 12px;font-size:22px">You're approved! See your child's first moments</h1>
+      <p style="margin:0 0 16px">Hi ${escapeHtml(params.parentName)},</p>
+      <p style="margin:0 0 16px">Good news — your account for <strong>${escapeHtml(params.schoolName)}</strong> has been approved.</p>
+      <p style="margin:24px 0">
+        <a href="${params.resetUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
+          Set your password &amp; sign in
+        </a>
+      </p>
+      <p style="margin:0 0 16px;color:#475569;font-size:13px">Tip: once signed in, you’ll immediately see the latest class moments.</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+    </div>
+  </div>
+  `;
+}
+
+function parentRejectedEmailHtml(params: { parentName: string; schoolName: string; reason?: string | null }): string {
+  return `
+  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
+    <div style="max-width:560px;margin:0 auto;padding:24px">
+      <h1 style="margin:0 0 12px;font-size:22px">Update on your registration</h1>
+      <p style="margin:0 0 16px">Hi ${escapeHtml(params.parentName)},</p>
+      <p style="margin:0 0 16px">Your registration for <strong>${escapeHtml(params.schoolName)}</strong> was not approved.</p>
+      ${params.reason ? `<p style="margin:0 0 16px;color:#475569"><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>` : ''}
+      <p style="margin:0 0 16px">If you believe this is a mistake, please contact your school directly.</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+    </div>
+  </div>
+  `;
+}
+
+// Teacher trust layer: approve/reject parent registrations.
+export const approveOrRejectParent = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const caller = await requireCallerProfile(db, uid);
+  if (caller.role !== 'teacher' || !caller.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only teachers can approve registrations.');
+  }
+  const schoolId = caller.schoolId;
+  const { registrationId, approved, reason } = data as { registrationId?: string; approved?: boolean; reason?: string };
+  if (!registrationId || typeof registrationId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'registrationId is required.');
+  }
+  const regRef = db.collection('schools').doc(schoolId).collection('pendingRegistrations').doc(registrationId);
+  const regSnap = await regRef.get();
+  if (!regSnap.exists) throw new functions.https.HttpsError('not-found', 'Registration not found.');
+  const reg = regSnap.data() as {
+    teacherId?: string | null;
+    parentUid: string;
+    childId: string;
+    classId: string;
+    status?: string;
+  };
+  if (reg.teacherId && reg.teacherId !== uid) {
+    throw new functions.https.HttpsError('permission-denied', 'You are not assigned to this registration.');
+  }
+  if (reg.status && reg.status !== 'PENDING') {
+    throw new functions.https.HttpsError('failed-precondition', 'Registration already decided.');
+  }
+
+  // Ensure teacher is assigned to the class (defense in depth).
+  const classSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(reg.classId).get();
+  const assignedTeacherId = classSnap.exists ? (classSnap.data() as { assignedTeacherId?: string }).assignedTeacherId : null;
+  if (assignedTeacherId && assignedTeacherId !== uid) {
+    throw new functions.https.HttpsError('permission-denied', 'You are not the assigned teacher for this class.');
+  }
+
+  const now = isoNow();
+  const parentRef = db.collection('users').doc(reg.parentUid);
+  const parentSnap = await parentRef.get();
+  const parentProfile = parentSnap.exists ? (parentSnap.data() as { displayName?: string; email?: string }) : null;
+  const parentEmail = parentProfile?.email ? String(parentProfile.email) : null;
+  const parentName = parentProfile?.displayName ? String(parentProfile.displayName) : 'Parent';
+  const schoolSnap = await db.collection('schools').doc(schoolId).get();
+  const schoolName = schoolSnap.exists ? (schoolSnap.data() as { name?: string }).name || 'My Little Moments' : 'My Little Moments';
+
+  if (approved === true) {
+    const batch = db.batch();
+    batch.update(regRef, { status: 'APPROVED', decidedAt: now, decidedBy: uid });
+    batch.set(parentRef, { parentStatus: 'ACTIVE', updatedAt: now }, { merge: true });
+    // Ensure parentId is linked to child (idempotent).
+    const childRef = db.collection('schools').doc(schoolId).collection('children').doc(reg.childId);
+    const childSnap = await childRef.get();
+    if (childSnap.exists) {
+      const child = childSnap.data() as { parentIds?: string[] };
+      const parentIds = Array.isArray(child.parentIds) ? child.parentIds : [];
+      if (!parentIds.includes(reg.parentUid)) {
+        batch.update(childRef, { parentIds: [...parentIds, reg.parentUid], updatedAt: now });
+      }
+    }
+    batch.set(db.collection('analyticsEvents').doc(), {
+      type: 'registration_approved',
+      createdAt: now,
+      schoolId,
+      registrationId,
+      userId: reg.parentUid,
+      props: { teacherId: uid },
+    } as any);
+    await batch.commit();
+
+    if (parentEmail) {
+      const continueUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+      const resetUrl = await admin.auth().generatePasswordResetLink(parentEmail, { url: `${continueUrl}` });
+      await sendResendEmail({
+        to: parentEmail,
+        subject: `You're approved! See your child's first moments`,
+        html: parentApprovedEmailHtml({ parentName, schoolName, resetUrl }),
+      });
+    }
+    return { ok: true };
+  }
+
+  // Reject
+  const rejectionReason = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 200) : null;
+  await regRef.update({ status: 'REJECTED', decidedAt: now, decidedBy: uid, rejectionReason });
+  await parentRef.set({ parentStatus: 'REJECTED', updatedAt: now }, { merge: true });
+  if (parentEmail) {
+    await sendResendEmail({
+      to: parentEmail,
+      subject: `Update on your registration`,
+      html: parentRejectedEmailHtml({ parentName, schoolName, reason: rejectionReason }),
+    });
+  }
+  return { ok: true };
+});
+
+// Parent activation helpers
+export const recordParentFirstLogin = functions.https.onCall(async (_data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const snap = await db.collection('users').doc(uid).get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+  const d = snap.data() as { role?: string; parentStatus?: string; firstLoginAt?: string };
+  if (d.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
+  if (d.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  if (d.firstLoginAt) return { ok: true, firstLoginAt: d.firstLoginAt };
+  const now = isoNow();
+  await db.collection('users').doc(uid).update({ firstLoginAt: now, updatedAt: now });
+  return { ok: true, firstLoginAt: now };
+});
+
+export const completeParentOnboardingTour = functions.https.onCall(async (_data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const snap = await db.collection('users').doc(uid).get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+  const d = snap.data() as { role?: string; parentStatus?: string };
+  if (d.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
+  if (d.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  const now = isoNow();
+  await db.collection('users').doc(uid).set({ onboardingTourCompletedAt: now, updatedAt: now }, { merge: true });
+  return { ok: true };
+});
+
+// Returns 5 latest photo/moment updates for a parent's children (for post-approval activation).
+export const getParentHomeBootstrap = functions.https.onCall(async (_data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const userSnap = await db.collection('users').doc(uid).get();
+  if (!userSnap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+  const user = userSnap.data() as { role?: string; parentStatus?: string; schoolId?: string };
+  if (user.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
+  if (user.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  const schoolId = user.schoolId;
+  if (!schoolId) return { ok: true, moments: [] };
+
+  const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').where('parentIds', 'array-contains', uid).get();
+  const childIds = childrenSnap.docs.map((d) => d.id).slice(0, 10);
+  const moments: Array<{ childId: string; reportId: string; timestamp: string; imageUrl?: string; type?: string }> = [];
+  for (const childId of childIds) {
+    const repSnap = await db
+      .collection('schools')
+      .doc(schoolId)
+      .collection('children')
+      .doc(childId)
+      .collection('reports')
+      .orderBy('timestamp', 'desc')
+      .limit(5)
+      .get();
+    repSnap.docs.forEach((d) => {
+      const r = d.data() as { timestamp?: string; imageUrl?: string; type?: string };
+      if (r.timestamp) moments.push({ childId, reportId: d.id, timestamp: String(r.timestamp), imageUrl: r.imageUrl, type: r.type });
+    });
+  }
+  moments.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+  return { ok: true, moments: moments.slice(0, 5) };
+});
+
+// Sibling registration: active parent adds another child (creates a new pending approval request).
+export const addSiblingChild = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const userSnap = await db.collection('users').doc(uid).get();
+  if (!userSnap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+  const user = userSnap.data() as { role?: string; parentStatus?: string; schoolId?: string; displayName?: string; email?: string };
+  if (user.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can add children.');
+  if (user.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  if (!user.schoolId) throw new functions.https.HttpsError('failed-precondition', 'Missing schoolId.');
+  const schoolId = user.schoolId;
+
+  const { childFirstName, childSurname, dob, classId, popiaConsent } = data as {
+    childFirstName?: string;
+    childSurname?: string;
+    dob?: string;
+    classId?: string;
+    popiaConsent?: boolean;
+  };
+  if (!childFirstName || !childSurname || !dob || !classId) {
+    throw new functions.https.HttpsError('invalid-argument', 'childFirstName, childSurname, dob, classId are required.');
+  }
+  if (popiaConsent !== true) throw new functions.https.HttpsError('invalid-argument', 'POPIA consent is required.');
+
+  const classSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(String(classId)).get();
+  if (!classSnap.exists) throw new functions.https.HttpsError('invalid-argument', 'Invalid class.');
+  const classData = classSnap.data() as { assignedTeacherId?: string; name?: string };
+  const teacherId = classData.assignedTeacherId || null;
+
+  const now = isoNow();
+  const childName = `${String(childFirstName).trim()} ${String(childSurname).trim()}`.trim();
+  const childRef = db.collection('schools').doc(schoolId).collection('children').doc();
+  const regRef = db.collection('schools').doc(schoolId).collection('pendingRegistrations').doc();
+
+  const batch = db.batch();
+  batch.set(childRef, {
+    schoolId,
+    name: childName || 'Child',
+    dateOfBirth: String(dob),
+    classId: String(classId),
+    assignedTeacherId: teacherId || undefined,
+    parentIds: [uid],
+    popiaConsent: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+  batch.set(regRef, {
+    id: regRef.id,
+    schoolId,
+    classId: String(classId),
+    teacherId,
+    parentUid: uid,
+    childId: childRef.id,
+    qrCodeId: null,
+    status: 'PENDING',
+    createdAt: now,
+    createdVia: 'sibling',
+  });
+  await batch.commit();
+
+  if (teacherId) {
+    await db.collection('users').doc(teacherId).collection('notifications').doc().set({
+      title: 'New registration',
+      body: `${user.displayName || 'Parent'} → ${childName} (${classData.name || 'Class'})`,
+      createdAt: now,
+      read: false,
+      type: 'pending_registration',
+      schoolId,
+      registrationId: regRef.id,
+      parentUid: uid,
+      childId: childRef.id,
+      classId: String(classId),
+    });
+  }
+  return { ok: true, childId: childRef.id, registrationId: regRef.id };
+});
+
+export const recordFirstPhotoViewed = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const uid = context.auth.uid;
+  const { schoolId, childId, reportId } = data as { schoolId?: string; childId?: string; reportId?: string };
+  if (!schoolId || !childId || !reportId) {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolId, childId, reportId are required.');
+  }
+  const db = admin.firestore();
+  const userRef = db.collection('users').doc(uid);
+  const userSnap = await userRef.get();
+  if (!userSnap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
+  const user = userSnap.data() as { role?: string; parentStatus?: string; firstPhotoViewedAt?: string };
+  if (user.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
+  if (user.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  if (user.firstPhotoViewedAt) return { ok: true, firstPhotoViewedAt: user.firstPhotoViewedAt };
+  const now = isoNow();
+  await userRef.set({ firstPhotoViewedAt: now, updatedAt: now }, { merge: true });
+  await db.collection('analyticsEvents').doc().set({
+    type: 'first_photo_viewed',
+    createdAt: now,
+    schoolId: String(schoolId),
+    userId: uid,
+    props: { childId: String(childId), reportId: String(reportId) },
+  });
+  return { ok: true, firstPhotoViewedAt: now };
 });
 
 // Create a teacher for the principal's school. Callable by principal only.

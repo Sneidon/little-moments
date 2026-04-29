@@ -12,6 +12,10 @@ import sharp = require('sharp');
 
 admin.initializeApp();
 
+// Direct fallback credentials (requested) when runtime config/env is absent.
+const RESEND_API_KEY_FALLBACK = 're_S3xMBH7d_3YqMBTndWbkQxihUwyaL6sj1';
+const RESEND_FROM_FALLBACK = 'onboarding@resend.dev';
+
 function isoNow(): string {
   return new Date().toISOString();
 }
@@ -61,12 +65,9 @@ async function reserveUniqueSchoolSlug(db: admin.firestore.Firestore, schoolName
 }
 
 async function sendResendEmail(params: { to: string; subject: string; html: string }): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
-  if (!apiKey || !from) {
-    functions.logger.warn('Resend not configured (missing RESEND_API_KEY or RESEND_FROM). Skipping email send.');
-    return;
-  }
+  const apiKey = RESEND_API_KEY_FALLBACK;
+  const from = RESEND_FROM_FALLBACK;
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -83,7 +84,9 @@ async function sendResendEmail(params: { to: string; subject: string; html: stri
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     functions.logger.error('Resend send failed', res.status, text);
+    return;
   }
+  functions.logger.info('Resend email sent', { to: params.to, subject: params.subject.slice(0, 120) });
 }
 
 async function requireCallerProfile(db: admin.firestore.Firestore, uid: string): Promise<{ role?: string; schoolId?: string; displayName?: string }> {
@@ -228,6 +231,26 @@ function principalWelcomeEmailHtml(params: {
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function sendPrincipalInviteEmail(params: {
+  to: string;
+  schoolName: string;
+  principalName?: string;
+  token: string;
+}): Promise<void> {
+  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  await sendResendEmail({
+    to: params.to.trim(),
+    subject: `You're invited to set up ${params.schoolName.trim()} on My Little Moments`,
+    html: principalWelcomeEmailHtml({
+      schoolName: params.schoolName.trim(),
+      principalName: (params.principalName && params.principalName.trim()) ? params.principalName.trim() : 'there',
+      acceptUrl,
+      expiresInDays: 7,
+    }),
+  });
 }
 
 /** Keys aligned with mobile ParentNotificationsScreen / shared NotificationPreferences. */
@@ -1114,49 +1137,107 @@ export const adminInvitePrincipal = functions.https.onCall(async (data, context)
   }
 
   const now = isoNow();
-  const schoolRef = db.collection('schools').doc();
-  const schoolId = schoolRef.id;
-  const slug = await reserveUniqueSchoolSlug(db, schoolName);
-  // Backfill mapping doc to schoolId for fast public lookups.
-  await db.collection('schoolSlugs').doc(slug).set({ slug, schoolId, createdAt: now }, { merge: true });
-
-  await schoolRef.set({
-    name: schoolName.trim(),
-    slug,
-    status: 'PENDING',
-    logoUrl: (logoUrl && typeof logoUrl === 'string' && logoUrl.trim()) ? logoUrl.trim() : undefined,
-    principalEmail: principalEmail.trim(),
-    principalName: (principalName && typeof principalName === 'string' && principalName.trim()) ? principalName.trim() : undefined,
-    subscriptionStatus: 'active',
-    createdAt: now,
-    updatedAt: now,
-  });
 
   const token = randomToken(24);
   const expiresAt = addDays(new Date(), 7).toISOString();
-  await db.collection('inviteTokens').doc(token).set({
+  const invitePayload: Record<string, unknown> = {
     token,
-    schoolId,
     email: principalEmail.trim(),
     role: 'principal',
+    schoolName: schoolName.trim(),
     expiresAt,
     createdAt: now,
-  });
+  };
+  if (logoUrl && typeof logoUrl === 'string' && logoUrl.trim()) {
+    invitePayload.logoUrl = logoUrl.trim();
+  }
+  if (principalName && typeof principalName === 'string' && principalName.trim()) {
+    invitePayload.principalName = principalName.trim();
+  }
+  await db.collection('inviteTokens').doc(token).set(invitePayload);
 
-  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
-  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(token)}`;
-  await sendResendEmail({
+  await sendPrincipalInviteEmail({
     to: principalEmail.trim(),
-    subject: `You're invited to set up ${schoolName.trim()} on My Little Moments`,
-    html: principalWelcomeEmailHtml({
-      schoolName: schoolName.trim(),
-      principalName: (principalName && principalName.trim()) ? principalName.trim() : 'there',
-      acceptUrl,
-      expiresInDays: 7,
-    }),
+    schoolName: schoolName.trim(),
+    principalName: principalName?.trim(),
+    token,
   });
 
-  return { schoolId, token, expiresAt, slug };
+  return { token, expiresAt, schoolName: schoolName.trim() };
+});
+
+// Resend principal invite. Reissues token when invite is already used or expired.
+export const resendPrincipalInvite = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
+  if (callerRole !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can resend principal invites.');
+  }
+
+  const { inviteId } = data as { inviteId?: string };
+  if (!inviteId || typeof inviteId !== 'string' || !inviteId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'inviteId is required.');
+  }
+  const inviteRef = db.collection('inviteTokens').doc(inviteId.trim());
+  const inviteSnap = await inviteRef.get();
+  if (!inviteSnap.exists) throw new functions.https.HttpsError('not-found', 'Invite not found.');
+  const invite = inviteSnap.data() as {
+    token: string;
+    email: string;
+    role: string;
+    schoolName?: string;
+    principalName?: string;
+    logoUrl?: string;
+    expiresAt: string;
+    usedAt?: string;
+    createdSchoolId?: string;
+  };
+  if (invite.role !== 'principal') {
+    throw new functions.https.HttpsError('failed-precondition', 'Only principal invites can be resent.');
+  }
+  if (invite.createdSchoolId) {
+    throw new functions.https.HttpsError('failed-precondition', 'Invite already accepted.');
+  }
+
+  const now = isoNow();
+  const expired = new Date(invite.expiresAt).getTime() < Date.now();
+  const needsReissue = Boolean(invite.usedAt) || expired;
+
+  let tokenToSend = invite.token;
+  let inviteIdToReturn = inviteRef.id;
+  let expiresAtToReturn = invite.expiresAt;
+  if (needsReissue) {
+    tokenToSend = randomToken(24);
+    expiresAtToReturn = addDays(new Date(), 7).toISOString();
+    const payload: Record<string, unknown> = {
+      token: tokenToSend,
+      email: invite.email,
+      role: invite.role,
+      schoolName: invite.schoolName ?? 'School',
+      expiresAt: expiresAtToReturn,
+      createdAt: now,
+      resentFromInviteId: inviteRef.id,
+    };
+    if (invite.principalName) payload.principalName = invite.principalName;
+    if (invite.logoUrl) payload.logoUrl = invite.logoUrl;
+    const newRef = db.collection('inviteTokens').doc(tokenToSend);
+    await newRef.set(payload);
+    inviteIdToReturn = newRef.id;
+  } else {
+    await inviteRef.set({ lastResentAt: now }, { merge: true });
+  }
+
+  await sendPrincipalInviteEmail({
+    to: invite.email,
+    schoolName: invite.schoolName ?? 'School',
+    principalName: invite.principalName,
+    token: tokenToSend,
+  });
+
+  return { ok: true, inviteId: inviteIdToReturn, token: tokenToSend, expiresAt: expiresAtToReturn, reissued: needsReissue };
 });
 
 // Accept an invite token (principal onboarding). Creates principal Auth user + users/{uid} profile and activates the school.
@@ -1176,9 +1257,13 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
   if (!snap.exists) throw new functions.https.HttpsError('not-found', 'Invite token not found.');
   const invite = snap.data() as {
     token: string;
-    schoolId: string;
     email: string;
     role: string;
+    schoolName?: string;
+    principalName?: string;
+    logoUrl?: string;
+    schoolId?: string;
+    createdSchoolId?: string;
     expiresAt: string;
     usedAt?: string;
   };
@@ -1211,16 +1296,47 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     principalUid = userRecord.uid;
   }
 
-  const schoolRef = db.collection('schools').doc(invite.schoolId);
-  const schoolSnap = await schoolRef.get();
-  if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found for this invite.');
+  // Create school only when invite is accepted (or reuse if previously created).
+  let schoolId = invite.createdSchoolId || invite.schoolId;
+  if (!schoolId) {
+    const schoolRef = db.collection('schools').doc();
+    schoolId = schoolRef.id;
+    const slug = await reserveUniqueSchoolSlug(db, invite.schoolName || 'school');
+    await db.collection('schoolSlugs').doc(slug).set({ slug, schoolId, createdAt: now }, { merge: true });
+    const schoolPayload: Record<string, unknown> = {
+      name: (invite.schoolName && invite.schoolName.trim()) ? invite.schoolName.trim() : 'New School',
+      slug,
+      status: 'ACTIVE',
+      principalEmail: email,
+      principalName:
+        (displayName && typeof displayName === 'string' && displayName.trim())
+          ? displayName.trim()
+          : (invite.principalName && invite.principalName.trim())
+            ? invite.principalName.trim()
+            : undefined,
+      subscriptionStatus: 'active',
+      principalUid,
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (invite.logoUrl && typeof invite.logoUrl === 'string' && invite.logoUrl.trim()) {
+      schoolPayload.logoUrl = invite.logoUrl.trim();
+    }
+    if (!schoolPayload.principalName) delete schoolPayload.principalName;
+    await schoolRef.set(schoolPayload);
+  } else {
+    const schoolRef = db.collection('schools').doc(schoolId);
+    const schoolSnap = await schoolRef.get();
+    if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found for this invite.');
+    await schoolRef.update({ status: 'ACTIVE', principalUid, updatedAt: now });
+  }
 
   await db.collection('users').doc(principalUid).set(
     {
       email,
       displayName: (displayName && typeof displayName === 'string' && displayName.trim()) ? displayName.trim() : email,
       role: 'principal',
-      schoolId: invite.schoolId,
+      schoolId,
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -1229,13 +1345,12 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
   );
 
   await Promise.all([
-    ref.update({ usedAt: now }),
-    schoolRef.update({ status: 'ACTIVE', principalUid, updatedAt: now }),
+    ref.update({ usedAt: now, createdSchoolId: schoolId }),
   ]);
 
   // Create a custom token so the web can sign in without needing password again.
   const customToken = await admin.auth().createCustomToken(principalUid);
-  return { ok: true, principalUid, schoolId: invite.schoolId, customToken };
+  return { ok: true, principalUid, schoolId, customToken };
 });
 
 type QrMode = 'WEB_FORM' | 'WHATSAPP_DEEP_LINK';

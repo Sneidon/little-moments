@@ -51,6 +51,7 @@ export default function AdminDashboard() {
 
   const quickLinks = [
     { to: '/admin/schools', label: 'Manage schools' },
+    { to: '/admin/invites', label: 'View invites & statuses' },
     { to: '/admin/users', label: 'Manage users' },
     { to: '/admin/usage', label: 'Usage & analytics' },
   ];

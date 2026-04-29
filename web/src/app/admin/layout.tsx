@@ -28,6 +28,7 @@ const navSections: { title: string; links: { href: string; label: string; Icon: 
     title: 'Management',
     links: [
       { href: '/admin/schools', label: 'Schools', Icon: IconSchool },
+      { href: '/admin/invites', label: 'Invites', Icon: IconMail },
       { href: '/admin/users', label: 'Users', Icon: IconUsers },
     ],
   },

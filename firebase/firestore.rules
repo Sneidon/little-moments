@@ -51,6 +51,26 @@ service cloud.firestore {
       }
     }
 
+    match /inviteTokens/{tokenId} {
+      // Super admin invite status page + admin tooling.
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /schoolSlugs/{slug} {
+      // Managed by backend functions only.
+      allow read, write: if false;
+    }
+
+    match /joinSessions/{sessionId} {
+      // Managed by backend functions only.
+      allow read, write: if false;
+    }
+
+    match /analyticsEvents/{eventId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
     match /schools/{schoolId} {
       allow read: if isAuthenticated() && (request.auth.token.role != 'parent' || isActiveParent());
       allow create, delete: if isSuperAdmin();
@@ -118,6 +138,18 @@ service cloud.firestore {
           );
           allow update, delete: if false;
         }
+      }
+      match /qrCodes/{qrCodeId} {
+        allow read: if isSuperAdmin() || isPrincipal(schoolId) || isTeacher(schoolId);
+        allow create, update, delete: if isSuperAdmin() || isPrincipal(schoolId) || isTeacher(schoolId);
+        match /scanLogs/{logId} {
+          allow read: if isSuperAdmin() || isPrincipal(schoolId) || isTeacher(schoolId);
+          allow write: if false;
+        }
+      }
+      match /pendingRegistrations/{registrationId} {
+        allow read: if isSuperAdmin() || isPrincipal(schoolId) || isTeacher(schoolId);
+        allow write: if false;
       }
     }
   }

@@ -253,7 +253,11 @@ export type InviteRole = 'principal' | 'teacher';
 export interface InviteToken {
   id: string;
   token: string;
-  schoolId: string;
+  schoolId?: string;
+  createdSchoolId?: string;
+  schoolName?: string;
+  principalName?: string;
+  logoUrl?: string;
   email: string;
   role: InviteRole;
   expiresAt: string; // ISO

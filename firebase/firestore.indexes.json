@@ -65,6 +65,30 @@
         { "fieldPath": "classId", "order": "ASCENDING" },
         { "fieldPath": "isActive", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "schoolDeletionJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "scheduledDeleteAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "schoolDeletionJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schoolId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "schoolDeletionJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "resolvedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

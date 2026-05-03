@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { HeartIcon } from '@/components/HeartIcon';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { isSchoolOperational } from '@/lib/schoolAccess';
 import { UserMenu } from '@/components/UserMenu';
 import {
   IconDashboard,
@@ -76,17 +77,26 @@ export default function PrincipalLayout({
   const { user, profile, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [schoolAccessBlocked, setSchoolAccessBlocked] = useState(false);
 
   useEffect(() => {
-    if (!profile?.schoolId) return;
-    let cancelled = false;
-    getDoc(doc(db, 'schools', profile.schoolId)).then((snap) => {
-      if (cancelled || !snap.exists()) return;
-      const name = (snap.data() as { name?: string }).name;
-      if (name) setSchoolName(name);
+    if (!profile?.schoolId || profile.role !== 'principal') {
+      setSchoolAccessBlocked(false);
+      setSchoolName(null);
+      return undefined;
+    }
+    const unsub = onSnapshot(doc(db, 'schools', profile.schoolId), (snap) => {
+      if (!snap.exists()) {
+        setSchoolAccessBlocked(true);
+        setSchoolName(null);
+        return;
+      }
+      const data = snap.data() as { name?: string; subscriptionStatus?: string; status?: string };
+      setSchoolName(data.name ?? null);
+      setSchoolAccessBlocked(!isSchoolOperational(data));
     });
-    return () => { cancelled = true; };
-  }, [profile?.schoolId]);
+    return () => unsub();
+  }, [profile?.schoolId, profile?.role]);
 
   useEffect(() => {
     if (loading) return;
@@ -110,6 +120,25 @@ export default function PrincipalLayout({
   }
 
   if (!user || !profile) return null;
+
+  if (profile.role === 'principal' && schoolAccessBlocked) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-warm-50 p-6 dark:bg-slate-900">
+        <div className="w-full max-w-lg rounded-card border border-amber-200 bg-white p-6 shadow-xl dark:border-amber-800 dark:bg-slate-800">
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            School access is not available
+          </h1>
+          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+            This school&apos;s account has been suspended or is no longer active. Staff dashboards, daily operations,
+            and parent access are disabled until support reactivates the school.
+          </p>
+          <button type="button" onClick={() => void handleSignOut()} className="btn-primary mt-6 w-full sm:w-auto">
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen bg-warm-50 dark:bg-slate-900">

@@ -34,6 +34,18 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
+/** Advance calendar by whole business days (Mon–Fri, UTC calendar). Holidays not excluded. */
+function addBusinessDaysUtc(from: Date, businessDays: number): Date {
+  const d = new Date(from.getTime());
+  let count = 0;
+  while (count < businessDays) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6) count += 1;
+  }
+  return d;
+}
+
 function slugifySchoolName(name: string): string {
   return name
     .trim()
@@ -1287,8 +1299,335 @@ export const createSchoolWithPrincipal = functions.https.onCall(async (data, con
   return { schoolId, principalUid };
 });
 
+const FIRESTORE_DELETE_CHUNK = 450;
+
+async function deleteCollectionShallow(
+  db: admin.firestore.Firestore,
+  colRef: admin.firestore.CollectionReference
+): Promise<void> {
+  const snap = await colRef.limit(FIRESTORE_DELETE_CHUNK).get();
+  if (snap.empty) return;
+  const batch = db.batch();
+  for (const d of snap.docs) {
+    batch.delete(d.ref);
+  }
+  await batch.commit();
+  await deleteCollectionShallow(db, colRef);
+}
+
+/** Remove all documents under `schools/{schoolId}` (nested subcollections first). */
+async function purgeFirestoreSchoolTree(db: admin.firestore.Firestore, schoolId: string): Promise<void> {
+  const schoolRef = db.collection('schools').doc(schoolId);
+
+  const chatsSnap = await schoolRef.collection('chats').get();
+  for (const c of chatsSnap.docs) {
+    await deleteCollectionShallow(db, c.ref.collection('messages'));
+    await c.ref.delete();
+  }
+
+  const qrSnap = await schoolRef.collection('qrCodes').get();
+  for (const q of qrSnap.docs) {
+    await deleteCollectionShallow(db, q.ref.collection('scanLogs'));
+    await q.ref.delete();
+  }
+
+  const childrenSnap = await schoolRef.collection('children').get();
+  for (const ch of childrenSnap.docs) {
+    await deleteCollectionShallow(db, ch.ref.collection('reports'));
+    await ch.ref.delete();
+  }
+
+  const flatCollections = [
+    'classes',
+    'announcements',
+    'events',
+    'foodMenus',
+    'foodMenusWeekly',
+    'dailyCommunications',
+    'mealOptions',
+    'pendingRegistrations',
+  ] as const;
+  for (const name of flatCollections) {
+    await deleteCollectionShallow(db, schoolRef.collection(name));
+  }
+}
+
+async function unlinkUsersFromSchool(db: admin.firestore.Firestore, schoolId: string, nowIso: string): Promise<void> {
+  const FieldValue = admin.firestore.FieldValue;
+  const usersSnap = await db.collection('users').where('schoolId', '==', schoolId).get();
+  for (const d of usersSnap.docs) {
+    const role = (d.data() as { role?: string }).role;
+    const ref = d.ref;
+    const patch =
+      role === 'principal' || role === 'teacher'
+        ? { schoolId: FieldValue.delete(), isActive: false, updatedAt: nowIso }
+        : { schoolId: FieldValue.delete(), updatedAt: nowIso };
+    await ref.update(patch);
+    const after = await ref.get();
+    const rd = after.data() as { role?: string } | undefined;
+    const claims: Record<string, string> = {};
+    if (rd?.role) claims.role = rd.role;
+    try {
+      await admin.auth().setCustomUserClaims(d.id, claims);
+    } catch (e) {
+      functions.logger.warn('unlinkUsersFromSchool: setCustomUserClaims failed', d.id, e);
+    }
+  }
+}
+
+async function deleteInviteTokensForSchool(db: admin.firestore.Firestore, schoolId: string): Promise<void> {
+  const [bySchoolId, byCreated] = await Promise.all([
+    db.collection('inviteTokens').where('schoolId', '==', schoolId).get(),
+    db.collection('inviteTokens').where('createdSchoolId', '==', schoolId).get(),
+  ]);
+  const seen = new Set<string>();
+  const del = async (docs: admin.firestore.QueryDocumentSnapshot[]): Promise<void> => {
+    for (const docSnap of docs) {
+      if (seen.has(docSnap.id)) continue;
+      seen.add(docSnap.id);
+      await docSnap.ref.delete();
+    }
+  };
+  await del(bySchoolId.docs);
+  await del(byCreated.docs);
+}
+
+/** Sets subscription suspended + onboarding SUSPENDED (or restores). Callable by super_admin only. */
+export const adminSetSchoolSuspended = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const db = admin.firestore();
+  const caller = await requireCallerProfile(db, context.auth.uid);
+  if (caller.role !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can change school suspension.');
+  }
+  const { schoolId, suspended } = data as { schoolId?: string; suspended?: boolean };
+  if (!schoolId || typeof schoolId !== 'string' || !schoolId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolId is required.');
+  }
+  if (typeof suspended !== 'boolean') {
+    throw new functions.https.HttpsError('invalid-argument', 'suspended must be a boolean.');
+  }
+  const ref = db.collection('schools').doc(schoolId.trim());
+  const snap = await ref.get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'School not found.');
+  const now = isoNow();
+  await ref.update({
+    subscriptionStatus: suspended ? ('suspended' as const) : ('active' as const),
+    status: suspended ? ('SUSPENDED' as const) : ('ACTIVE' as const),
+    updatedAt: now,
+  });
+  return { ok: true as const };
+});
+
+/** Runs full purge; no-ops cleanly if school doc is already gone. */
+async function runSchoolDeletionPurge(db: admin.firestore.Firestore, schoolId: string): Promise<void> {
+  const sid = schoolId.trim();
+  const schoolRef = db.collection('schools').doc(sid);
+  const schoolSnap = await schoolRef.get();
+  if (!schoolSnap.exists) {
+    functions.logger.warn('runSchoolDeletionPurge: school already absent', { schoolId: sid });
+    return;
+  }
+  const slug = (schoolSnap.data() as { slug?: string }).slug;
+
+  functions.logger.warn('runSchoolDeletionPurge: starting', { schoolId: sid });
+  await purgeFirestoreSchoolTree(db, sid);
+
+  const now = isoNow();
+  await unlinkUsersFromSchool(db, sid, now);
+  await deleteInviteTokensForSchool(db, sid);
+
+  if (slug && typeof slug === 'string' && slug.trim()) {
+    const slugRef = db.collection('schoolSlugs').doc(slug.trim());
+    const slugSnap = await slugRef.get();
+    const mappedId = slugSnap.exists ? (slugSnap.data() as { schoolId?: string }).schoolId : null;
+    if (mappedId === sid) {
+      await slugRef.delete();
+    }
+  }
+
+  await schoolRef.delete();
+  functions.logger.warn('runSchoolDeletionPurge: completed', { schoolId: sid });
+}
+
+async function claimSchoolDeletionJob(
+  db: admin.firestore.Firestore,
+  jobRef: admin.firestore.DocumentReference
+): Promise<boolean> {
+  const nowIso = isoNow();
+  let claimed = false;
+  await db.runTransaction(async (tx) => {
+    const s = await tx.get(jobRef);
+    if (!s.exists) return;
+    const d = s.data() as { status?: string; scheduledDeleteAt?: string };
+    if (d.status !== 'pending') return;
+    if (!d.scheduledDeleteAt || d.scheduledDeleteAt > nowIso) return;
+    tx.update(jobRef, { status: 'processing', startedAt: nowIso });
+    claimed = true;
+  });
+  return claimed;
+}
+
+/** Picks due jobs and deletes school data after the 7-business-day waiting period. */
+export const processSchoolDeletionJobs = functions.pubsub.schedule('every 30 minutes').onRun(async () => {
+  const db = admin.firestore();
+  const nowIso = isoNow();
+  const due = await db
+    .collection('schoolDeletionJobs')
+    .where('status', '==', 'pending')
+    .where('scheduledDeleteAt', '<=', nowIso)
+    .limit(25)
+    .get();
+
+  for (const jobDoc of due.docs) {
+    const jobRef = jobDoc.ref;
+    const row = jobDoc.data() as { schoolId?: string };
+    const schoolId = row.schoolId ? String(row.schoolId).trim() : '';
+    if (!schoolId) {
+      await jobRef.update({
+        status: 'failed',
+        resolvedAt: nowIso,
+        errorMessage: 'missing_schoolId_on_job',
+      });
+      continue;
+    }
+
+    const claimed = await claimSchoolDeletionJob(db, jobRef);
+    if (!claimed) continue;
+
+    try {
+      await runSchoolDeletionPurge(db, schoolId);
+      await jobRef.update({ status: 'completed', resolvedAt: isoNow() });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      functions.logger.error('processSchoolDeletionJobs: purge failed', schoolId, e);
+      await jobRef.update({
+        status: 'failed',
+        resolvedAt: isoNow(),
+        errorMessage: msg.slice(0, 2000),
+      });
+    }
+  }
+  return null;
+});
+
+/**
+ * Schedules full data deletion after 7 business days (UTC Mon–Fri). Suspends the school immediately.
+ * Callable by super_admin only. `confirmation` must match school name (trimmed).
+ */
+export const adminQueueSchoolDeletion = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const db = admin.firestore();
+  const caller = await requireCallerProfile(db, context.auth.uid);
+  if (caller.role !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can queue school deletion.');
+  }
+  const { schoolId, confirmation } = data as { schoolId?: string; confirmation?: string };
+  if (!schoolId || typeof schoolId !== 'string' || !schoolId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolId is required.');
+  }
+  if (!confirmation || typeof confirmation !== 'string' || !confirmation.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'confirmation must match the school name.');
+  }
+  const sid = schoolId.trim();
+
+  const dup = await db
+    .collection('schoolDeletionJobs')
+    .where('schoolId', '==', sid)
+    .where('status', '==', 'pending')
+    .limit(1)
+    .get();
+  if (!dup.empty) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'A deletion is already scheduled for this school. Cancel it first or wait for it to complete.'
+    );
+  }
+
+  const schoolRef = db.collection('schools').doc(sid);
+  const schoolSnap = await schoolRef.get();
+  if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found.');
+  const schoolName = (schoolSnap.data() as { name?: string }).name;
+  const expectedName = (schoolName && String(schoolName).trim()) || '';
+  if (!expectedName || confirmation.trim() !== expectedName) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Confirmation does not match this school\'s name. Type the exact name to continue.'
+    );
+  }
+
+  let requestedByEmail: string | null = null;
+  try {
+    const u = await admin.auth().getUser(context.auth.uid);
+    requestedByEmail = u.email ?? null;
+  } catch {
+    // ignore
+  }
+
+  const now = isoNow();
+  const scheduledDeleteAt = addBusinessDaysUtc(new Date(), 7).toISOString();
+  const jobRef = db.collection('schoolDeletionJobs').doc();
+  const batch = db.batch();
+  batch.set(jobRef, {
+    schoolId: sid,
+    schoolName: expectedName,
+    status: 'pending',
+    requestedAt: now,
+    scheduledDeleteAt,
+    requestedByUid: context.auth.uid,
+    requestedByEmail,
+  });
+  batch.update(schoolRef, {
+    subscriptionStatus: 'suspended',
+    status: 'SUSPENDED',
+    updatedAt: now,
+  });
+  await batch.commit();
+
+  return { ok: true as const, jobId: jobRef.id, scheduledDeleteAt };
+});
+
+/** Cancel a pending deletion job and reactivate the school if the document still exists. */
+export const adminCancelSchoolDeletion = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const db = admin.firestore();
+  const caller = await requireCallerProfile(db, context.auth.uid);
+  if (caller.role !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can cancel scheduled deletions.');
+  }
+  const { jobId } = data as { jobId?: string };
+  if (!jobId || typeof jobId !== 'string' || !jobId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'jobId is required.');
+  }
+  const ref = db.collection('schoolDeletionJobs').doc(jobId.trim());
+  const snap = await ref.get();
+  if (!snap.exists) throw new functions.https.HttpsError('not-found', 'Job not found.');
+  const row = snap.data() as { status?: string; schoolId?: string };
+  if (row.status !== 'pending') {
+    throw new functions.https.HttpsError('failed-precondition', 'Only pending jobs can be cancelled.');
+  }
+  const sid = row.schoolId ? String(row.schoolId).trim() : '';
+  if (!sid) throw new functions.https.HttpsError('failed-precondition', 'Invalid job payload.');
+  const now = isoNow();
+  await ref.update({
+    status: 'cancelled',
+    resolvedAt: now,
+    cancelledByUid: context.auth.uid,
+  });
+  const schoolRef = db.collection('schools').doc(sid);
+  const schoolSnap = await schoolRef.get();
+  if (schoolSnap.exists) {
+    await schoolRef.update({
+      subscriptionStatus: 'active',
+      status: 'ACTIVE',
+      updatedAt: now,
+    });
+  }
+  return { ok: true as const };
+});
+
 // Invite-based principal onboarding (preferred external onboarding).
-// Callable by super_admin only. Creates: school doc (status=PENDING), inviteTokens/{token} doc, sends email via Resend.
+// Callable by super_admin only. Creates inviteTokens/{token} doc only; school is created when the invite is accepted.
 export const adminInvitePrincipal = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
   const callerUid = context.auth.uid;
@@ -2462,7 +2801,16 @@ export const joinSchoolInfo = functions.https.onRequest(async (req, res) => {
 
   const schoolSnap = await db.collection('schools').doc(schoolId).get();
   if (!schoolSnap.exists) return json(res, 404, { ok: false, error: 'school_not_found' });
-  const school = schoolSnap.data() as { name?: string; logoUrl?: string; principalName?: string; status?: string };
+  const school = schoolSnap.data() as {
+    name?: string;
+    logoUrl?: string;
+    principalName?: string;
+    status?: string;
+    subscriptionStatus?: string;
+  };
+  if (school.subscriptionStatus && school.subscriptionStatus !== 'active') {
+    return json(res, 403, { ok: false, error: 'school_inactive' });
+  }
   if (school.status && school.status !== 'ACTIVE') {
     return json(res, 403, { ok: false, error: 'school_inactive' });
   }

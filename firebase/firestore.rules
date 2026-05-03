@@ -29,6 +29,9 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)/children/$(childId)).data.parentIds;
     }
 
+    // Subscription / onboarding gates (callable adminSetSchoolSuspended). Super admins bypass.
+    // Default: missing subscriptionStatus => active; missing status => treat as ACTIVE for legacy schools.
+
     // Collection group rule for chats (parents query across schools via collectionGroup)
     match /{path=**}/chats/{chatId} {
       allow read: if isAuthenticated() && (
@@ -56,6 +59,10 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    match /schoolDeletionJobs/{jobId} {
+      allow read, write: if isSuperAdmin();
+    }
+
     match /schoolSlugs/{slug} {
       // Managed by backend functions only.
       allow read, write: if false;
@@ -72,58 +79,68 @@ service cloud.firestore {
     }
 
     match /schools/{schoolId} {
+      function schoolDocData() {
+        return get(/databases/$(database)/documents/schools/$(schoolId)).data;
+      }
+      function schoolIsOperational() {
+        let d = schoolDocData();
+        return (!('subscriptionStatus' in d) || d.subscriptionStatus == 'active')
+          && (!('status' in d) || d.status == 'ACTIVE');
+      }
+
       allow read: if isAuthenticated() && (request.auth.token.role != 'parent' || isActiveParent());
       allow create, delete: if isSuperAdmin();
-      allow update: if isSuperAdmin() || isPrincipal(schoolId);
+      allow update: if isSuperAdmin() || (isPrincipal(schoolId) && schoolIsOperational());
       match /classes/{classId} {
-        allow read: if isAuthenticated() && (request.auth.token.role != 'parent' || isActiveParent());
-        allow create, update, delete: if isTeacher(schoolId) || isPrincipal(schoolId);
+        allow read: if (isSuperAdmin() || schoolIsOperational()) && isAuthenticated() && (request.auth.token.role != 'parent' || isActiveParent());
+        allow create, update, delete: if (isSuperAdmin() || schoolIsOperational()) && (isTeacher(schoolId) || isPrincipal(schoolId));
       }
       match /children/{childId} {
         allow read: if isSuperAdmin()
-          || isTeacher(schoolId)
-          || isPrincipal(schoolId)
-          || (isActiveParent() && request.auth.uid in resource.data.parentIds
+          || ((isTeacher(schoolId) || isPrincipal(schoolId)) && schoolIsOperational())
+          || (schoolIsOperational() && isActiveParent() && request.auth.uid in resource.data.parentIds
               && (!('isActive' in resource.data) || resource.data.isActive == true));
-        allow create, update: if isTeacher(schoolId) || isPrincipal(schoolId);
-        allow delete: if isPrincipal(schoolId) || isSuperAdmin();
-        allow update: if isAuthenticated() && request.auth.uid in resource.data.parentIds;
+        allow create, update: if (isSuperAdmin() || schoolIsOperational()) && (isTeacher(schoolId) || isPrincipal(schoolId));
+        allow delete: if (isSuperAdmin() || schoolIsOperational()) && (isPrincipal(schoolId) || isSuperAdmin());
+        allow update: if schoolIsOperational() && isAuthenticated() && request.auth.uid in resource.data.parentIds;
         match /reports/{reportId} {
-          allow read: if isSuperAdmin() || isTeacher(schoolId) || isPrincipal(schoolId) || (isActiveParent() && isParentOfChildId(schoolId, childId));
-          allow create, update: if isTeacher(schoolId);
-          allow delete: if isTeacher(schoolId) || isPrincipal(schoolId);
+          allow read: if isSuperAdmin() || (schoolIsOperational() && (isTeacher(schoolId) || isPrincipal(schoolId)))
+            || (schoolIsOperational() && isActiveParent() && isParentOfChildId(schoolId, childId));
+          allow create, update: if (isSuperAdmin() || schoolIsOperational()) && isTeacher(schoolId);
+          allow delete: if (isSuperAdmin() || schoolIsOperational()) && (isTeacher(schoolId) || isPrincipal(schoolId));
         }
       }
       match /announcements/{annId} {
-        allow read: if isAuthenticated();
-        allow create: if isPrincipal(schoolId) || isTeacher(schoolId);
-        allow update, delete: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid;
+        allow read: if (isSuperAdmin() || schoolIsOperational()) && isAuthenticated();
+        allow create: if (isSuperAdmin() || schoolIsOperational()) && (isPrincipal(schoolId) || isTeacher(schoolId));
+        allow update, delete: if (isSuperAdmin() || schoolIsOperational()) && (isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid);
       }
       match /events/{eventId} {
-        allow read: if isAuthenticated();
-        allow create: if isPrincipal(schoolId) || isTeacher(schoolId);
-        allow update: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid || (hasRole('parent') && request.auth.token.schoolId == schoolId);
-        allow delete: if isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid;
+        allow read: if (isSuperAdmin() || schoolIsOperational()) && isAuthenticated();
+        allow create: if (isSuperAdmin() || schoolIsOperational()) && (isPrincipal(schoolId) || isTeacher(schoolId));
+        allow update: if (isSuperAdmin() || schoolIsOperational())
+          && (isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid || (hasRole('parent') && request.auth.token.schoolId == schoolId));
+        allow delete: if (isSuperAdmin() || schoolIsOperational()) && (isPrincipal(schoolId) || resource.data.createdBy == request.auth.uid);
       }
       match /foodMenus/{menuId} {
-        allow read: if isAuthenticated();
-        allow write: if isPrincipal(schoolId) || isSuperAdmin();
+        allow read: if (isSuperAdmin() || schoolIsOperational()) && isAuthenticated();
+        allow write: if (isSuperAdmin() || schoolIsOperational()) && (isPrincipal(schoolId) || isSuperAdmin());
       }
       match /foodMenusWeekly/{menuId} {
-        allow read: if isAuthenticated();
-        allow write: if isPrincipal(schoolId) || isSuperAdmin();
+        allow read: if (isSuperAdmin() || schoolIsOperational()) && isAuthenticated();
+        allow write: if (isSuperAdmin() || schoolIsOperational()) && (isPrincipal(schoolId) || isSuperAdmin());
       }
       match /dailyCommunications/{docId} {
-        allow read: if isAuthenticated();
-        allow create: if isTeacher(schoolId) || isPrincipal(schoolId);
-        allow update, delete: if isTeacher(schoolId) || isPrincipal(schoolId);
+        allow read: if (isSuperAdmin() || schoolIsOperational()) && isAuthenticated();
+        allow create: if (isSuperAdmin() || schoolIsOperational()) && (isTeacher(schoolId) || isPrincipal(schoolId));
+        allow update, delete: if (isSuperAdmin() || schoolIsOperational()) && (isTeacher(schoolId) || isPrincipal(schoolId));
       }
       match /mealOptions/{optionId} {
-        allow read: if isAuthenticated() && request.auth.token.schoolId == schoolId;
-        allow write: if isPrincipal(schoolId) || isSuperAdmin();
+        allow read: if (isSuperAdmin() || schoolIsOperational()) && isAuthenticated() && request.auth.token.schoolId == schoolId;
+        allow write: if (isSuperAdmin() || schoolIsOperational()) && (isPrincipal(schoolId) || isSuperAdmin());
       }
       match /chats/{chatId} {
-        allow create: if isAuthenticated() && (
+        allow create: if schoolIsOperational() && isAuthenticated() && (
           (isTeacher(schoolId) && request.resource.data.teacherId == request.auth.uid && request.resource.data.schoolId == schoolId)
           || (hasRole('parent') && request.resource.data.parentId == request.auth.uid && request.resource.data.schoolId == schoolId && request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)/children/$(request.resource.data.childId)).data.parentIds)
         );
@@ -133,7 +150,7 @@ service cloud.firestore {
         );
         allow delete: if false;
         match /messages/{messageId} {
-          allow read, create: if isAuthenticated() && (
+          allow read, create: if schoolIsOperational() && isAuthenticated() && (
             get(/databases/$(database)/documents/schools/$(schoolId)/chats/$(chatId)).data.teacherId == request.auth.uid
             || get(/databases/$(database)/documents/schools/$(schoolId)/chats/$(chatId)).data.parentId == request.auth.uid
           );
@@ -141,15 +158,15 @@ service cloud.firestore {
         }
       }
       match /qrCodes/{qrCodeId} {
-        allow read: if isSuperAdmin() || isPrincipal(schoolId) || isTeacher(schoolId);
-        allow create, update, delete: if isSuperAdmin() || isPrincipal(schoolId) || isTeacher(schoolId);
+        allow read: if isSuperAdmin() || (schoolIsOperational() && (isPrincipal(schoolId) || isTeacher(schoolId)));
+        allow create, update, delete: if isSuperAdmin() || (schoolIsOperational() && (isPrincipal(schoolId) || isTeacher(schoolId)));
         match /scanLogs/{logId} {
-          allow read: if isSuperAdmin() || isPrincipal(schoolId) || isTeacher(schoolId);
+          allow read: if isSuperAdmin() || (schoolIsOperational() && (isPrincipal(schoolId) || isTeacher(schoolId)));
           allow write: if false;
         }
       }
       match /pendingRegistrations/{registrationId} {
-        allow read: if isSuperAdmin() || isPrincipal(schoolId) || isTeacher(schoolId);
+        allow read: if isSuperAdmin() || (schoolIsOperational() && (isPrincipal(schoolId) || isTeacher(schoolId)));
         allow write: if false;
       }
     }

@@ -243,11 +243,30 @@ export interface School {
   contactPhone?: string;
   description?: string;
   website?: string;
+  /** Billing / admin gate: principals, teachers, parents lose Firestore access when not `active` (callable `adminSetSchoolSuspended`). */
   subscriptionStatus?: SubscriptionStatus;
   /** Per-feature enable/disable. Super Admin configures. */
   features?: SchoolFeatures;
   createdAt: string;
   updatedAt: string;
+}
+
+export type SchoolDeletionJobStatus = 'pending' | 'processing' | 'completed' | 'cancelled' | 'failed';
+
+/** Queue entry for wiping a school after the cooling-off period (`adminQueueSchoolDeletion`). */
+export interface SchoolDeletionJob {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  status: SchoolDeletionJobStatus;
+  requestedAt: string;
+  scheduledDeleteAt: string;
+  requestedByUid: string;
+  requestedByEmail?: string | null;
+  startedAt?: string;
+  resolvedAt?: string;
+  cancelledByUid?: string;
+  errorMessage?: string;
 }
 
 export type InviteRole = 'principal' | 'teacher';

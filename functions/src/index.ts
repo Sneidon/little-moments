@@ -2247,12 +2247,24 @@ export const listPrincipalSchoolInvites = functions.https.onCall(async (data, co
     throw new functions.https.HttpsError('permission-denied', 'Only principals can list school invitations.');
   }
   const schoolId = callerData.schoolId;
+  const schoolSnapForInvites = await db.collection('schools').doc(schoolId).get();
+  const schoolDataForInvites = schoolSnapForInvites.exists
+    ? (schoolSnapForInvites.data() as { principalName?: string })
+    : null;
+  const schoolPrincipalNameForInvites =
+    schoolDataForInvites?.principalName?.trim() || undefined;
   const snap = await db.collection('inviteTokens').where('schoolId', '==', schoolId).get();
   type Row = {
     id: string;
+    /** Same as invite doc id in normal flow; echoed for `/invite/accept?token=` deep links on the Principal UI. */
+    token: string;
     email: string;
     role: 'teacher' | 'parent';
     schoolName?: string;
+    /** Principal / school display name for teacher-invite PDF/email-style copy. */
+    principalName?: string;
+    /** When the teacher was invited for a specific class. */
+    className?: string;
     childId?: string;
     childName?: string;
     inviteeDisplayName?: string;
@@ -2263,9 +2275,11 @@ export const listPrincipalSchoolInvites = functions.https.onCall(async (data, co
   const invites: Row[] = [];
   for (const d of snap.docs) {
     const row = d.data() as {
+      token?: string;
       email?: string;
       role?: string;
       schoolName?: string;
+      className?: string;
       childId?: string;
       childName?: string;
       inviteeDisplayName?: string;
@@ -2275,11 +2289,20 @@ export const listPrincipalSchoolInvites = functions.https.onCall(async (data, co
     };
     if (row.role !== 'teacher' && row.role !== 'parent') continue;
     if (!row.email || !row.expiresAt || !row.createdAt) continue;
+    const bearer =
+      row.token && typeof row.token === 'string' && row.token.trim() ? row.token.trim() : d.id;
+    const classLabel =
+      row.className && typeof row.className === 'string' && row.className.trim()
+        ? row.className.trim()
+        : undefined;
     invites.push({
       id: d.id,
+      token: bearer,
       email: row.email,
       role: row.role as 'teacher' | 'parent',
       schoolName: row.schoolName,
+      principalName: schoolPrincipalNameForInvites,
+      className: classLabel,
       childId: row.childId,
       childName: row.childName,
       inviteeDisplayName: row.inviteeDisplayName,

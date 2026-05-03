@@ -6,12 +6,17 @@ import { collection, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/config/firebase';
 import { app } from '@/config/firebase';
+import { InviteLinkShareControls } from '@/components/InviteLinkShareControls';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
+function inviteFirestoreToken(invite: { id: string; token?: string }): string {
+  return invite.token?.trim() || invite.id;
+}
+
 type InviteTokenDoc = {
   id: string;
-  token: string;
+  token?: string;
   schoolId?: string;
   createdSchoolId?: string;
   schoolName?: string;
@@ -164,7 +169,7 @@ export default function AdminInvitesPage() {
       <PageHero
         variant="full"
         title={<span className="text-gradient-warm">Invitations</span>}
-        subtitle="Principal school invites and super administrator invites. Track onboarding status."
+        subtitle="Principal, teacher, parent, and super admin invites. Copy link or QR code for any row that is not yet accepted, resend email, or delete."
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -292,6 +297,27 @@ export default function AdminInvitesPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-2">
+                          {status !== 'ACCEPTED' ? (
+                            <InviteLinkShareControls
+                              inviteToken={inviteFirestoreToken(invite)}
+                              disabled={Boolean(resendingById[invite.id] || deletingById[invite.id])}
+                              onCopySuccess={() => {
+                                setError(null);
+                                setResendSuccess('Invite link copied. Paste into SMS, WhatsApp, or email.');
+                                if (resendSuccessTimeoutRef.current) {
+                                  clearTimeout(resendSuccessTimeoutRef.current);
+                                  resendSuccessTimeoutRef.current = null;
+                                }
+                                resendSuccessTimeoutRef.current = window.setTimeout(() => {
+                                  setResendSuccess(null);
+                                  resendSuccessTimeoutRef.current = null;
+                                }, 5000);
+                              }}
+                              onCopyFail={(u) => {
+                                setError(`Could not copy to clipboard. Send this link manually: ${u}`);
+                              }}
+                            />
+                          ) : null}
                           {status !== 'ACCEPTED' ? (
                             <button
                               type="button"

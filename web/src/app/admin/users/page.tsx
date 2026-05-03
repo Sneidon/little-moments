@@ -7,6 +7,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { requestPasswordResetEmail } from '@/lib/auth';
+import { InviteLinkShareControls } from '@/components/InviteLinkShareControls';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddSuperAdminForm, type AddSuperAdminFormState } from './components/AddSuperAdminForm';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
@@ -51,6 +52,7 @@ export default function AdminUsersPage() {
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [inviteResult, setInviteResult] = useState<{ token: string; expiresAt: string } | null>(null);
+  const [inviteShareFeedback, setInviteShareFeedback] = useState<string | null>(null);
   const [pendingPasswordReset, setPendingPasswordReset] = useState<SuperAdminUser | null>(null);
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
   const [passwordResetError, setPasswordResetError] = useState('');
@@ -94,6 +96,7 @@ export default function AdminUsersPage() {
     setAddForm(INITIAL_ADD_FORM);
     setShowInviteForm(false);
     setInviteResult(null);
+    setInviteShareFeedback(null);
     setInviteError('');
     setShowAddForm(true);
   }, []);
@@ -103,6 +106,7 @@ export default function AdminUsersPage() {
     setAddError('');
     setInviteForm(INITIAL_INVITE_FORM);
     setInviteResult(null);
+    setInviteShareFeedback(null);
     setInviteError('');
     setShowInviteForm(true);
   }, []);
@@ -111,6 +115,7 @@ export default function AdminUsersPage() {
     async (e: React.FormEvent) => {
       e.preventDefault();
       setInviteError('');
+      setInviteShareFeedback(null);
       setInviteResult(null);
       const emailTrim = inviteForm.email.trim().toLowerCase();
       if (!emailTrim || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
@@ -290,6 +295,22 @@ export default function AdminUsersPage() {
                   </Link>
                   .
                 </p>
+                {inviteShareFeedback ? (
+                  <p className="mt-2 text-xs font-medium text-green-800 dark:text-green-300">{inviteShareFeedback}</p>
+                ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <InviteLinkShareControls
+                    inviteToken={inviteResult.token}
+                    onCopySuccess={() => {
+                      setInviteError('');
+                      setInviteShareFeedback('Invite link copied. Paste into SMS, WhatsApp, or email.');
+                      window.setTimeout(() => setInviteShareFeedback(null), 5000);
+                    }}
+                    onCopyFail={(url) =>
+                      setInviteError(`Could not copy to clipboard. Send this link manually: ${url}`)
+                    }
+                  />
+                </div>
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -326,6 +347,7 @@ export default function AdminUsersPage() {
                 onClick={() => {
                   setShowInviteForm(false);
                   setInviteResult(null);
+                  setInviteShareFeedback(null);
                   setInviteError('');
                 }}
                 className="btn-secondary"

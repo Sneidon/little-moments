@@ -10,6 +10,8 @@ export interface ParentsTableProps {
   totalCount: number;
   onRequestPasswordReset?: (user: UserProfile) => void;
   passwordResetLoadingUid?: string | null;
+  onDeleteParent?: (user: UserProfile) => void;
+  deletingParentUid?: string | null;
 }
 
 export function ParentsTable({
@@ -17,6 +19,8 @@ export function ParentsTable({
   totalCount,
   onRequestPasswordReset,
   passwordResetLoadingUid,
+  onDeleteParent,
+  deletingParentUid,
 }: ParentsTableProps) {
   return (
     <SectionCard topBar="accent" padding="none">
@@ -74,16 +78,34 @@ export function ParentsTable({
                 )}
               </td>
               <td className="whitespace-nowrap px-4 py-3 text-right">
-                {p.email && onRequestPasswordReset ? (
-                  <button
-                    type="button"
-                    onClick={() => onRequestPasswordReset(p)}
-                    disabled={passwordResetLoadingUid === p.uid}
-                    className="btn-secondary inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                    title="Send password reset email to this parent"
-                  >
-                    {passwordResetLoadingUid === p.uid ? '…' : 'Reset'}
-                  </button>
+                {(p.email && onRequestPasswordReset) || onDeleteParent ? (
+                  <div className="flex flex-nowrap items-center justify-end gap-2">
+                    {p.email && onRequestPasswordReset ? (
+                      <button
+                        type="button"
+                        onClick={() => onRequestPasswordReset(p)}
+                        disabled={
+                          passwordResetLoadingUid === p.uid || deletingParentUid === p.uid
+                        }
+                        className="btn-secondary inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        title="Send password reset email to this parent"
+                      >
+                        {passwordResetLoadingUid === p.uid ? '…' : 'Reset'}
+                      </button>
+                    ) : null}
+                    {onDeleteParent ? (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteParent(p)}
+                        disabled={
+                          deletingParentUid === p.uid || passwordResetLoadingUid === p.uid
+                        }
+                        className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/70 dark:bg-slate-800 dark:text-red-300 dark:hover:bg-red-950/40"
+                      >
+                        {deletingParentUid === p.uid ? 'Deleting…' : 'Delete'}
+                      </button>
+                    ) : null}
+                  </div>
                 ) : (
                   <span className="text-slate-400">—</span>
                 )}

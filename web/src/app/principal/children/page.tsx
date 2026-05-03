@@ -10,8 +10,7 @@ import {
   addDoc,
   doc,
   updateDoc,
-  query,
-  orderBy,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
@@ -44,6 +43,7 @@ export default function ChildrenPage() {
     emergencyContact: '',
     emergencyContactName: '',
     classId: '',
+    isActive: true,
   });
   const [submitting, setSubmitting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -51,6 +51,7 @@ export default function ChildrenPage() {
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [filterClassId, setFilterClassId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [enrollmentFilter, setEnrollmentFilter] = useState<'all' | 'active' | 'inactive'>('active');
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -60,9 +61,26 @@ export default function ChildrenPage() {
         getDocs(collection(db, 'schools', schoolId, 'children')),
         getDocs(collection(db, 'schools', schoolId, 'classes')),
       ]);
-      setChildren(
-        childrenSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Child))
+
+      const missingIsActive = childrenSnap.docs.filter(
+        (d) => !Object.prototype.hasOwnProperty.call(d.data(), 'isActive')
       );
+      if (missingIsActive.length > 0) {
+        const now = new Date().toISOString();
+        for (let i = 0; i < missingIsActive.length; i += 450) {
+          const slice = missingIsActive.slice(i, i + 450);
+          const batch = writeBatch(db);
+          for (const d of slice) {
+            batch.update(d.ref, { isActive: true, updatedAt: now });
+          }
+          await batch.commit();
+        }
+        const patchedSnap = await getDocs(collection(db, 'schools', schoolId, 'children'));
+        setChildren(patchedSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
+      } else {
+        setChildren(childrenSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
+      }
+
       setClasses(
         classesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as ClassRoom))
       );
@@ -87,6 +105,7 @@ export default function ChildrenPage() {
         emergencyContact: c.emergencyContact ?? '',
         emergencyContactName: c.emergencyContactName ?? '',
         classId: c.classId ?? '',
+        isActive: c.isActive !== false,
       });
       setShowForm(true);
     }
@@ -103,13 +122,15 @@ export default function ChildrenPage() {
     try {
       const now = new Date().toISOString();
       // Firestore rejects undefined; only include defined values or null
+      const enrolled = Boolean(form.isActive);
       const base: Record<string, unknown> = {
         name: form.name.trim(),
         dateOfBirth: form.dateOfBirth,
         allergies: form.allergies.filter(Boolean),
         emergencyContact: form.emergencyContact.trim(),
-        classId: form.classId || null,
+        classId: enrolled ? form.classId || null : null,
         updatedAt: now,
+        isActive: enrolled,
       };
       const preferredName = form.preferredName.trim();
       const medicalNotes = form.medicalNotes.trim();
@@ -153,6 +174,7 @@ export default function ChildrenPage() {
         emergencyContact: '',
         emergencyContactName: '',
         classId: '',
+        isActive: true,
       });
       setShowForm(false);
     } finally {
@@ -173,6 +195,7 @@ export default function ChildrenPage() {
       emergencyContact: c.emergencyContact ?? '',
       emergencyContactName: c.emergencyContactName ?? '',
       classId: c.classId ?? '',
+      isActive: c.isActive !== false,
     });
     setShowForm(true);
   };
@@ -190,6 +213,11 @@ export default function ChildrenPage() {
   const classDisplay = (id: string) => formatClassDisplay(classes.find((r) => r.id === id)) || id;
 
   const filteredChildren = children
+    .filter((c) => {
+      if (enrollmentFilter === 'active') return c.isActive !== false;
+      if (enrollmentFilter === 'inactive') return c.isActive === false;
+      return true;
+    })
     .filter((c) => (filterClassId ? c.classId === filterClassId : true))
     .filter((c) => {
       if (!searchQuery.trim()) return true;
@@ -240,7 +268,7 @@ export default function ChildrenPage() {
       <PageHero
         variant="full"
         title={<span className="text-gradient-warm">Children</span>}
-        subtitle="Enrolled children at your school"
+        subtitle="Manage active enrollments — mark children as left school when they no longer attend"
         actions={
           <>
             <div className="relative" ref={exportMenuRef}>
@@ -312,6 +340,7 @@ export default function ChildrenPage() {
                   emergencyContact: '',
                   emergencyContactName: '',
                   classId: '',
+                  isActive: true,
                 });
               }}
               className="btn-primary"
@@ -417,6 +446,31 @@ export default function ChildrenPage() {
                 </ul>
               )}
             </div>
+            <div className="sm:col-span-2 flex flex-wrap items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-700/40 px-4 py-3">
+              <input
+                type="checkbox"
+                id="child-is-active"
+                checked={form.isActive}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setForm((f) => ({
+                    ...f,
+                    isActive: next,
+                    classId: next ? f.classId : '',
+                  }));
+                }}
+                className="mt-0.5 rounded border-slate-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500"
+              />
+              <div>
+                <label htmlFor="child-is-active" className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                  Enrolled at this school (active roster)
+                </label>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Untick when the child has left — they are removed from their class roster, disappear from teacher and
+                  parent class lists, and parents stop seeing this profile.
+                </p>
+              </div>
+            </div>
             <div className="sm:col-span-2">
               <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Medical notes</label>
               <textarea
@@ -482,12 +536,13 @@ export default function ChildrenPage() {
           <SectionCard topBar="accent" padding="default" className="mb-6">
             <div className="mb-3 flex items-center justify-between gap-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Filters</h2>
-              {(filterClassId || searchQuery.trim()) && (
+              {(filterClassId || searchQuery.trim() || enrollmentFilter !== 'active') && (
                 <button
                   type="button"
                   onClick={() => {
                     setFilterClassId('');
                     setSearchQuery('');
+                    setEnrollmentFilter('active');
                   }}
                   className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                 >
@@ -496,7 +551,17 @@ export default function ChildrenPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Filter by class</label>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Enrollment</label>
+              <select
+                value={enrollmentFilter}
+                onChange={(e) => setEnrollmentFilter(e.target.value as 'all' | 'active' | 'inactive')}
+                className="input-base max-w-[200px]"
+              >
+                <option value="active">Enrolled only</option>
+                <option value="inactive">Left school only</option>
+                <option value="all">All children</option>
+              </select>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Class</label>
               <select
                 value={filterClassId}
                 onChange={(e) => setFilterClassId(e.target.value)}
@@ -517,7 +582,7 @@ export default function ChildrenPage() {
                 className="input-base max-w-[200px]"
                 aria-label="Search children by name"
               />
-              {(filterClassId || searchQuery.trim()) && (
+              {(filterClassId || searchQuery.trim() || enrollmentFilter !== 'active') && (
                 <span className="text-sm text-slate-500 dark:text-slate-400">
                   {filteredChildren.length} of {children.length} children
                 </span>
@@ -530,6 +595,7 @@ export default function ChildrenPage() {
               <thead className="bg-slate-50/80 dark:bg-slate-700">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Preferred</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">DOB</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Class</th>
@@ -539,11 +605,27 @@ export default function ChildrenPage() {
               </thead>
               <tbody>
                 {filteredChildren.map((c) => (
-                  <tr key={c.id} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
+                  <tr
+                    key={c.id}
+                    className={`border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50 ${
+                      c.isActive === false ? 'opacity-70' : ''
+                    }`}
+                  >
                     <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
                       <Link href={`/principal/children/${c.id}`} className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline">
                         {c.name}
                       </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.isActive === false ? (
+                        <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-200">
+                          Left school
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+                          Enrolled
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.preferredName ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">

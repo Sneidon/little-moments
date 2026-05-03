@@ -25,9 +25,10 @@ import {
   doc,
   getDoc,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 import { getOrCreateChat } from '../../api/chat';
-import { db } from '../../config/firebase';
+import app, { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton } from '../../components/Skeleton';
@@ -111,9 +112,55 @@ export function ParentHomeScreen({
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [className, setClassName] = useState<string | null>(null);
   const [messageLoading, setMessageLoading] = useState(false);
+  const [tourShown, setTourShown] = useState(false);
+  const [latestMoments, setLatestMoments] = useState<Array<{ childId: string; reportId: string; timestamp: string; imageUrl?: string; type?: string }>>([]);
 
   const selectedChild = children.find((c) => c.id === selectedChildId) ?? children[0];
   const rootStack = navigation.getParent() as RootNav;
+
+  useEffect(() => {
+    if (tourShown) return;
+    if (profile?.role !== 'parent') return;
+    if ((profile as any).parentStatus !== 'ACTIVE') return;
+    if ((profile as any).onboardingTourCompletedAt) return;
+    // Show a simple 2-step tour (mobile-friendly).
+    setTourShown(true);
+    Alert.alert('Welcome!', 'Tap the heart to react to a moment.', [
+      {
+        text: 'Next',
+        onPress: () => {
+          Alert.alert('Tip', 'Swipe for older moments.', [
+            {
+              text: 'Done',
+              onPress: () => {
+                const fn = httpsCallable(getFunctions(app), 'completeParentOnboardingTour');
+                fn({}).catch(() => {});
+              },
+            },
+          ]);
+        },
+      },
+    ]);
+  }, [profile?.role, (profile as any)?.parentStatus, (profile as any)?.onboardingTourCompletedAt, tourShown]);
+
+  useEffect(() => {
+    if (profile?.role !== 'parent') return;
+    if ((profile as any).parentStatus !== 'ACTIVE') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const fn = httpsCallable(getFunctions(app), 'getParentHomeBootstrap');
+        const res = await fn({});
+        const moments = (res.data as any)?.moments as typeof latestMoments;
+        if (!cancelled && Array.isArray(moments)) setLatestMoments(moments.slice(0, 5));
+      } catch {
+        if (!cancelled) setLatestMoments([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.role, (profile as any)?.parentStatus, profile?.schoolId]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -161,7 +208,8 @@ export function ParentHomeScreen({
       for (const schoolDoc of schoolsSnap.docs) {
         const q = query(
           collection(db, 'schools', schoolDoc.id, 'children'),
-          where('parentIds', 'array-contains', uid)
+          where('parentIds', 'array-contains', uid),
+          where('isActive', '==', true)
         );
         const snap = await getDocs(q);
         snap.docs.forEach((d) => list.push({ id: d.id, ...d.data() } as Child));
@@ -343,6 +391,31 @@ export function ParentHomeScreen({
               </Text>
             </View>
           </TouchableOpacity>
+
+          {latestMoments.length > 0 && profile?.schoolId ? (
+            <View style={styles.latestMomentsCard}>
+              <Text style={styles.latestMomentsTitle}>Latest moments</Text>
+              {latestMoments.map((m) => (
+                <TouchableOpacity
+                  key={`${m.childId}:${m.reportId}`}
+                  style={styles.latestMomentRow}
+                  onPress={() =>
+                    rootStack?.navigate('ReportDetail', {
+                      schoolId: profile.schoolId as string,
+                      childId: m.childId,
+                      reportId: m.reportId,
+                    })
+                  }
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.latestMomentDot, { backgroundColor: colors.accentOrange }]} />
+                  <Text style={styles.latestMomentText} numberOfLines={1}>
+                    {formatParentReportLabel(m.type || 'moment')} · {new Date(m.timestamp).toLocaleString()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
 
           {children.length > 1 ? (
             <ScrollView
@@ -546,6 +619,20 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     profileSummaryTextCol: { flex: 1, marginLeft: 14, minWidth: 0 },
     profileSummaryName: { fontSize: 17, ...f('bold') },
     profileSummaryMeta: { fontSize: 14, marginTop: 4, ...f('regular') },
+
+    latestMomentsCard: {
+      marginHorizontal: 16,
+      marginTop: 12,
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: 14,
+    },
+    latestMomentsTitle: { fontSize: 14, color: colors.text, ...f('bold') },
+    latestMomentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+    latestMomentDot: { width: 8, height: 8, borderRadius: 4 },
+    latestMomentText: { flex: 1, fontSize: 12, color: colors.textSecondary, ...f('medium') },
 
     childChipsScroll: {
       marginTop: 10,

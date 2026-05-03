@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStaffPage } from '@/hooks/useStaffPage';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
@@ -8,6 +8,7 @@ import {
   StaffFilters,
   StaffTable,
   AddTeacherForm,
+  InviteTeacherForm,
   EditTeacherForm,
 } from './components';
 import type { UserProfile } from 'shared/types';
@@ -15,6 +16,8 @@ import { SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 
 export default function StaffPage() {
   const [pendingPasswordResetUser, setPendingPasswordResetUser] = useState<UserProfile | null>(null);
+  const [pendingDeleteTeacher, setPendingDeleteTeacher] = useState<UserProfile | null>(null);
+  const [deleteTeacherDialogBusy, setDeleteTeacherDialogBusy] = useState(false);
   const {
     loading,
     filteredStaff,
@@ -27,6 +30,15 @@ export default function StaffPage() {
     setStaffSearch,
     showAddForm,
     setShowAddForm,
+    showInviteTeacherForm,
+    inviteTeacherForm,
+    setInviteTeacherForm,
+    inviteTeacherError,
+    inviteTeacherSubmitting,
+    inviteTeacherResult,
+    handleInviteTeacherByEmail,
+    openInviteTeacherForm,
+    resetInviteTeacherForm,
     addForm,
     setAddForm,
     addTeacherError,
@@ -49,6 +61,9 @@ export default function StaffPage() {
     passwordResetSuccess,
     handleRequestPasswordReset,
     clearPasswordResetFeedback,
+    deletingTeacherUid,
+    deleteTeacherError,
+    handleDeleteTeacher,
   } = useStaffPage();
 
   const handleConfirmPasswordReset = () => {
@@ -58,8 +73,41 @@ export default function StaffPage() {
     }
   };
 
+  useEffect(() => {
+    if (!pendingDeleteTeacher) setDeleteTeacherDialogBusy(false);
+  }, [pendingDeleteTeacher]);
+
+  const handleConfirmDeleteTeacher = async () => {
+    if (!pendingDeleteTeacher || deleteTeacherDialogBusy) return;
+    const uid = pendingDeleteTeacher.uid;
+    setDeleteTeacherDialogBusy(true);
+    try {
+      const ok = await handleDeleteTeacher(uid);
+      if (ok) setPendingDeleteTeacher(null);
+    } finally {
+      setDeleteTeacherDialogBusy(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
+      <ConfirmDialog
+        open={!!pendingDeleteTeacher}
+        onClose={() => setPendingDeleteTeacher(null)}
+        title="Remove this teacher?"
+        message={
+          pendingDeleteTeacher
+            ? `Remove ${pendingDeleteTeacher.displayName || pendingDeleteTeacher.email || 'this teacher'} from your school? They will be unassigned from every class and any child they were directly assigned to, their sign-in will stop working, and their profile will be deleted. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Remove teacher"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDeleteTeacher}
+        confirmDisabled={
+          deleteTeacherDialogBusy ||
+          Boolean(pendingDeleteTeacher && deletingTeacherUid === pendingDeleteTeacher.uid)
+        }
+      />
       <ConfirmDialog
         open={!!pendingPasswordResetUser}
         onClose={() => setPendingPasswordResetUser(null)}
@@ -76,8 +124,21 @@ export default function StaffPage() {
         onExportPdf={handleExportPdf}
         onExportCsv={handleExportCsv}
         onExportExcel={handleExportExcel}
+        onInviteTeacher={openInviteTeacherForm}
         onAddTeacher={openAddForm}
       />
+
+      {showInviteTeacherForm && (
+        <InviteTeacherForm
+          form={inviteTeacherForm}
+          setForm={setInviteTeacherForm}
+          error={inviteTeacherError}
+          submitting={inviteTeacherSubmitting}
+          inviteResult={inviteTeacherResult}
+          onSubmit={handleInviteTeacherByEmail}
+          onCancel={resetInviteTeacherForm}
+        />
+      )}
 
       {showAddForm && (
         <AddTeacherForm
@@ -120,6 +181,11 @@ export default function StaffPage() {
             filteredCount={filteredStaff.length}
             totalCount={staffMembers.length}
           />
+          {deleteTeacherError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+              {deleteTeacherError}
+            </div>
+          )}
           {(passwordResetError || passwordResetSuccess) && (
             <div
               className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
@@ -150,6 +216,8 @@ export default function StaffPage() {
             classForTeacher={classForTeacher}
             formatDate={formatDate}
             onEditTeacher={startEditTeacher}
+            onDeleteTeacher={(u) => setPendingDeleteTeacher(u)}
+            deletingTeacherUid={deletingTeacherUid}
             onRequestPasswordReset={(u) => setPendingPasswordResetUser(u)}
             passwordResetLoadingUid={passwordResetLoadingUid}
           />

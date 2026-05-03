@@ -16,6 +16,7 @@ const FEATURE_KEYS: (keyof SchoolFeatures)[] = [
   'medication',
   'incident',
   'media',
+  'personalisedQr',
 ];
 
 const FEATURE_LABELS: Record<keyof SchoolFeatures, string> = {
@@ -25,6 +26,7 @@ const FEATURE_LABELS: Record<keyof SchoolFeatures, string> = {
   medication: 'Medication administration',
   incident: 'Illness or incident reporting',
   media: 'Upload media',
+  personalisedQr: 'Premium: personalised per-child QR',
 };
 
 export default function AdminSchoolSettingsPage() {

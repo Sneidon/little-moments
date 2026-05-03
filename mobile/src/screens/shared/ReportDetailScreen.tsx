@@ -12,7 +12,9 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import app, { db } from '../../config/firebase';
+import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { formatTime } from '../../utils';
@@ -141,6 +143,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 export function ReportDetailScreen({ route }: Props) {
   const { schoolId, childId, reportId } = route.params;
+  const { profile } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
@@ -197,6 +200,21 @@ export function ReportDetailScreen({ route }: Props) {
       cancelled = true;
     };
   }, [schoolId, childId, reportId]);
+
+  useEffect(() => {
+    // Metric: time to first photo view (once per parent).
+    if (!data) return;
+    if (profile?.role !== 'parent') return;
+    if ((profile as any).parentStatus !== 'ACTIVE') return;
+    const imageUrl = str((data as any).imageUrl);
+    if (!imageUrl) return;
+    try {
+      const fn = httpsCallable(getFunctions(app), 'recordFirstPhotoViewed');
+      fn({ schoolId, childId, reportId }).catch(() => {});
+    } catch {
+      // ignore
+    }
+  }, [data, profile?.role, (profile as any)?.parentStatus, schoolId, childId, reportId]);
 
   const type = str(data?.type) ?? 'update';
   const accent = TYPE_COLORS[type] ?? colors.primary;

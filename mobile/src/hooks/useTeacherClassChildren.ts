@@ -68,7 +68,8 @@ export function useTeacherClassChildren(refreshTrigger: number) {
       unsub = onSnapshot(
         query(
           collection(db, 'schools', schoolId, 'children'),
-          where('classId', 'in', classIds)
+          where('classId', 'in', classIds),
+          where('isActive', '==', true)
         ),
         (snap) => {
           if (cancelled) return;

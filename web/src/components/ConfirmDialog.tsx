@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -24,8 +25,9 @@ export function ConfirmDialog({
   confirmDisabled = false,
 }: ConfirmDialogProps) {
   if (!open) return null;
+  if (typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
       className="dialog-backdrop"
       role="dialog"
@@ -58,6 +60,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

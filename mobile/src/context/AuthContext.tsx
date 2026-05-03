@@ -48,6 +48,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await setCached(cacheKey, profileData, PROFILE_TTL_MS);
           // Register FCM token with backend for push notifications (no-op in Expo Go).
           registerForPushNotifications().catch(() => {});
+
+          // Parent activation: record first login once approved (fire-and-forget).
+          if ((profileData as any).role === 'parent' && (profileData as any).parentStatus === 'ACTIVE' && !(profileData as any).firstLoginAt) {
+            try {
+              const record = httpsCallable(getFunctions(app), 'recordParentFirstLogin');
+              record({}).catch(() => {});
+            } catch {
+              // ignore
+            }
+          }
         } else {
           setProfile(null);
           await removeCached(cacheKey);

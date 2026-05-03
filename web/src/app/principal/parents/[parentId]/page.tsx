@@ -1,14 +1,16 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { useParentDetail } from '@/hooks/useParentDetail';
 import { requestPasswordResetEmail } from '@/lib/auth';
+import { principalDeleteParent, getCallableErrorMessage } from '@/services/parents';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ParentDetailHeader, ParentProfileCard, LinkedChildrenList } from './components';
 
 export default function ParentDetailPage() {
+  const router = useRouter();
   const { profile } = useAuth();
   const params = useParams();
   const parentId = params?.parentId as string;
@@ -16,6 +18,9 @@ export default function ParentDetailPage() {
   const [passwordResetSending, setPasswordResetSending] = useState(false);
   const [passwordResetMessage, setPasswordResetMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const [showPasswordResetConfirm, setShowPasswordResetConfirm] = useState(false);
+  const [showDeleteParentConfirm, setShowDeleteParentConfirm] = useState(false);
+  const [deleteParentBusy, setDeleteParentBusy] = useState(false);
+  const [deleteParentErrorMsg, setDeleteParentErrorMsg] = useState('');
 
   const handleRequestPasswordReset = useCallback(async () => {
     if (!parent?.email?.trim()) return;
@@ -36,6 +41,21 @@ export default function ParentDetailPage() {
     }
   }, [parent?.email]);
 
+  const handleConfirmDeleteParent = useCallback(async () => {
+    if (!parent || deleteParentBusy) return;
+    setDeleteParentBusy(true);
+    setDeleteParentErrorMsg('');
+    try {
+      await principalDeleteParent(parent.uid);
+      setShowDeleteParentConfirm(false);
+      router.replace('/principal/parents');
+    } catch (err: unknown) {
+      setDeleteParentErrorMsg(getCallableErrorMessage(err));
+    } finally {
+      setDeleteParentBusy(false);
+    }
+  }, [parent, deleteParentBusy, router]);
+
   if (loading || !parent) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -46,6 +66,18 @@ export default function ParentDetailPage() {
 
   return (
     <div className="animate-fade-in">
+      <ConfirmDialog
+        open={showDeleteParentConfirm}
+        onClose={() => !deleteParentBusy && setShowDeleteParentConfirm(false)}
+        title="Delete this parent?"
+        message={
+          `Unlink ${parent.displayName ?? parent.email ?? 'this parent'} from all ${children.length} linked ${children.length === 1 ? 'child' : 'children'}, remove their profile, and delete their sign-in permanently? They will not be able to use the app. This cannot be undone.`
+        }
+        confirmLabel="Delete parent"
+        cancelLabel="Cancel"
+        confirmDisabled={deleteParentBusy}
+        onConfirm={handleConfirmDeleteParent}
+      />
       <ConfirmDialog
         open={showPasswordResetConfirm}
         onClose={() => setShowPasswordResetConfirm(false)}
@@ -64,7 +96,17 @@ export default function ParentDetailPage() {
         childrenCount={children.length}
         onRequestPasswordReset={() => setShowPasswordResetConfirm(true)}
         passwordResetSending={passwordResetSending}
+        onRequestDeleteParent={() => {
+          setDeleteParentErrorMsg('');
+          setShowDeleteParentConfirm(true);
+        }}
+        deleteParentDisabled={deleteParentBusy}
       />
+      {deleteParentErrorMsg && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+          {deleteParentErrorMsg}
+        </div>
+      )}
       {passwordResetMessage && (
         <div
           className={`mb-4 rounded-xl border px-4 py-3 text-sm ${

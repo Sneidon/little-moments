@@ -50,7 +50,8 @@ export function ParentSettingsScreen() {
       for (const schoolDoc of schoolsSnap.docs) {
         const q = query(
           collection(db, 'schools', schoolDoc.id, 'children'),
-          where('parentIds', 'array-contains', uid)
+          where('parentIds', 'array-contains', uid),
+          where('isActive', '==', true)
         );
         const snap = await getDocs(q);
         snap.docs.forEach((d) => list.push({ id: d.id, ...d.data() } as Child));
@@ -177,6 +178,15 @@ export function ParentSettingsScreen() {
             <Text style={[styles.themePillText, { color: colors.text }]}>{themePickerLabel(themeMode)}</Text>
             <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
           </View>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionLabel}>Family</Text>
+      <View style={[styles.groupCard, cardShadow]}>
+        <TouchableOpacity style={styles.row} onPress={() => navigate('ParentAddSibling')} activeOpacity={0.75}>
+          <SettingsIconBox name="add-circle-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
+          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Add another child</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
 

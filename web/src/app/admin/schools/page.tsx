@@ -12,6 +12,7 @@ export default function SchoolsPage() {
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showInviteForm, setShowInviteForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
@@ -25,6 +26,13 @@ export default function SchoolsPage() {
     principalDisplayName: '',
     principalPassword: '',
   });
+  const [inviteForm, setInviteForm] = useState({
+    schoolName: '',
+    principalName: '',
+    principalEmail: '',
+    logoUrl: '',
+  });
+  const [inviteResult, setInviteResult] = useState<{ token: string; expiresAt: string; schoolName: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -124,6 +132,42 @@ export default function SchoolsPage() {
     setShowForm(true);
   };
 
+  const sendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInviteResult(null);
+    if (!inviteForm.schoolName.trim() || !inviteForm.principalEmail.trim()) {
+      setError('School name and principal email are required.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const functions = getFunctions(app);
+      const fn = httpsCallable<
+        { schoolName: string; principalName?: string; principalEmail: string; logoUrl?: string },
+        { token: string; expiresAt: string; schoolName: string }
+      >(functions, 'adminInvitePrincipal');
+      const res = await fn({
+        schoolName: inviteForm.schoolName.trim(),
+        principalName: inviteForm.principalName.trim() || undefined,
+        principalEmail: inviteForm.principalEmail.trim(),
+        logoUrl: inviteForm.logoUrl.trim() || undefined,
+      });
+      setInviteResult({ token: res.data.token, expiresAt: res.data.expiresAt, schoolName: res.data.schoolName });
+      setInviteForm({ schoolName: '', principalName: '', principalEmail: '', logoUrl: '' });
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : err && typeof err === 'object' && 'details' in err
+            ? String((err as { details: unknown }).details)
+            : 'Failed to send invite';
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <PageHero
@@ -131,20 +175,119 @@ export default function SchoolsPage() {
         title={<span className="text-gradient-warm">Schools</span>}
         subtitle="Create and manage schools"
         actions={
-          <button
-            type="button"
-            onClick={() => {
-              setShowForm(true);
-              setEditingId(null);
-              setError('');
-              setForm({ name: '', address: '', contactEmail: '', contactPhone: '', description: '', website: '', subscriptionStatus: 'active', principalEmail: '', principalDisplayName: '', principalPassword: '' });
-            }}
-            className="btn-primary"
-          >
-            Add school
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(true);
+                setShowInviteForm(false);
+                setEditingId(null);
+                setInviteResult(null);
+                setError('');
+                setForm({ name: '', address: '', contactEmail: '', contactPhone: '', description: '', website: '', subscriptionStatus: 'active', principalEmail: '', principalDisplayName: '', principalPassword: '' });
+              }}
+              className="btn-secondary"
+            >
+              Add school
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowInviteForm(true);
+                setShowForm(false);
+                setEditingId(null);
+                setInviteResult(null);
+                setError('');
+                setInviteForm({ schoolName: '', principalName: '', principalEmail: '', logoUrl: '' });
+              }}
+              className="btn-primary"
+            >
+              Invite school
+            </button>
+          </div>
         }
       />
+
+      {showInviteForm && (
+        <SectionCard topBar="accent" className="mb-8">
+          <form onSubmit={sendInvite}>
+            <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-100">Invite principal</h2>
+            <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+              Sends an email link to the principal. They set their password on first open.
+            </p>
+            {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {inviteResult && (
+              <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-100 dark:bg-green-900/20 dark:text-green-200 dark:ring-green-800">
+                <p className="font-semibold">Invite sent.</p>
+                <p className="mt-1">School: <span className="font-mono">{inviteResult.schoolName}</span></p>
+                <p className="mt-1">
+                  Expires at: <span className="font-mono">{inviteResult.expiresAt}</span>
+                </p>
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">School name</label>
+                <input
+                  type="text"
+                  value={inviteForm.schoolName}
+                  onChange={(e) => setInviteForm((f) => ({ ...f, schoolName: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  required
+                  placeholder="e.g. St. John's School"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Principal name</label>
+                <input
+                  type="text"
+                  value={inviteForm.principalName}
+                  onChange={(e) => setInviteForm((f) => ({ ...f, principalName: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  placeholder="e.g. Jane Smith"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Principal email</label>
+                <input
+                  type="email"
+                  value={inviteForm.principalEmail}
+                  onChange={(e) => setInviteForm((f) => ({ ...f, principalEmail: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  placeholder="principal@school.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Logo URL (optional)</label>
+                <input
+                  type="url"
+                  value={inviteForm.logoUrl}
+                  onChange={(e) => setInviteForm((f) => ({ ...f, logoUrl: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button type="submit" disabled={submitting} className="btn-primary">
+                {submitting ? 'Sending…' : 'Send invite'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowInviteForm(false);
+                  setInviteResult(null);
+                  setError('');
+                }}
+                className="btn-secondary"
+              >
+                Close
+              </button>
+            </div>
+          </form>
+        </SectionCard>
+      )}
 
       {showForm && (
         <SectionCard topBar="primary" className="mb-8">
@@ -162,6 +305,7 @@ export default function SchoolsPage() {
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                 required
+                placeholder="e.g. St. John's School"
               />
             </div>
             <div>
@@ -171,6 +315,7 @@ export default function SchoolsPage() {
                 value={form.address}
                 onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                placeholder="123 Main St, Anytown, USA"
               />
             </div>
             <div>
@@ -180,6 +325,7 @@ export default function SchoolsPage() {
                 value={form.contactEmail}
                 onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                placeholder="info@stjohnsschool.com"
               />
             </div>
             <div>
@@ -189,6 +335,7 @@ export default function SchoolsPage() {
                 value={form.contactPhone}
                 onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))}
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                placeholder="123-456-7890"
               />
             </div>
             <div className="sm:col-span-2">
@@ -294,6 +441,7 @@ export default function SchoolsPage() {
             <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Name</th>
+                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Onboarding</th>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Subscription</th>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Address</th>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Contact</th>
@@ -311,6 +459,11 @@ export default function SchoolsPage() {
                     >
                       {s.name}
                     </Link>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                      {(s.status ?? '—') as string}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <span

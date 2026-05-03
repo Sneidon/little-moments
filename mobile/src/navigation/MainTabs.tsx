@@ -7,8 +7,10 @@ import { Ionicons } from '@expo/vector-icons';
 import type { UserRole } from '../../../shared/types';
 import type { ColorPalette } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { font } from '../theme/typography';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
+import { TeacherApprovalsScreen } from '../screens/teacher/TeacherApprovalsScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
 import { TeacherStudentsScreen } from '../screens/teacher/TeacherStudentsScreen';
 import { TeacherSettingsScreen } from '../screens/teacher/TeacherSettingsScreen';
@@ -30,6 +32,8 @@ import { ParentEventDetailScreen } from '../screens/parent/ParentEventDetailScre
 import { ParentAnnouncementsScreen } from '../screens/parent/ParentAnnouncementsScreen';
 import { ParentAnnouncementDetailScreen } from '../screens/parent/ParentAnnouncementDetailScreen';
 import { ParentSelectChildToMessageScreen } from '../screens/parent/ParentSelectChildToMessageScreen';
+import { ParentPendingApprovalScreen } from '../screens/parent/ParentPendingApprovalScreen';
+import { ParentAddSiblingScreen } from '../screens/parent/ParentAddSiblingScreen';
 import { DailyCommunicationScreen } from '../screens/teacher/DailyCommunicationScreen';
 import { EditChildProfileScreen } from '../screens/parent/EditChildProfileScreen';
 import { useEditChildProfileParams } from '../screens/parent/useEditChildProfileParams';
@@ -76,6 +80,8 @@ export type RootStackParamList = {
   TeacherNotificationSettings: undefined;
   ParentEventDetail: { schoolId: string; eventId: string };
   UserNotifications: undefined;
+  TeacherApprovals: undefined;
+  ParentAddSibling: undefined;
 };
 
 const Tab = createBottomTabNavigator();
@@ -153,6 +159,15 @@ function TeacherTabs() {
           headerShown: true,
           title: 'Dashboard',
           tabBarIcon: tabBarIconPair('grid-outline', 'grid'),
+        }}
+      />
+      <Tab.Screen
+        name="Approvals"
+        component={TeacherApprovalsScreen}
+        options={{
+          headerShown: true,
+          title: 'Approvals',
+          tabBarIcon: tabBarIconPair('checkmark-done-outline', 'checkmark-done'),
         }}
       />
       <Tab.Screen
@@ -267,13 +282,15 @@ function ParentTabs() {
 }
 
 export function MainTabs({ role }: { role: UserRole }) {
+  const { profile } = useAuth();
+  const shouldGateParent = role === 'parent' && profile?.parentStatus && profile.parentStatus !== 'ACTIVE';
   return (
     <RootStack.Navigator
       screenOptions={{ headerShown: true, headerBackTitle: 'Back' }}
     >
       <RootStack.Screen
         name="MainTabs"
-        component={role === 'teacher' ? TeacherTabs : ParentTabs}
+        component={role === 'teacher' ? TeacherTabs : shouldGateParent ? ParentPendingApprovalScreen : ParentTabs}
         options={{ headerShown: false }}
       />
       <RootStack.Screen name="Reports" component={TeacherReportsScreen} options={{ title: 'Daily report' }} />
@@ -319,6 +336,11 @@ export function MainTabs({ role }: { role: UserRole }) {
         name="UserNotifications"
         component={UserNotificationsScreen}
         options={{ title: 'Notifications' }}
+      />
+      <RootStack.Screen
+        name="ParentAddSibling"
+        component={ParentAddSiblingScreen as React.ComponentType<Record<string, unknown>>}
+        options={{ title: 'Add child' }}
       />
     </RootStack.Navigator>
   );

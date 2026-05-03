@@ -35,6 +35,9 @@ export interface UserProfile {
   /** Profile picture URL. */
   photoURL?: string;
   role: UserRole;
+  /** Parent approval gate. When not ACTIVE, parents should not access content. */
+  parentStatus?: ParentApprovalStatus;
+  whatsappOptIn?: boolean;
   /** If false, user is inactive (principal can reactivate teachers/parents). Default true. */
   isActive?: boolean;
   schoolId?: string; // teachers, principals
@@ -61,6 +64,8 @@ export interface Child {
   parentIds: string[];
   emergencyContact?: string;
   emergencyContactName?: string;
+  /** When false, child has left the school — excluded from class rosters and parent app. Default true when omitted. */
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -208,6 +213,8 @@ export interface FoodMenu {
 
 export type SubscriptionStatus = 'active' | 'suspended';
 
+export type SchoolOnboardingStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED';
+
 /** School feature flags - enable/disable per-feature. Default true when undefined. */
 export interface SchoolFeatures {
   nappyChange?: boolean;
@@ -216,21 +223,147 @@ export interface SchoolFeatures {
   medication?: boolean;
   incident?: boolean;
   media?: boolean;
+  /** Premium: personalised per-child QR codes from roster CSV. */
+  personalisedQr?: boolean;
 }
 
 export interface School {
   id: string;
   name: string;
+  /** Public join slug used for /join/:schoolSlug. */
+  slug?: string;
+  /** Onboarding lifecycle status (separate from subscription billing status). */
+  status?: SchoolOnboardingStatus;
+  /** Branding/logo used on join and QR code. */
+  logoUrl?: string;
+  /** Principal uid once invite is accepted. */
+  principalUid?: string;
   address?: string;
   contactEmail?: string;
   contactPhone?: string;
   description?: string;
   website?: string;
+  /** Billing / admin gate: principals, teachers, parents lose Firestore access when not `active` (callable `adminSetSchoolSuspended`). */
   subscriptionStatus?: SubscriptionStatus;
   /** Per-feature enable/disable. Super Admin configures. */
   features?: SchoolFeatures;
   createdAt: string;
   updatedAt: string;
+}
+
+export type SchoolDeletionJobStatus = 'pending' | 'processing' | 'completed' | 'cancelled' | 'failed';
+
+/** Queue entry for wiping a school after the cooling-off period (`adminQueueSchoolDeletion`). */
+export interface SchoolDeletionJob {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  status: SchoolDeletionJobStatus;
+  requestedAt: string;
+  scheduledDeleteAt: string;
+  requestedByUid: string;
+  requestedByEmail?: string | null;
+  startedAt?: string;
+  resolvedAt?: string;
+  cancelledByUid?: string;
+  errorMessage?: string;
+}
+
+export type InviteRole = 'principal' | 'teacher';
+
+export interface InviteToken {
+  id: string;
+  token: string;
+  schoolId?: string;
+  createdSchoolId?: string;
+  schoolName?: string;
+  principalName?: string;
+  logoUrl?: string;
+  email: string;
+  role: InviteRole;
+  expiresAt: string; // ISO
+  usedAt?: string; // ISO
+  createdAt: string; // ISO
+}
+
+export type QRCodeMode = 'WEB_FORM' | 'WHATSAPP_DEEP_LINK';
+export type QRSource = 'POSTER' | 'WHATSAPP' | 'EMAIL' | 'OPEN_DAY';
+
+export interface QRCode {
+  id: string;
+  schoolId: string;
+  schoolSlug: string;
+  classId?: string | null;
+  childId?: string | null;
+  inviteUrl: string;
+  imageUrl: string;
+  mode: QRCodeMode;
+  source?: QRSource;
+  expiresAt?: string | null; // ISO
+  maxRegistrations?: number | null;
+  scanCount: number;
+  registrationCount: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type ScanOutcome = 'SCANNED' | 'REGISTERED' | 'ABANDONED';
+
+export interface QRScanLog {
+  id: string;
+  qrCodeId: string;
+  schoolId: string;
+  scannedAt: string; // ISO
+  ipHash?: string | null;
+  outcome: ScanOutcome;
+}
+
+export type ParentApprovalStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED';
+
+export interface PendingRegistration {
+  id: string;
+  schoolId: string;
+  classId: string;
+  teacherId: string;
+  parentUid: string;
+  childId: string;
+  qrCodeId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string | null;
+  createdAt: string;
+  decidedAt?: string;
+}
+
+export interface JoinSession {
+  id: string;
+  schoolId: string;
+  schoolSlug: string;
+  qrCodeId: string;
+  expiresAt: string; // ISO
+  usedAt?: string; // ISO
+  createdAt: string; // ISO
+}
+
+export type AnalyticsEventType =
+  | 'qr_scanned'
+  | 'join_session_created'
+  | 'registration_step_completed'
+  | 'registration_completed'
+  | 'registration_abandoned'
+  | 'first_photo_viewed';
+
+export interface AnalyticsEvent {
+  id: string;
+  type: AnalyticsEventType;
+  createdAt: string;
+  schoolId?: string;
+  qrCodeId?: string;
+  joinSessionId?: string;
+  registrationId?: string;
+  userId?: string;
+  step?: 1 | 2 | 3 | 4;
+  props?: Record<string, unknown>;
 }
 
 /** Class/room within a school (e.g. Rainbow Room). Age range in months. */

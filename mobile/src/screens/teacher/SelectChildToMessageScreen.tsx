@@ -83,7 +83,11 @@ export function SelectChildToMessageScreen({ navigation }: Props) {
 
       setNoAssignedClasses(false);
       unsub = onSnapshot(
-        query(collection(db, 'schools', schoolId, 'children'), where('classId', 'in', classIds)),
+        query(
+          collection(db, 'schools', schoolId, 'children'),
+          where('classId', 'in', classIds),
+          where('isActive', '==', true)
+        ),
         (snap) => {
           if (cancelled) return;
           setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));

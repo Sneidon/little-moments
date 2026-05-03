@@ -19,6 +19,9 @@ const MAX_PARENTS_PER_CHILD = 4;
 const RESEND_API_KEY_FALLBACK = 're_S3xMBH7d_3YqMBTndWbkQxihUwyaL6sj1';
 const RESEND_FROM_FALLBACK = 'noreply@mylittlemoments.co.za';
 
+/** Web origin for `/invite/accept` links in invitation emails. */
+const INVITE_ACCEPT_APP_BASE_URL = 'https://littlemoments--little-moments-6647f.us-central1.hosted.app';
+
 function isoNow(): string {
   return new Date().toISOString();
 }
@@ -230,27 +233,188 @@ function principalWelcomeEmailHtml(params: {
   expiresInDays: number;
 }): string {
   const { schoolName, principalName, acceptUrl, expiresInDays } = params;
-  return `
-  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
-    <div style="max-width:560px;margin:0 auto;padding:24px">
-      <h1 style="margin:0 0 12px;font-size:22px">You're invited to set up ${escapeHtml(schoolName)} on My Little Moments</h1>
-      <p style="margin:0 0 16px">Hi ${escapeHtml(principalName)},</p>
-      <p style="margin:0 0 16px">Welcome to <strong>My Little Moments</strong>. Click below to accept your invite and set up your school.</p>
-      <p style="margin:24px 0">
-        <a href="${acceptUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
-          Accept Invite &amp; Set Up Your School
-        </a>
-      </p>
-      <p style="margin:0 0 16px;color:#475569;font-size:13px">This link expires in ${expiresInDays} days.</p>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
-      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
-    </div>
-  </div>
-  `;
+  const body = `My Little Moments has invited you to lead <strong>${escapeHtml(schoolName)}</strong> on My Little Moments — you&apos;re just a few clicks away from connecting your team and parents.`;
+  const features =
+    inviteEmailFeatureRow({
+      icon: '🏷️',
+      title: 'Complete your profile',
+      description: 'After you accept, add school details so your dashboard is ready from day one.',
+      linkUrl: inviteEmailAppUrl('/principal/profile'),
+      linkLabel: 'Go to profile →',
+      iconOnRight: true,
+    }) +
+    inviteEmailDividerRow() +
+    inviteEmailFeatureRow({
+      icon: '👥',
+      title: 'Invite your teachers & parents',
+      description: 'Share secure invites so staff and families can hop on — without sharing passwords.',
+      linkUrl: inviteEmailAppUrl('/principal/staff'),
+      linkLabel: 'Invite your team →',
+      iconOnRight: false,
+    });
+  return inviteEmailCard({
+    headline: 'Welcome to My Little Moments',
+    greetingName: principalName,
+    bodyHtml: body,
+    acceptUrl,
+    expiresInDays,
+    featuresInnerHtml: features,
+  });
 }
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function inviteEmailEscapeHref(url: string): string {
+  return url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+/** Absolute URL on the invite / web app origin (hosted). */
+function inviteEmailAppUrl(path: string): string {
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return `${INVITE_ACCEPT_APP_BASE_URL}${p}`;
+}
+
+const INVITE_EMAIL_PURPLE = '#6A4BB1';
+const INVITE_EMAIL_BTN_L = '#7E3AF2';
+const INVITE_EMAIL_BTN_R = '#E05297';
+const INVITE_EMAIL_FONT_SANS =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const INVITE_EMAIL_FONT_MONO = "'Courier New',Courier,ui-monospace,monospace";
+
+function inviteEmailWrapDocument(inner: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#fafafa;">
+${inner}
+</body>
+</html>`;
+}
+
+/** One row: optional icon column + text column; icon aligns left or right. */
+function inviteEmailFeatureRow(params: {
+  icon: string;
+  title: string;
+  description: string;
+  linkUrl: string;
+  linkLabel: string;
+  iconOnRight: boolean;
+}): string {
+  const iconInner = `<div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">${params.icon}</div>`;
+  const iconTd = `<td valign="top" width="56" style="width:56px;padding:20px 0 0;">${iconInner}</td>`;
+  const textTd = `<td valign="top" style="padding:20px 0 0;font-family:${INVITE_EMAIL_FONT_SANS};">` +
+    `<p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">${escapeHtml(params.title)}</p>` +
+    `<p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">${escapeHtml(params.description)}</p>` +
+    `<a href="${inviteEmailEscapeHref(params.linkUrl)}" target="_blank" rel="noopener noreferrer"` +
+    ` style="font-family:${INVITE_EMAIL_FONT_MONO};font-size:13px;font-weight:600;color:${INVITE_EMAIL_PURPLE};text-decoration:none;">${escapeHtml(
+      params.linkLabel
+    )}</a></td>`;
+  const cells = params.iconOnRight ? `${textTd}${iconTd}` : `${iconTd}${textTd}`;
+  return `<tr>${cells}</tr>`;
+}
+
+function inviteEmailDividerRow(): string {
+  return `<tr><td colspan="2" style="padding:4px 0 0;"><div style="height:1px;background:#e2e8ef;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>`;
+}
+
+function inviteEmailHeroRow(): string {
+  return `
+  <tr>
+    <td style="padding:0 24px 20px;font-family:${INVITE_EMAIL_FONT_MONO};">
+      <div style="border-radius:16px;overflow:hidden;height:172px;line-height:172px;text-align:center;background:${INVITE_EMAIL_BTN_L};background:linear-gradient(135deg,#e9d5ff 0%,#fce7f3 52%,#fef3c7 100%);font-size:13px;color:${INVITE_EMAIL_PURPLE};">
+        ✦ &#9829; Preschool moments &#9829; ✦
+      </div>
+    </td>
+  </tr>`;
+}
+
+function inviteEmailBrandHeaderRow(): string {
+  return `
+  <tr>
+    <td align="center" style="padding:28px 24px 16px;">
+      <span style="display:inline-block;width:12px;height:12px;background:${INVITE_EMAIL_BTN_L};background:linear-gradient(135deg,${INVITE_EMAIL_BTN_L} 0%,${INVITE_EMAIL_BTN_R} 100%);border-radius:4px;vertical-align:middle;margin-right:10px;line-height:0;"></span>
+      <span style="font-family:${INVITE_EMAIL_FONT_MONO};font-size:17px;font-weight:700;color:${INVITE_EMAIL_PURPLE};vertical-align:middle;">My Little Moments</span>
+    </td>
+  </tr>`;
+}
+
+function inviteEmailCtaAndExpiryRows(acceptUrl: string, expiresInDays: number): string {
+  const href = inviteEmailEscapeHref(acceptUrl);
+  const cta = `<a href="${href}" target="_blank" rel="noopener noreferrer"` +
+    ` style="display:inline-block;padding:16px 38px;border-radius:999px;font-family:${INVITE_EMAIL_FONT_MONO};` +
+    `font-size:15px;font-weight:700;color:#ffffff !important;text-decoration:none;background:${INVITE_EMAIL_BTN_L};background:linear-gradient(90deg,${INVITE_EMAIL_BTN_L} 0%,${INVITE_EMAIL_BTN_R} 100%);">` +
+    `Accept invite &amp; get started</a>`;
+  return `
+  <tr><td align="center" style="padding:8px 24px 6px;">${cta}</td></tr>
+  <tr><td style="padding:0 24px 22px;text-align:center;font-family:${INVITE_EMAIL_FONT_SANS};font-size:12px;color:#64748b;">
+    This link expires in ${expiresInDays} days.
+  </td></tr>
+  <tr><td style="padding:0 24px 0;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>`;
+}
+
+function inviteEmailSupportFooterRows(): string {
+  const year = new Date().getUTCFullYear();
+  return `
+  <tr><td style="padding:16px 24px 0;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+  <tr>
+    <td style="padding:20px 24px 12px;text-align:center;font-family:${INVITE_EMAIL_FONT_SANS};font-size:13px;line-height:1.55;color:#64748b;">
+      Need a hand? Reply to this email or reach us at
+      <a href="mailto:info@mylittlemoments.co.za" style="color:${INVITE_EMAIL_PURPLE};font-family:${INVITE_EMAIL_FONT_MONO};text-decoration:none;">info@mylittlemoments.co.za</a>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:0 24px 32px;text-align:center;font-family:${INVITE_EMAIL_FONT_SANS};font-size:11px;line-height:1.5;color:#94a3b8;">
+      &copy; ${year} My Little Moments &mdash; Caring for South Africa&apos;s little moments
+    </td>
+  </tr>`;
+}
+
+function inviteEmailCard(params: {
+  headline: string;
+  greetingName: string;
+  bodyHtml: string;
+  acceptUrl: string;
+  expiresInDays: number;
+  featuresInnerHtml: string;
+}): string {
+  const outer = `
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background-color:#fafafa;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="520" style="border-collapse:collapse;max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 6px 30px rgba(15,23,42,0.07);">
+        ${inviteEmailBrandHeaderRow()}
+        ${inviteEmailHeroRow()}
+        <tr>
+          <td align="center" style="padding:8px 24px 12px;font-family:${INVITE_EMAIL_FONT_MONO};font-size:22px;line-height:1.25;font-weight:700;color:#1e1b4b;">
+            ${escapeHtml(params.headline)}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px 4px;font-family:${INVITE_EMAIL_FONT_SANS};font-size:15px;color:#334155;">
+            Hi ${escapeHtml(params.greetingName)},
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:14px 24px 12px;font-family:${INVITE_EMAIL_FONT_SANS};font-size:15px;line-height:1.62;color:#334155;">
+            ${params.bodyHtml}
+          </td>
+        </tr>
+        ${inviteEmailCtaAndExpiryRows(params.acceptUrl, params.expiresInDays)}
+        <tr>
+          <td style="padding:12px 24px 20px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+              ${params.featuresInnerHtml}
+            </table>
+          </td>
+        </tr>
+        ${inviteEmailSupportFooterRows()}
+      </table>
+    </td>
+  </tr>
+</table>`;
+  return inviteEmailWrapDocument(outer);
 }
 
 async function sendPrincipalInviteEmail(params: {
@@ -259,8 +423,7 @@ async function sendPrincipalInviteEmail(params: {
   principalName?: string;
   token: string;
 }): Promise<void> {
-  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
-  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  const acceptUrl = `${INVITE_ACCEPT_APP_BASE_URL}/invite/accept?token=${encodeURIComponent(params.token)}`;
   await sendResendEmail({
     to: params.to.trim(),
     subject: `You're invited to set up ${params.schoolName.trim()} on My Little Moments`,
@@ -279,23 +442,33 @@ function superAdminInviteEmailHtml(params: {
   expiresInDays: number;
 }): string {
   const { inviteeName, acceptUrl, expiresInDays } = params;
-  return `
-  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
-    <div style="max-width:560px;margin:0 auto;padding:24px">
-      <h1 style="margin:0 0 12px;font-size:22px">You're invited as a My Little Moments administrator</h1>
-      <p style="margin:0 0 16px">Hi ${escapeHtml(inviteeName)},</p>
-      <p style="margin:0 0 16px">You've been invited to join as a <strong>super administrator</strong>. Accept below to choose your password and access the Admin console.</p>
-      <p style="margin:24px 0">
-        <a href="${acceptUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
-          Accept Invite
-        </a>
-      </p>
-      <p style="margin:0 0 16px;color:#475569;font-size:13px">This link expires in ${expiresInDays} days.</p>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
-      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
-    </div>
-  </div>
-  `;
+  const body = `You&apos;ve been invited to join My Little Moments as a <strong>super administrator</strong>. Accept below to choose your password — then pick up invitations, schools and support right from your console.`;
+  const features =
+    inviteEmailFeatureRow({
+      icon: '🛡️',
+      title: 'Open the Admin console',
+      description: 'Manage invitations, principals and visibility across schools from one place.',
+      linkUrl: inviteEmailAppUrl('/admin'),
+      linkLabel: 'Go to Admin →',
+      iconOnRight: true,
+    }) +
+    inviteEmailDividerRow() +
+    inviteEmailFeatureRow({
+      icon: '🏫',
+      title: 'Invite schools',
+      description: 'Send onboarding links so each principal can activate their school workspace.',
+      linkUrl: inviteEmailAppUrl('/admin/schools'),
+      linkLabel: 'View schools →',
+      iconOnRight: false,
+    });
+  return inviteEmailCard({
+    headline: 'Welcome, Administrator!',
+    greetingName: inviteeName,
+    bodyHtml: body,
+    acceptUrl,
+    expiresInDays,
+    featuresInnerHtml: features,
+  });
 }
 
 async function sendSuperAdminInviteEmail(params: {
@@ -303,8 +476,7 @@ async function sendSuperAdminInviteEmail(params: {
   inviteeName?: string;
   token: string;
 }): Promise<void> {
-  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
-  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  const acceptUrl = `${INVITE_ACCEPT_APP_BASE_URL}/invite/accept?token=${encodeURIComponent(params.token)}`;
   await sendResendEmail({
     to: params.to.trim(),
     subject: `You're invited as a My Little Moments administrator`,
@@ -319,42 +491,64 @@ async function sendSuperAdminInviteEmail(params: {
 function teacherInviteEmailHtml(params: {
   schoolName: string;
   inviteeName: string;
+  principalName: string;
+  className?: string;
   acceptUrl: string;
   expiresInDays: number;
 }): string {
-  const { schoolName, inviteeName, acceptUrl, expiresInDays } = params;
-  return `
-  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
-    <div style="max-width:560px;margin:0 auto;padding:24px">
-      <h1 style="margin:0 0 12px;font-size:22px">You're invited as a teacher at ${escapeHtml(schoolName)}</h1>
-      <p style="margin:0 0 16px">Hi ${escapeHtml(inviteeName)},</p>
-      <p style="margin:0 0 16px">You've been invited to join <strong>${escapeHtml(schoolName)}</strong> on <strong>My Little Moments</strong>. Accept below to choose your password and finish setup.</p>
-      <p style="margin:24px 0">
-        <a href="${acceptUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
-          Accept invite
-        </a>
-      </p>
-      <p style="margin:0 0 16px;color:#475569;font-size:13px">This link expires in ${expiresInDays} days.</p>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
-      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
-    </div>
-  </div>
-  `;
+  const { schoolName, inviteeName, principalName, className, acceptUrl, expiresInDays } = params;
+  const classPhrase = className
+    ? ` as a teacher for <strong>${escapeHtml(className)}</strong>`
+    : ' as a teacher';
+  const body =
+    `<strong>${escapeHtml(principalName)}</strong> has invited you to join <strong>${escapeHtml(schoolName)}</strong>${classPhrase}` +
+    ` on My Little Moments — let&apos;s make every little moment count.`;
+  const features =
+    inviteEmailFeatureRow({
+      icon: '👋',
+      title: 'Complete your profile',
+      description: 'Add your photo and a short introduction so families know who is caring for their little ones.',
+      linkUrl: inviteEmailAppUrl('/login'),
+      linkLabel: 'Go to profile →',
+      iconOnRight: true,
+    }) +
+    inviteEmailDividerRow() +
+    inviteEmailFeatureRow({
+      icon: '📋',
+      title: 'Meet your class',
+      description: 'Open the mobile app after you accept — your assigned class and roster are ready there.',
+      linkUrl: inviteEmailAppUrl('/login'),
+      linkLabel: 'View my class →',
+      iconOnRight: false,
+    });
+  return inviteEmailCard({
+    headline: 'Welcome, Teacher!',
+    greetingName: inviteeName,
+    bodyHtml: body,
+    acceptUrl,
+    expiresInDays,
+    featuresInnerHtml: features,
+  });
 }
 
 async function sendTeacherInviteEmail(params: {
   to: string;
   schoolName: string;
+  principalName?: string;
+  className?: string;
   inviteeName?: string;
   token: string;
 }): Promise<void> {
-  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
-  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  const acceptUrl = `${INVITE_ACCEPT_APP_BASE_URL}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  const principalLabel =
+    params.principalName && params.principalName.trim() ? params.principalName.trim() : 'Your principal';
   await sendResendEmail({
     to: params.to.trim(),
     subject: `${params.schoolName.trim()} invited you as a teacher on My Little Moments`,
     html: teacherInviteEmailHtml({
       schoolName: params.schoolName.trim(),
+      principalName: principalLabel,
+      ...(params.className && params.className.trim() ? { className: params.className.trim() } : {}),
       inviteeName: (params.inviteeName && params.inviteeName.trim()) ? params.inviteeName.trim() : 'there',
       acceptUrl,
       expiresInDays: 7,
@@ -370,23 +564,36 @@ function parentInviteEmailHtml(params: {
   expiresInDays: number;
 }): string {
   const { schoolName, childName, inviteeName, acceptUrl, expiresInDays } = params;
-  return `
-  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
-    <div style="max-width:560px;margin:0 auto;padding:24px">
-      <h1 style="margin:0 0 12px;font-size:22px">You're invited as a parent on My Little Moments</h1>
-      <p style="margin:0 0 16px">Hi ${escapeHtml(inviteeName)},</p>
-      <p style="margin:0 0 16px">${escapeHtml(schoolName)} has invited you to follow <strong>${escapeHtml(childName)}</strong>'s updates. Accept below to choose your password and link your account to this child.</p>
-      <p style="margin:24px 0">
-        <a href="${acceptUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
-          Accept invite
-        </a>
-      </p>
-      <p style="margin:0 0 16px;color:#475569;font-size:13px">This link expires in ${expiresInDays} days.</p>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
-      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
-    </div>
-  </div>
-  `;
+  const body =
+    `<strong>${escapeHtml(schoolName)}</strong> has invited you to join <strong>${escapeHtml(schoolName)}</strong> on My Little Moments — so you never miss a moment of <strong>${escapeHtml(
+      childName
+    )}</strong>&apos;s day.`;
+  const features =
+    inviteEmailFeatureRow({
+      icon: '📝',
+      title: "Add your child's details",
+      description: 'After you accept, complete allergies, medical info and contacts so teachers have exactly what they need.',
+      linkUrl: inviteEmailAppUrl('/login'),
+      linkLabel: 'Add my child →',
+      iconOnRight: true,
+    }) +
+    inviteEmailDividerRow() +
+    inviteEmailFeatureRow({
+      icon: '📱',
+      title: 'Download the mobile app',
+      description: 'Photos, routines and reminders feel best on your phone — jump in once your account is linked.',
+      linkUrl: INVITE_ACCEPT_APP_BASE_URL,
+      linkLabel: 'Get the app →',
+      iconOnRight: false,
+    });
+  return inviteEmailCard({
+    headline: 'Welcome, Parent!',
+    greetingName: inviteeName,
+    bodyHtml: body,
+    acceptUrl,
+    expiresInDays,
+    featuresInnerHtml: features,
+  });
 }
 
 async function sendParentInviteEmail(params: {
@@ -396,8 +603,7 @@ async function sendParentInviteEmail(params: {
   inviteeName?: string;
   token: string;
 }): Promise<void> {
-  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
-  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  const acceptUrl = `${INVITE_ACCEPT_APP_BASE_URL}/invite/accept?token=${encodeURIComponent(params.token)}`;
   await sendResendEmail({
     to: params.to.trim(),
     subject: `You're invited to follow ${params.childName.trim()} on My Little Moments`,
@@ -1918,6 +2124,7 @@ export const resendSchoolInvite = functions.https.onCall(async (data, context) =
     schoolName?: string;
     childId?: string;
     childName?: string;
+    className?: string;
     inviteeDisplayName?: string;
     inviteePreferredName?: string;
     inviteePhone?: string;
@@ -1956,6 +2163,7 @@ export const resendSchoolInvite = functions.https.onCall(async (data, context) =
     if (invite.schoolName) payload.schoolName = invite.schoolName;
     if (invite.childId) payload.childId = invite.childId;
     if (invite.childName) payload.childName = invite.childName;
+    if (invite.className) payload.className = invite.className;
     if (invite.inviteeDisplayName) payload.inviteeDisplayName = invite.inviteeDisplayName;
     if (invite.inviteePreferredName) payload.inviteePreferredName = invite.inviteePreferredName;
     if (invite.inviteePhone) payload.inviteePhone = invite.inviteePhone;
@@ -1967,10 +2175,19 @@ export const resendSchoolInvite = functions.https.onCall(async (data, context) =
   }
 
   const schoolName = invite.schoolName ?? 'Your school';
+  let principalNameEmail: string | undefined;
+  if (invite.role === 'teacher' && invite.schoolId) {
+    const sSnap = await db.collection('schools').doc(invite.schoolId).get();
+    if (sSnap.exists) {
+      principalNameEmail = (sSnap.data() as { principalName?: string }).principalName?.trim() || undefined;
+    }
+  }
   if (invite.role === 'teacher') {
     await sendTeacherInviteEmail({
       to: invite.email,
       schoolName,
+      principalName: principalNameEmail,
+      className: invite.className,
       inviteeName: invite.inviteeDisplayName,
       token: tokenToSend,
     });
@@ -2079,6 +2296,24 @@ export const listPrincipalSchoolInvites = functions.https.onCall(async (data, co
   return { invites };
 });
 
+/** Public: whether an invite link is still usable (no password). */
+export const peekInviteToken = functions.https.onCall(async (data) => {
+  const { token } = data as { token?: string };
+  if (!token || typeof token !== 'string' || !token.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'token is required.');
+  }
+  const db = admin.firestore();
+  const snap = await db.collection('inviteTokens').doc(token.trim()).get();
+  if (!snap.exists) return { status: 'not_found' as const };
+  const row = snap.data() as { expiresAt?: string; usedAt?: string; role?: string };
+  const role = typeof row.role === 'string' ? row.role : undefined;
+  if (row.usedAt) return { status: 'used' as const, role };
+  if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) {
+    return { status: 'expired' as const, role };
+  }
+  return { status: 'pending' as const, role };
+});
+
 // Accept an invite token: principal onboarding (school) or super admin onboarding (Admin console).
 export const acceptInviteToken = functions.https.onCall(async (data, context) => {
   // Public-ish: no auth required (token is bearer secret).
@@ -2111,7 +2346,9 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     expiresAt: string;
     usedAt?: string;
   };
-  if (invite.usedAt) throw new functions.https.HttpsError('failed-precondition', 'Invite token already used.');
+  if (invite.usedAt) {
+    throw new functions.https.HttpsError('failed-precondition', 'This invite has already been accepted.');
+  }
   if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) {
     throw new functions.https.HttpsError('failed-precondition', 'Invite token expired.');
   }
@@ -3562,10 +3799,11 @@ export const principalInviteTeacher = functions.https.onCall(async (data, contex
   }
   const schoolId = callerData.schoolId;
 
-  const { teacherEmail, teacherDisplayName, teacherPreferredName } = data as {
+  const { teacherEmail, teacherDisplayName, teacherPreferredName, classId } = data as {
     teacherEmail?: string;
     teacherDisplayName?: string;
     teacherPreferredName?: string;
+    classId?: string;
   };
 
   if (!teacherEmail || typeof teacherEmail !== 'string' || !teacherEmail.trim()) {
@@ -3578,7 +3816,21 @@ export const principalInviteTeacher = functions.https.onCall(async (data, contex
 
   const schoolSnap = await db.collection('schools').doc(schoolId).get();
   if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found.');
-  const schoolName = ((schoolSnap.data() as { name?: string }).name ?? 'Your school').trim();
+  const schoolData = schoolSnap.data() as { name?: string; principalName?: string };
+  const schoolName = (schoolData.name ?? 'Your school').trim();
+  const principalDisplayNameEmail =
+    schoolData.principalName && schoolData.principalName.trim()
+      ? schoolData.principalName.trim()
+      : undefined;
+
+  let inviteClassLabel: string | undefined;
+  if (classId && typeof classId === 'string' && classId.trim()) {
+    const cSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(classId.trim()).get();
+    if (cSnap.exists) {
+      const n = (cSnap.data() as { name?: string }).name;
+      inviteClassLabel = n && typeof n === 'string' && n.trim() ? n.trim() : undefined;
+    }
+  }
 
   try {
     const existingAuth = await admin.auth().getUserByEmail(emailNorm);
@@ -3628,11 +3880,14 @@ export const principalInviteTeacher = functions.https.onCall(async (data, contex
   if (teacherPreferredName && typeof teacherPreferredName === 'string' && teacherPreferredName.trim()) {
     payload.inviteePreferredName = teacherPreferredName.trim();
   }
+  if (inviteClassLabel) payload.className = inviteClassLabel;
   await db.collection('inviteTokens').doc(tok).set(payload);
 
   await sendTeacherInviteEmail({
     to: emailNorm,
     schoolName,
+    principalName: principalDisplayNameEmail,
+    className: inviteClassLabel,
     inviteeName: typeof teacherDisplayName === 'string' ? teacherDisplayName.trim() || undefined : undefined,
     token: tok,
   });

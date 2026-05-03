@@ -4,14 +4,25 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/config/firebase';
+import { buildInviteAcceptDeepLink } from '@/config/inviteLinks';
+import { InviteQrCodeDialog } from '@/components/InviteQrCodeDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
+import { downloadPrincipalSchoolInviteHandoutPdf } from '@/lib/exportPrincipalSchoolInvitePdf';
+
+function principalInviteToken(row: { id: string; token?: string }): string {
+  return row.token?.trim() || row.id;
+}
 
 type PrincipalSchoolInviteRow = {
   id: string;
+  token?: string;
   email: string;
   role: 'teacher' | 'parent';
   schoolName?: string;
+  /** Matches school principal display name — used for PDF / teacher email-style copy. */
+  principalName?: string;
+  className?: string;
   childId?: string;
   childName?: string;
   inviteeDisplayName?: string;
@@ -36,6 +47,8 @@ export default function PrincipalInvitesPage() {
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const bannerTimeoutRef = useRef<number | null>(null);
+  const [shareQrInviteUrl, setShareQrInviteUrl] = useState<string | null>(null);
+  const [pdfGeneratingById, setPdfGeneratingById] = useState<Record<string, boolean>>({});
 
   const loadInvites = async () => {
     const listFn = httpsCallable<Record<string, never>, { invites?: PrincipalSchoolInviteRow[] }>(
@@ -137,6 +150,11 @@ export default function PrincipalInvitesPage() {
 
   return (
     <div className="animate-fade-in">
+      <InviteQrCodeDialog
+        open={!!shareQrInviteUrl}
+        onClose={() => setShareQrInviteUrl(null)}
+        inviteUrl={shareQrInviteUrl ?? ''}
+      />
       <ConfirmDialog
         open={!!pendingDeleteInvite}
         onClose={() => setPendingDeleteInvite(null)}
@@ -150,7 +168,7 @@ export default function PrincipalInvitesPage() {
       <PageHero
         variant="full"
         title={<span className="text-gradient-warm">Invitations</span>}
-        subtitle="Teacher and parent email invites from your school. Resend reminders or revoke unused links."
+        subtitle="Teacher and parent invites. Tap Share QR code so someone can scan and open the invite, or resend email and delete as needed."
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -203,12 +221,12 @@ export default function PrincipalInvitesPage() {
 
       {loading ? (
         <SectionCard topBar="accent" padding="none">
-          <TableSkeleton rows={8} cols={7} />
+          <TableSkeleton rows={8} cols={8} />
         </SectionCard>
       ) : (
         <SectionCard topBar="accent" padding="none">
-          <div className="overflow-hidden">
-            <table className="data-table">
+          <div className="overflow-x-auto">
+            <table className="data-table min-w-[960px] w-full">
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Context</th>
@@ -217,6 +235,9 @@ export default function PrincipalInvitesPage() {
                   <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Created</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Expires</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Status</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                    QR / PDF
+                  </th>
                   <th className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-200">Actions</th>
                 </tr>
               </thead>
@@ -290,6 +311,66 @@ export default function PrincipalInvitesPage() {
                         >
                           {status}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex min-w-[9.5rem] flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setError(null);
+                              setShareQrInviteUrl(
+                                buildInviteAcceptDeepLink(principalInviteToken(invite))
+                              );
+                            }}
+                            disabled={
+                              status === 'ACCEPTED' ||
+                              Boolean(resendingById[invite.id] || deletingById[invite.id])
+                            }
+                            title={
+                              status === 'ACCEPTED'
+                                ? 'This invite was already accepted'
+                                : 'Show QR code for this invite link'
+                            }
+                            className="inline-flex items-center justify-center rounded-lg border border-primary-300 bg-primary-100 px-3 py-2 text-xs font-bold text-primary-950 shadow-sm transition hover:bg-primary-200 disabled:cursor-not-allowed disabled:opacity-45 dark:border-primary-600 dark:bg-primary-900/50 dark:text-primary-50 dark:hover:bg-primary-900/70"
+                          >
+                            Share QR code
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void (async () => {
+                                setError(null);
+                                setPdfGeneratingById((prev) => ({ ...prev, [invite.id]: true }));
+                                try {
+                                  await downloadPrincipalSchoolInviteHandoutPdf(invite);
+                                  showBanner('PDF downloaded with invite details and QR.');
+                                } catch {
+                                  setError(
+                                    'Could not generate PDF. Try another browser or check that invites loaded correctly.'
+                                  );
+                                } finally {
+                                  setPdfGeneratingById((prev) => ({ ...prev, [invite.id]: false }));
+                                }
+                              })();
+                            }}
+                            disabled={
+                              status === 'ACCEPTED' ||
+                              Boolean(
+                                pdfGeneratingById[invite.id] ||
+                                  resendingById[invite.id] ||
+                                  deletingById[invite.id]
+                              )
+                            }
+                            title={
+                              status === 'ACCEPTED'
+                                ? 'This invite was already accepted'
+                                : 'Download printable PDF (same messaging as email + QR)'
+                            }
+                            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                          >
+                            {pdfGeneratingById[invite.id] ? 'Generating…' : 'Download PDF'}
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-2">

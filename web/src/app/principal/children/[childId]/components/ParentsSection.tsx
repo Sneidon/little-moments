@@ -51,6 +51,9 @@ export interface ParentsSectionProps {
   editParentError?: string;
   onUpdateParentSubmit?: (e: React.FormEvent) => Promise<void>;
   onCancelEdit?: () => void;
+  /** Open confirm on child page — removes parent from this child only. */
+  onRequestRemoveParentFromChild?: (p: UserProfile) => void;
+  removingParentUid?: string | null;
   showEmailInvite?: boolean;
   emailInviteForm?: EmailParentInviteFormState;
   setEmailInviteForm?: React.Dispatch<React.SetStateAction<EmailParentInviteFormState>>;
@@ -90,6 +93,8 @@ export function ParentsSection({
   editParentError,
   onUpdateParentSubmit,
   onCancelEdit,
+  onRequestRemoveParentFromChild,
+  removingParentUid = null,
   showEmailInvite = false,
   emailInviteForm,
   setEmailInviteForm,
@@ -112,6 +117,8 @@ export function ParentsSection({
   };
 
   const childLabel = childName ? ` to ${childName}` : ' to this child';
+
+  const removing = Boolean(removingParentUid);
 
   const parentCardContent = (p: UserProfile, isReadOnly: boolean) => (
     <>
@@ -172,9 +179,20 @@ export function ParentsSection({
             <button
               type="button"
               onClick={() => onStartEditParent(p)}
-              className="btn-secondary text-sm py-1.5 px-3"
+              disabled={removing}
+              className="btn-secondary text-sm py-1.5 px-3 disabled:opacity-50"
             >
               Edit
+            </button>
+          )}
+          {onRequestRemoveParentFromChild && (
+            <button
+              type="button"
+              onClick={() => onRequestRemoveParentFromChild(p)}
+              disabled={removing}
+              className="inline-flex items-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/70 dark:bg-slate-800 dark:text-red-300 dark:hover:bg-red-950/40"
+            >
+              {removingParentUid === p.uid ? 'Removing…' : 'Remove from child'}
             </button>
           )}
         </div>

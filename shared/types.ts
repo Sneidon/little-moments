@@ -64,6 +64,8 @@ export interface Child {
   parentIds: string[];
   emergencyContact?: string;
   emergencyContactName?: string;
+  /** When false, child has left the school — excluded from class rosters and parent app. Default true when omitted. */
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }

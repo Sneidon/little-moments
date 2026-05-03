@@ -83,7 +83,8 @@ service cloud.firestore {
         allow read: if isSuperAdmin()
           || isTeacher(schoolId)
           || isPrincipal(schoolId)
-          || (isActiveParent() && request.auth.uid in resource.data.parentIds);
+          || (isActiveParent() && request.auth.uid in resource.data.parentIds
+              && (!('isActive' in resource.data) || resource.data.isActive == true));
         allow create, update: if isTeacher(schoolId) || isPrincipal(schoolId);
         allow delete: if isPrincipal(schoolId) || isSuperAdmin();
         allow update: if isAuthenticated() && request.auth.uid in resource.data.parentIds;

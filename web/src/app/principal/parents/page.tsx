@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParentsPage } from '@/hooks/useParentsPage';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ParentsPageHeader, ParentsFilters, ParentsTable } from './components';
@@ -9,6 +9,8 @@ import type { UserProfile } from 'shared/types';
 
 export default function ParentsPage() {
   const [pendingPasswordResetUser, setPendingPasswordResetUser] = useState<UserProfile | null>(null);
+  const [pendingDeleteParent, setPendingDeleteParent] = useState<UserProfile | null>(null);
+  const [deleteParentDialogBusy, setDeleteParentDialogBusy] = useState(false);
   const {
     loading,
     filteredParents,
@@ -27,7 +29,14 @@ export default function ParentsPage() {
     passwordResetSuccess,
     handleRequestPasswordReset,
     clearPasswordResetFeedback,
+    deletingParentUid,
+    deleteParentError,
+    handleDeleteParent,
   } = useParentsPage();
+
+  useEffect(() => {
+    if (!pendingDeleteParent) setDeleteParentDialogBusy(false);
+  }, [pendingDeleteParent]);
 
   const handleConfirmPasswordReset = () => {
     if (pendingPasswordResetUser) {
@@ -36,8 +45,36 @@ export default function ParentsPage() {
     }
   };
 
+  const handleConfirmDeleteParent = async () => {
+    if (!pendingDeleteParent || deleteParentDialogBusy) return;
+    setDeleteParentDialogBusy(true);
+    try {
+      const ok = await handleDeleteParent(pendingDeleteParent.uid);
+      if (ok) setPendingDeleteParent(null);
+    } finally {
+      setDeleteParentDialogBusy(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
+      <ConfirmDialog
+        open={!!pendingDeleteParent}
+        onClose={() => setPendingDeleteParent(null)}
+        title="Delete parent?"
+        message={
+          pendingDeleteParent
+            ? `Permanently unlink ${pendingDeleteParent.displayName || pendingDeleteParent.email || 'this parent'} from every child at your school and delete their account? They will no longer be able to sign in. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete parent"
+        cancelLabel="Cancel"
+        confirmDisabled={
+          deleteParentDialogBusy ||
+          Boolean(pendingDeleteParent && deletingParentUid === pendingDeleteParent.uid)
+        }
+        onConfirm={handleConfirmDeleteParent}
+      />
       <ConfirmDialog
         open={!!pendingPasswordResetUser}
         onClose={() => setPendingPasswordResetUser(null)}
@@ -78,6 +115,11 @@ export default function ParentsPage() {
             filteredCount={filteredParents.length}
             totalCount={parents.length}
           />
+          {deleteParentError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+              {deleteParentError}
+            </div>
+          )}
           {(passwordResetError || passwordResetSuccess) && (
             <div
               className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
@@ -107,6 +149,8 @@ export default function ParentsPage() {
             totalCount={parents.length}
             onRequestPasswordReset={(u) => setPendingPasswordResetUser(u)}
             passwordResetLoadingUid={passwordResetLoadingUid}
+            onDeleteParent={(u) => setPendingDeleteParent(u)}
+            deletingParentUid={deletingParentUid}
           />
         </>
       )}

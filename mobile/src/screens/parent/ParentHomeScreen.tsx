@@ -208,7 +208,8 @@ export function ParentHomeScreen({
       for (const schoolDoc of schoolsSnap.docs) {
         const q = query(
           collection(db, 'schools', schoolDoc.id, 'children'),
-          where('parentIds', 'array-contains', uid)
+          where('parentIds', 'array-contains', uid),
+          where('isActive', '==', true)
         );
         const snap = await getDocs(q);
         snap.docs.forEach((d) => list.push({ id: d.id, ...d.data() } as Child));

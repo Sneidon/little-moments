@@ -23,6 +23,11 @@ function isoNow(): string {
   return new Date().toISOString();
 }
 
+/** Child roster / parent access — false means left the school (field omitted treats as enrolled). */
+function childEnrollmentIsActive(data: { isActive?: boolean }): boolean {
+  return data?.isActive !== false;
+}
+
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
@@ -640,6 +645,23 @@ export const setUserClaims = functions.firestore
     return null;
   });
 
+/** Left-school children must not keep a classId or they still match class roster queries. */
+export const onSchoolChildUpdatedClearClassIfInactive = functions.firestore
+  .document('schools/{schoolId}/children/{childId}')
+  .onUpdate(async (change, context) => {
+    const after = change.after.data() as { isActive?: boolean; classId?: string | null };
+    if (childEnrollmentIsActive(after)) return null;
+    const classId = after.classId;
+    if (classId == null || classId === '') return null;
+    await change.after.ref.update({ classId: null, updatedAt: isoNow() });
+    functions.logger.info('onSchoolChildUpdatedClearClassIfInactive: cleared class', {
+      schoolId: context.params.schoolId,
+      childId: context.params.childId,
+      previousClassId: classId,
+    });
+    return null;
+  });
+
 // When a daily report is created, send FCM to parents (respects notificationPreferences per report type).
 // Email: SendGrid not wired yet; add when SENDGRID_API_KEY (or similar) is configured.
 export const onReportCreated = functions.firestore
@@ -660,7 +682,11 @@ export const onReportCreated = functions.firestore
       functions.logger.warn('onReportCreated: child not found', { childId, schoolId });
       return null;
     }
-    const child = childSnap.data() as { name?: string; parentIds?: string[] };
+    const child = childSnap.data() as { name?: string; parentIds?: string[]; isActive?: boolean };
+    if (!childEnrollmentIsActive(child)) {
+      functions.logger.info('onReportCreated: child not actively enrolled — skipping parent notify', { childId });
+      return null;
+    }
     const parentIds = child.parentIds || [];
     if (parentIds.length === 0) {
       functions.logger.info('onReportCreated: no parents linked', { childId });
@@ -759,7 +785,9 @@ async function getFcmTokensForSchool(
   const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
   const parentIds = new Set<string>();
   childrenSnap.docs.forEach((d) => {
-    const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+    const row = d.data() as { parentIds?: string[]; isActive?: boolean };
+    if (!childEnrollmentIsActive(row)) return;
+    const parentIdsArr = row.parentIds || [];
     parentIdsArr.forEach((uid: string) => parentIds.add(uid));
   });
 
@@ -784,7 +812,9 @@ async function getFcmTokensForClass(db: admin.firestore.Firestore, schoolId: str
     .get();
   const parentIds = new Set<string>();
   childrenSnap.docs.forEach((d) => {
-    const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+    const row = d.data() as { parentIds?: string[]; isActive?: boolean };
+    if (!childEnrollmentIsActive(row)) return;
+    const parentIdsArr = row.parentIds || [];
     parentIdsArr.forEach((uid: string) => parentIds.add(uid));
   });
   return getFcmTokensForParentUserIds(db, Array.from(parentIds), null);
@@ -808,7 +838,9 @@ export const onDailyCommunicationCreated = functions.firestore
       .get();
     const parentIds = new Set<string>();
     childrenSnap.docs.forEach((d) => {
-      const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+      const row = d.data() as { parentIds?: string[]; isActive?: boolean };
+      if (!childEnrollmentIsActive(row)) return;
+      const parentIdsArr = row.parentIds || [];
       parentIdsArr.forEach((uid: string) => parentIds.add(uid));
     });
     const parentUserIds = await getEligibleParentUserIds(db, Array.from(parentIds), null);
@@ -855,7 +887,9 @@ export const onAnnouncementCreated = functions.firestore
     const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
     const parentIds = new Set<string>();
     childrenSnap.docs.forEach((d) => {
-      const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+      const row = d.data() as { parentIds?: string[]; isActive?: boolean };
+      if (!childEnrollmentIsActive(row)) return;
+      const parentIdsArr = row.parentIds || [];
       parentIdsArr.forEach((uid: string) => parentIds.add(uid));
     });
     const parentUserIds = await getEligibleParentUserIds(db, Array.from(parentIds), 'announcements');
@@ -930,7 +964,9 @@ export const sendAnnouncementReminders = functions.pubsub
         const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
         const parentIds = new Set<string>();
         childrenSnap.docs.forEach((d) => {
-          const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+          const row = d.data() as { parentIds?: string[]; isActive?: boolean };
+          if (!childEnrollmentIsActive(row)) return;
+          const parentIdsArr = row.parentIds || [];
           parentIdsArr.forEach((uid: string) => parentIds.add(uid));
         });
         const parentUserIds = await getEligibleParentUserIds(db, Array.from(parentIds), 'announcements');
@@ -2674,6 +2710,7 @@ export const registerParentViaQr = functions.https.onRequest(async (req, res) =>
     parentIds: [parentUid],
     photoURL: typeof childPhotoUrl === 'string' && childPhotoUrl.trim() ? childPhotoUrl.trim() : undefined,
     popiaConsent: true,
+    isActive: true,
     createdAt: now,
     updatedAt: now,
   });
@@ -3029,8 +3066,16 @@ export const getParentHomeBootstrap = functions.https.onCall(async (_data, conte
   const schoolId = user.schoolId;
   if (!schoolId) return { ok: true, moments: [] };
 
-  const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').where('parentIds', 'array-contains', uid).get();
-  const childIds = childrenSnap.docs.map((d) => d.id).slice(0, 10);
+  const childrenSnap = await db
+    .collection('schools')
+    .doc(schoolId)
+    .collection('children')
+    .where('parentIds', 'array-contains', uid)
+    .get();
+  const childIds = childrenSnap.docs
+    .filter((d) => childEnrollmentIsActive(d.data() as { isActive?: boolean }))
+    .map((d) => d.id)
+    .slice(0, 10);
   const moments: Array<{ childId: string; reportId: string; timestamp: string; imageUrl?: string; type?: string }> = [];
   for (const childId of childIds) {
     const repSnap = await db
@@ -3095,6 +3140,7 @@ export const addSiblingChild = functions.https.onCall(async (data, context) => {
     assignedTeacherId: teacherId || undefined,
     parentIds: [uid],
     popiaConsent: true,
+    isActive: true,
     createdAt: now,
     updatedAt: now,
   });
@@ -3846,6 +3892,159 @@ export const updateParent = functions.https.onCall(async (data, context) => {
   return { ok: true };
 });
 
+async function deleteParentAuthAndProfile(db: admin.firestore.Firestore, parentUid: string): Promise<void> {
+  try {
+    await admin.auth().deleteUser(parentUid);
+  } catch (e: unknown) {
+    const code =
+      typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: string }).code) : '';
+    if (code === 'auth/user-not-found') {
+      functions.logger.warn('deleteParentAuthAndProfile: auth user missing, deleting Firestore only', { parentUid });
+    } else {
+      functions.logger.error('deleteParentAuthAndProfile: auth delete failed', e);
+      const msg =
+        typeof e === 'object' &&
+        e !== null &&
+        'message' in e &&
+        typeof (e as { message: unknown }).message === 'string'
+          ? String((e as { message: string }).message)
+          : 'Failed to delete user';
+      throw new functions.https.HttpsError('internal', msg);
+    }
+  }
+  await db.collection('users').doc(parentUid).delete();
+}
+
+/** Remove parent from one child. If they are not on any other child at this school, delete their account. */
+export const principalRemoveParentFromChild = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can remove parents.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const { childId, parentUid } = data as { childId?: string; parentUid?: string };
+  if (!childId || typeof childId !== 'string' || !childId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Child ID is required.');
+  }
+  if (!parentUid || typeof parentUid !== 'string' || !parentUid.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Parent UID is required.');
+  }
+  const cid = childId.trim();
+  const puid = parentUid.trim();
+
+  const parentRef = db.collection('users').doc(puid);
+  const parentSnap = await parentRef.get();
+  if (!parentSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Parent not found.');
+  }
+  const parentProfile = parentSnap.data() as { role?: string; schoolId?: string };
+  if (parentProfile.role !== 'parent' || parentProfile.schoolId !== schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Can only remove parents in your school.');
+  }
+
+  const childRef = db.collection('schools').doc(schoolId).collection('children').doc(cid);
+  const childSnap = await childRef.get();
+  if (!childSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Child not found.');
+  }
+  const parentIdsOnChild = (childSnap.data() as { parentIds?: string[] }).parentIds ?? [];
+  if (!parentIdsOnChild.includes(puid)) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'This parent is not linked to this child.'
+    );
+  }
+
+  const now = isoNow();
+  await childRef.update({
+    parentIds: admin.firestore.FieldValue.arrayRemove(puid),
+    updatedAt: now,
+  });
+
+  const stillLinked = await db
+    .collection('schools')
+    .doc(schoolId)
+    .collection('children')
+    .where('parentIds', 'array-contains', puid)
+    .limit(1)
+    .get();
+
+  if (!stillLinked.empty) {
+    return { ok: true as const, deletedAccount: false };
+  }
+
+  await deleteParentAuthAndProfile(db, puid);
+  return { ok: true as const, deletedAccount: true };
+});
+
+/** Unlink parent from every child at the school and delete their account. Callable by principal only. */
+export const principalDeleteParent = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can delete parents.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const { parentUid } = data as { parentUid?: string };
+  if (!parentUid || typeof parentUid !== 'string' || !parentUid.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Parent UID is required.');
+  }
+  const puid = parentUid.trim();
+
+  const parentRef = db.collection('users').doc(puid);
+  const parentSnap = await parentRef.get();
+  if (!parentSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Parent not found.');
+  }
+  const parentProfile = parentSnap.data() as { role?: string; schoolId?: string };
+  if (parentProfile.role !== 'parent' || parentProfile.schoolId !== schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Can only delete parents in your school.');
+  }
+
+  const linkedSnap = await db
+    .collection('schools')
+    .doc(schoolId)
+    .collection('children')
+    .where('parentIds', 'array-contains', puid)
+    .get();
+
+  const now = isoNow();
+  const batchCap = 400;
+  let batch = db.batch();
+  let ops = 0;
+  for (const d of linkedSnap.docs) {
+    batch.update(d.ref, {
+      parentIds: admin.firestore.FieldValue.arrayRemove(puid),
+      updatedAt: now,
+    });
+    ops++;
+    if (ops >= batchCap) {
+      await batch.commit();
+      batch = db.batch();
+      ops = 0;
+    }
+  }
+  if (ops > 0) {
+    await batch.commit();
+  }
+
+  await deleteParentAuthAndProfile(db, puid);
+  return { ok: true as const, unlinkedFromChildCount: linkedSnap.size };
+});
+
 // Parent updates their child's profile (name, DOB, allergies, photoURL). Only allowed fields.
 export const updateChildProfileByParent = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
@@ -3999,7 +4198,9 @@ export const sendEventReminders = functions.pubsub
         const childrenSnap = await db.collection('schools').doc(schoolId).collection('children').get();
         const parentIds = new Set<string>();
         childrenSnap.docs.forEach((d) => {
-          const parentIdsArr = (d.data() as { parentIds?: string[] }).parentIds || [];
+          const row = d.data() as { parentIds?: string[]; isActive?: boolean };
+          if (!childEnrollmentIsActive(row)) return;
+          const parentIdsArr = row.parentIds || [];
           parentIdsArr.forEach((uid: string) => parentIds.add(uid));
         });
         const parentUserIds = await getEligibleParentUserIds(db, Array.from(parentIds), 'eventReminders');

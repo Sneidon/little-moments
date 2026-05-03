@@ -86,6 +86,30 @@ export async function inviteParentToChild(params: InviteParentParams): Promise<v
 }
 
 /** Update a parent's profile (display name, phone, isActive). */
+/** Remove parent from one child at this school. Deletes their account if they have no other children here. */
+export async function principalRemoveParentFromChild(params: {
+  childId: string;
+  parentUid: string;
+}): Promise<{ deletedAccount: boolean }> {
+  const functions = getFunctions(app);
+  const fn = httpsCallable<
+    { childId: string; parentUid: string },
+    { ok: boolean; deletedAccount?: boolean }
+  >(functions, 'principalRemoveParentFromChild');
+  const res = await fn({
+    childId: params.childId.trim(),
+    parentUid: params.parentUid.trim(),
+  });
+  return { deletedAccount: Boolean(res.data.deletedAccount) };
+}
+
+/** Unlink parent from every child at the school and delete their account and sign-in. */
+export async function principalDeleteParent(parentUid: string): Promise<void> {
+  const functions = getFunctions(app);
+  const fn = httpsCallable<{ parentUid: string }, { ok: boolean }>(functions, 'principalDeleteParent');
+  await fn({ parentUid: parentUid.trim() });
+}
+
 export async function updateParent(params: UpdateParentParams): Promise<void> {
   const functions = getFunctions(app);
   const updateParentFn = httpsCallable<

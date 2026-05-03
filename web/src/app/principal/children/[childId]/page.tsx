@@ -1,8 +1,8 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { useParams } from 'next/navigation';
-import { useState, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import { formatClassDisplay, ageFromDob } from '@/lib/formatClass';
 import { getReportsForDay, getDaysWithActivity, getActivitySummaryText } from '@/lib/reports';
 import { exportChildDetailsToPdf } from '@/lib/exportChildDetailsPdf';
@@ -12,7 +12,11 @@ import { useChildDetail } from '@/hooks/useChildDetail';
 import { useChildParents } from '@/hooks/useChildParents';
 import { useParentsManagement } from '@/hooks/useParentsManagement';
 import { useSchoolName } from '@/hooks/useSchoolName';
+import { doc, updateDoc } from 'firebase/firestore';
 import { ExportPdfOptionsDialog } from '@/components/ExportPdfOptionsDialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import type { UserProfile } from 'shared/types';
+import { db } from '@/config/firebase';
 import {
   ChildDetailHeader,
   ParentsSection,
@@ -26,6 +30,7 @@ const CHILD_EXPORT_SECTIONS = [
 ] as const;
 
 export default function ChildDetailPage() {
+  const router = useRouter();
   const { profile } = useAuth();
   const params = useParams();
   const childId = params?.childId as string;
@@ -39,6 +44,9 @@ export default function ChildDetailPage() {
     new Date().toISOString().slice(0, 10)
   );
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
+  const [pendingRemoveParent, setPendingRemoveParent] = useState<UserProfile | null>(null);
+  const [removeParentDialogBusy, setRemoveParentDialogBusy] = useState(false);
+  const [enrollmentUpdating, setEnrollmentUpdating] = useState(false);
 
   const parentManagement = useParentsManagement({
     child,
@@ -48,10 +56,59 @@ export default function ChildDetailPage() {
     setChild,
   });
 
+  useEffect(() => {
+    if (!pendingRemoveParent) setRemoveParentDialogBusy(false);
+  }, [pendingRemoveParent]);
+
+  const handleConfirmRemoveParentFromChild = async () => {
+    if (!pendingRemoveParent || removeParentDialogBusy) return;
+    setRemoveParentDialogBusy(true);
+    try {
+      const { success, deletedAccount } = await parentManagement.handleRemoveParentFromChild(
+        pendingRemoveParent.uid
+      );
+      if (success) {
+        setPendingRemoveParent(null);
+        if (deletedAccount) {
+          router.push('/principal/parents');
+        }
+      }
+    } finally {
+      setRemoveParentDialogBusy(false);
+    }
+  };
+
   const classDisplay = useCallback(
     (id: string | null | undefined) =>
       id ? formatClassDisplay(classes.find((c) => c.id === id)) || id : '—',
     [classes]
+  );
+
+  const handleSetEnrollmentActive = useCallback(
+    async (active: boolean) => {
+      if (!profile?.schoolId || !child?.id) return;
+      setEnrollmentUpdating(true);
+      try {
+        const now = new Date().toISOString();
+        await updateDoc(doc(db, 'schools', profile.schoolId, 'children', child.id), {
+          isActive: active,
+          ...(active ? {} : { classId: null }),
+          updatedAt: now,
+        });
+        setChild((prev) =>
+          prev
+            ? {
+                ...prev,
+                isActive: active,
+                ...(active ? {} : { classId: undefined }),
+              }
+            : null
+        );
+      } finally {
+        setEnrollmentUpdating(false);
+      }
+    },
+    [profile?.schoolId, child?.id, setChild]
   );
 
   const reportsForDay = getReportsForDay(reports, filterDay);
@@ -103,6 +160,23 @@ export default function ChildDetailPage() {
 
   return (
     <div className="animate-fade-in">
+      <ConfirmDialog
+        open={!!pendingRemoveParent}
+        onClose={() => setPendingRemoveParent(null)}
+        title="Remove parent from this child?"
+        message={
+          pendingRemoveParent && child
+            ? `Remove ${pendingRemoveParent.displayName || pendingRemoveParent.email || 'this parent'} from ${child.name ?? 'this child'}? They will lose access to this child’s updates. If they are not linked to any other children at your school, their account will be permanently deleted and they won’t be able to sign in.`
+            : ''
+        }
+        confirmLabel="Remove from child"
+        cancelLabel="Cancel"
+        confirmDisabled={
+          removeParentDialogBusy ||
+          Boolean(pendingRemoveParent && parentManagement.removingParentUid === pendingRemoveParent.uid)
+        }
+        onConfirm={handleConfirmRemoveParentFromChild}
+      />
       <ExportPdfOptionsDialog
         open={exportPdfOpen}
         onClose={() => setExportPdfOpen(false)}
@@ -119,7 +193,15 @@ export default function ChildDetailPage() {
         onExportPdf={openExportPdf}
         onExportCsv={handleExportCsv}
         onExportExcel={handleExportExcel}
+        enrollmentUpdating={enrollmentUpdating}
+        onSetEnrollmentActive={handleSetEnrollmentActive}
       />
+
+      {parentManagement.removeParentError ? (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+          {parentManagement.removeParentError}
+        </div>
+      ) : null}
 
       <ParentsSection
         childName={child?.name}
@@ -148,6 +230,8 @@ export default function ChildDetailPage() {
         editParentError={parentManagement.editParentError}
         onUpdateParentSubmit={parentManagement.handleUpdateParent}
         onCancelEdit={parentManagement.cancelEditParent}
+        onRequestRemoveParentFromChild={(p) => setPendingRemoveParent(p)}
+        removingParentUid={parentManagement.removingParentUid}
         showEmailInvite={parentManagement.showEmailInvite}
         emailInviteForm={parentManagement.emailInviteForm}
         setEmailInviteForm={parentManagement.setEmailInviteForm}

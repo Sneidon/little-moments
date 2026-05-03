@@ -148,7 +148,8 @@ export function BroadcastToClassScreen({ navigation }: Props) {
         const childrenSnap = await getDocs(
           query(
             collection(db, 'schools', schoolId, 'children'),
-            where('classId', '==', selectedClassId)
+            where('classId', '==', selectedClassId),
+            where('isActive', '==', true)
           )
         );
         if (cancelled) return;
@@ -180,7 +181,8 @@ export function BroadcastToClassScreen({ navigation }: Props) {
       const childrenSnap = await getDocs(
         query(
           collection(db, 'schools', schoolId, 'children'),
-          where('classId', '==', selectedClassId)
+          where('classId', '==', selectedClassId),
+          where('isActive', '==', true)
         )
       );
       const children = childrenSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Child));

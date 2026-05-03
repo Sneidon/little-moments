@@ -49,7 +49,8 @@ export function useEventRSVPs(
             getDocs(
               query(
                 collection(db, 'schools', schoolId, 'children'),
-                where('parentIds', 'array-contains', uid)
+                where('parentIds', 'array-contains', uid),
+                where('isActive', '==', true)
               )
             ),
           ]);

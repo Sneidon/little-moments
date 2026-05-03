@@ -59,7 +59,8 @@ export function ParentSelectChildToMessageScreen({ navigation }: Props) {
         const childrenSnap = await getDocs(
           query(
             collection(db, 'schools', schoolId, 'children'),
-            where('parentIds', 'array-contains', uid)
+            where('parentIds', 'array-contains', uid),
+            where('isActive', '==', true)
           )
         );
         for (const childDoc of childrenSnap.docs) {

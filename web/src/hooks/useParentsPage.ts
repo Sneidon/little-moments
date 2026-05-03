@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { principalDeleteParent, getCallableErrorMessage } from '@/services/parents';
 import { exportStaffPageToPdf, type ParentWithChildren } from '@/lib/exportStaffPagePdf';
 import { exportStaffPageToCsv } from '@/lib/exportStaffPageCsv';
 import { exportStaffPageToExcel } from '@/lib/exportStaffPageExcel';
@@ -32,6 +33,9 @@ export interface UseParentsPageResult {
   passwordResetSuccess: string | null;
   handleRequestPasswordReset: (user: UserProfile) => Promise<void>;
   clearPasswordResetFeedback: () => void;
+  deletingParentUid: string | null;
+  deleteParentError: string;
+  handleDeleteParent: (parentUid: string) => Promise<boolean>;
 }
 
 export function useParentsPage(): UseParentsPageResult {
@@ -46,6 +50,8 @@ export function useParentsPage(): UseParentsPageResult {
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
   const [passwordResetError, setPasswordResetError] = useState('');
   const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null);
+  const [deletingParentUid, setDeletingParentUid] = useState<string | null>(null);
+  const [deleteParentError, setDeleteParentError] = useState('');
 
   const load = useCallback(async () => {
     const schoolId = profile?.schoolId;
@@ -156,6 +162,24 @@ export function useParentsPage(): UseParentsPageResult {
     setPasswordResetSuccess(null);
   }, []);
 
+  const handleDeleteParent = useCallback(
+    async (parentUid: string): Promise<boolean> => {
+      setDeleteParentError('');
+      setDeletingParentUid(parentUid);
+      try {
+        await principalDeleteParent(parentUid);
+        await load();
+        return true;
+      } catch (err: unknown) {
+        setDeleteParentError(getCallableErrorMessage(err));
+        return false;
+      } finally {
+        setDeletingParentUid(null);
+      }
+    },
+    [load]
+  );
+
   return {
     loading,
     schoolName,
@@ -177,5 +201,8 @@ export function useParentsPage(): UseParentsPageResult {
     passwordResetSuccess,
     handleRequestPasswordReset,
     clearPasswordResetFeedback,
+    deletingParentUid,
+    deleteParentError,
+    handleDeleteParent,
   };
 }

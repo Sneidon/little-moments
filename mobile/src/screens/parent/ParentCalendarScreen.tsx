@@ -78,7 +78,8 @@ export function ParentCalendarScreen() {
       for (const schoolDoc of schoolsSnap.docs) {
         const q = query(
           collection(db, 'schools', schoolDoc.id, 'children'),
-          where('parentIds', 'array-contains', uid)
+          where('parentIds', 'array-contains', uid),
+          where('isActive', '==', true)
         );
         const snap = await getDocs(q);
         if (!snap.empty) {

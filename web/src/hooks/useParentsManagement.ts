@@ -7,6 +7,7 @@ import {
   checkParentEmail,
   inviteParentToChild,
   principalInviteParent,
+  principalRemoveParentFromChild,
   updateParent,
   refetchChild,
   getCallableErrorMessage,
@@ -75,6 +76,11 @@ export interface UseParentsManagementResult {
   openEmailInvite: () => void;
   closeEmailInvite: () => void;
   handleEmailInviteSubmit: (e: React.FormEvent) => Promise<void>;
+  removingParentUid: string | null;
+  removeParentError: string;
+  handleRemoveParentFromChild: (
+    parentUid: string
+  ) => Promise<{ success: boolean; deletedAccount: boolean }>;
 }
 
 const INITIAL_EMAIL_PARENT_INVITE: EmailParentInviteFormState = {
@@ -147,6 +153,8 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
   });
   const [editParentSubmitting, setEditParentSubmitting] = useState(false);
   const [editParentError, setEditParentError] = useState('');
+  const [removingParentUid, setRemovingParentUid] = useState<string | null>(null);
+  const [removeParentError, setRemoveParentError] = useState('');
 
   const startEditParent = useCallback((p: UserProfile) => {
     setEditingParentUid(p.uid);
@@ -162,6 +170,33 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
     setEditingParentUid(null);
     setEditParentError('');
   }, []);
+
+  const handleRemoveParentFromChild = useCallback(
+    async (parentUid: string): Promise<{ success: boolean; deletedAccount: boolean }> => {
+      if (!child) return { success: false, deletedAccount: false };
+      setRemoveParentError('');
+      setRemovingParentUid(parentUid);
+      try {
+        const result = await principalRemoveParentFromChild({
+          childId: child.id,
+          parentUid,
+        });
+        await refetchParents();
+        if (schoolId) {
+          const updated = await refetchChild(schoolId, child.id);
+          if (updated) setChild(updated);
+        }
+        setEditingParentUid((prev) => (prev === parentUid ? null : prev));
+        return { success: true, deletedAccount: result.deletedAccount };
+      } catch (err) {
+        setRemoveParentError(getCallableErrorMessage(err));
+        return { success: false, deletedAccount: false };
+      } finally {
+        setRemovingParentUid(null);
+      }
+    },
+    [child, schoolId, refetchParents, setChild]
+  );
 
   const handleUpdateParent = useCallback(
     async (e: React.FormEvent) => {
@@ -320,5 +355,8 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
     openEmailInvite,
     closeEmailInvite,
     handleEmailInviteSubmit,
+    removingParentUid,
+    removeParentError,
+    handleRemoveParentFromChild,
   };
 }

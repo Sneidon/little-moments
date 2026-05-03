@@ -14,7 +14,7 @@ admin.initializeApp();
 
 // Direct fallback credentials (requested) when runtime config/env is absent.
 const RESEND_API_KEY_FALLBACK = 're_S3xMBH7d_3YqMBTndWbkQxihUwyaL6sj1';
-const RESEND_FROM_FALLBACK = 'onboarding@resend.dev';
+const RESEND_FROM_FALLBACK = 'noreply@mylittlemoments.co.za';
 
 function isoNow(): string {
   return new Date().toISOString();

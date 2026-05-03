@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/config/firebase';
@@ -33,6 +33,8 @@ export default function AdminInvitesPage() {
   const [invites, setInvites] = useState<InviteTokenDoc[]>([]);
   const [resendingById, setResendingById] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+  const resendSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadInvites = async () => {
     const invitesSnap = await getDocs(collection(db, 'inviteTokens'));
@@ -56,13 +58,29 @@ export default function AdminInvitesPage() {
     })();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (resendSuccessTimeoutRef.current) clearTimeout(resendSuccessTimeoutRef.current);
+    };
+  }, []);
+
   const resendInvite = async (inviteId: string) => {
     setError(null);
+    setResendSuccess(null);
+    if (resendSuccessTimeoutRef.current) {
+      clearTimeout(resendSuccessTimeoutRef.current);
+      resendSuccessTimeoutRef.current = null;
+    }
     setResendingById((prev) => ({ ...prev, [inviteId]: true }));
     try {
       const fn = httpsCallable<{ inviteId: string }, { ok: boolean }>(getFunctions(app), 'resendPrincipalInvite');
       await fn({ inviteId });
       await loadInvites();
+      setResendSuccess('Invitation email sent again. They will receive a new link.');
+      resendSuccessTimeoutRef.current = window.setTimeout(() => {
+        setResendSuccess(null);
+        resendSuccessTimeoutRef.current = null;
+      }, 5000);
     } catch (err: unknown) {
       setError(
         err && typeof err === 'object' && 'message' in err
@@ -99,6 +117,29 @@ export default function AdminInvitesPage() {
         <SectionCard topBar="warm" className="mb-4">
           <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
         </SectionCard>
+      )}
+      {resendSuccess && (
+        <div
+          className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200"
+          role="status"
+        >
+          <span className="flex items-center justify-between gap-2">
+            {resendSuccess}
+            <button
+              type="button"
+              onClick={() => {
+                if (resendSuccessTimeoutRef.current) {
+                  clearTimeout(resendSuccessTimeoutRef.current);
+                  resendSuccessTimeoutRef.current = null;
+                }
+                setResendSuccess(null);
+              }}
+              className="shrink-0 underline"
+            >
+              Dismiss
+            </button>
+          </span>
+        </div>
       )}
 
       {loading ? (

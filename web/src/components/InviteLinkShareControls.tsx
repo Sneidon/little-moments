@@ -8,6 +8,8 @@ export interface InviteLinkShareControlsProps {
   /** Firestore invite doc id (= bearer token used in `?token=`). */
   inviteToken: string;
   disabled?: boolean;
+  /** Hide the copy-link button (e.g. admin invites: QR + PDF only). */
+  hideCopyLink?: boolean;
   onCopySuccess?: () => void;
   /** Clipboard blocked or unavailable — parent can show URL. */
   onCopyFail?: (inviteUrl: string) => void;
@@ -19,6 +21,7 @@ const btnClass =
 export function InviteLinkShareControls({
   inviteToken,
   disabled,
+  hideCopyLink,
   onCopySuccess,
   onCopyFail,
 }: InviteLinkShareControlsProps) {
@@ -36,9 +39,11 @@ export function InviteLinkShareControls({
 
   return (
     <>
-      <button type="button" onClick={() => copyLink()} disabled={disabled} className={btnClass}>
-        Copy link
-      </button>
+      {!hideCopyLink ? (
+        <button type="button" onClick={() => copyLink()} disabled={disabled} className={btnClass}>
+          Copy link
+        </button>
+      ) : null}
       <button type="button" onClick={() => setQrOpen(true)} disabled={disabled} className={btnClass}>
         QR code
       </button>

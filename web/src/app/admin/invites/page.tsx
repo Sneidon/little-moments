@@ -6,6 +6,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/config/firebase';
 import { app } from '@/config/firebase';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
 
 type InviteTokenDoc = {
@@ -15,7 +16,8 @@ type InviteTokenDoc = {
   createdSchoolId?: string;
   schoolName?: string;
   email: string;
-  role: 'principal' | 'teacher';
+  role: 'principal' | 'teacher' | 'super_admin';
+  inviteeDisplayName?: string;
   expiresAt: string;
   usedAt?: string;
   createdAt: string;
@@ -34,7 +36,7 @@ export default function AdminInvitesPage() {
   const [resendingById, setResendingById] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
-  const resendSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resendSuccessTimeoutRef = useRef<number | null>(null);
 
   const loadInvites = async () => {
     const invitesSnap = await getDocs(collection(db, 'inviteTokens'));
@@ -64,7 +66,7 @@ export default function AdminInvitesPage() {
     };
   }, []);
 
-  const resendInvite = async (inviteId: string) => {
+  const resendInvite = async (inviteId: string, role: InviteTokenDoc['role']) => {
     setError(null);
     setResendSuccess(null);
     if (resendSuccessTimeoutRef.current) {
@@ -73,7 +75,8 @@ export default function AdminInvitesPage() {
     }
     setResendingById((prev) => ({ ...prev, [inviteId]: true }));
     try {
-      const fn = httpsCallable<{ inviteId: string }, { ok: boolean }>(getFunctions(app), 'resendPrincipalInvite');
+      const callableName = role === 'super_admin' ? 'resendSuperAdminInvite' : 'resendPrincipalInvite';
+      const fn = httpsCallable<{ inviteId: string }, { ok: boolean }>(getFunctions(app), callableName);
       await fn({ inviteId });
       await loadInvites();
       setResendSuccess('Invitation email sent again. They will receive a new link.');
@@ -103,8 +106,8 @@ export default function AdminInvitesPage() {
     <div className="animate-fade-in">
       <PageHero
         variant="full"
-        title={<span className="text-gradient-warm">Principal invites</span>}
-        subtitle="Track all invite links and onboarding status."
+        title={<span className="text-gradient-warm">Invitations</span>}
+        subtitle="Principal school invites and super administrator invites. Track onboarding status."
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -152,8 +155,8 @@ export default function AdminInvitesPage() {
             <table className="data-table">
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">School</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Principal email</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">School / context</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Invite email</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Role</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Created</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-200">Expires</th>
@@ -165,10 +168,18 @@ export default function AdminInvitesPage() {
                 {invites.map((invite) => {
                   const createdSchoolId = invite.createdSchoolId || invite.schoolId;
                   const status = inviteStatus(invite);
+                  const isSuperAdminInvite = invite.role === 'super_admin';
                   return (
                     <tr key={invite.id} className="border-t border-slate-100 dark:border-slate-600">
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                        {createdSchoolId ? (
+                        {isSuperAdminInvite ? (
+                          <span className="text-slate-600 dark:text-slate-300">
+                            Platform super admin
+                            {invite.inviteeDisplayName ? (
+                              <> · <span className="text-slate-700 dark:text-slate-200">{invite.inviteeDisplayName}</span></>
+                            ) : null}
+                          </span>
+                        ) : createdSchoolId ? (
                           <Link href={`/admin/schools/${createdSchoolId}`} className="text-primary-600 hover:underline dark:text-primary-400">
                             {invite.schoolName || 'School'}
                           </Link>
@@ -197,7 +208,7 @@ export default function AdminInvitesPage() {
                         {status !== 'ACCEPTED' ? (
                           <button
                             type="button"
-                            onClick={() => resendInvite(invite.id)}
+                            onClick={() => resendInvite(invite.id, invite.role)}
                             disabled={Boolean(resendingById[invite.id])}
                             className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                           >

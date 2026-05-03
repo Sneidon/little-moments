@@ -8,7 +8,9 @@ import { app, auth } from '@/config/firebase';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { HeartIcon } from '@/components/HeartIcon';
 
-type AcceptInviteResponse = { ok: true; principalUid: string; schoolId: string; customToken: string };
+type AcceptInviteResponse =
+  | { ok: true; principalUid: string; schoolId: string; customToken: string }
+  | { ok: true; superAdminUid: string; customToken: string };
 
 export default function AcceptInviteClient() {
   const searchParams = useSearchParams();
@@ -39,9 +41,11 @@ export default function AcceptInviteClient() {
         'acceptInviteToken'
       );
       const res = await fn({ token, password, displayName: displayName.trim() || undefined });
-      await signInWithCustomToken(auth, res.data.customToken);
+      const payload = res.data as AcceptInviteResponse;
+      await signInWithCustomToken(auth, payload.customToken);
       setDone(true);
-      router.replace('/principal');
+      const nextPath = 'principalUid' in payload && payload.principalUid ? '/principal' : '/admin';
+      router.replace(nextPath);
     } catch (err: unknown) {
       const message =
         err && typeof err === 'object' && 'message' in err

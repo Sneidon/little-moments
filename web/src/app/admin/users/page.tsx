@@ -29,6 +29,8 @@ const INITIAL_ADD_FORM: AddSuperAdminFormState = {
   password: '',
 };
 
+const INITIAL_INVITE_FORM = { email: '', displayName: '' };
+
 function getCallableErrorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) return String((err as { message: string }).message);
   if (err && typeof err === 'object' && 'details' in err) return String((err as { details: unknown }).details);
@@ -44,6 +46,11 @@ export default function AdminUsersPage() {
   const [addForm, setAddForm] = useState<AddSuperAdminFormState>(INITIAL_ADD_FORM);
   const [addError, setAddError] = useState('');
   const [addSubmitting, setAddSubmitting] = useState(false);
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteForm, setInviteForm] = useState(INITIAL_INVITE_FORM);
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteResult, setInviteResult] = useState<{ token: string; expiresAt: string } | null>(null);
   const [pendingPasswordReset, setPendingPasswordReset] = useState<SuperAdminUser | null>(null);
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
   const [passwordResetError, setPasswordResetError] = useState('');
@@ -85,8 +92,51 @@ export default function AdminUsersPage() {
   const openAddForm = useCallback(() => {
     setAddError('');
     setAddForm(INITIAL_ADD_FORM);
+    setShowInviteForm(false);
+    setInviteResult(null);
+    setInviteError('');
     setShowAddForm(true);
   }, []);
+
+  const openInviteForm = useCallback(() => {
+    setShowAddForm(false);
+    setAddError('');
+    setInviteForm(INITIAL_INVITE_FORM);
+    setInviteResult(null);
+    setInviteError('');
+    setShowInviteForm(true);
+  }, []);
+
+  const sendAdminInvite = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setInviteError('');
+      setInviteResult(null);
+      const emailTrim = inviteForm.email.trim().toLowerCase();
+      if (!emailTrim || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+        setInviteError('A valid email is required.');
+        return;
+      }
+      setInviteSubmitting(true);
+      try {
+        const fn = httpsCallable<
+          { email: string; displayName?: string },
+          { token: string; expiresAt: string }
+        >(getFunctions(app), 'adminInviteSuperAdmin');
+        const res = await fn({
+          email: emailTrim,
+          displayName: inviteForm.displayName.trim() || undefined,
+        });
+        setInviteResult({ token: res.data.token, expiresAt: res.data.expiresAt });
+        setInviteForm(INITIAL_INVITE_FORM);
+      } catch (err: unknown) {
+        setInviteError(getCallableErrorMessage(err));
+      } finally {
+        setInviteSubmitting(false);
+      }
+    },
+    [inviteForm.email, inviteForm.displayName]
+  );
 
   const handleAddSuperAdmin = useCallback(
     async (e: React.FormEvent) => {
@@ -193,8 +243,99 @@ export default function AdminUsersPage() {
       <PageHero
         variant="full"
         title={<span className="text-gradient-warm">Users</span>}
-        subtitle="Overview by school. Click a school to view and manage its users."
+        subtitle="Invite administrators by email, or overview users by school below."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                openInviteForm();
+              }}
+              className="btn-primary"
+            >
+              Invite super admin
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                openAddForm();
+              }}
+              className="btn-secondary"
+            >
+              Add super admin
+            </button>
+          </div>
+        }
       />
+
+      {showInviteForm && (
+        <SectionCard topBar="accent" className="mb-6">
+          <form onSubmit={sendAdminInvite}>
+            <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-100">Invite super admin</h2>
+            <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+              Sends an email with a secure link — same flow as inviting a school principal. They set their password on first
+              open, then join the Admin console.
+            </p>
+            {inviteError && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{inviteError}</p>}
+            {inviteResult && (
+              <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-100 dark:bg-green-900/20 dark:text-green-200 dark:ring-green-800">
+                <p className="font-semibold">Invite sent.</p>
+                <p className="mt-1">
+                  Expires at: <span className="font-mono">{inviteResult.expiresAt}</span>
+                </p>
+                <p className="mt-2 text-green-700/90 dark:text-green-300/90">
+                  Track status under Admin →{' '}
+                  <Link href="/admin/invites" className="underline">
+                    Invites
+                  </Link>
+                  .
+                </p>
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+                <input
+                  type="email"
+                  value={inviteForm.email}
+                  onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  placeholder="admin@school.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Display name (optional)</label>
+                <input
+                  type="text"
+                  value={inviteForm.displayName}
+                  onChange={(e) => setInviteForm((f) => ({ ...f, displayName: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  placeholder="e.g. Jane Smith"
+                  autoComplete="name"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button type="submit" disabled={inviteSubmitting} className="btn-primary">
+                {inviteSubmitting ? 'Sending…' : 'Send invite'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowInviteForm(false);
+                  setInviteResult(null);
+                  setInviteError('');
+                }}
+                className="btn-secondary"
+              >
+                Close
+              </button>
+            </div>
+          </form>
+        </SectionCard>
+      )}
 
       {showAddForm && (
         <SectionCard topBar="primary" className="mb-6">
@@ -204,7 +345,9 @@ export default function AdminUsersPage() {
           error={addError}
           submitting={addSubmitting}
           onSubmit={handleAddSuperAdmin}
-          onCancel={() => setShowAddForm(false)}
+          onCancel={() => {
+            setShowAddForm(false);
+          }}
         />
         </SectionCard>
       )}
@@ -258,19 +401,13 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {(superAdmins.length > 0 || showAddForm) && (
+      {(superAdmins.length > 0 || showAddForm || showInviteForm) && (
         <SectionCard topBar="warm" padding="default" className="mb-6">
           <div className="flex flex-wrap items-center gap-4">
             <div>
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Super admins</span>
               <p className="text-xl font-semibold text-slate-800 dark:text-slate-100">{superAdmins.length}</p>
             </div>
-            <div className="flex-1" />
-            {!showAddForm && (
-              <button type="button" onClick={openAddForm} className="btn-primary text-sm">
-                Add super admin
-              </button>
-            )}
           </div>
         </SectionCard>
       )}

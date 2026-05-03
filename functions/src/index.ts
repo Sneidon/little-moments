@@ -253,6 +253,49 @@ async function sendPrincipalInviteEmail(params: {
   });
 }
 
+function superAdminInviteEmailHtml(params: {
+  inviteeName: string;
+  acceptUrl: string;
+  expiresInDays: number;
+}): string {
+  const { inviteeName, acceptUrl, expiresInDays } = params;
+  return `
+  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
+    <div style="max-width:560px;margin:0 auto;padding:24px">
+      <h1 style="margin:0 0 12px;font-size:22px">You're invited as a My Little Moments administrator</h1>
+      <p style="margin:0 0 16px">Hi ${escapeHtml(inviteeName)},</p>
+      <p style="margin:0 0 16px">You've been invited to join as a <strong>super administrator</strong>. Accept below to choose your password and access the Admin console.</p>
+      <p style="margin:24px 0">
+        <a href="${acceptUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
+          Accept Invite
+        </a>
+      </p>
+      <p style="margin:0 0 16px;color:#475569;font-size:13px">This link expires in ${expiresInDays} days.</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+    </div>
+  </div>
+  `;
+}
+
+async function sendSuperAdminInviteEmail(params: {
+  to: string;
+  inviteeName?: string;
+  token: string;
+}): Promise<void> {
+  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  await sendResendEmail({
+    to: params.to.trim(),
+    subject: `You're invited as a My Little Moments administrator`,
+    html: superAdminInviteEmailHtml({
+      inviteeName: (params.inviteeName && params.inviteeName.trim()) ? params.inviteeName.trim() : 'there',
+      acceptUrl,
+      expiresInDays: 7,
+    }),
+  });
+}
+
 /** Keys aligned with mobile ParentNotificationsScreen / shared NotificationPreferences. */
 type ParentNotificationPrefKey =
   | 'nappyChange'
@@ -1166,6 +1209,71 @@ export const adminInvitePrincipal = functions.https.onCall(async (data, context)
   return { token, expiresAt, schoolName: schoolName.trim() };
 });
 
+/** Invite-only onboarding for additional super admins (same UX as principal school invites). */
+export const adminInviteSuperAdmin = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
+  if (callerRole !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can invite administrators.');
+  }
+
+  const { email, displayName } = data as { email?: string; displayName?: string };
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Email is required.');
+  }
+  const emailNorm = email.trim().toLowerCase();
+  if (!isValidEmail(emailNorm)) {
+    throw new functions.https.HttpsError('invalid-argument', 'A valid email is required.');
+  }
+
+  let authUser: admin.auth.UserRecord | null = null;
+  try {
+    authUser = await admin.auth().getUserByEmail(emailNorm);
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
+    if (code !== 'auth/user-not-found') throw err;
+  }
+  if (authUser) {
+    const prof = await db.collection('users').doc(authUser.uid).get();
+    if (prof.exists) {
+      const role = (prof.data() as { role?: string }).role;
+      if (role === 'super_admin') {
+        throw new functions.https.HttpsError('already-exists', 'This user is already a super administrator.');
+      }
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'This email already has an account with a different role. Use another email.'
+      );
+    }
+  }
+
+  const now = isoNow();
+  const token = randomToken(24);
+  const expiresAt = addDays(new Date(), 7).toISOString();
+  const payload: Record<string, unknown> = {
+    token,
+    email: emailNorm,
+    role: 'super_admin',
+    expiresAt,
+    createdAt: now,
+  };
+  if (displayName && typeof displayName === 'string' && displayName.trim()) {
+    payload.inviteeDisplayName = displayName.trim();
+  }
+  await db.collection('inviteTokens').doc(token).set(payload);
+
+  await sendSuperAdminInviteEmail({
+    to: emailNorm,
+    inviteeName: (displayName && typeof displayName === 'string') ? displayName.trim() || undefined : undefined,
+    token,
+  });
+
+  return { token, expiresAt };
+});
+
 // Resend principal invite. Reissues token when invite is already used or expired.
 export const resendPrincipalInvite = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
@@ -1240,7 +1348,98 @@ export const resendPrincipalInvite = functions.https.onCall(async (data, context
   return { ok: true, inviteId: inviteIdToReturn, token: tokenToSend, expiresAt: expiresAtToReturn, reissued: needsReissue };
 });
 
-// Accept an invite token (principal onboarding). Creates principal Auth user + users/{uid} profile and activates the school.
+/** Resend super admin invite token (reuse or reissue when used/expired). */
+export const resendSuperAdminInvite = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
+  if (callerRole !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can resend admin invites.');
+  }
+
+  const { inviteId } = data as { inviteId?: string };
+  if (!inviteId || typeof inviteId !== 'string' || !inviteId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'inviteId is required.');
+  }
+  const inviteRef = db.collection('inviteTokens').doc(inviteId.trim());
+  const inviteSnap = await inviteRef.get();
+  if (!inviteSnap.exists) throw new functions.https.HttpsError('not-found', 'Invite not found.');
+  const invite = inviteSnap.data() as {
+    token: string;
+    email: string;
+    role: string;
+    inviteeDisplayName?: string;
+    expiresAt: string;
+    usedAt?: string;
+  };
+  if (invite.role !== 'super_admin') {
+    throw new functions.https.HttpsError('failed-precondition', 'Only super admin invites can be resent from this action.');
+  }
+  if (invite.usedAt) {
+    throw new functions.https.HttpsError('failed-precondition', 'Invite already accepted.');
+  }
+
+  const now = isoNow();
+  const expired = new Date(invite.expiresAt).getTime() < Date.now();
+  const needsReissue = expired;
+
+  let tokenToSend = invite.token;
+  let inviteIdToReturn = inviteRef.id;
+  let expiresAtToReturn = invite.expiresAt;
+  if (needsReissue) {
+    tokenToSend = randomToken(24);
+    expiresAtToReturn = addDays(new Date(), 7).toISOString();
+    const payload: Record<string, unknown> = {
+      token: tokenToSend,
+      email: invite.email,
+      role: invite.role,
+      expiresAt: expiresAtToReturn,
+      createdAt: now,
+      resentFromInviteId: inviteRef.id,
+    };
+    if (invite.inviteeDisplayName) payload.inviteeDisplayName = invite.inviteeDisplayName;
+    const newRef = db.collection('inviteTokens').doc(tokenToSend);
+    await newRef.set(payload);
+    inviteIdToReturn = newRef.id;
+  } else {
+    await inviteRef.set({ lastResentAt: now }, { merge: true });
+  }
+
+  await sendSuperAdminInviteEmail({
+    to: invite.email,
+    inviteeName: invite.inviteeDisplayName,
+    token: tokenToSend,
+  });
+
+  return { ok: true, inviteId: inviteIdToReturn, token: tokenToSend, expiresAt: expiresAtToReturn, reissued: needsReissue };
+});
+
+/** Remove an inviteTokens document (revoke unused link or clear record). Callable by super_admin only. */
+export const deleteInviteToken = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
+  if (callerRole !== 'super_admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only super admins can delete invites.');
+  }
+
+  const { inviteId } = data as { inviteId?: string };
+  if (!inviteId || typeof inviteId !== 'string' || !inviteId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'inviteId is required.');
+  }
+  const inviteRef = db.collection('inviteTokens').doc(inviteId.trim());
+  const inviteSnap = await inviteRef.get();
+  if (!inviteSnap.exists) throw new functions.https.HttpsError('not-found', 'Invite not found.');
+
+  await inviteRef.delete();
+  return { ok: true };
+});
+
+// Accept an invite token: principal onboarding (school) or super admin onboarding (Admin console).
 export const acceptInviteToken = functions.https.onCall(async (data, context) => {
   // Public-ish: no auth required (token is bearer secret).
   const { token, password, displayName } = data as { token?: string; password?: string; displayName?: string };
@@ -1261,6 +1460,7 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     role: string;
     schoolName?: string;
     principalName?: string;
+    inviteeDisplayName?: string;
     logoUrl?: string;
     schoolId?: string;
     createdSchoolId?: string;
@@ -1268,13 +1468,84 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     usedAt?: string;
   };
   if (invite.usedAt) throw new functions.https.HttpsError('failed-precondition', 'Invite token already used.');
-  if (invite.role !== 'principal') throw new functions.https.HttpsError('failed-precondition', 'Invite token role mismatch.');
   if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) {
     throw new functions.https.HttpsError('failed-precondition', 'Invite token expired.');
   }
 
-  const email = invite.email.trim();
+  const emailRaw = invite.email.trim();
+  const emailNorm = emailRaw.toLowerCase();
   const now = isoNow();
+
+  if (invite.role === 'super_admin') {
+    const displayFromForm =
+      displayName && typeof displayName === 'string' && displayName.trim()
+        ? displayName.trim()
+        : null;
+    const displayFromInvite =
+      invite.inviteeDisplayName && typeof invite.inviteeDisplayName === 'string' && invite.inviteeDisplayName.trim()
+        ? invite.inviteeDisplayName.trim()
+        : null;
+
+    let superUid: string;
+    try {
+      const existing = await admin.auth().getUserByEmail(emailNorm);
+      superUid = existing.uid;
+      const profSnap = await db.collection('users').doc(superUid).get();
+      if (profSnap.exists) {
+        const role = (profSnap.data() as { role?: string }).role;
+        if (role && role !== 'super_admin') {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'This email already has an account with a different role.'
+          );
+        }
+        if (role === 'super_admin') {
+          throw new functions.https.HttpsError('failed-precondition', 'This account is already a super administrator.');
+        }
+      }
+      const authDisplay =
+        displayFromForm ?? displayFromInvite ?? existing.displayName ?? emailRaw;
+      await admin.auth().updateUser(superUid, {
+        password,
+        displayName: authDisplay,
+      });
+    } catch (err: unknown) {
+      if (err instanceof functions.https.HttpsError) throw err;
+      const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+      if (code !== 'auth/user-not-found') throw err;
+      const newDisplay = displayFromForm ?? displayFromInvite ?? emailRaw;
+      const userRecord = await admin.auth().createUser({
+        email: emailNorm,
+        password,
+        displayName: newDisplay,
+      });
+      superUid = userRecord.uid;
+    }
+
+    const finalDisplayName = displayFromForm ?? displayFromInvite ?? emailRaw;
+    const userRef = db.collection('users').doc(superUid);
+    const priorSnap = await userRef.get();
+    const userPayload: Record<string, unknown> = {
+      email: emailNorm,
+      displayName: finalDisplayName,
+      role: 'super_admin',
+      isActive: true,
+      updatedAt: now,
+    };
+    if (!priorSnap.exists) userPayload.createdAt = now;
+    await userRef.set(userPayload, { merge: true });
+
+    await ref.update({ usedAt: now });
+
+    const customToken = await admin.auth().createCustomToken(superUid);
+    return { ok: true as const, superAdminUid: superUid, customToken };
+  }
+
+  if (invite.role !== 'principal') {
+    throw new functions.https.HttpsError('failed-precondition', 'Invite token role mismatch.');
+  }
+
+  const email = emailNorm;
 
   // Create or reuse existing auth user for this email.
   let principalUid: string;
@@ -1283,7 +1554,9 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     principalUid = existing.uid;
     await admin.auth().updateUser(principalUid, {
       password,
-      displayName: (displayName && typeof displayName === 'string' && displayName.trim()) ? displayName.trim() : existing.displayName ?? email,
+      displayName: (displayName && typeof displayName === 'string' && displayName.trim())
+        ? displayName.trim()
+        : existing.displayName ?? email,
     });
   } catch (err: unknown) {
     const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
@@ -1291,7 +1564,9 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     const userRecord = await admin.auth().createUser({
       email,
       password,
-      displayName: (displayName && typeof displayName === 'string' && displayName.trim()) ? displayName.trim() : email,
+      displayName: (displayName && typeof displayName === 'string' && displayName.trim())
+        ? displayName.trim()
+        : email,
     });
     principalUid = userRecord.uid;
   }
@@ -1348,9 +1623,8 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     ref.update({ usedAt: now, createdSchoolId: schoolId }),
   ]);
 
-  // Create a custom token so the web can sign in without needing password again.
   const customToken = await admin.auth().createCustomToken(principalUid);
-  return { ok: true, principalUid, schoolId, customToken };
+  return { ok: true as const, principalUid, schoolId, customToken };
 });
 
 type QrMode = 'WEB_FORM' | 'WHATSAPP_DEEP_LINK';

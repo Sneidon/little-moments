@@ -9,6 +9,7 @@ import { app } from '@/config/firebase';
 import { InviteLinkShareControls } from '@/components/InviteLinkShareControls';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
+import { downloadAdminInviteHandoutPdf } from '@/lib/exportAdminInvitePdf';
 
 function inviteFirestoreToken(invite: { id: string; token?: string }): string {
   return invite.token?.trim() || invite.id;
@@ -20,6 +21,8 @@ type InviteTokenDoc = {
   schoolId?: string;
   createdSchoolId?: string;
   schoolName?: string;
+  principalName?: string;
+  className?: string;
   childId?: string;
   childName?: string;
   email: string;
@@ -46,6 +49,7 @@ export default function AdminInvitesPage() {
   const [error, setError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const resendSuccessTimeoutRef = useRef<number | null>(null);
+  const [pdfGeneratingById, setPdfGeneratingById] = useState<Record<string, boolean>>({});
 
   const loadInvites = async () => {
     const invitesSnap = await getDocs(collection(db, 'inviteTokens'));
@@ -169,7 +173,7 @@ export default function AdminInvitesPage() {
       <PageHero
         variant="full"
         title={<span className="text-gradient-warm">Invitations</span>}
-        subtitle="Principal, teacher, parent, and super admin invites. Copy link or QR code for any row that is not yet accepted, resend email, or delete."
+        subtitle="Principal, teacher, parent, and super admin invites. QR code or printable PDF for pending invites, resend email, or delete."
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -300,23 +304,49 @@ export default function AdminInvitesPage() {
                           {status !== 'ACCEPTED' ? (
                             <InviteLinkShareControls
                               inviteToken={inviteFirestoreToken(invite)}
+                              hideCopyLink
                               disabled={Boolean(resendingById[invite.id] || deletingById[invite.id])}
-                              onCopySuccess={() => {
-                                setError(null);
-                                setResendSuccess('Invite link copied. Paste into SMS, WhatsApp, or email.');
-                                if (resendSuccessTimeoutRef.current) {
-                                  clearTimeout(resendSuccessTimeoutRef.current);
-                                  resendSuccessTimeoutRef.current = null;
-                                }
-                                resendSuccessTimeoutRef.current = window.setTimeout(() => {
-                                  setResendSuccess(null);
-                                  resendSuccessTimeoutRef.current = null;
-                                }, 5000);
-                              }}
-                              onCopyFail={(u) => {
-                                setError(`Could not copy to clipboard. Send this link manually: ${u}`);
-                              }}
                             />
+                          ) : null}
+                          {status !== 'ACCEPTED' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void (async () => {
+                                  setError(null);
+                                  setPdfGeneratingById((prev) => ({ ...prev, [invite.id]: true }));
+                                  try {
+                                    await downloadAdminInviteHandoutPdf(invite);
+                                    setResendSuccess('PDF downloaded with invite details and QR.');
+                                    if (resendSuccessTimeoutRef.current) {
+                                      clearTimeout(resendSuccessTimeoutRef.current);
+                                      resendSuccessTimeoutRef.current = null;
+                                    }
+                                    resendSuccessTimeoutRef.current = window.setTimeout(() => {
+                                      setResendSuccess(null);
+                                      resendSuccessTimeoutRef.current = null;
+                                    }, 5000);
+                                  } catch {
+                                    setError(
+                                      'Could not generate PDF. Try another browser or check that the invite loaded correctly.'
+                                    );
+                                  } finally {
+                                    setPdfGeneratingById((prev) => ({ ...prev, [invite.id]: false }));
+                                  }
+                                })();
+                              }}
+                              disabled={
+                                Boolean(
+                                  pdfGeneratingById[invite.id] ||
+                                    resendingById[invite.id] ||
+                                    deletingById[invite.id]
+                                )
+                              }
+                              title="Download printable PDF (same messaging as email + QR)"
+                              className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                            >
+                              {pdfGeneratingById[invite.id] ? 'Generating…' : 'Download PDF'}
+                            </button>
                           ) : null}
                           {status !== 'ACCEPTED' ? (
                             <button

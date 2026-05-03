@@ -205,8 +205,7 @@ export function ReportDetailScreen({ route }: Props) {
     // Metric: time to first photo view (once per parent).
     if (!data) return;
     if (profile?.role !== 'parent') return;
-    const psRd = (profile as any).parentStatus as string | undefined;
-    if (psRd === 'PENDING_APPROVAL' || psRd === 'REJECTED') return;
+    if ((profile as any).parentStatus !== 'ACTIVE') return;
     const imageUrl = str((data as any).imageUrl);
     if (!imageUrl) return;
     try {

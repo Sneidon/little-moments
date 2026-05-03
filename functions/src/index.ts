@@ -31,13 +31,6 @@ function childEnrollmentIsActive(data: { isActive?: boolean }): boolean {
   return data?.isActive !== false;
 }
 
-/** Legacy parents may omit parentStatus; treat as ACTIVE. Deny only explicit pending/rejected. */
-function parentHasFullAccess(data: { parentStatus?: string | null }): boolean {
-  const s = data?.parentStatus;
-  if (s == null || s === '') return true;
-  return s === 'ACTIVE';
-}
-
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
@@ -3647,7 +3640,7 @@ export const recordParentFirstLogin = functions.https.onCall(async (_data, conte
   if (!snap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
   const d = snap.data() as { role?: string; parentStatus?: string; firstLoginAt?: string };
   if (d.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
-  if (!parentHasFullAccess(d)) throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  if (d.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
   if (d.firstLoginAt) return { ok: true, firstLoginAt: d.firstLoginAt };
   const now = isoNow();
   await db.collection('users').doc(uid).update({ firstLoginAt: now, updatedAt: now });
@@ -3662,7 +3655,7 @@ export const completeParentOnboardingTour = functions.https.onCall(async (_data,
   if (!snap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
   const d = snap.data() as { role?: string; parentStatus?: string };
   if (d.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
-  if (!parentHasFullAccess(d)) throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  if (d.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
   const now = isoNow();
   await db.collection('users').doc(uid).set({ onboardingTourCompletedAt: now, updatedAt: now }, { merge: true });
   return { ok: true };
@@ -3677,7 +3670,7 @@ export const getParentHomeBootstrap = functions.https.onCall(async (_data, conte
   if (!userSnap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
   const user = userSnap.data() as { role?: string; parentStatus?: string; schoolId?: string };
   if (user.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
-  if (!parentHasFullAccess(user)) throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  if (user.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
   const schoolId = user.schoolId;
   if (!schoolId) return { ok: true, moments: [] };
 
@@ -3720,7 +3713,7 @@ export const addSiblingChild = functions.https.onCall(async (data, context) => {
   if (!userSnap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
   const user = userSnap.data() as { role?: string; parentStatus?: string; schoolId?: string; displayName?: string; email?: string };
   if (user.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can add children.');
-  if (!parentHasFullAccess(user)) throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  if (user.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
   if (!user.schoolId) throw new functions.https.HttpsError('failed-precondition', 'Missing schoolId.');
   const schoolId = user.schoolId;
 
@@ -3803,7 +3796,7 @@ export const recordFirstPhotoViewed = functions.https.onCall(async (data, contex
   if (!userSnap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
   const user = userSnap.data() as { role?: string; parentStatus?: string; firstPhotoViewedAt?: string };
   if (user.role !== 'parent') throw new functions.https.HttpsError('permission-denied', 'Only parents can use this.');
-  if (!parentHasFullAccess(user)) throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
+  if (user.parentStatus !== 'ACTIVE') throw new functions.https.HttpsError('permission-denied', 'Parent not active.');
   if (user.firstPhotoViewedAt) return { ok: true, firstPhotoViewedAt: user.firstPhotoViewedAt };
   const now = isoNow();
   await userRef.set({ firstPhotoViewedAt: now, updatedAt: now }, { merge: true });

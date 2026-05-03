@@ -16,17 +16,10 @@ service firebase.storage {
             && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.schoolId == schoolId)
       );
     }
-    function callerUserData() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
-    }
-    // Legacy: parentStatus omitted => full access (matches Firestore rules).
-    function parentStatusAllowsParentAccess() {
-      return !('parentStatus' in callerUserData()) || callerUserData().parentStatus == 'ACTIVE';
-    }
     function isActiveParent() {
       return request.auth != null
         && request.auth.token.role == 'parent'
-        && parentStatusAllowsParentAccess();
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.parentStatus == 'ACTIVE';
     }
     match /schools/{schoolId}/children/{childId}/photos/{allPaths=**} {
       allow read: if request.auth != null

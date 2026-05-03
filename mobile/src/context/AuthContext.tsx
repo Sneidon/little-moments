@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -18,22 +17,11 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function selectedChildStorageKey(uid: string) {
-  return `lm_parent_selected_child:${uid}`;
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-
-  /** Remember parent’s Home tab child picker across sessions. */
-  useEffect(() => {
-    const uid = user?.uid;
-    if (!uid || !selectedChildId) return;
-    void AsyncStorage.setItem(selectedChildStorageKey(uid), selectedChildId).catch(() => {});
-  }, [user?.uid, selectedChildId]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -43,12 +31,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSelectedChildId(null);
         setLoading(false);
         return;
-      }
-      try {
-        const stored = await AsyncStorage.getItem(selectedChildStorageKey(u.uid));
-        setSelectedChildId(stored?.trim() || null);
-      } catch {
-        setSelectedChildId(null);
       }
       const cacheKey = `profile:${u.uid}`;
       try {
@@ -68,9 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           registerForPushNotifications().catch(() => {});
 
           // Parent activation: record first login once approved (fire-and-forget).
-          const ps = (profileData as any).parentStatus as string | undefined;
-          const parentActsActive = ps == null || ps === '' || ps === 'ACTIVE';
-          if ((profileData as any).role === 'parent' && parentActsActive && !(profileData as any).firstLoginAt) {
+          if ((profileData as any).role === 'parent' && (profileData as any).parentStatus === 'ACTIVE' && !(profileData as any).firstLoginAt) {
             try {
               const record = httpsCallable(getFunctions(app), 'recordParentFirstLogin');
               record({}).catch(() => {});

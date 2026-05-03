@@ -115,28 +115,13 @@ export function ParentHomeScreen({
   const [tourShown, setTourShown] = useState(false);
   const [latestMoments, setLatestMoments] = useState<Array<{ childId: string; reportId: string; timestamp: string; imageUrl?: string; type?: string }>>([]);
 
-  /** Align chip highlight, hero, and reports when id is null or no longer in the roster. */
-  const resolvedChildId = useMemo(() => {
-    if (!children.length) return null;
-    if (selectedChildId && children.some((c) => c.id === selectedChildId)) return selectedChildId;
-    return children[0].id;
-  }, [children, selectedChildId]);
-
-  useEffect(() => {
-    if (resolvedChildId != null && resolvedChildId !== selectedChildId) {
-      setSelectedChildId(resolvedChildId);
-    }
-  }, [resolvedChildId, selectedChildId, setSelectedChildId]);
-
-  const selectedChild =
-    resolvedChildId != null ? children.find((c) => c.id === resolvedChildId) : undefined;
+  const selectedChild = children.find((c) => c.id === selectedChildId) ?? children[0];
   const rootStack = navigation.getParent() as RootNav;
 
   useEffect(() => {
     if (tourShown) return;
     if (profile?.role !== 'parent') return;
-    const psTour = (profile as any).parentStatus as string | undefined;
-    if (psTour === 'PENDING_APPROVAL' || psTour === 'REJECTED') return;
+    if ((profile as any).parentStatus !== 'ACTIVE') return;
     if ((profile as any).onboardingTourCompletedAt) return;
     // Show a simple 2-step tour (mobile-friendly).
     setTourShown(true);
@@ -160,8 +145,7 @@ export function ParentHomeScreen({
 
   useEffect(() => {
     if (profile?.role !== 'parent') return;
-    const psBoot = (profile as any).parentStatus as string | undefined;
-    if (psBoot === 'PENDING_APPROVAL' || psBoot === 'REJECTED') return;
+    if ((profile as any).parentStatus !== 'ACTIVE') return;
     let cancelled = false;
     (async () => {
       try {
@@ -408,24 +392,20 @@ export function ParentHomeScreen({
             </View>
           </TouchableOpacity>
 
-          {latestMoments.length > 0 ? (
+          {latestMoments.length > 0 && profile?.schoolId ? (
             <View style={styles.latestMomentsCard}>
               <Text style={styles.latestMomentsTitle}>Latest moments</Text>
-              {latestMoments.map((m) => {
-                const schoolForMoment =
-                  children.find((c) => c.id === m.childId)?.schoolId ?? profile?.schoolId;
-                return (
+              {latestMoments.map((m) => (
                 <TouchableOpacity
                   key={`${m.childId}:${m.reportId}`}
                   style={styles.latestMomentRow}
-                  onPress={() => {
-                    if (!schoolForMoment) return;
+                  onPress={() =>
                     rootStack?.navigate('ReportDetail', {
-                      schoolId: schoolForMoment as string,
+                      schoolId: profile.schoolId as string,
                       childId: m.childId,
                       reportId: m.reportId,
-                    });
-                  }}
+                    })
+                  }
                   activeOpacity={0.75}
                 >
                   <View style={[styles.latestMomentDot, { backgroundColor: colors.accentOrange }]} />
@@ -433,8 +413,7 @@ export function ParentHomeScreen({
                     {formatParentReportLabel(m.type || 'moment')} · {new Date(m.timestamp).toLocaleString()}
                   </Text>
                 </TouchableOpacity>
-                );
-              })}
+              ))}
             </View>
           ) : null}
 
@@ -448,13 +427,13 @@ export function ParentHomeScreen({
               {children.map((c) => (
                 <TouchableOpacity
                   key={c.id}
-                  style={[styles.childChip, resolvedChildId === c.id && styles.childChipActive]}
+                  style={[styles.childChip, selectedChildId === c.id && styles.childChipActive]}
                   onPress={() => setSelectedChildId(c.id)}
                 >
                   <Text
                     style={[
                       styles.childChipText,
-                      resolvedChildId === c.id && styles.childChipTextActive,
+                      selectedChildId === c.id && styles.childChipTextActive,
                     ]}
                   >
                     {c.name}

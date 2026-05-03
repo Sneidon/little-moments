@@ -3566,6 +3566,84 @@ export const updateTeacher = functions.https.onCall(async (data, context) => {
   return { ok: true };
 });
 
+/** Remove a teacher from the school: unassign all classes & children, delete Auth + users doc. Principal only. */
+export const principalDeleteTeacher = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can delete teachers from their school.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const { teacherUid } = data as { teacherUid?: string };
+  if (!teacherUid || typeof teacherUid !== 'string' || !teacherUid.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Teacher UID is required.');
+  }
+  const targetUid = teacherUid.trim();
+
+  const teacherRef = db.collection('users').doc(targetUid);
+  const teacherSnap = await teacherRef.get();
+  if (!teacherSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Teacher not found.');
+  }
+  const teacherData = teacherSnap.data() as { role?: string; schoolId?: string };
+  if (teacherData.role !== 'teacher' || teacherData.schoolId !== schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'You can only delete teachers in your school.');
+  }
+
+  const del = admin.firestore.FieldValue.delete();
+  const batchSize = 400;
+
+  const [classesSnap, childrenSnap] = await Promise.all([
+    db.collection('schools').doc(schoolId).collection('classes').where('assignedTeacherId', '==', targetUid).get(),
+    db.collection('schools').doc(schoolId).collection('children').where('assignedTeacherId', '==', targetUid).get(),
+  ]);
+
+  const refsToClear = [...classesSnap.docs.map((d) => d.ref), ...childrenSnap.docs.map((d) => d.ref)];
+  for (let i = 0; i < refsToClear.length; i += batchSize) {
+    const slice = refsToClear.slice(i, i + batchSize);
+    const batch = db.batch();
+    for (const ref of slice) {
+      batch.update(ref, { assignedTeacherId: del });
+    }
+    await batch.commit();
+  }
+
+  try {
+    await admin.auth().deleteUser(targetUid);
+  } catch (e: unknown) {
+    const code =
+      typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: string }).code) : '';
+    if (code === 'auth/user-not-found') {
+      functions.logger.warn('principalDeleteTeacher: auth user missing, deleting Firestore profile only', {
+        targetUid,
+      });
+    } else {
+      functions.logger.error('principalDeleteTeacher: auth delete failed', e);
+      const msg =
+        typeof e === 'object' &&
+        e !== null &&
+        'message' in e &&
+        typeof (e as { message: unknown }).message === 'string'
+          ? String((e as { message: string }).message)
+          : 'Failed to delete user';
+      throw new functions.https.HttpsError('internal', msg);
+    }
+  }
+
+  await teacherRef.delete();
+  return {
+    ok: true as const,
+    unassignedClassCount: classesSnap.size,
+    unassignedChildCount: childrenSnap.size,
+  };
+});
+
 // Check whether a user with this email already exists. Callable by principal only.
 // Used to decide whether to "link existing" or "create & link" when inviting a parent.
 export const checkParentEmail = functions.https.onCall(async (data, context) => {

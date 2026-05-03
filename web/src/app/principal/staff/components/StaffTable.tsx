@@ -9,8 +9,10 @@ export interface StaffTableProps {
   classForTeacher: (uid: string) => string | undefined;
   formatDate: (s: string | undefined) => string;
   onEditTeacher: (u: UserProfile) => void;
+  onDeleteTeacher?: (u: UserProfile) => void;
   onRequestPasswordReset?: (u: UserProfile) => void;
   passwordResetLoadingUid?: string | null;
+  deletingTeacherUid?: string | null;
 }
 
 export function StaffTable({
@@ -19,8 +21,10 @@ export function StaffTable({
   classForTeacher,
   formatDate,
   onEditTeacher,
+  onDeleteTeacher,
   onRequestPasswordReset,
   passwordResetLoadingUid,
+  deletingTeacherUid,
 }: StaffTableProps) {
   return (
     <SectionCard topBar="accent" padding="none">
@@ -78,9 +82,24 @@ export function StaffTable({
                     <button
                       type="button"
                       onClick={() => onEditTeacher(u)}
-                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                      disabled={
+                        deletingTeacherUid === u.uid || passwordResetLoadingUid === u.uid
+                      }
+                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     >
                       Edit
+                    </button>
+                  )}
+                  {u.role === 'teacher' && onDeleteTeacher && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteTeacher(u)}
+                      disabled={
+                        deletingTeacherUid === u.uid || passwordResetLoadingUid === u.uid
+                      }
+                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/70 dark:bg-slate-800 dark:text-red-300 dark:hover:bg-red-950/40"
+                    >
+                      {deletingTeacherUid === u.uid ? 'Removing…' : 'Delete'}
                     </button>
                   )}
                   {(u.role === 'teacher' || u.role === 'principal') && u.email && onRequestPasswordReset && (

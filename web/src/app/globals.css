@@ -132,7 +132,7 @@
 
   /* Dialog – backdrop and panel matching card/daycare style */
   .dialog-backdrop {
-    @apply fixed inset-0 z-50 flex items-center justify-center p-4
+    @apply fixed inset-0 z-[200] flex items-center justify-center p-4
            bg-black/50 backdrop-blur-sm
            transition-opacity duration-200;
   }

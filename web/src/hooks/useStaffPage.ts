@@ -106,6 +106,9 @@ export interface UseStaffPageResult {
   inviteTeacherResult: { expiresAt: string } | null;
   handleInviteTeacherByEmail: (e: React.FormEvent) => Promise<void>;
   openInviteTeacherForm: () => void;
+  deletingTeacherUid: string | null;
+  deleteTeacherError: string;
+  handleDeleteTeacher: (teacherUid: string) => Promise<boolean>;
 }
 
 export function useStaffPage(): UseStaffPageResult {
@@ -136,6 +139,8 @@ export function useStaffPage(): UseStaffPageResult {
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
   const [passwordResetError, setPasswordResetError] = useState('');
   const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null);
+  const [deletingTeacherUid, setDeletingTeacherUid] = useState<string | null>(null);
+  const [deleteTeacherError, setDeleteTeacherError] = useState('');
 
   const load = useCallback(async () => {
     const schoolId = profile?.schoolId;
@@ -327,6 +332,26 @@ export function useStaffPage(): UseStaffPageResult {
     setEditError('');
   }, []);
 
+  const handleDeleteTeacher = useCallback(async (teacherUid: string): Promise<boolean> => {
+    setDeleteTeacherError('');
+    setDeletingTeacherUid(teacherUid);
+    try {
+      const fn = httpsCallable<
+        { teacherUid: string },
+        { ok: boolean; unassignedClassCount?: number; unassignedChildCount?: number }
+      >(getFunctions(app), 'principalDeleteTeacher');
+      await fn({ teacherUid });
+      await load();
+      setEditingUid((prev) => (prev === teacherUid ? null : prev));
+      return true;
+    } catch (err: unknown) {
+      setDeleteTeacherError(getCallableErrorMessage(err));
+      return false;
+    } finally {
+      setDeletingTeacherUid(null);
+    }
+  }, [load]);
+
   const staffForExport: StaffRowForPdf[] = useMemo(
     () =>
       filteredStaff.map((u) => ({
@@ -430,5 +455,8 @@ export function useStaffPage(): UseStaffPageResult {
     inviteTeacherResult,
     handleInviteTeacherByEmail,
     openInviteTeacherForm,
+    deletingTeacherUid,
+    deleteTeacherError,
+    handleDeleteTeacher,
   };
 }

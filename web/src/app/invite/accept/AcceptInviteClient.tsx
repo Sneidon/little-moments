@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
 import { app, auth } from '@/config/firebase';
+import { MOBILE_APP_IOS_APP_STORE_URL, MOBILE_APP_PLAY_STORE_URL } from '@/config/mobileApp';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { HeartIcon } from '@/components/HeartIcon';
 
@@ -46,6 +47,31 @@ function isInviteAlreadyAcceptedError(err: unknown): boolean {
 
 function webInviteRole(role?: string): boolean {
   return role === 'principal' || role === 'super_admin';
+}
+
+function MobileAppStoreLinks() {
+  const linkClass =
+    'flex w-full justify-center rounded-xl border border-primary-200 bg-primary-50/90 py-3 text-sm font-bold text-primary-800 shadow-sm transition hover:bg-primary-100 dark:border-primary-700 dark:bg-primary-900/35 dark:text-primary-200 dark:hover:bg-primary-900/55 sm:flex-1';
+  return (
+    <div className="mt-5 w-full flex flex-col gap-2 sm:flex-row sm:gap-3">
+      <a
+        href={MOBILE_APP_IOS_APP_STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClass}
+      >
+        Download on App Store
+      </a>
+      <a
+        href={MOBILE_APP_PLAY_STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClass}
+      >
+        Get it on Google Play
+      </a>
+    </div>
+  );
 }
 
 export default function AcceptInviteClient() {
@@ -190,6 +216,7 @@ export default function AcceptInviteClient() {
                   ? 'Sign in on the My Little Moments mobile app with the email address from your invite and the password you chose when you first accepted.'
                   : 'This link has already been used. Sign in with the email address from your invite and the password you set when you accepted.'}
             </p>
+            {!webInviteRole(alreadyUsedRole) ? <MobileAppStoreLinks /> : null}
             {webInviteRole(alreadyUsedRole) ? (
               <Link
                 href="/login"
@@ -253,6 +280,7 @@ export default function AcceptInviteClient() {
                 ? 'Your teacher account is active. Use the My Little Moments mobile app to sign in with the email address from your invite and the password you just chose.'
                 : 'Your parent account is linked. Use the My Little Moments mobile app to sign in with the email address from your invite and the password you just chose.'}
             </p>
+            <MobileAppStoreLinks />
             <Link
               href="/login"
               className="relative mt-6 flex w-full justify-center overflow-hidden rounded-xl border border-slate-200 bg-white py-3.5 text-base font-bold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"

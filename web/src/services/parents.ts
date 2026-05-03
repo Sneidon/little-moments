@@ -44,6 +44,26 @@ export async function checkParentEmail(email: string): Promise<{ exists: boolean
 }
 
 /** Invite a new parent to a child. Returns updated child if you refetched from Firestore. */
+export async function principalInviteParent(params: {
+  childId: string;
+  parentEmail: string;
+  parentDisplayName?: string;
+  parentPhone?: string;
+}): Promise<{ token: string; expiresAt: string }> {
+  const functions = getFunctions(app);
+  const fn = httpsCallable<
+    { childId: string; parentEmail: string; parentDisplayName?: string; parentPhone?: string },
+    { token: string; expiresAt: string }
+  >(functions, 'principalInviteParent');
+  const res = await fn({
+    childId: params.childId,
+    parentEmail: params.parentEmail.trim(),
+    parentDisplayName: params.parentDisplayName?.trim() || undefined,
+    parentPhone: params.parentPhone?.trim() || undefined,
+  });
+  return res.data;
+}
+
 export async function inviteParentToChild(params: InviteParentParams): Promise<void> {
   const functions = getFunctions(app);
   const invite = httpsCallable<

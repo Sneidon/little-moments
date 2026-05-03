@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
@@ -10,7 +11,9 @@ import { HeartIcon } from '@/components/HeartIcon';
 
 type AcceptInviteResponse =
   | { ok: true; principalUid: string; schoolId: string; customToken: string }
-  | { ok: true; superAdminUid: string; customToken: string };
+  | { ok: true; superAdminUid: string; customToken: string }
+  | { ok: true; teacherUid: string }
+  | { ok: true; parentUid: string };
 
 export default function AcceptInviteClient() {
   const searchParams = useSearchParams();
@@ -22,6 +25,7 @@ export default function AcceptInviteClient() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [appOnlyRole, setAppOnlyRole] = useState<'teacher' | 'parent' | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,16 +40,34 @@ export default function AcceptInviteClient() {
     }
     setSubmitting(true);
     try {
-      const fn = httpsCallable<{ token: string; password: string; displayName?: string }, AcceptInviteResponse>(
-        getFunctions(app),
-        'acceptInviteToken'
-      );
+      const fn = httpsCallable<
+        { token: string; password: string; displayName?: string },
+        AcceptInviteResponse
+      >(getFunctions(app), 'acceptInviteToken');
       const res = await fn({ token, password, displayName: displayName.trim() || undefined });
       const payload = res.data as AcceptInviteResponse;
-      await signInWithCustomToken(auth, payload.customToken);
-      setDone(true);
-      const nextPath = 'principalUid' in payload && payload.principalUid ? '/principal' : '/admin';
-      router.replace(nextPath);
+
+      if ('principalUid' in payload && payload.principalUid) {
+        await signInWithCustomToken(auth, payload.customToken);
+        setDone(true);
+        router.replace('/principal');
+        return;
+      }
+      if ('superAdminUid' in payload && payload.superAdminUid) {
+        await signInWithCustomToken(auth, payload.customToken);
+        setDone(true);
+        router.replace('/admin');
+        return;
+      }
+      if ('teacherUid' in payload) {
+        setAppOnlyRole('teacher');
+        setDone(true);
+        return;
+      }
+      if ('parentUid' in payload) {
+        setAppOnlyRole('parent');
+        setDone(true);
+      }
     } catch (err: unknown) {
       const message =
         err && typeof err === 'object' && 'message' in err
@@ -66,82 +88,107 @@ export default function AcceptInviteClient() {
         <ThemeToggle />
       </div>
       <div className="relative z-0 w-full max-w-sm animate-fade-in-up">
-        <form
-          onSubmit={onSubmit}
-          className="rounded-card-lg border-2 border-primary-200/50 bg-white/95 p-8 shadow-card-raised backdrop-blur-sm dark:border-primary-800/50 dark:bg-slate-800/95 transition-all duration-300"
-          noValidate
-        >
-          <div className="mb-6 flex flex-col items-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 p-0.5 shadow-lg shadow-primary-500/25">
-              <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-slate-800">
-                <HeartIcon size={24} className="text-primary-600 dark:text-primary-400" aria-hidden />
+        {appOnlyRole ? (
+          <div className="rounded-card-lg border-2 border-primary-200/50 bg-white/95 p-8 shadow-card-raised backdrop-blur-sm dark:border-primary-800/50 dark:bg-slate-800/95">
+            <div className="mb-4 flex flex-col items-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 p-0.5 shadow-lg shadow-primary-500/25">
+                <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-slate-800">
+                  <HeartIcon size={24} className="text-primary-600 dark:text-primary-400" aria-hidden />
+                </div>
+              </div>
+              <h1 className="mt-5 text-center font-display text-xl font-extrabold tracking-tight sm:text-2xl">
+                <span className="text-gradient-warm">You&apos;re ready</span>
+              </h1>
+            </div>
+            <p className="text-center text-sm text-slate-600 dark:text-slate-300">
+              {appOnlyRole === 'teacher'
+                ? 'Your teacher account is active. Use the My Little Moments mobile app to sign in with the email address from your invite and the password you just chose.'
+                : 'Your parent account is linked. Use the My Little Moments mobile app to sign in with the email address from your invite and the password you just chose.'}
+            </p>
+            <Link
+              href="/login"
+              className="relative mt-6 flex w-full justify-center overflow-hidden rounded-xl border border-slate-200 bg-white py-3.5 text-base font-bold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+            >
+              Web sign-in (principals only)
+            </Link>
+          </div>
+        ) : (
+          <form
+            onSubmit={onSubmit}
+            className="rounded-card-lg border-2 border-primary-200/50 bg-white/95 p-8 shadow-card-raised backdrop-blur-sm dark:border-primary-800/50 dark:bg-slate-800/95 transition-all duration-300"
+            noValidate
+          >
+            <div className="mb-6 flex flex-col items-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 p-0.5 shadow-lg shadow-primary-500/25">
+                <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-slate-800">
+                  <HeartIcon size={24} className="text-primary-600 dark:text-primary-400" aria-hidden />
+                </div>
+              </div>
+              <h1 className="mt-5 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
+                <span className="text-gradient-warm">Accept invite</span>
+              </h1>
+              <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-300">
+                Set your account details to finish onboarding.
+              </p>
+            </div>
+
+            {!token && (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-800">
+                This invite link is missing a token.
+              </p>
+            )}
+
+            <div className="space-y-4 mt-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Your name
+                </label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="input-base"
+                  placeholder="e.g. Jane Smith"
+                  autoComplete="name"
+                  disabled={submitting || done}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Set a password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-base"
+                  placeholder="Min 6 characters"
+                  minLength={6}
+                  autoComplete="new-password"
+                  disabled={submitting || done}
+                />
               </div>
             </div>
-            <h1 className="mt-5 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
-              <span className="text-gradient-warm">Accept invite</span>
-            </h1>
-            <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-300">
-              Set your account details to finish onboarding.
-            </p>
-          </div>
 
-          {!token && (
-            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-800">
-              This invite link is missing a token.
-            </p>
-          )}
+            {error && (
+              <p
+                className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
 
-          <div className="space-y-4 mt-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Your name
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="input-base"
-                placeholder="e.g. Jane Smith"
-                autoComplete="name"
-                disabled={submitting || done}
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Set a password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-base"
-                placeholder="Min 6 characters"
-                minLength={6}
-                autoComplete="new-password"
-                disabled={submitting || done}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p
-              className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800"
-              role="alert"
+            <button
+              type="submit"
+              disabled={submitting || done || !token}
+              className="relative mt-6 w-full overflow-hidden rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 py-3.5 text-base font-bold text-white shadow-lg shadow-primary-500/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 active:translate-y-0 disabled:translate-y-0 disabled:opacity-50 dark:focus:ring-offset-slate-900"
             >
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting || done || !token}
-            className="relative mt-6 w-full overflow-hidden rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 py-3.5 text-base font-bold text-white shadow-lg shadow-primary-500/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 active:translate-y-0 disabled:translate-y-0 disabled:opacity-50 dark:focus:ring-offset-slate-900"
-          >
-            {submitting ? 'Setting up…' : done ? 'Done' : 'Accept invite'}
-          </button>
-        </form>
+              {submitting ? 'Setting up…' : done ? 'Done' : 'Accept invite'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
 }
-

@@ -1,6 +1,11 @@
 import Link from 'next/link';
 import type { UserProfile } from 'shared/types';
-import type { InviteFormState, EditFormState, InviteStep } from '@/hooks/useParentsManagement';
+import type {
+  EmailParentInviteFormState,
+  InviteFormState,
+  EditFormState,
+  InviteStep,
+} from '@/hooks/useParentsManagement';
 import { SectionCard } from '@/components/ui';
 import { IconMail, IconPhone, IconUser } from '@/components/icons/AdminIcons';
 
@@ -46,6 +51,15 @@ export interface ParentsSectionProps {
   editParentError?: string;
   onUpdateParentSubmit?: (e: React.FormEvent) => Promise<void>;
   onCancelEdit?: () => void;
+  showEmailInvite?: boolean;
+  emailInviteForm?: EmailParentInviteFormState;
+  setEmailInviteForm?: React.Dispatch<React.SetStateAction<EmailParentInviteFormState>>;
+  emailInviteSubmitting?: boolean;
+  emailInviteError?: string;
+  emailInviteSuccessExpires?: string | null;
+  onEmailInviteSubmit?: (e: React.FormEvent) => Promise<void>;
+  openEmailInvite?: () => void;
+  closeEmailInvite?: () => void;
 }
 
 export function ParentsSection({
@@ -76,6 +90,15 @@ export function ParentsSection({
   editParentError,
   onUpdateParentSubmit,
   onCancelEdit,
+  showEmailInvite = false,
+  emailInviteForm,
+  setEmailInviteForm,
+  emailInviteSubmitting,
+  emailInviteError,
+  emailInviteSuccessExpires,
+  onEmailInviteSubmit,
+  openEmailInvite,
+  closeEmailInvite,
 }: ParentsSectionProps) {
   const resetInviteForm = () => {
     setShowInviteParent?.(false);
@@ -191,15 +214,28 @@ export function ParentsSection({
         Up to {maxParents} parents per child. Invited parents can sign in and view this child&apos;s reports.
       </p>
 
-      {parents.length === 0 && !showInviteParent && canInviteMore && (
+      {parents.length === 0 && !showInviteParent && !showEmailInvite && canInviteMore && (
         <div className="mb-6 rounded-card border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/30 py-8 px-4 text-center">
           <p className="text-slate-600 dark:text-slate-300">No parents linked yet.</p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Invite a parent so they can sign in and view this child&apos;s daily activities.
+            Add a parent now (with a password or by linking an existing account), or send an email invite so they set
+            their own password.
           </p>
-          <button type="button" onClick={() => setShowInviteParent?.(true)} className="btn-primary mt-4">
-            Invite parent
-          </button>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                closeEmailInvite?.();
+                setShowInviteParent?.(true);
+              }}
+              className="btn-primary"
+            >
+              Add / link parent now
+            </button>
+            <button type="button" onClick={() => openEmailInvite?.()} className="btn-secondary">
+              Invite by email
+            </button>
+          </div>
         </div>
       )}
 
@@ -273,12 +309,84 @@ export function ParentsSection({
         </form>
       ) : null}
 
-      {canInviteMore && (parents.length > 0 || showInviteParent) ? (
+      {canInviteMore && (parents.length > 0 || showInviteParent || showEmailInvite) ? (
         <>
-          {!showInviteParent ? (
-            <button type="button" onClick={() => setShowInviteParent?.(true)} className="btn-primary">
-              Invite parent
-            </button>
+          {showEmailInvite ? (
+            <form
+              onSubmit={(e) => onEmailInviteSubmit?.(e)}
+              className="mb-6 max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
+            >
+              <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent by email</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                We&apos;ll email them a link to set their password and link to this child{childLabel}. They aren&apos;t
+                added until they accept.
+              </p>
+              {emailInviteSuccessExpires ? (
+                <div className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-100 dark:bg-green-900/20 dark:text-green-200 dark:ring-green-800">
+                  <p className="font-semibold">Invite sent.</p>
+                  <p className="mt-1 font-mono text-xs">Expires: {emailInviteSuccessExpires}</p>
+                </div>
+              ) : null}
+              {emailInviteError ? (
+                <p className="text-sm text-red-600 dark:text-red-400">{emailInviteError}</p>
+              ) : null}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+                <input
+                  type="email"
+                  value={emailInviteForm?.parentEmail ?? ''}
+                  onChange={(e) => setEmailInviteForm?.((f) => ({ ...f, parentEmail: e.target.value }))}
+                  className="input-base"
+                  placeholder="parent@example.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Display name (optional)
+                </label>
+                <input
+                  type="text"
+                  value={emailInviteForm?.parentDisplayName ?? ''}
+                  onChange={(e) => setEmailInviteForm?.((f) => ({ ...f, parentDisplayName: e.target.value }))}
+                  className="input-base"
+                  placeholder="Used in greeting and profile"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone (optional)</label>
+                <input
+                  type="tel"
+                  value={emailInviteForm?.parentPhone ?? ''}
+                  onChange={(e) => setEmailInviteForm?.((f) => ({ ...f, parentPhone: e.target.value }))}
+                  className="input-base"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={emailInviteSubmitting} className="btn-primary">
+                  {emailInviteSubmitting ? 'Sending…' : 'Send invite email'}
+                </button>
+                <button type="button" onClick={() => closeEmailInvite?.()} className="btn-secondary">
+                  Close
+                </button>
+              </div>
+            </form>
+          ) : !showInviteParent ? (
+            <div className="mb-6 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  closeEmailInvite?.();
+                  setShowInviteParent?.(true);
+                }}
+                className="btn-primary"
+              >
+                Add / link parent now
+              </button>
+              <button type="button" onClick={() => openEmailInvite?.()} className="btn-secondary">
+                Invite by email
+              </button>
+            </div>
           ) : inviteStep === 'email' ? (
             <form
               onSubmit={(e) => onCheckEmail?.(e)}

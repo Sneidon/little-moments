@@ -12,6 +12,9 @@ import sharp = require('sharp');
 
 admin.initializeApp();
 
+/** Max parents linked to one child — keep in sync with `shared` / principal UI. */
+const MAX_PARENTS_PER_CHILD = 4;
+
 // Direct fallback credentials (requested) when runtime config/env is absent.
 const RESEND_API_KEY_FALLBACK = 're_S3xMBH7d_3YqMBTndWbkQxihUwyaL6sj1';
 const RESEND_FROM_FALLBACK = 'noreply@mylittlemoments.co.za';
@@ -289,6 +292,101 @@ async function sendSuperAdminInviteEmail(params: {
     to: params.to.trim(),
     subject: `You're invited as a My Little Moments administrator`,
     html: superAdminInviteEmailHtml({
+      inviteeName: (params.inviteeName && params.inviteeName.trim()) ? params.inviteeName.trim() : 'there',
+      acceptUrl,
+      expiresInDays: 7,
+    }),
+  });
+}
+
+function teacherInviteEmailHtml(params: {
+  schoolName: string;
+  inviteeName: string;
+  acceptUrl: string;
+  expiresInDays: number;
+}): string {
+  const { schoolName, inviteeName, acceptUrl, expiresInDays } = params;
+  return `
+  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
+    <div style="max-width:560px;margin:0 auto;padding:24px">
+      <h1 style="margin:0 0 12px;font-size:22px">You're invited as a teacher at ${escapeHtml(schoolName)}</h1>
+      <p style="margin:0 0 16px">Hi ${escapeHtml(inviteeName)},</p>
+      <p style="margin:0 0 16px">You've been invited to join <strong>${escapeHtml(schoolName)}</strong> on <strong>My Little Moments</strong>. Accept below to choose your password and finish setup.</p>
+      <p style="margin:24px 0">
+        <a href="${acceptUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
+          Accept invite
+        </a>
+      </p>
+      <p style="margin:0 0 16px;color:#475569;font-size:13px">This link expires in ${expiresInDays} days.</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+    </div>
+  </div>
+  `;
+}
+
+async function sendTeacherInviteEmail(params: {
+  to: string;
+  schoolName: string;
+  inviteeName?: string;
+  token: string;
+}): Promise<void> {
+  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  await sendResendEmail({
+    to: params.to.trim(),
+    subject: `${params.schoolName.trim()} invited you as a teacher on My Little Moments`,
+    html: teacherInviteEmailHtml({
+      schoolName: params.schoolName.trim(),
+      inviteeName: (params.inviteeName && params.inviteeName.trim()) ? params.inviteeName.trim() : 'there',
+      acceptUrl,
+      expiresInDays: 7,
+    }),
+  });
+}
+
+function parentInviteEmailHtml(params: {
+  schoolName: string;
+  childName: string;
+  inviteeName: string;
+  acceptUrl: string;
+  expiresInDays: number;
+}): string {
+  const { schoolName, childName, inviteeName, acceptUrl, expiresInDays } = params;
+  return `
+  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
+    <div style="max-width:560px;margin:0 auto;padding:24px">
+      <h1 style="margin:0 0 12px;font-size:22px">You're invited as a parent on My Little Moments</h1>
+      <p style="margin:0 0 16px">Hi ${escapeHtml(inviteeName)},</p>
+      <p style="margin:0 0 16px">${escapeHtml(schoolName)} has invited you to follow <strong>${escapeHtml(childName)}</strong>'s updates. Accept below to choose your password and link your account to this child.</p>
+      <p style="margin:24px 0">
+        <a href="${acceptUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
+          Accept invite
+        </a>
+      </p>
+      <p style="margin:0 0 16px;color:#475569;font-size:13px">This link expires in ${expiresInDays} days.</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+      <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+    </div>
+  </div>
+  `;
+}
+
+async function sendParentInviteEmail(params: {
+  to: string;
+  schoolName: string;
+  childName: string;
+  inviteeName?: string;
+  token: string;
+}): Promise<void> {
+  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+  const acceptUrl = `${baseUrl}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  await sendResendEmail({
+    to: params.to.trim(),
+    subject: `You're invited to follow ${params.childName.trim()} on My Little Moments`,
+    html: parentInviteEmailHtml({
+      schoolName: params.schoolName.trim(),
+      childName: params.childName.trim(),
       inviteeName: (params.inviteeName && params.inviteeName.trim()) ? params.inviteeName.trim() : 'there',
       acceptUrl,
       expiresInDays: 7,
@@ -1416,15 +1514,18 @@ export const resendSuperAdminInvite = functions.https.onCall(async (data, contex
   return { ok: true, inviteId: inviteIdToReturn, token: tokenToSend, expiresAt: expiresAtToReturn, reissued: needsReissue };
 });
 
-/** Remove an inviteTokens document (revoke unused link or clear record). Callable by super_admin only. */
-export const deleteInviteToken = functions.https.onCall(async (data, context) => {
+/** Resend teacher or parent invite. Super admin any school; principal only their school. */
+export const resendSchoolInvite = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
   const callerUid = context.auth.uid;
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
-  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
-  if (callerRole !== 'super_admin') {
-    throw new functions.https.HttpsError('permission-denied', 'Only super admins can delete invites.');
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : {};
+  const isSuperAdminCaller = callerData.role === 'super_admin';
+  const principalSchoolId =
+    callerData.role === 'principal' && callerData.schoolId ? callerData.schoolId : null;
+  if (!isSuperAdminCaller && !principalSchoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'You cannot resend this invite.');
   }
 
   const { inviteId } = data as { inviteId?: string };
@@ -1434,9 +1535,173 @@ export const deleteInviteToken = functions.https.onCall(async (data, context) =>
   const inviteRef = db.collection('inviteTokens').doc(inviteId.trim());
   const inviteSnap = await inviteRef.get();
   if (!inviteSnap.exists) throw new functions.https.HttpsError('not-found', 'Invite not found.');
+  const invite = inviteSnap.data() as {
+    token: string;
+    email: string;
+    role: string;
+    schoolId?: string;
+    schoolName?: string;
+    childId?: string;
+    childName?: string;
+    inviteeDisplayName?: string;
+    inviteePreferredName?: string;
+    inviteePhone?: string;
+    expiresAt: string;
+    usedAt?: string;
+  };
+  if (invite.role !== 'teacher' && invite.role !== 'parent') {
+    throw new functions.https.HttpsError('failed-precondition', 'Only teacher or parent invites can use this action.');
+  }
+  if (principalSchoolId && invite.schoolId !== principalSchoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Invite is not for your school.');
+  }
+  if (invite.usedAt) {
+    throw new functions.https.HttpsError('failed-precondition', 'Invite already accepted.');
+  }
+
+  const now = isoNow();
+  const expired = new Date(invite.expiresAt).getTime() < Date.now();
+  const needsReissue = expired;
+
+  let tokenToSend = invite.token;
+  let inviteIdToReturn = inviteRef.id;
+  let expiresAtToReturn = invite.expiresAt;
+  if (needsReissue) {
+    tokenToSend = randomToken(24);
+    expiresAtToReturn = addDays(new Date(), 7).toISOString();
+    const payload: Record<string, unknown> = {
+      token: tokenToSend,
+      email: invite.email,
+      role: invite.role,
+      expiresAt: expiresAtToReturn,
+      createdAt: now,
+      resentFromInviteId: inviteRef.id,
+    };
+    if (invite.schoolId) payload.schoolId = invite.schoolId;
+    if (invite.schoolName) payload.schoolName = invite.schoolName;
+    if (invite.childId) payload.childId = invite.childId;
+    if (invite.childName) payload.childName = invite.childName;
+    if (invite.inviteeDisplayName) payload.inviteeDisplayName = invite.inviteeDisplayName;
+    if (invite.inviteePreferredName) payload.inviteePreferredName = invite.inviteePreferredName;
+    if (invite.inviteePhone) payload.inviteePhone = invite.inviteePhone;
+    const newRef = db.collection('inviteTokens').doc(tokenToSend);
+    await newRef.set(payload);
+    inviteIdToReturn = newRef.id;
+  } else {
+    await inviteRef.set({ lastResentAt: now }, { merge: true });
+  }
+
+  const schoolName = invite.schoolName ?? 'Your school';
+  if (invite.role === 'teacher') {
+    await sendTeacherInviteEmail({
+      to: invite.email,
+      schoolName,
+      inviteeName: invite.inviteeDisplayName,
+      token: tokenToSend,
+    });
+  } else {
+    await sendParentInviteEmail({
+      to: invite.email,
+      schoolName,
+      childName: invite.childName ?? 'your child',
+      inviteeName: invite.inviteeDisplayName,
+      token: tokenToSend,
+    });
+  }
+
+  return { ok: true, inviteId: inviteIdToReturn, token: tokenToSend, expiresAt: expiresAtToReturn, reissued: needsReissue };
+});
+
+/** Remove inviteTokens doc. Super admin: any. Principal: only teacher/parent invites for their school. */
+export const deleteInviteToken = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : {};
+
+  const { inviteId } = data as { inviteId?: string };
+  if (!inviteId || typeof inviteId !== 'string' || !inviteId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'inviteId is required.');
+  }
+  const inviteRef = db.collection('inviteTokens').doc(inviteId.trim());
+  const inviteSnap = await inviteRef.get();
+  if (!inviteSnap.exists) throw new functions.https.HttpsError('not-found', 'Invite not found.');
+  const inv = inviteSnap.data() as { role?: string; schoolId?: string };
+
+  const isSuper = callerData.role === 'super_admin';
+  const isPrincipalOk =
+    callerData.role === 'principal' &&
+    callerData.schoolId &&
+    (inv.role === 'teacher' || inv.role === 'parent') &&
+    inv.schoolId === callerData.schoolId;
+
+  if (!isSuper && !isPrincipalOk) {
+    throw new functions.https.HttpsError('permission-denied', 'You cannot delete this invite.');
+  }
 
   await inviteRef.delete();
   return { ok: true };
+});
+
+/** Teacher & parent invites for the principal's school (for Invitations page). */
+export const listPrincipalSchoolInvites = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : {};
+  if (callerData.role !== 'principal' || !callerData.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can list school invitations.');
+  }
+  const schoolId = callerData.schoolId;
+  const snap = await db.collection('inviteTokens').where('schoolId', '==', schoolId).get();
+  type Row = {
+    id: string;
+    email: string;
+    role: 'teacher' | 'parent';
+    schoolName?: string;
+    childId?: string;
+    childName?: string;
+    inviteeDisplayName?: string;
+    expiresAt: string;
+    usedAt?: string;
+    createdAt: string;
+  };
+  const invites: Row[] = [];
+  for (const d of snap.docs) {
+    const row = d.data() as {
+      email?: string;
+      role?: string;
+      schoolName?: string;
+      childId?: string;
+      childName?: string;
+      inviteeDisplayName?: string;
+      expiresAt?: string;
+      usedAt?: string;
+      createdAt?: string;
+    };
+    if (row.role !== 'teacher' && row.role !== 'parent') continue;
+    if (!row.email || !row.expiresAt || !row.createdAt) continue;
+    invites.push({
+      id: d.id,
+      email: row.email,
+      role: row.role as 'teacher' | 'parent',
+      schoolName: row.schoolName,
+      childId: row.childId,
+      childName: row.childName,
+      inviteeDisplayName: row.inviteeDisplayName,
+      expiresAt: row.expiresAt,
+      usedAt: row.usedAt,
+      createdAt: row.createdAt,
+    });
+  }
+  invites.sort((a, b) => {
+    const aTs = new Date(a.createdAt).getTime();
+    const bTs = new Date(b.createdAt).getTime();
+    return (Number.isFinite(bTs) ? bTs : 0) - (Number.isFinite(aTs) ? aTs : 0);
+  });
+  return { invites };
 });
 
 // Accept an invite token: principal onboarding (school) or super admin onboarding (Admin console).
@@ -1461,6 +1726,10 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     schoolName?: string;
     principalName?: string;
     inviteeDisplayName?: string;
+    inviteePreferredName?: string;
+    inviteePhone?: string;
+    childId?: string;
+    childName?: string;
     logoUrl?: string;
     schoolId?: string;
     createdSchoolId?: string;
@@ -1539,6 +1808,199 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
 
     const customToken = await admin.auth().createCustomToken(superUid);
     return { ok: true as const, superAdminUid: superUid, customToken };
+  }
+
+  if (invite.role === 'teacher') {
+    const schoolIdInvite = invite.schoolId?.trim();
+    if (!schoolIdInvite) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invite is missing school information.');
+    }
+    const schoolSnap = await db.collection('schools').doc(schoolIdInvite).get();
+    if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found.');
+
+    const displayFromForm =
+      displayName && typeof displayName === 'string' && displayName.trim()
+        ? displayName.trim()
+        : null;
+    const displayFromInvite =
+      invite.inviteeDisplayName && typeof invite.inviteeDisplayName === 'string' && invite.inviteeDisplayName.trim()
+        ? invite.inviteeDisplayName.trim()
+        : null;
+    const preferredFromInvite =
+      invite.inviteePreferredName &&
+      typeof invite.inviteePreferredName === 'string' &&
+      invite.inviteePreferredName.trim()
+        ? invite.inviteePreferredName.trim()
+        : null;
+
+    let teacherUid: string;
+    try {
+      const existing = await admin.auth().getUserByEmail(emailNorm);
+      teacherUid = existing.uid;
+      const profSnap = await db.collection('users').doc(teacherUid).get();
+      if (profSnap.exists) {
+        const p = profSnap.data() as { role?: string; schoolId?: string };
+        const r = p.role;
+        const sid = p.schoolId;
+        if (r === 'teacher' && sid === schoolIdInvite) {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'You are already a teacher at this school.'
+          );
+        }
+        if (r && r !== 'teacher') {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'This email already has an account with a different role.'
+          );
+        }
+        if (r === 'teacher' && sid && sid !== schoolIdInvite) {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'This email is already used as a teacher at another school.'
+          );
+        }
+      }
+      const authDisplay = displayFromForm ?? displayFromInvite ?? existing.displayName ?? emailRaw;
+      await admin.auth().updateUser(teacherUid, {
+        password,
+        displayName: authDisplay,
+      });
+    } catch (err: unknown) {
+      if (err instanceof functions.https.HttpsError) throw err;
+      const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+      if (code !== 'auth/user-not-found') throw err;
+      const newDisplay = displayFromForm ?? displayFromInvite ?? emailRaw;
+      const userRecord = await admin.auth().createUser({
+        email: emailNorm,
+        password,
+        displayName: newDisplay,
+      });
+      teacherUid = userRecord.uid;
+    }
+
+    const finalDisplayName = displayFromForm ?? displayFromInvite ?? emailRaw;
+    const userRef = db.collection('users').doc(teacherUid);
+    const priorSnap = await userRef.get();
+    const userPayload: Record<string, unknown> = {
+      email: emailNorm,
+      displayName: finalDisplayName,
+      ...(preferredFromInvite ? { preferredName: preferredFromInvite } : {}),
+      role: 'teacher',
+      schoolId: schoolIdInvite,
+      isActive: true,
+      updatedAt: now,
+    };
+    if (!priorSnap.exists) userPayload.createdAt = now;
+    await userRef.set(userPayload, { merge: true });
+
+    await ref.update({ usedAt: now });
+
+    return { ok: true as const, teacherUid };
+  }
+
+  if (invite.role === 'parent') {
+    const schoolIdInvite = invite.schoolId?.trim();
+    const childIdInvite = invite.childId?.trim();
+    if (!schoolIdInvite || !childIdInvite) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invite is missing school or child information.');
+    }
+
+    const childRef = db.collection('schools').doc(schoolIdInvite).collection('children').doc(childIdInvite);
+    const childSnap = await childRef.get();
+    if (!childSnap.exists) throw new functions.https.HttpsError('not-found', 'Child not found.');
+    let parentIds = (childSnap.data() as { parentIds?: string[] })?.parentIds ?? [];
+    if (parentIds.length >= MAX_PARENTS_PER_CHILD) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        `This child already has the maximum of ${MAX_PARENTS_PER_CHILD} parents.`
+      );
+    }
+
+    const displayFromForm =
+      displayName && typeof displayName === 'string' && displayName.trim()
+        ? displayName.trim()
+        : null;
+    const displayFromInvite =
+      invite.inviteeDisplayName && typeof invite.inviteeDisplayName === 'string' && invite.inviteeDisplayName.trim()
+        ? invite.inviteeDisplayName.trim()
+        : null;
+    const phoneHint =
+      invite.inviteePhone && typeof invite.inviteePhone === 'string' && invite.inviteePhone.trim()
+        ? invite.inviteePhone.trim()
+        : undefined;
+    const finalDisplayName = displayFromForm ?? displayFromInvite ?? emailRaw;
+
+    let parentUid: string;
+    try {
+      const existing = await admin.auth().getUserByEmail(emailNorm);
+      parentUid = existing.uid;
+      if (parentIds.includes(parentUid)) {
+        throw new functions.https.HttpsError('failed-precondition', 'You are already linked to this child.');
+      }
+      const userRef = db.collection('users').doc(parentUid);
+      const userSnap = await userRef.get();
+      if (userSnap.exists) {
+        const udata = userSnap.data() as { role?: string };
+        if (udata.role && udata.role !== 'parent') {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'This email is already used for a staff or admin account.'
+          );
+        }
+      }
+      await admin.auth().updateUser(parentUid, {
+        password,
+        displayName: finalDisplayName,
+      });
+      const updates: Record<string, unknown> = {
+        email: emailNorm,
+        displayName: finalDisplayName,
+        schoolId: schoolIdInvite,
+        role: 'parent',
+        isActive: true,
+        updatedAt: now,
+      };
+      if (phoneHint !== undefined) updates.phone = phoneHint;
+      if (userSnap.exists) {
+        await userRef.update(updates);
+      } else {
+        await userRef.set({
+          ...updates,
+          createdAt: now,
+        });
+      }
+      parentIds = [...parentIds, parentUid];
+      await childRef.update({ parentIds, updatedAt: now });
+    } catch (err: unknown) {
+      if (err instanceof functions.https.HttpsError) throw err;
+      const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+      if (code !== 'auth/user-not-found') throw err;
+      const userRecord = await admin.auth().createUser({
+        email: emailNorm,
+        password,
+        displayName: finalDisplayName,
+      });
+      parentUid = userRecord.uid;
+      await db
+        .collection('users')
+        .doc(parentUid)
+        .set({
+          email: emailNorm,
+          displayName: finalDisplayName,
+          ...(phoneHint ? { phone: phoneHint } : {}),
+          role: 'parent',
+          schoolId: schoolIdInvite,
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+      parentIds = [...parentIds, parentUid];
+      await childRef.update({ parentIds, updatedAt: now });
+    }
+
+    await ref.update({ usedAt: now });
+    return { ok: true as const, parentUid };
   }
 
   if (invite.role !== 'principal') {
@@ -2694,6 +3156,203 @@ export const recordFirstPhotoViewed = functions.https.onCall(async (data, contex
   return { ok: true, firstPhotoViewedAt: now };
 });
 
+/** Principal sends teacher an email invite; they set a password via acceptInviteToken. */
+export const principalInviteTeacher = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can invite teachers.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const { teacherEmail, teacherDisplayName, teacherPreferredName } = data as {
+    teacherEmail?: string;
+    teacherDisplayName?: string;
+    teacherPreferredName?: string;
+  };
+
+  if (!teacherEmail || typeof teacherEmail !== 'string' || !teacherEmail.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Teacher email is required.');
+  }
+  const emailNorm = teacherEmail.trim().toLowerCase();
+  if (!isValidEmail(emailNorm)) {
+    throw new functions.https.HttpsError('invalid-argument', 'A valid email is required.');
+  }
+
+  const schoolSnap = await db.collection('schools').doc(schoolId).get();
+  if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found.');
+  const schoolName = ((schoolSnap.data() as { name?: string }).name ?? 'Your school').trim();
+
+  try {
+    const existingAuth = await admin.auth().getUserByEmail(emailNorm);
+    const prof = await db.collection('users').doc(existingAuth.uid).get();
+    if (prof.exists) {
+      const p = prof.data() as { role?: string; schoolId?: string };
+      if (p.role === 'teacher' && p.schoolId === schoolId) {
+        throw new functions.https.HttpsError(
+          'already-exists',
+          'This teacher is already part of your school.'
+        );
+      }
+      if (p.role && p.role !== 'teacher') {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'This email is already used for a different role. Use another email.'
+        );
+      }
+      if (p.role === 'teacher' && p.schoolId && p.schoolId !== schoolId) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'This email belongs to a teacher at another school.'
+        );
+      }
+    }
+  } catch (err: unknown) {
+    if (err instanceof functions.https.HttpsError) throw err;
+    const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
+    if (code !== 'auth/user-not-found') throw err;
+  }
+
+  const now = isoNow();
+  const tok = randomToken(24);
+  const expiresAt = addDays(new Date(), 7).toISOString();
+  const payload: Record<string, unknown> = {
+    token: tok,
+    email: emailNorm,
+    role: 'teacher',
+    schoolId,
+    schoolName,
+    expiresAt,
+    createdAt: now,
+  };
+  if (teacherDisplayName && typeof teacherDisplayName === 'string' && teacherDisplayName.trim()) {
+    payload.inviteeDisplayName = teacherDisplayName.trim();
+  }
+  if (teacherPreferredName && typeof teacherPreferredName === 'string' && teacherPreferredName.trim()) {
+    payload.inviteePreferredName = teacherPreferredName.trim();
+  }
+  await db.collection('inviteTokens').doc(tok).set(payload);
+
+  await sendTeacherInviteEmail({
+    to: emailNorm,
+    schoolName,
+    inviteeName: typeof teacherDisplayName === 'string' ? teacherDisplayName.trim() || undefined : undefined,
+    token: tok,
+  });
+
+  return { token: tok, expiresAt };
+});
+
+/** Principal emails a parent invite for one child — accept links them via acceptInviteToken. */
+export const principalInviteParent = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
+  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+    throw new functions.https.HttpsError('permission-denied', 'Only principals can invite parents.');
+  }
+  const schoolId = callerData.schoolId;
+
+  const {
+    childId,
+    parentEmail,
+    parentDisplayName,
+    parentPhone,
+  } = data as {
+    childId?: string;
+    parentEmail?: string;
+    parentDisplayName?: string;
+    parentPhone?: string;
+  };
+
+  if (!childId || typeof childId !== 'string' || !childId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Child ID is required.');
+  }
+  if (!parentEmail || typeof parentEmail !== 'string' || !parentEmail.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'Parent email is required.');
+  }
+  const emailNorm = parentEmail.trim().toLowerCase();
+  if (!isValidEmail(emailNorm)) {
+    throw new functions.https.HttpsError('invalid-argument', 'A valid email is required.');
+  }
+
+  const childRef = db.collection('schools').doc(schoolId).collection('children').doc(childId.trim());
+  const childSnap = await childRef.get();
+  if (!childSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Child not found.');
+  }
+  const childData = childSnap.data() as { name?: string; parentIds?: string[] };
+  const parentIds = childData.parentIds ?? [];
+  if (parentIds.length >= MAX_PARENTS_PER_CHILD) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      `This child already has the maximum of ${MAX_PARENTS_PER_CHILD} parents.`
+    );
+  }
+
+  const schoolSnap = await db.collection('schools').doc(schoolId).get();
+  const schoolName = ((schoolSnap.data() as { name?: string })?.name ?? 'Your school').trim();
+  const childName = (childData.name && childData.name.trim()) ? childData.name.trim() : 'your child';
+
+  try {
+    const existingAuth = await admin.auth().getUserByEmail(emailNorm);
+    if (parentIds.includes(existingAuth.uid)) {
+      throw new functions.https.HttpsError('failed-precondition', 'This parent is already linked to this child.');
+    }
+    const prof = await db.collection('users').doc(existingAuth.uid).get();
+    if (prof.exists) {
+      const p = prof.data() as { role?: string };
+      if (p.role && p.role !== 'parent') {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'This email is already used for a staff or admin account. Use a different email.'
+        );
+      }
+    }
+  } catch (err: unknown) {
+    if (err instanceof functions.https.HttpsError) throw err;
+    const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
+    if (code !== 'auth/user-not-found') throw err;
+  }
+
+  const now = isoNow();
+  const tok = randomToken(24);
+  const expiresAt = addDays(new Date(), 7).toISOString();
+  const payload: Record<string, unknown> = {
+    token: tok,
+    email: emailNorm,
+    role: 'parent',
+    schoolId,
+    childId: childId.trim(),
+    schoolName,
+    childName,
+    expiresAt,
+    createdAt: now,
+  };
+  if (parentDisplayName && typeof parentDisplayName === 'string' && parentDisplayName.trim()) {
+    payload.inviteeDisplayName = parentDisplayName.trim();
+  }
+  if (parentPhone && typeof parentPhone === 'string' && parentPhone.trim()) {
+    payload.inviteePhone = parentPhone.trim();
+  }
+  await db.collection('inviteTokens').doc(tok).set(payload);
+
+  await sendParentInviteEmail({
+    to: emailNorm,
+    schoolName,
+    childName,
+    inviteeName: typeof parentDisplayName === 'string' ? parentDisplayName.trim() || undefined : undefined,
+    token: tok,
+  });
+
+  return { token: tok, expiresAt };
+});
+
 // Create a teacher for the principal's school. Callable by principal only.
 // Creates Auth user + users/{uid} profile with role=teacher, schoolId=principal's schoolId.
 export const createTeacher = functions.https.onCall(async (data, context) => {
@@ -2906,8 +3565,6 @@ export const updateTeacher = functions.https.onCall(async (data, context) => {
   await teacherRef.update(updates);
   return { ok: true };
 });
-
-const MAX_PARENTS_PER_CHILD = 4;
 
 // Check whether a user with this email already exists. Callable by principal only.
 // Used to decide whether to "link existing" or "create & link" when inviting a parent.

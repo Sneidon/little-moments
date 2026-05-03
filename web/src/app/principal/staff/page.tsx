@@ -8,6 +8,7 @@ import {
   StaffFilters,
   StaffTable,
   AddTeacherForm,
+  InviteTeacherForm,
   EditTeacherForm,
 } from './components';
 import type { UserProfile } from 'shared/types';
@@ -27,6 +28,15 @@ export default function StaffPage() {
     setStaffSearch,
     showAddForm,
     setShowAddForm,
+    showInviteTeacherForm,
+    inviteTeacherForm,
+    setInviteTeacherForm,
+    inviteTeacherError,
+    inviteTeacherSubmitting,
+    inviteTeacherResult,
+    handleInviteTeacherByEmail,
+    openInviteTeacherForm,
+    resetInviteTeacherForm,
     addForm,
     setAddForm,
     addTeacherError,
@@ -76,8 +86,21 @@ export default function StaffPage() {
         onExportPdf={handleExportPdf}
         onExportCsv={handleExportCsv}
         onExportExcel={handleExportExcel}
+        onInviteTeacher={openInviteTeacherForm}
         onAddTeacher={openAddForm}
       />
+
+      {showInviteTeacherForm && (
+        <InviteTeacherForm
+          form={inviteTeacherForm}
+          setForm={setInviteTeacherForm}
+          error={inviteTeacherError}
+          submitting={inviteTeacherSubmitting}
+          inviteResult={inviteTeacherResult}
+          onSubmit={handleInviteTeacherByEmail}
+          onCancel={resetInviteTeacherForm}
+        />
+      )}
 
       {showAddForm && (
         <AddTeacherForm

@@ -7,6 +7,7 @@ export interface StaffPageHeaderProps {
   onExportPdf: () => void;
   onExportCsv: () => void;
   onExportExcel: () => void;
+  onInviteTeacher: () => void;
   onAddTeacher: () => void;
 }
 
@@ -14,6 +15,7 @@ export function StaffPageHeader({
   onExportPdf,
   onExportCsv,
   onExportExcel,
+  onInviteTeacher,
   onAddTeacher,
 }: StaffPageHeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
@@ -100,7 +102,10 @@ export function StaffPageHeader({
             </div>
           )}
         </div>
-        <button type="button" onClick={onAddTeacher} className="btn-primary">
+        <button type="button" onClick={onInviteTeacher} className="btn-primary">
+          Invite teacher
+        </button>
+        <button type="button" onClick={onAddTeacher} className="btn-secondary">
           Add teacher
         </button>
       </div>

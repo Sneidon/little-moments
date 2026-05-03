@@ -22,6 +22,12 @@ export interface AddTeacherFormState {
   teacherPassword: string;
 }
 
+export interface InviteTeacherFormState {
+  teacherEmail: string;
+  teacherDisplayName: string;
+  teacherPreferredName: string;
+}
+
 export interface EditTeacherFormState {
   displayName: string;
   preferredName: string;
@@ -33,6 +39,12 @@ const INITIAL_ADD_FORM: AddTeacherFormState = {
   teacherDisplayName: '',
   teacherPreferredName: '',
   teacherPassword: '',
+};
+
+const INITIAL_INVITE_TEACHER_FORM: InviteTeacherFormState = {
+  teacherEmail: '',
+  teacherDisplayName: '',
+  teacherPreferredName: '',
 };
 
 const getEditFormState = (u: UserProfile): EditTeacherFormState => ({
@@ -84,6 +96,16 @@ export interface UseStaffPageResult {
   passwordResetSuccess: string | null;
   handleRequestPasswordReset: (user: UserProfile) => Promise<void>;
   clearPasswordResetFeedback: () => void;
+  resetInviteTeacherForm: () => void;
+  showInviteTeacherForm: boolean;
+  setShowInviteTeacherForm: React.Dispatch<React.SetStateAction<boolean>>;
+  inviteTeacherForm: InviteTeacherFormState;
+  setInviteTeacherForm: React.Dispatch<React.SetStateAction<InviteTeacherFormState>>;
+  inviteTeacherError: string;
+  inviteTeacherSubmitting: boolean;
+  inviteTeacherResult: { expiresAt: string } | null;
+  handleInviteTeacherByEmail: (e: React.FormEvent) => Promise<void>;
+  openInviteTeacherForm: () => void;
 }
 
 export function useStaffPage(): UseStaffPageResult {
@@ -95,6 +117,11 @@ export function useStaffPage(): UseStaffPageResult {
   const [staffRoleFilter, setStaffRoleFilter] = useState<StaffRoleFilter>('all');
   const [staffSearch, setStaffSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showInviteTeacherForm, setShowInviteTeacherForm] = useState(false);
+  const [inviteTeacherForm, setInviteTeacherForm] = useState<InviteTeacherFormState>(INITIAL_INVITE_TEACHER_FORM);
+  const [inviteTeacherError, setInviteTeacherError] = useState('');
+  const [inviteTeacherSubmitting, setInviteTeacherSubmitting] = useState(false);
+  const [inviteTeacherResult, setInviteTeacherResult] = useState<{ expiresAt: string } | null>(null);
   const [addForm, setAddForm] = useState<AddTeacherFormState>(INITIAL_ADD_FORM);
   const [addTeacherError, setAddTeacherError] = useState('');
   const [addTeacherSubmitting, setAddTeacherSubmitting] = useState(false);
@@ -169,9 +196,62 @@ export function useStaffPage(): UseStaffPageResult {
 
   const openAddForm = useCallback(() => {
     setAddTeacherError('');
+    setShowInviteTeacherForm(false);
+    setInviteTeacherError('');
+    setInviteTeacherResult(null);
     setAddForm(INITIAL_ADD_FORM);
     setShowAddForm(true);
   }, []);
+
+  const openInviteTeacherForm = useCallback(() => {
+    setAddTeacherError('');
+    setShowAddForm(false);
+    setInviteTeacherError('');
+    setInviteTeacherResult(null);
+    setInviteTeacherForm(INITIAL_INVITE_TEACHER_FORM);
+    setShowInviteTeacherForm(true);
+  }, []);
+
+  const resetInviteTeacherForm = useCallback(() => {
+    setInviteTeacherError('');
+    setInviteTeacherResult(null);
+    setInviteTeacherForm(INITIAL_INVITE_TEACHER_FORM);
+    setShowInviteTeacherForm(false);
+  }, []);
+
+  const handleInviteTeacherByEmail = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setInviteTeacherError('');
+      if (!inviteTeacherForm.teacherEmail?.trim()) {
+        setInviteTeacherError('Email is required.');
+        return;
+      }
+      setInviteTeacherSubmitting(true);
+      try {
+        const fn = httpsCallable<
+          {
+            teacherEmail: string;
+            teacherDisplayName?: string;
+            teacherPreferredName?: string;
+          },
+          { token: string; expiresAt: string }
+        >(getFunctions(app), 'principalInviteTeacher');
+        const res = await fn({
+          teacherEmail: inviteTeacherForm.teacherEmail.trim(),
+          teacherDisplayName: inviteTeacherForm.teacherDisplayName.trim() || undefined,
+          teacherPreferredName: inviteTeacherForm.teacherPreferredName.trim() || undefined,
+        });
+        setInviteTeacherResult({ expiresAt: res.data.expiresAt });
+        setInviteTeacherForm(INITIAL_INVITE_TEACHER_FORM);
+      } catch (err: unknown) {
+        setInviteTeacherError(getCallableErrorMessage(err));
+      } finally {
+        setInviteTeacherSubmitting(false);
+      }
+    },
+    [inviteTeacherForm]
+  );
 
   const handleAddTeacher = useCallback(
     async (e: React.FormEvent) => {
@@ -340,5 +420,15 @@ export function useStaffPage(): UseStaffPageResult {
     passwordResetSuccess,
     handleRequestPasswordReset,
     clearPasswordResetFeedback,
+    resetInviteTeacherForm,
+    showInviteTeacherForm,
+    setShowInviteTeacherForm,
+    inviteTeacherForm,
+    setInviteTeacherForm,
+    inviteTeacherError,
+    inviteTeacherSubmitting,
+    inviteTeacherResult,
+    handleInviteTeacherByEmail,
+    openInviteTeacherForm,
   };
 }

@@ -148,6 +148,15 @@ export default function ChildDetailPage() {
         editParentError={parentManagement.editParentError}
         onUpdateParentSubmit={parentManagement.handleUpdateParent}
         onCancelEdit={parentManagement.cancelEditParent}
+        showEmailInvite={parentManagement.showEmailInvite}
+        emailInviteForm={parentManagement.emailInviteForm}
+        setEmailInviteForm={parentManagement.setEmailInviteForm}
+        emailInviteSubmitting={parentManagement.emailInviteSubmitting}
+        emailInviteError={parentManagement.emailInviteError}
+        emailInviteSuccessExpires={parentManagement.emailInviteSuccessExpires}
+        onEmailInviteSubmit={parentManagement.handleEmailInviteSubmit}
+        openEmailInvite={parentManagement.openEmailInvite}
+        closeEmailInvite={parentManagement.closeEmailInvite}
       />
 
       <ActivityList

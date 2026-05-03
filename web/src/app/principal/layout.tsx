@@ -38,6 +38,7 @@ const navSections: { title: string; links: { href: string; label: string; Icon: 
       { href: '/principal/staff', label: 'Staff', Icon: IconUsers },
       { href: '/principal/classes', label: 'Classes', Icon: IconClipboard },
       { href: '/principal/parents', label: 'Parents', Icon: IconUser },
+      { href: '/principal/invites', label: 'Invitations', Icon: IconMail },
     ],
   },
   {

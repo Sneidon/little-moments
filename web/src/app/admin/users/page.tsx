@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/config/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddSuperAdminForm, type AddSuperAdminFormState } from './components/AddSuperAdminForm';
@@ -35,6 +36,7 @@ function getCallableErrorMessage(err: unknown): string {
 }
 
 export default function AdminUsersPage() {
+  const { user: authUser } = useAuth();
   const [schools, setSchools] = useState<SchoolUserCount[]>([]);
   const [superAdmins, setSuperAdmins] = useState<SuperAdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,10 @@ export default function AdminUsersPage() {
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
   const [passwordResetError, setPasswordResetError] = useState('');
   const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null);
+  const [pendingRemoveSuperAdmin, setPendingRemoveSuperAdmin] = useState<SuperAdminUser | null>(null);
+  const [removeSuperAdminLoadingUid, setRemoveSuperAdminLoadingUid] = useState<string | null>(null);
+  const [removeSuperAdminError, setRemoveSuperAdminError] = useState('');
+  const [removeSuperAdminSuccess, setRemoveSuperAdminSuccess] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -114,6 +120,27 @@ export default function AdminUsersPage() {
     [addForm, load]
   );
 
+  const handleRemoveSuperAdmin = useCallback(
+    async (target: SuperAdminUser) => {
+      setRemoveSuperAdminError('');
+      setRemoveSuperAdminSuccess(false);
+      setPendingRemoveSuperAdmin(null);
+      setRemoveSuperAdminLoadingUid(target.uid);
+      try {
+        const fn = httpsCallable<{ superAdminUid: string }, { ok: boolean }>(getFunctions(app), 'removeSuperAdmin');
+        await fn({ superAdminUid: target.uid });
+        await load();
+        setRemoveSuperAdminSuccess(true);
+        window.setTimeout(() => setRemoveSuperAdminSuccess(false), 5000);
+      } catch (err: unknown) {
+        setRemoveSuperAdminError(getCallableErrorMessage(err));
+      } finally {
+        setRemoveSuperAdminLoadingUid(null);
+      }
+    },
+    [load]
+  );
+
   const handleRequestPasswordReset = useCallback(async (user: SuperAdminUser) => {
     const email = user.email?.trim();
     if (!email) return;
@@ -147,6 +174,22 @@ export default function AdminUsersPage() {
         onConfirm={() => pendingPasswordReset && handleRequestPasswordReset(pendingPasswordReset)}
         confirmDisabled={!!passwordResetLoadingUid}
       />
+      <ConfirmDialog
+        open={!!pendingRemoveSuperAdmin}
+        onClose={() => setPendingRemoveSuperAdmin(null)}
+        title="Remove super administrator?"
+        message={
+          pendingRemoveSuperAdmin
+            ? `${pendingRemoveSuperAdmin.email} will permanently lose admin access and their sign-in will be deleted. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Remove administrator"
+        onConfirm={() =>
+          pendingRemoveSuperAdmin &&
+          handleRemoveSuperAdmin(pendingRemoveSuperAdmin)
+        }
+        confirmDisabled={!!removeSuperAdminLoadingUid}
+      />
       <PageHero
         variant="full"
         title={<span className="text-gradient-warm">Users</span>}
@@ -166,6 +209,29 @@ export default function AdminUsersPage() {
         </SectionCard>
       )}
 
+      {removeSuperAdminError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+          <span className="flex items-center justify-between gap-2">
+            {removeSuperAdminError}
+            <button type="button" onClick={() => setRemoveSuperAdminError('')} className="shrink-0 underline">
+              Dismiss
+            </button>
+          </span>
+        </div>
+      )}
+      {removeSuperAdminSuccess && (
+        <div
+          className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200"
+          role="status"
+        >
+          <span className="flex items-center justify-between gap-2">
+            Super administrator removed.
+            <button type="button" onClick={() => setRemoveSuperAdminSuccess(false)} className="shrink-0 underline">
+              Dismiss
+            </button>
+          </span>
+        </div>
+      )}
       {(passwordResetError || passwordResetSuccess) && (
         <div
           className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
@@ -219,7 +285,9 @@ export default function AdminUsersPage() {
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Display name</th>
                 <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">Email</th>
-                <th className="w-0 px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-200">Actions</th>
+                <th className="min-w-[12rem] px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-200">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -227,16 +295,42 @@ export default function AdminUsersPage() {
                 <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600">
                   <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{u.displayName ?? '—'}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => u.email && setPendingPasswordReset(u)}
-                      disabled={!!passwordResetLoadingUid || !u.email}
-                      className="inline-flex shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                      title="Send password reset email"
-                    >
-                      {passwordResetLoadingUid === u.uid ? 'Sending…' : 'Reset password'}
-                    </button>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => u.email && setPendingPasswordReset(u)}
+                        disabled={
+                          !!passwordResetLoadingUid ||
+                          !!removeSuperAdminLoadingUid ||
+                          !u.email
+                        }
+                        className="inline-flex shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        title="Send password reset email"
+                      >
+                        {passwordResetLoadingUid === u.uid ? 'Sending…' : 'Reset password'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingRemoveSuperAdmin(u)}
+                        disabled={
+                          superAdmins.length < 2 ||
+                          u.uid === authUser?.uid ||
+                          !!removeSuperAdminLoadingUid ||
+                          !!passwordResetLoadingUid
+                        }
+                        className="inline-flex shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/70 dark:bg-slate-800 dark:text-red-300 dark:hover:bg-red-950/40"
+                        title={
+                          superAdmins.length < 2
+                            ? 'Cannot remove the only super administrator'
+                            : u.uid === authUser?.uid
+                              ? 'You cannot remove your own administrator account'
+                              : 'Remove administrator'
+                        }
+                      >
+                        {removeSuperAdminLoadingUid === u.uid ? 'Removing…' : 'Remove'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

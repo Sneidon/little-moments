@@ -35,7 +35,7 @@ export interface UserProfile {
   /** Profile picture URL. */
   photoURL?: string;
   role: UserRole;
-  /** Parent approval gate. When not ACTIVE, parents should not access content. */
+  /** Parent approval gate: PENDING_APPROVAL / REJECTED block the app; ACTIVE allows. Omitted = legacy full access. */
   parentStatus?: ParentApprovalStatus;
   whatsappOptIn?: boolean;
   /** If false, user is inactive (principal can reactivate teachers/parents). Default true. */

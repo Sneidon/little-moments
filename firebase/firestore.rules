@@ -84,8 +84,9 @@ service cloud.firestore {
       }
       function schoolIsOperational() {
         let d = schoolDocData();
-        return (!('subscriptionStatus' in d) || d.subscriptionStatus == 'active')
-          && (!('status' in d) || d.status == 'ACTIVE');
+        return true;
+        //return (!('subscriptionStatus' in d) || d.subscriptionStatus == 'active')
+        //&& (!('status' in d) || d.status == 'ACTIVE');
       }
 
       allow read: if isAuthenticated() && (request.auth.token.role != 'parent' || isActiveParent());

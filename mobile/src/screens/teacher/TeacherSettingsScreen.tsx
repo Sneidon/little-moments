@@ -58,6 +58,8 @@ export function TeacherSettingsScreen() {
         } else {
           setSchool(null);
         }
+      } catch (error) {
+        console.error('Error loading school:', error);
       } finally {
         if (!cancelled) setSchoolLoading(false);
       }

@@ -10,7 +10,6 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { font } from '../theme/typography';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
-import { TeacherApprovalsScreen } from '../screens/teacher/TeacherApprovalsScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
 import { TeacherStudentsScreen } from '../screens/teacher/TeacherStudentsScreen';
 import { TeacherSettingsScreen } from '../screens/teacher/TeacherSettingsScreen';
@@ -80,7 +79,6 @@ export type RootStackParamList = {
   TeacherNotificationSettings: undefined;
   ParentEventDetail: { schoolId: string; eventId: string };
   UserNotifications: undefined;
-  TeacherApprovals: undefined;
   ParentAddSibling: undefined;
 };
 
@@ -159,15 +157,6 @@ function TeacherTabs() {
           headerShown: true,
           title: 'Dashboard',
           tabBarIcon: tabBarIconPair('grid-outline', 'grid'),
-        }}
-      />
-      <Tab.Screen
-        name="Approvals"
-        component={TeacherApprovalsScreen}
-        options={{
-          headerShown: true,
-          title: 'Approvals',
-          tabBarIcon: tabBarIconPair('checkmark-done-outline', 'checkmark-done'),
         }}
       />
       <Tab.Screen

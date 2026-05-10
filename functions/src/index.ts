@@ -274,12 +274,6 @@ function emailBrandLogoSrcAttr(): string {
   return EMAIL_BRAND_LOGO_URL.replace(/&/g, '&amp;');
 }
 
-/** Logo block for simple transactional emails (not using invite card layout). */
-function transactionalEmailLogoTop(px = 88): string {
-  const src = emailBrandLogoSrcAttr();
-  return `<div style="margin:0 0 20px;text-align:center"><img src="${src}" alt="My Little Moments" width="${px}" height="${px}" style="display:inline-block;margin:0 auto;width:${px}px;height:${px}px;border:0;border-radius:14px" /></div>`;
-}
-
 function inviteEmailEscapeHref(url: string): string {
   return url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
@@ -296,6 +290,19 @@ const INVITE_EMAIL_BTN_R = '#E05297';
 const INVITE_EMAIL_FONT_SANS =
   "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const INVITE_EMAIL_FONT_MONO = "'Courier New',Courier,ui-monospace,monospace";
+
+/** Simple transactional HTML blocks (registration / approval) use this stack. */
+const TRANSACTIONAL_EMAIL_UI_FONT =
+  'ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial';
+
+/** Compact brand row: logo replaces former gradient square; same inline layout as original header. */
+function transactionalEmailLogoTop(): string {
+  const src = emailBrandLogoSrcAttr();
+  return `<div style="margin:0 0 20px;text-align:center;line-height:0;">
+    <img src="${src}" alt="" width="32" height="32" style="display:inline-block;width:32px;height:32px;margin:0 10px 0 0;border:0;border-radius:4px;vertical-align:middle;line-height:0;" />
+    <span style="font-family:${INVITE_EMAIL_FONT_MONO};font-size:17px;font-weight:700;color:${INVITE_EMAIL_PURPLE};vertical-align:middle;line-height:normal;">My Little Moments</span>
+  </div>`;
+}
 
 function inviteEmailWrapDocument(inner: string): string {
   return `<!DOCTYPE html>
@@ -348,13 +355,9 @@ function inviteEmailBrandHeaderRow(): string {
   const src = emailBrandLogoSrcAttr();
   return `
   <tr>
-    <td align="center" style="padding:28px 24px 6px;">
-      <img src="${src}" alt="" width="96" height="96" style="display:block;width:96px;height:96px;margin:0 auto;border:0;border-radius:16px" />
-    </td>
-  </tr>
-  <tr>
-    <td align="center" style="padding:0 24px 14px;font-family:${INVITE_EMAIL_FONT_MONO};font-size:17px;font-weight:700;color:${INVITE_EMAIL_PURPLE};">
-      My Little Moments
+    <td align="center" style="padding:28px 24px 16px;line-height:0;">
+      <img src="${src}" alt="" width="32" height="32" style="display:inline-block;width:32px;height:32px;border:0;border-radius:4px;vertical-align:middle;margin-right:10px;line-height:0;" />
+      <span style="display:inline-block;font-family:${INVITE_EMAIL_FONT_MONO};font-size:17px;font-weight:700;color:${INVITE_EMAIL_PURPLE};vertical-align:middle;line-height:normal;">My Little Moments</span>
     </td>
   </tr>`;
 }
@@ -3402,7 +3405,7 @@ export const registerParentViaQr = functions.https.onRequest(async (req, res) =>
   await sendResendEmail({
     to: email,
     subject: `Welcome to My Little Moments — ${schoolName}`,
-    html: `<div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a"><div style="max-width:560px;margin:0 auto;padding:24px">${transactionalEmailLogoTop()}<h1 style="margin:0 0 12px;font-size:22px">Welcome, ${escapeHtml(name)}!</h1><p style="margin:0 0 16px">We received your registration for <strong>${escapeHtml(childName)}</strong> at <strong>${escapeHtml(schoolName)}</strong>.</p><p style="margin:0 0 16px">Your registration is being reviewed by the class teacher. We'll email you as soon as you’re approved.</p><hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" /><p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p></div></div>`,
+    html: `<div style="font-family:${TRANSACTIONAL_EMAIL_UI_FONT};line-height:1.5;color:#0f172a"><div style="max-width:560px;margin:0 auto;padding:24px">${transactionalEmailLogoTop()}<h1 style="margin:0 0 12px;font-size:22px">Welcome, ${escapeHtml(name)}!</h1><p style="margin:0 0 16px">We received your registration for <strong>${escapeHtml(childName)}</strong> at <strong>${escapeHtml(schoolName)}</strong>.</p><p style="margin:0 0 16px">Your registration is being reviewed by the class teacher. We&apos;ll email you as soon as you&apos;re approved.</p><hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" /><p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p></div></div>`,
   });
   let teacherName: string | null = null;
   if (teacherId) {
@@ -3519,10 +3522,10 @@ export const trackAnalyticsEvent = functions.https.onRequest(async (req, res) =>
 
 function parentApprovedEmailHtml(params: { parentName: string; schoolName: string; resetUrl: string }): string {
   return `
-  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
+  <div style="font-family:${TRANSACTIONAL_EMAIL_UI_FONT};line-height:1.5;color:#0f172a">
     <div style="max-width:560px;margin:0 auto;padding:24px">
       ${transactionalEmailLogoTop()}
-      <h1 style="margin:0 0 12px;font-size:22px">You're approved! See your child's first moments</h1>
+      <h1 style="margin:0 0 12px;font-size:22px">You&apos;re approved! See your child&apos;s first moments</h1>
       <p style="margin:0 0 16px">Hi ${escapeHtml(params.parentName)},</p>
       <p style="margin:0 0 16px">Good news — your account for <strong>${escapeHtml(params.schoolName)}</strong> has been approved.</p>
       <p style="margin:24px 0">
@@ -3530,7 +3533,7 @@ function parentApprovedEmailHtml(params: { parentName: string; schoolName: strin
           Set your password &amp; sign in
         </a>
       </p>
-      <p style="margin:0 0 16px;color:#475569;font-size:13px">Tip: once signed in, you’ll immediately see the latest class moments.</p>
+      <p style="margin:0 0 16px;color:#475569;font-size:13px">Tip: once signed in, you&apos;ll immediately see the latest class moments.</p>
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
       <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
     </div>
@@ -3540,7 +3543,7 @@ function parentApprovedEmailHtml(params: { parentName: string; schoolName: strin
 
 function parentRejectedEmailHtml(params: { parentName: string; schoolName: string; reason?: string | null }): string {
   return `
-  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
+  <div style="font-family:${TRANSACTIONAL_EMAIL_UI_FONT};line-height:1.5;color:#0f172a">
     <div style="max-width:560px;margin:0 auto;padding:24px">
       ${transactionalEmailLogoTop()}
       <h1 style="margin:0 0 12px;font-size:22px">Update on your registration</h1>

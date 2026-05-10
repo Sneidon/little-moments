@@ -22,6 +22,10 @@ const RESEND_FROM_FALLBACK = 'noreply@mylittlemoments.co.za';
 /** Web origin for `/invite/accept` links in invitation emails. */
 const INVITE_ACCEPT_APP_BASE_URL = 'https://littlemoments--little-moments-6647f.us-central1.hosted.app';
 
+/** Square brand logo for HTML emails (Firebase Storage public artefact). */
+const EMAIL_BRAND_LOGO_URL =
+  'https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&token=82c9425f-d900-4a8c-97d4-146fe1efac05';
+
 function isoNow(): string {
   return new Date().toISOString();
 }
@@ -266,6 +270,16 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function emailBrandLogoSrcAttr(): string {
+  return EMAIL_BRAND_LOGO_URL.replace(/&/g, '&amp;');
+}
+
+/** Logo block for simple transactional emails (not using invite card layout). */
+function transactionalEmailLogoTop(px = 88): string {
+  const src = emailBrandLogoSrcAttr();
+  return `<div style="margin:0 0 20px;text-align:center"><img src="${src}" alt="My Little Moments" width="${px}" height="${px}" style="display:inline-block;margin:0 auto;width:${px}px;height:${px}px;border:0;border-radius:14px" /></div>`;
+}
+
 function inviteEmailEscapeHref(url: string): string {
   return url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
@@ -331,11 +345,16 @@ function inviteEmailHeroRow(): string {
 }
 
 function inviteEmailBrandHeaderRow(): string {
+  const src = emailBrandLogoSrcAttr();
   return `
   <tr>
-    <td align="center" style="padding:28px 24px 16px;">
-      <span style="display:inline-block;width:12px;height:12px;background:${INVITE_EMAIL_BTN_L};background:linear-gradient(135deg,${INVITE_EMAIL_BTN_L} 0%,${INVITE_EMAIL_BTN_R} 100%);border-radius:4px;vertical-align:middle;margin-right:10px;line-height:0;"></span>
-      <span style="font-family:${INVITE_EMAIL_FONT_MONO};font-size:17px;font-weight:700;color:${INVITE_EMAIL_PURPLE};vertical-align:middle;">My Little Moments</span>
+    <td align="center" style="padding:28px 24px 6px;">
+      <img src="${src}" alt="" width="96" height="96" style="display:block;width:96px;height:96px;margin:0 auto;border:0;border-radius:16px" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center" style="padding:0 24px 14px;font-family:${INVITE_EMAIL_FONT_MONO};font-size:17px;font-weight:700;color:${INVITE_EMAIL_PURPLE};">
+      My Little Moments
     </td>
   </tr>`;
 }
@@ -3383,7 +3402,7 @@ export const registerParentViaQr = functions.https.onRequest(async (req, res) =>
   await sendResendEmail({
     to: email,
     subject: `Welcome to My Little Moments — ${schoolName}`,
-    html: `<div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a"><div style="max-width:560px;margin:0 auto;padding:24px"><h1 style="margin:0 0 12px;font-size:22px">Welcome, ${escapeHtml(name)}!</h1><p style="margin:0 0 16px">We received your registration for <strong>${escapeHtml(childName)}</strong> at <strong>${escapeHtml(schoolName)}</strong>.</p><p style="margin:0 0 16px">Your registration is being reviewed by the class teacher. We'll email you as soon as you’re approved.</p><hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" /><p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p></div></div>`,
+    html: `<div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a"><div style="max-width:560px;margin:0 auto;padding:24px">${transactionalEmailLogoTop()}<h1 style="margin:0 0 12px;font-size:22px">Welcome, ${escapeHtml(name)}!</h1><p style="margin:0 0 16px">We received your registration for <strong>${escapeHtml(childName)}</strong> at <strong>${escapeHtml(schoolName)}</strong>.</p><p style="margin:0 0 16px">Your registration is being reviewed by the class teacher. We'll email you as soon as you’re approved.</p><hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" /><p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p></div></div>`,
   });
   let teacherName: string | null = null;
   if (teacherId) {
@@ -3502,11 +3521,12 @@ function parentApprovedEmailHtml(params: { parentName: string; schoolName: strin
   return `
   <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
     <div style="max-width:560px;margin:0 auto;padding:24px">
+      ${transactionalEmailLogoTop()}
       <h1 style="margin:0 0 12px;font-size:22px">You're approved! See your child's first moments</h1>
       <p style="margin:0 0 16px">Hi ${escapeHtml(params.parentName)},</p>
       <p style="margin:0 0 16px">Good news — your account for <strong>${escapeHtml(params.schoolName)}</strong> has been approved.</p>
       <p style="margin:24px 0">
-        <a href="${params.resetUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
+        <a href="${inviteEmailEscapeHref(params.resetUrl)}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700">
           Set your password &amp; sign in
         </a>
       </p>
@@ -3522,6 +3542,7 @@ function parentRejectedEmailHtml(params: { parentName: string; schoolName: strin
   return `
   <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;color:#0f172a">
     <div style="max-width:560px;margin:0 auto;padding:24px">
+      ${transactionalEmailLogoTop()}
       <h1 style="margin:0 0 12px;font-size:22px">Update on your registration</h1>
       <p style="margin:0 0 16px">Hi ${escapeHtml(params.parentName)},</p>
       <p style="margin:0 0 16px">Your registration for <strong>${escapeHtml(params.schoolName)}</strong> was not approved.</p>

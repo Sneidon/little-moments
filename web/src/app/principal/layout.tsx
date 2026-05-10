@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
-import { HeartIcon } from '@/components/HeartIcon';
+import { AppLogo } from '@/components/AppLogo';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { isSchoolOperational } from '@/lib/schoolAccess';
@@ -156,8 +156,8 @@ export default function PrincipalLayout({
             </svg>
           </button>
           <Link href="/principal" className="flex min-w-0 items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/50 dark:to-accent-900/30">
-              <HeartIcon size={18} className="text-primary-600 dark:text-primary-400" aria-hidden />
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+              <AppLogo sizes="36px" />
             </div>
             <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100" title={schoolName ?? undefined}>
               {schoolName ?? 'My Little Moments'}

@@ -26,6 +26,10 @@ const INVITE_ACCEPT_APP_BASE_URL = 'https://littlemoments--little-moments-6647f.
 const EMAIL_BRAND_LOGO_URL =
   'https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&token=82c9425f-d900-4a8c-97d4-146fe1efac05';
 
+/** Landscape hero banner for invite emails (Firebase Storage). */
+const EMAIL_INVITE_BANNER_URL =
+  'https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Fbanner%2Fv1.png?alt=media&token=8bb5f8d9-5c0e-42a0-b376-0c936a07e212';
+
 function isoNow(): string {
   return new Date().toISOString();
 }
@@ -274,6 +278,10 @@ function emailBrandLogoSrcAttr(): string {
   return EMAIL_BRAND_LOGO_URL.replace(/&/g, '&amp;');
 }
 
+function inviteEmailBannerSrcAttr(): string {
+  return EMAIL_INVITE_BANNER_URL.replace(/&/g, '&amp;');
+}
+
 function inviteEmailEscapeHref(url: string): string {
   return url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
@@ -341,11 +349,12 @@ function inviteEmailDividerRow(): string {
 }
 
 function inviteEmailHeroRow(): string {
+  const bannerSrc = inviteEmailBannerSrcAttr();
   return `
   <tr>
-    <td style="padding:0 24px 20px;font-family:${INVITE_EMAIL_FONT_MONO};">
-      <div style="border-radius:16px;overflow:hidden;height:172px;line-height:172px;text-align:center;background:${INVITE_EMAIL_BTN_L};background:linear-gradient(135deg,#e9d5ff 0%,#fce7f3 52%,#fef3c7 100%);font-size:13px;color:${INVITE_EMAIL_PURPLE};">
-        ✦ &#9829; Preschool moments &#9829; ✦
+    <td style="padding:0 24px 20px;line-height:0;">
+      <div style="border-radius:16px;overflow:hidden;line-height:0;">
+        <img src="${bannerSrc}" alt="" width="472" height="236" style="display:block;width:100%;max-width:472px;height:auto;border:0;" />
       </div>
     </td>
   </tr>`;

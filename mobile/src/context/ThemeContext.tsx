@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SystemUI from 'expo-system-ui';
 import { lightColors, darkColors, type ColorPalette } from '../theme/colors';
 
 const THEME_KEY = '@little_moments_theme';
@@ -37,6 +38,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark';
   const colors = isDark ? darkColors : lightColors;
+
+  useEffect(() => {
+    const bg = isDark ? '#000000' : '#FFFFFF';
+    SystemUI.setBackgroundColorAsync(bg).catch(() => {});
+  }, [isDark]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({ colors, isDark, themeMode, setThemeMode }),

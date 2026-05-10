@@ -385,6 +385,18 @@ function inviteEmailCtaAndExpiryRows(acceptUrl: string, expiresInDays: number): 
   <tr><td style="padding:0 24px 0;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>`;
 }
 
+/** Post-invite welcome: same gradient CTA as invites, no expiry line. */
+function inviteEmailDashboardCtaRows(dashboardUrl: string): string {
+  const href = inviteEmailEscapeHref(dashboardUrl);
+  const cta = `<a href="${href}" target="_blank" rel="noopener noreferrer"` +
+    ` style="display:inline-block;padding:16px 38px;border-radius:999px;font-family:${INVITE_EMAIL_FONT_MONO};` +
+    `font-size:15px;font-weight:700;color:#ffffff !important;text-decoration:none;background:${INVITE_EMAIL_BTN_L};background:linear-gradient(90deg,${INVITE_EMAIL_BTN_L} 0%,${INVITE_EMAIL_BTN_R} 100%);">` +
+    `Open your dashboard</a>`;
+  return `
+  <tr><td align="center" style="padding:8px 24px 6px;">${cta}</td></tr>
+  <tr><td style="padding:0 24px 0;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>`;
+}
+
 function inviteEmailSupportFooterRows(): string {
   const year = new Date().getUTCFullYear();
   return `
@@ -446,6 +458,205 @@ function inviteEmailCard(params: {
   </tr>
 </table>`;
   return inviteEmailWrapDocument(outer);
+}
+
+/** Same shell as invite emails: no &quot;Hi …,&quot; row; dashboard CTA without expiry. `headline` must be HTML-safe. */
+function invitePostAcceptEmailCard(params: {
+  headline: string;
+  bodyHtml: string;
+  dashboardUrl: string;
+  featuresInnerHtml: string;
+}): string {
+  const outer = `
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background-color:#fafafa;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="520" style="border-collapse:collapse;max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 6px 30px rgba(15,23,42,0.07);">
+        ${inviteEmailBrandHeaderRow()}
+        ${inviteEmailHeroRow()}
+        <tr>
+          <td align="center" style="padding:8px 24px 12px;font-family:${INVITE_EMAIL_FONT_MONO};font-size:22px;line-height:1.25;font-weight:700;color:#1e1b4b;">
+            ${params.headline}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:14px 24px 12px;font-family:${INVITE_EMAIL_FONT_SANS};font-size:15px;line-height:1.62;color:#334155;">
+            ${params.bodyHtml}
+          </td>
+        </tr>
+        ${inviteEmailDashboardCtaRows(params.dashboardUrl)}
+        <tr>
+          <td style="padding:12px 24px 20px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+              ${params.featuresInnerHtml}
+            </table>
+          </td>
+        </tr>
+        ${inviteEmailSupportFooterRows()}
+      </table>
+    </td>
+  </tr>
+</table>`;
+  return inviteEmailWrapDocument(outer);
+}
+
+function inviteEmailHeadlineFirstName(params: {
+  preferred?: string | null;
+  displayFromForm: string | null;
+  displayFromInvite?: string | null;
+  fallbackDisplay: string;
+}): string {
+  const firstToken = (s: string | null | undefined): string | null => {
+    if (!s || typeof s !== 'string') return null;
+    const t = s.trim();
+    if (!t) return null;
+    const w = t.split(/\s+/)[0];
+    return w || null;
+  };
+  return (
+    firstToken(params.preferred) ??
+    firstToken(params.displayFromForm) ??
+    firstToken(params.displayFromInvite) ??
+    firstToken(params.fallbackDisplay) ??
+    'there'
+  );
+}
+
+function parentPostAcceptWelcomeEmailHtml(params: {
+  firstName: string;
+  schoolName: string;
+  childName: string;
+  dashboardUrl: string;
+}): string {
+  const { firstName, schoolName, childName, dashboardUrl } = params;
+  const headline = `Welcome, ${escapeHtml(firstName)}!`;
+  const body =
+    `You&apos;re now connected to <strong>${escapeHtml(schoolName)}</strong> on My Little Moments. From here you&apos;ll get photos, milestones and daily updates about <strong>${escapeHtml(
+      childName
+    )}</strong> &mdash; straight from their teachers.`;
+  const features =
+    inviteEmailFeatureRow({
+      icon: '📱',
+      title: "1. Add your child's details",
+      description:
+        'Complete the profile with allergies, medical info and emergency contacts so teachers have everything they need to keep your little one safe.',
+      linkUrl: inviteEmailAppUrl('/login'),
+      linkLabel: 'Add my child →',
+      iconOnRight: true,
+    }) +
+    inviteEmailDividerRow() +
+    inviteEmailFeatureRow({
+      icon: '📱',
+      title: '2. Download the mobile app',
+      description:
+        'Get instant photos, updates and reminders on your phone — so you can be part of the day, even when you&apos;re at work.',
+      linkUrl: INVITE_ACCEPT_APP_BASE_URL,
+      linkLabel: 'App Store • Google Play',
+      iconOnRight: false,
+    });
+  return invitePostAcceptEmailCard({
+    headline,
+    bodyHtml: body,
+    dashboardUrl,
+    featuresInnerHtml: features,
+  });
+}
+
+async function sendParentPostAcceptWelcomeEmail(params: {
+  to: string;
+  firstName: string;
+  schoolName: string;
+  childName: string;
+}): Promise<void> {
+  const dashboardUrl = inviteEmailAppUrl('/login');
+  await sendResendEmail({
+    to: params.to.trim(),
+    subject: `Welcome — you're connected on My Little Moments`,
+    html: parentPostAcceptWelcomeEmailHtml({
+      firstName: params.firstName.trim() || 'there',
+      schoolName: params.schoolName.trim(),
+      childName: params.childName.trim(),
+      dashboardUrl,
+    }),
+  });
+}
+
+function teacherPostAcceptWelcomeEmailHtml(params: {
+  firstName: string;
+  schoolName: string;
+  className: string;
+  dashboardUrl: string;
+}): string {
+  const { firstName, schoolName, className, dashboardUrl } = params;
+  const headline = `You&apos;re all set, ${escapeHtml(firstName)}!`;
+  const body =
+    `Your teacher account at <strong>${escapeHtml(schoolName)}</strong> is ready to go for <strong>${escapeHtml(className)}</strong>. Here are a few quick steps to help you start sharing little moments with parents today.`;
+  const login = inviteEmailAppUrl('/login');
+  const features =
+    inviteEmailFeatureRow({
+      icon: '🏷️',
+      title: '1. Complete your profile',
+      description:
+        'Add your photo, qualifications and a short intro so parents know who is caring for their child.',
+      linkUrl: login,
+      linkLabel: 'Go to profile →',
+      iconOnRight: true,
+    }) +
+    inviteEmailDividerRow() +
+    inviteEmailFeatureRow({
+      icon: '📱',
+      title: '2. View your assigned class',
+      description:
+        'See your classroom roster, children&apos;s profiles and any important notes from parents.',
+      linkUrl: login,
+      linkLabel: 'View my class →',
+      iconOnRight: false,
+    }) +
+    inviteEmailDividerRow() +
+    inviteEmailFeatureRow({
+      icon: '📱',
+      title: '3. Learn daily check-ins',
+      description:
+        'Log meals, naps, nappies and activities in seconds — parents get instant updates throughout the day.',
+      linkUrl: login,
+      linkLabel: 'See how check-ins work →',
+      iconOnRight: true,
+    }) +
+    inviteEmailDividerRow() +
+    inviteEmailFeatureRow({
+      icon: '📱',
+      title: '4. Download the mobile app',
+      description:
+        'Capture photos and log moments on the go — straight from your phone in the classroom or on the playground.',
+      linkUrl: INVITE_ACCEPT_APP_BASE_URL,
+      linkLabel: 'App Store • Google Play',
+      iconOnRight: false,
+    });
+  return invitePostAcceptEmailCard({
+    headline,
+    bodyHtml: body,
+    dashboardUrl,
+    featuresInnerHtml: features,
+  });
+}
+
+async function sendTeacherPostAcceptWelcomeEmail(params: {
+  to: string;
+  firstName: string;
+  schoolName: string;
+  className: string;
+}): Promise<void> {
+  const dashboardUrl = inviteEmailAppUrl('/login');
+  await sendResendEmail({
+    to: params.to.trim(),
+    subject: `You're all set — your My Little Moments teacher account is ready`,
+    html: teacherPostAcceptWelcomeEmailHtml({
+      firstName: params.firstName.trim() || 'there',
+      schoolName: params.schoolName.trim(),
+      className: params.className.trim(),
+      dashboardUrl,
+    }),
+  });
 }
 
 async function sendPrincipalInviteEmail(params: {
@@ -2389,6 +2600,7 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     role: string;
     schoolName?: string;
     principalName?: string;
+    className?: string;
     inviteeDisplayName?: string;
     inviteePreferredName?: string;
     inviteePhone?: string;
@@ -2562,6 +2774,33 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
 
     await ref.update({ usedAt: now });
 
+    const schoolRow = schoolSnap.data() as { name?: string };
+    const schoolLabel =
+      (invite.schoolName && invite.schoolName.trim()) ||
+      (schoolRow.name && schoolRow.name.trim()) ||
+      'your school';
+    const classRaw = invite.className;
+    const classLabel =
+      classRaw && typeof classRaw === 'string' && classRaw.trim()
+        ? classRaw.trim()
+        : 'your assigned class';
+    const headlineFirst = inviteEmailHeadlineFirstName({
+      preferred: preferredFromInvite,
+      displayFromForm,
+      displayFromInvite,
+      fallbackDisplay: finalDisplayName,
+    });
+    void sendTeacherPostAcceptWelcomeEmail({
+      to: emailRaw,
+      firstName: headlineFirst,
+      schoolName: schoolLabel,
+      className: classLabel,
+    }).catch((e) =>
+      functions.logger.warn('sendTeacherPostAcceptWelcomeEmail failed', {
+        message: e instanceof Error ? e.message : String(e),
+      })
+    );
+
     return { ok: true as const, teacherUid };
   }
 
@@ -2590,6 +2829,12 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     const displayFromInvite =
       invite.inviteeDisplayName && typeof invite.inviteeDisplayName === 'string' && invite.inviteeDisplayName.trim()
         ? invite.inviteeDisplayName.trim()
+        : null;
+    const preferredFromInvite =
+      invite.inviteePreferredName &&
+      typeof invite.inviteePreferredName === 'string' &&
+      invite.inviteePreferredName.trim()
+        ? invite.inviteePreferredName.trim()
         : null;
     const phoneHint =
       invite.inviteePhone && typeof invite.inviteePhone === 'string' && invite.inviteePhone.trim()
@@ -2666,6 +2911,37 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     }
 
     await ref.update({ usedAt: now });
+
+    let schoolLabel = invite.schoolName?.trim();
+    if (!schoolLabel) {
+      const sSnap = await db.collection('schools').doc(schoolIdInvite).get();
+      if (sSnap.exists) {
+        const n = (sSnap.data() as { name?: string }).name;
+        schoolLabel = n?.trim();
+      }
+    }
+    if (!schoolLabel) schoolLabel = 'your school';
+    const childRow = childSnap.data() as { name?: string };
+    let childLabel = invite.childName?.trim();
+    if (!childLabel) childLabel = childRow.name?.trim() || '';
+    if (!childLabel) childLabel = 'your child';
+    const headlineFirst = inviteEmailHeadlineFirstName({
+      preferred: preferredFromInvite,
+      displayFromForm,
+      displayFromInvite,
+      fallbackDisplay: finalDisplayName,
+    });
+    void sendParentPostAcceptWelcomeEmail({
+      to: emailRaw,
+      firstName: headlineFirst,
+      schoolName: schoolLabel,
+      childName: childLabel,
+    }).catch((e) =>
+      functions.logger.warn('sendParentPostAcceptWelcomeEmail failed', {
+        message: e instanceof Error ? e.message : String(e),
+      })
+    );
+
     return { ok: true as const, parentUid };
   }
 

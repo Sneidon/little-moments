@@ -6,7 +6,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
-import { HeartIcon } from '@/components/HeartIcon';
+import { AppLogo } from '@/components/AppLogo';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
@@ -101,8 +101,8 @@ export default function AdminLayout({
             </svg>
           </button>
           <Link href="/admin" className="flex min-w-0 items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/50 dark:to-accent-900/30">
-              <HeartIcon size={18} className="text-primary-600 dark:text-primary-400" aria-hidden />
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+              <AppLogo sizes="36px" />
             </div>
             <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">My Little Moments</span>
           </Link>

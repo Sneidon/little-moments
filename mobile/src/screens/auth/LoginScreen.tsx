@@ -11,6 +11,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Pressable,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -82,9 +83,13 @@ export function LoginScreen() {
         bounces={false}
       >
         <View style={styles.hero}>
-          <View style={[styles.logoMark, { backgroundColor: colors.primaryMuted }]}>
-            <Ionicons name="heart" size={36} color={colors.primary} />
-          </View>
+          <Image
+            source={require('../../../assets/logo.png')}
+            style={[styles.logoImage, isDark && styles.logoImageDark]}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="My Little Moments"
+          />
           <Text style={styles.brandTitle}>My Little Moments</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             Stay connected to every little moment.
@@ -200,13 +205,16 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       alignItems: 'center',
       marginBottom: 22,
     },
-    logoMark: {
+    logoImage: {
       width: 88,
       height: 88,
-      borderRadius: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderRadius: 20,
       marginBottom: 16,
+      overflow: 'hidden',
+    },
+    logoImageDark: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.cardBorder,
     },
     brandTitle: {
       fontSize: 26,

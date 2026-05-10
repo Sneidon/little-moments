@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Little Moments — Email previews</title>
+  <!-- Preview-only: mimics inline styles in functions — sans for body copy, Courier for brand/headlines/CTA -->
+  <style>
+    body.preview-page { margin: 0; background: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; }
+    .preview-page header { padding: 24px 20px; border-bottom: 1px solid #334155; }
+    .preview-page h1 { margin: 0 0 8px; font-size: 1.25rem; }
+    .preview-page .intro { margin: 0; font-size: 0.875rem; color: #94a3b8; max-width: 48rem; line-height: 1.5; }
+    .preview-page section { padding: 32px 16px 48px; }
+    .preview-page .label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin-bottom: 12px; }
+    .preview-page .frame { background: #fafafa; border-radius: 12px; overflow: hidden; max-width: 640px; margin: 0 auto; box-shadow: 0 24px 48px rgba(0,0,0,0.35); }
+    .em-sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .em-mono { font-family: 'Courier New', Courier, ui-monospace, monospace; }
+  </style>
+</head>
+<body class="preview-page">
+  <header>
+    <h1>Transactional email previews</h1>
+    <p class="intro">
+      Static HTML reflecting <code style="background:#1e293b;padding:2px 6px;border-radius:4px;">functions/src/index.ts</code>.
+      Invite emails: banner image (Storage) under the brand row; sans-serif for paragraphs and feature copy; <span class="em-mono" style="color:#e2e8f0">Courier New</span> for brand line, headline, CTA, and feature links.
+      Simple emails: UI sans wrapper; logo row unchanged.
+      Open via <code style="background:#1e293b;padding:2px 6px;border-radius:4px;">/email-previews.html</code> for the hosted logo URL.
+    </p>
+    <p class="intro" style="margin-top:12px">Invites: Teacher, Principal, Super admin, Parent · Post-accept: Parent welcome, Teacher welcome · Transactional: registration pending, parent approved, rejected.</p>
+  </header>
+
+  <section>
+    <div class="label">1 — Invite: Teacher</div>
+    <div class="frame">
+      <div style="margin:0;padding:0;background:#fafafa;">
+      <table role="presentation" width="100%" style="border-collapse:collapse;background:#fafafa;"><tr><td align="center" style="padding:24px 12px;">
+      <table role="presentation" width="520" style="border-collapse:collapse;max-width:520px;width:100%;background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(15,23,42,0.07);">
+        <tr><td align="center" class="em-mono" style="padding:28px 24px 16px;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="display:inline-block;border-radius:4px;vertical-align:middle;margin-right:10px;line-height:0;" /><span style="font-weight:700;font-size:17px;color:#6A4BB1;vertical-align:middle;line-height:normal;">My Little Moments</span></td></tr>
+        <tr><td style="padding:0 24px 20px;line-height:0;"><div style="border-radius:16px;overflow:hidden;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Fbanner%2Fv1.png?alt=media&amp;token=8bb5f8d9-5c0e-42a0-b376-0c936a07e212" width="472" height="236" style="display:block;width:100%;max-width:472px;height:auto;border:0;" /></div></td></tr>
+        <tr><td align="center" class="em-mono" style="padding:8px 24px 12px;font-size:22px;font-weight:700;color:#1e1b4b;">Welcome, Teacher!</td></tr>
+        <tr><td class="em-sans" style="padding:0 24px 4px;font-size:15px;color:#334155;">Hi Alex,</td></tr>
+        <tr><td class="em-sans" style="padding:14px 24px 12px;font-size:15px;line-height:1.62;color:#334155;"><strong>Principal Name</strong> has invited you to join <strong>Sunshine Daycare</strong> as a teacher for <strong>Rainbow Room</strong> on My Little Moments — let&apos;s make every little moment count.</td></tr>
+        <tr><td align="center" style="padding:8px 24px 6px;"><a class="em-mono" href="#" style="display:inline-block;padding:16px 38px;border-radius:999px;font-size:15px;font-weight:700;color:#fff !important;text-decoration:none;background:linear-gradient(90deg,#7E3AF2 0%,#E05297 100%);">Accept invite &amp; get started</a></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:0 24px 22px;font-size:12px;color:#64748b;">This link expires in 7 days.</td></tr>
+        <tr><td style="padding:0 24px;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td style="padding:12px 24px 20px;"><table role="presentation" width="100%" style="border-collapse:collapse;"><tr><td width="56" valign="top" style="padding:20px 0 0;"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">👋</div></td><td valign="top" class="em-sans" style="padding:20px 0 0;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">Complete your profile</p><p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">Add your photo…</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">Go to profile →</a></td></tr><tr><td colspan="2"><div style="height:1px;background:#e2e8ef;margin:8px 0;"></div></td></tr><tr><td valign="top"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">📋</div></td><td valign="top" class="em-sans" style="padding:20px 0 0;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">Meet your class</p><p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">Open the mobile app after you accept.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">View my class →</a></td></tr></table></td></tr>
+        <tr><td style="padding:16px 24px 0;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:20px 24px 12px;font-size:13px;line-height:1.55;color:#64748b;">Need a hand? Reply… <a class="em-mono" href="mailto:info@mylittlemoments.co.za" style="color:#6A4BB1;text-decoration:none;">info@mylittlemoments.co.za</a></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:0 24px 32px;font-size:11px;line-height:1.5;color:#94a3b8;">© 2026 My Little Moments</td></tr>
+      </table></td></tr></table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">2 — Invite: Principal</div>
+    <div class="frame">
+      <div style="margin:0;padding:0;background:#fafafa;">
+      <table width="100%" style="border-collapse:collapse;"><tr><td align="center" style="padding:24px 12px;">
+      <table width="520" style="border-collapse:collapse;max-width:520px;background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(15,23,42,0.07);">
+        <tr><td align="center" class="em-mono" style="padding:28px 24px 16px;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="vertical-align:middle;margin-right:10px;border-radius:4px;" /><span style="font-weight:700;font-size:17px;color:#6A4BB1;vertical-align:middle;">My Little Moments</span></td></tr>
+        <tr><td style="padding:0 24px 20px;line-height:0;"><div style="border-radius:16px;overflow:hidden;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Fbanner%2Fv1.png?alt=media&amp;token=8bb5f8d9-5c0e-42a0-b376-0c936a07e212" width="472" height="236" style="display:block;width:100%;max-width:472px;height:auto;border:0;" /></div></td></tr>
+        <tr><td align="center" class="em-mono" style="padding:8px 24px 12px;font-size:22px;font-weight:700;color:#1e1b4b;">Welcome to My Little Moments</td></tr>
+        <tr><td class="em-sans" style="padding:0 24px 4px;font-size:15px;color:#334155;">Hi Sam,</td></tr>
+        <tr><td class="em-sans" style="padding:14px 24px 12px;font-size:15px;line-height:1.62;color:#334155;">My Little Moments has invited you to lead <strong>Sunshine Daycare</strong> on My Little Moments — you&apos;re just a few clicks away from connecting your team and parents.</td></tr>
+        <tr><td align="center" style="padding:8px 24px 6px;"><a class="em-mono" href="#" style="display:inline-block;padding:16px 38px;border-radius:999px;font-size:15px;font-weight:700;color:#fff !important;text-decoration:none;background:linear-gradient(90deg,#7E3AF2 0%,#E05297 100%);">Accept invite &amp; get started</a></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:0 24px 22px;font-size:12px;color:#64748b;">This link expires in 7 days.</td></tr>
+        <tr><td style="padding:0 24px;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td style="padding:12px 24px 20px;"><table width="100%" style="border-collapse:collapse;"><tr><td width="56"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;line-height:48px;text-align:center;">🏷️</div></td><td valign="top" class="em-sans" style="padding-left:12px;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">Complete your profile</p><p style="margin:0 0 10px;font-size:14px;color:#475569;">After you accept, add school details so your dashboard is ready from day one.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">Go to profile →</a></td></tr><tr><td colspan="2"><div style="height:1px;background:#e2e8ef;margin:8px 0;"></div></td></tr><tr><td><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;line-height:48px;text-align:center;">👥</div></td><td valign="top" class="em-sans" style="padding-left:12px;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">Invite your teachers &amp; parents</p><p style="margin:0 0 10px;font-size:14px;color:#475569;">Share secure invites so staff and families can hop on — without sharing passwords.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">Invite your team →</a></td></tr></table></td></tr>
+        <tr><td style="padding:16px 24px 0;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:20px 24px 32px;font-size:13px;color:#64748b;">Need a hand? <a class="em-mono" href="mailto:info@mylittlemoments.co.za" style="color:#6A4BB1;">info@mylittlemoments.co.za</a></td></tr>
+      </table></td></tr></table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">3 — Invite: Super admin</div>
+    <div class="frame">
+      <div style="margin:0;padding:0;background:#fafafa;">
+      <table width="100%" style="border-collapse:collapse;"><tr><td align="center" style="padding:24px 12px;">
+      <table width="520" style="border-collapse:collapse;background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(15,23,42,0.07);max-width:520px;">
+        <tr><td align="center" class="em-mono" style="padding:28px 24px 16px;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="vertical-align:middle;margin-right:10px;border-radius:4px;" /><span style="font-size:17px;font-weight:700;color:#6A4BB1;vertical-align:middle;">My Little Moments</span></td></tr>
+        <tr><td style="padding:0 24px 20px;line-height:0;"><div style="border-radius:16px;overflow:hidden;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Fbanner%2Fv1.png?alt=media&amp;token=8bb5f8d9-5c0e-42a0-b376-0c936a07e212" width="472" height="236" style="display:block;width:100%;max-width:472px;height:auto;border:0;" /></div></td></tr>
+        <tr><td align="center" class="em-mono" style="padding:8px 24px 12px;font-size:22px;font-weight:700;color:#1e1b4b;">Welcome, Administrator!</td></tr>
+        <tr><td class="em-sans" style="padding:0 24px 4px;font-size:15px;color:#334155;">Hi Taylor,</td></tr>
+        <tr><td class="em-sans" style="padding:14px 24px 12px;font-size:15px;line-height:1.62;color:#334155;">You&apos;ve been invited to join My Little Moments as a <strong>super administrator</strong>. Accept below to choose your password.</td></tr>
+        <tr><td align="center" style="padding:8px 24px 6px;"><a class="em-mono" href="#" style="display:inline-block;padding:16px 38px;border-radius:999px;font-size:15px;font-weight:700;color:#fff !important;text-decoration:none;background:linear-gradient(90deg,#7E3AF2 0%,#E05297 100%);">Accept invite &amp; get started</a></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:0 24px 22px;font-size:12px;color:#64748b;">This link expires in 7 days.</td></tr>
+        <tr><td style="padding:0 24px;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td style="padding:12px 24px 20px;"><table width="100%"><tr><td width="56"><div style="width:48px;height:48px;background:#f3e8ff;border-radius:12px;line-height:48px;text-align:center;">🛡️</div></td><td class="em-sans" valign="top" style="padding-left:12px;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">Open the Admin console</p><p style="margin:0 0 10px;font-size:14px;color:#475569;">Manage invitations, principals and visibility across schools from one place.</p><a class="em-mono" href="#" style="color:#6A4BB1;font-weight:600;font-size:13px;">Go to Admin →</a></td></tr><tr><td colspan="2"><div style="height:1px;background:#e2e8ef;margin:8px 0;"></div></td></tr><tr><td><div style="width:48px;height:48px;background:#f3e8ff;border-radius:12px;line-height:48px;text-align:center;">🏫</div></td><td class="em-sans" valign="top" style="padding-left:12px;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">Invite schools</p><p style="margin:0 0 10px;font-size:14px;color:#475569;">Send onboarding links so each principal can activate their school workspace.</p><a class="em-mono" href="#" style="color:#6A4BB1;font-weight:600;font-size:13px;">View schools →</a></td></tr></table></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:20px 24px 32px;font-size:13px;color:#64748b;">Need a hand? <a class="em-mono" href="mailto:info@mylittlemoments.co.za" style="color:#6A4BB1;">info@mylittlemoments.co.za</a></td></tr>
+      </table></td></tr></table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">4 — Invite: Parent</div>
+    <div class="frame">
+      <div style="margin:0;padding:0;background:#fafafa;">
+      <table width="100%" style="border-collapse:collapse;"><tr><td align="center" style="padding:24px 12px;">
+      <table width="520" style="border-collapse:collapse;background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(15,23,42,0.07);max-width:520px;">
+        <tr><td align="center" class="em-mono" style="padding:28px 24px 16px;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="vertical-align:middle;margin-right:10px;border-radius:4px;" /><span style="font-weight:700;font-size:17px;color:#6A4BB1;vertical-align:middle;">My Little Moments</span></td></tr>
+        <tr><td style="padding:0 24px 20px;line-height:0;"><div style="border-radius:16px;overflow:hidden;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Fbanner%2Fv1.png?alt=media&amp;token=8bb5f8d9-5c0e-42a0-b376-0c936a07e212" width="472" height="236" style="display:block;width:100%;max-width:472px;height:auto;border:0;" /></div></td></tr>
+        <tr><td align="center" class="em-mono" style="padding:8px 24px 12px;font-size:22px;font-weight:700;color:#1e1b4b;">Welcome, Parent!</td></tr>
+        <tr><td class="em-sans" style="padding:0 24px 4px;font-size:15px;color:#334155;">Hi Jordan,</td></tr>
+        <tr><td class="em-sans" style="padding:14px 24px 12px;font-size:15px;line-height:1.62;color:#334155;"><strong>Sunshine Daycare</strong> has invited you to join <strong>Sunshine Daycare</strong> on My Little Moments — so you never miss a moment of <strong>Emma</strong>&apos;s day.</td></tr>
+        <tr><td align="center" style="padding:8px 24px 6px;"><a class="em-mono" href="#" style="display:inline-block;padding:16px 38px;border-radius:999px;font-size:15px;font-weight:700;color:#fff !important;text-decoration:none;background:linear-gradient(90deg,#7E3AF2 0%,#E05297 100%);">Accept invite &amp; get started</a></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:0 24px 22px;font-size:12px;color:#64748b;">This link expires in 7 days.</td></tr>
+        <tr><td style="padding:0 24px;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td style="padding:12px 24px 20px;"><table width="100%"><tr><td width="56"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;line-height:48px;text-align:center;">📝</div></td><td valign="top" class="em-sans" style="padding-left:12px;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">Add your child&apos;s details</p><p style="margin:0 0 10px;font-size:14px;color:#475569;">After you accept, complete allergies, medical info…</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;">Add my child →</a></td></tr><tr><td colspan="2"><div style="height:1px;background:#e2e8ef;margin:8px 0;"></div></td></tr><tr><td><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;line-height:48px;text-align:center;">📱</div></td><td valign="top" class="em-sans" style="padding-left:12px;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">Download the mobile app</p><p style="margin:0 0 10px;font-size:14px;color:#475569;">Photos, routines and reminders feel best on your phone.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;">Get the app →</a></td></tr></table></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:20px 24px 32px;font-size:13px;color:#64748b;">Need a hand? <a class="em-mono" href="mailto:info@mylittlemoments.co.za" style="color:#6A4BB1;">info@mylittlemoments.co.za</a></td></tr>
+      </table></td></tr></table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">5 — Post-accept: Parent welcome</div>
+    <div class="frame">
+      <div style="margin:0;padding:0;background:#fafafa;">
+      <table width="100%" style="border-collapse:collapse;"><tr><td align="center" style="padding:24px 12px;">
+      <table width="520" style="border-collapse:collapse;background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(15,23,42,0.07);max-width:520px;">
+        <tr><td align="center" class="em-mono" style="padding:28px 24px 16px;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="vertical-align:middle;margin-right:10px;border-radius:4px;" /><span style="font-weight:700;font-size:17px;color:#6A4BB1;vertical-align:middle;">My Little Moments</span></td></tr>
+        <tr><td style="padding:0 24px 20px;line-height:0;"><div style="border-radius:16px;overflow:hidden;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Fbanner%2Fv1.png?alt=media&amp;token=8bb5f8d9-5c0e-42a0-b376-0c936a07e212" width="472" height="236" style="display:block;width:100%;max-width:472px;height:auto;border:0;" /></div></td></tr>
+        <tr><td align="center" class="em-mono" style="padding:8px 24px 12px;font-size:22px;font-weight:700;color:#1e1b4b;">Welcome, Naledi!</td></tr>
+        <tr><td class="em-sans" style="padding:14px 24px 12px;font-size:15px;line-height:1.62;color:#334155;">You&apos;re now connected to <strong>Sunshine Pre-School</strong> on My Little Moments. From here you&apos;ll get photos, milestones and daily updates about <strong>Amara</strong> — straight from their teachers.</td></tr>
+        <tr><td align="center" style="padding:8px 24px 6px;"><a class="em-mono" href="#" style="display:inline-block;padding:16px 38px;border-radius:999px;font-size:15px;font-weight:700;color:#fff !important;text-decoration:none;background:linear-gradient(90deg,#7E3AF2 0%,#E05297 100%);">Open your dashboard</a></td></tr>
+        <tr><td style="padding:0 24px;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td style="padding:12px 24px 20px;"><table role="presentation" width="100%" style="border-collapse:collapse;"><tr><td valign="top" class="em-sans" style="padding:20px 0 0;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">1. Add your child&apos;s details</p><p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">Complete the profile with allergies, medical info and emergency contacts so teachers have everything they need.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">Add my child →</a></td><td valign="top" width="56" style="padding:20px 0 0;"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">📱</div></td></tr><tr><td colspan="2"><div style="height:1px;background:#e2e8ef;margin:4px 0 0;line-height:1px;font-size:1px;">&nbsp;</div></td></tr><tr><td width="56" valign="top" style="padding:20px 0 0;"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">📱</div></td><td valign="top" class="em-sans" style="padding:20px 0 0;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">2. Download the mobile app</p><p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">Get instant photos, updates and reminders on your phone — even when you&apos;re at work.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">App Store • Google Play</a></td></tr></table></td></tr>
+        <tr><td style="padding:16px 24px 0;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:20px 24px 12px;font-size:13px;line-height:1.55;color:#64748b;">Need a hand? Reply to this email or reach us at <a class="em-mono" href="mailto:info@mylittlemoments.co.za" style="color:#6A4BB1;text-decoration:none;">info@mylittlemoments.co.za</a></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:0 24px 32px;font-size:11px;line-height:1.5;color:#94a3b8;">© 2026 My Little Moments — Caring for South Africa&apos;s little moments</td></tr>
+      </table></td></tr></table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">6 — Post-accept: Teacher welcome</div>
+    <div class="frame">
+      <div style="margin:0;padding:0;background:#fafafa;">
+      <table width="100%" style="border-collapse:collapse;"><tr><td align="center" style="padding:24px 12px;">
+      <table width="520" style="border-collapse:collapse;background:#fff;border-radius:16px;box-shadow:0 6px 30px rgba(15,23,42,0.07);max-width:520px;">
+        <tr><td align="center" class="em-mono" style="padding:28px 24px 16px;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="vertical-align:middle;margin-right:10px;border-radius:4px;" /><span style="font-weight:700;font-size:17px;color:#6A4BB1;vertical-align:middle;">My Little Moments</span></td></tr>
+        <tr><td style="padding:0 24px 20px;line-height:0;"><div style="border-radius:16px;overflow:hidden;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Fbanner%2Fv1.png?alt=media&amp;token=8bb5f8d9-5c0e-42a0-b376-0c936a07e212" width="472" height="236" style="display:block;width:100%;max-width:472px;height:auto;border:0;" /></div></td></tr>
+        <tr><td align="center" class="em-mono" style="padding:8px 24px 12px;font-size:22px;font-weight:700;color:#1e1b4b;">You&apos;re all set, Lerato!</td></tr>
+        <tr><td class="em-sans" style="padding:14px 24px 12px;font-size:15px;line-height:1.62;color:#334155;">Your teacher account at <strong>Sunshine Pre-School</strong> is ready to go for <strong>Butterfly Class</strong>. Here are a few quick steps to help you start sharing little moments with parents today.</td></tr>
+        <tr><td align="center" style="padding:8px 24px 6px;"><a class="em-mono" href="#" style="display:inline-block;padding:16px 38px;border-radius:999px;font-size:15px;font-weight:700;color:#fff !important;text-decoration:none;background:linear-gradient(90deg,#7E3AF2 0%,#E05297 100%);">Open your dashboard</a></td></tr>
+        <tr><td style="padding:0 24px;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td style="padding:12px 24px 20px;"><table role="presentation" width="100%" style="border-collapse:collapse;">
+          <tr><td valign="top" class="em-sans" style="padding:20px 0 0;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">1. Complete your profile</p><p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">Add your photo, qualifications and a short intro.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">Go to profile →</a></td><td valign="top" width="56" style="padding:20px 0 0;"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">🏷️</div></td></tr>
+          <tr><td colspan="2"><div style="height:1px;background:#e2e8ef;margin:4px 0 0;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+          <tr><td width="56" valign="top" style="padding:20px 0 0;"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">📱</div></td><td valign="top" class="em-sans" style="padding:20px 0 0;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">2. View your assigned class</p><p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">See your roster and children&apos;s profiles.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">View my class →</a></td></tr>
+          <tr><td colspan="2"><div style="height:1px;background:#e2e8ef;margin:4px 0 0;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+          <tr><td valign="top" class="em-sans" style="padding:20px 0 0;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">3. Learn daily check-ins</p><p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">Log meals, naps and activities in seconds.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">See how check-ins work →</a></td><td valign="top" width="56" style="padding:20px 0 0;"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">📱</div></td></tr>
+          <tr><td colspan="2"><div style="height:1px;background:#e2e8ef;margin:4px 0 0;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+          <tr><td width="56" valign="top" style="padding:20px 0 0;"><div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">📱</div></td><td valign="top" class="em-sans" style="padding:20px 0 0;"><p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">4. Download the mobile app</p><p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">Capture photos and log moments on the go.</p><a class="em-mono" href="#" style="font-size:13px;font-weight:600;color:#6A4BB1;text-decoration:none;">App Store • Google Play</a></td></tr>
+        </table></td></tr>
+        <tr><td style="padding:16px 24px 0;"><div style="height:1px;background:#e2e8ef;"></div></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:20px 24px 12px;font-size:13px;line-height:1.55;color:#64748b;">Need a hand? Reply to this email or reach us at <a class="em-mono" href="mailto:info@mylittlemoments.co.za" style="color:#6A4BB1;text-decoration:none;">info@mylittlemoments.co.za</a></td></tr>
+        <tr><td align="center" class="em-sans" style="padding:0 24px 32px;font-size:11px;line-height:1.5;color:#94a3b8;">© 2026 My Little Moments — Caring for South Africa&apos;s little moments</td></tr>
+      </table></td></tr></table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">7 — Registration pending</div>
+    <div class="frame">
+      <div class="em-sans" style="padding:24px;background:#fafafa;line-height:1.5;color:#0f172a;">
+        <div style="max-width:560px;margin:0 auto;padding:24px;background:#fff;">
+          <div style="margin:0 0 20px;text-align:center;line-height:0;">
+            <img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="vertical-align:middle;margin-right:10px;border-radius:4px;" />
+            <span class="em-mono" style="font-weight:700;font-size:17px;color:#6A4BB1;vertical-align:middle;">My Little Moments</span>
+          </div>
+          <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;">Welcome, Maria!</h1>
+          <p style="margin:0 0 16px">We received your registration for <strong>Emma</strong> at <strong>Sunshine Daycare</strong>.</p>
+          <p style="margin:0 0 16px">Your registration is being reviewed by the class teacher. We&apos;ll email you as soon as you&apos;re approved.</p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+          <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">8 — Parent approved</div>
+    <div class="frame">
+      <div class="em-sans" style="padding:24px;background:#fafafa;line-height:1.5;color:#0f172a;">
+        <div style="max-width:560px;margin:0 auto;padding:24px;background:#fff;">
+          <div style="margin:0 0 20px;text-align:center;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="vertical-align:middle;margin-right:10px;border-radius:4px;" /><span class="em-mono" style="font-weight:700;font-size:17px;color:#6A4BB1;vertical-align:middle;">My Little Moments</span></div>
+          <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;">You&apos;re approved! See your child&apos;s first moments</h1>
+          <p style="margin:0 0 16px">Hi Maria,</p>
+          <p style="margin:0 0 16px">Good news — your account for <strong>Sunshine Daycare</strong> has been approved.</p>
+          <p style="margin:24px 0"><a href="#" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700;">Set your password &amp; sign in</a></p>
+          <p style="margin:0 0 16px;color:#475569;font-size:13px">Tip: once signed in, you&apos;ll immediately see the latest class moments.</p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+          <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">9 — Registration not approved</div>
+    <div class="frame">
+      <div class="em-sans" style="padding:24px;background:#fafafa;line-height:1.5;color:#0f172a;">
+        <div style="max-width:560px;margin:0 auto;padding:24px;background:#fff;">
+          <div style="margin:0 0 20px;text-align:center;line-height:0;"><img alt="" src="https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&amp;token=82c9425f-d900-4a8c-97d4-146fe1efac05" width="32" height="32" style="vertical-align:middle;margin-right:10px;border-radius:4px;" /><span class="em-mono" style="font-weight:700;font-size:17px;color:#6A4BB1;vertical-align:middle;">My Little Moments</span></div>
+          <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;">Update on your registration</h1>
+          <p style="margin:0 0 16px">Hi Maria,</p>
+          <p style="margin:0 0 16px">Your registration for <strong>Sunshine Daycare</strong> was not approved.</p>
+          <p style="margin:0 0 16px;color:#475569"><strong>Reason:</strong> Class roster is full for this term.</p>
+          <p style="margin:0 0 16px">If you believe this is a mistake, please contact your school directly.</p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+          <p style="margin:0;color:#64748b;font-size:12px">My Little Moments · mylittlemoments.co.za</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

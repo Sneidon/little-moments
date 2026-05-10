@@ -82,7 +82,7 @@ const ACTIVITY_TABS = [
 const NAPPY_TYPES = [
   { value: 'wet', label: 'Wet' },
   { value: 'dirty', label: 'Dirty' },
-  { value: 'both', label: 'Both' },
+  { value: 'normal', label: 'Normal' },
 ];
 const NAPPY_CONDITIONS = [
   { value: 'normal', label: 'Normal' },

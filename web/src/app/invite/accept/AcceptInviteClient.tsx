@@ -9,7 +9,7 @@ import { signInWithCustomToken } from 'firebase/auth';
 import { app, auth } from '@/config/firebase';
 import { MOBILE_APP_IOS_APP_STORE_URL, MOBILE_APP_PLAY_STORE_URL } from '@/config/mobileApp';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { HeartIcon } from '@/components/HeartIcon';
+import { AppLogo } from '@/components/AppLogo';
 
 type PeekInviteResponse =
   | { status: 'not_found' }
@@ -189,10 +189,8 @@ export default function AcceptInviteClient() {
         {invitePrecheck.kind === 'loading' ? (
           <div className={shellCardClass}>
             <div className="mb-4 flex flex-col items-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 p-0.5 shadow-lg shadow-primary-500/25">
-                <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-slate-800">
-                  <HeartIcon size={24} className="text-primary-600 dark:text-primary-400 animate-pulse" aria-hidden />
-                </div>
+              <div className="relative h-14 w-14 animate-pulse overflow-hidden rounded-2xl shadow-lg shadow-primary-500/25">
+                <AppLogo sizes="56px" />
               </div>
               <p className="mt-5 text-center text-sm text-slate-600 dark:text-slate-300">Checking your invite…</p>
             </div>
@@ -200,10 +198,8 @@ export default function AcceptInviteClient() {
         ) : invitePrecheck.kind === 'already_used' ? (
           <div className={shellCardClass}>
             <div className="mb-4 flex flex-col items-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-200/80 dark:bg-slate-600/50 p-0.5 shadow-inner">
-                <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-slate-800">
-                  <HeartIcon size={24} className="text-slate-500 dark:text-slate-400" aria-hidden />
-                </div>
+              <div className="relative h-14 w-14 overflow-hidden rounded-2xl opacity-70 shadow-inner">
+                <AppLogo sizes="56px" />
               </div>
               <h1 className="mt-5 text-center font-display text-xl font-extrabold tracking-tight sm:text-2xl">
                 <span className="text-slate-800 dark:text-slate-100">This invite was already accepted</span>
@@ -266,10 +262,8 @@ export default function AcceptInviteClient() {
         ) : appOnlyRole ? (
           <div className={shellCardClass}>
             <div className="mb-4 flex flex-col items-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 p-0.5 shadow-lg shadow-primary-500/25">
-                <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-slate-800">
-                  <HeartIcon size={24} className="text-primary-600 dark:text-primary-400" aria-hidden />
-                </div>
+              <div className="relative h-14 w-14 overflow-hidden rounded-2xl shadow-lg shadow-primary-500/25">
+                <AppLogo sizes="56px" />
               </div>
               <h1 className="mt-5 text-center font-display text-xl font-extrabold tracking-tight sm:text-2xl">
                 <span className="text-gradient-warm">You&apos;re ready</span>
@@ -291,10 +285,8 @@ export default function AcceptInviteClient() {
         ) : (
           <form onSubmit={onSubmit} className={`${shellCardClass} transition-all duration-300`} noValidate>
             <div className="mb-6 flex flex-col items-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 p-0.5 shadow-lg shadow-primary-500/25">
-                <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-slate-800">
-                  <HeartIcon size={24} className="text-primary-600 dark:text-primary-400" aria-hidden />
-                </div>
+              <div className="relative h-14 w-14 overflow-hidden rounded-2xl shadow-lg shadow-primary-500/25">
+                <AppLogo sizes="56px" />
               </div>
               <h1 className="mt-5 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
                 <span className="text-gradient-warm">Accept invite</span>

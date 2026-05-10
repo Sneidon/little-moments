@@ -24,6 +24,10 @@ const themeScript = `
 export const metadata: Metadata = {
   title: 'My Little Moments – Daycare Admin',
   description: 'Daycare and school management for My Little Moments',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

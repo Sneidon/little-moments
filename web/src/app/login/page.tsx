@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { HeartIcon } from '@/components/HeartIcon';
+import { AppLogo } from '@/components/AppLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function LoginPage() {
@@ -81,10 +81,8 @@ export default function LoginPage() {
           noValidate
         >
           <div className="mb-8 flex flex-col items-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 p-0.5 shadow-lg shadow-primary-500/25 dark:shadow-primary-600/30">
-              <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-slate-800">
-                <HeartIcon size={28} className="text-primary-600 dark:text-primary-400" aria-hidden />
-              </div>
+            <div className="relative h-16 w-16 overflow-hidden rounded-2xl shadow-lg shadow-primary-500/25 dark:shadow-primary-600/30">
+              <AppLogo sizes="64px" priority />
             </div>
             <h1 className="mt-6 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
               <span className="text-gradient-warm">My Little Moments</span>

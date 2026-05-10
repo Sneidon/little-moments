@@ -180,26 +180,34 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppBoot />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function AppBoot() {
+  const { isDark } = useTheme();
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const shellBg = isDark ? '#000000' : '#FFFFFF';
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-        <ActivityIndicator size="large" color="#7B61FF" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: shellBg }}>
+        <ActivityIndicator size="large" color={isDark ? '#A78BFA' : '#7B61FF'} />
       </View>
     );
   }
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

@@ -152,6 +152,42 @@ export default function AdminInvitesPage() {
     return { pending, accepted, expired, total: invites.length };
   }, [invites]);
 
+  const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'ACCEPTED' | 'EXPIRED'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | InviteTokenDoc['role']>('all');
+  const [search, setSearch] = useState('');
+
+  const filteredInvites = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return invites.filter((invite) => {
+      if (statusFilter !== 'all' && inviteStatus(invite) !== statusFilter) return false;
+      if (roleFilter !== 'all' && invite.role !== roleFilter) return false;
+      if (q) {
+        const hay = [
+          invite.email,
+          invite.schoolName,
+          invite.childName,
+          invite.inviteeDisplayName,
+          invite.principalName,
+          invite.className,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [invites, statusFilter, roleFilter, search]);
+
+  const hasInviteFilters =
+    statusFilter !== 'all' || roleFilter !== 'all' || search.trim().length > 0;
+
+  const clearInviteFilters = () => {
+    setStatusFilter('all');
+    setRoleFilter('all');
+    setSearch('');
+  };
+
   const deleteDialogMessage = pendingDeleteInvite
     ? inviteStatus(pendingDeleteInvite) === 'ACCEPTED'
       ? `Remove the invite record for ${pendingDeleteInvite.email}? The school and user accounts are unchanged; this only deletes the stored invite.`
@@ -175,6 +211,67 @@ export default function AdminInvitesPage() {
         title={<span className="text-gradient-warm">Invitations</span>}
         subtitle="Principal, teacher, parent, and super admin invites. QR code or printable PDF for pending invites, resend email, or delete."
       />
+
+      {!loading && invites.length > 0 && (
+        <SectionCard topBar="warm" padding="default" className="mb-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Filters</h2>
+            {hasInviteFilters && (
+              <button
+                type="button"
+                onClick={clearInviteFilters}
+                className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                className="input-base min-w-[160px]"
+              >
+                <option value="all">All statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="ACCEPTED">Accepted</option>
+                <option value="EXPIRED">Expired</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">Role</label>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
+                className="input-base min-w-[180px]"
+              >
+                <option value="all">All roles</option>
+                <option value="principal">Principal</option>
+                <option value="teacher">Teacher</option>
+                <option value="parent">Parent</option>
+                <option value="super_admin">Super admin</option>
+              </select>
+            </div>
+            <div className="min-w-[min(100%,280px)] flex-1">
+              <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">Search</label>
+              <input
+                type="search"
+                placeholder="Email, school, child…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input-base w-full max-w-md"
+              />
+            </div>
+          </div>
+          {hasInviteFilters && (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+              Showing {filteredInvites.length} of {invites.length} invites
+            </p>
+          )}
+        </SectionCard>
+      )}
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SectionCard topBar="primary" className="p-4"><p className="text-xs text-slate-500">Total</p><p className="text-2xl font-bold">{totals.total}</p></SectionCard>
@@ -231,7 +328,7 @@ export default function AdminInvitesPage() {
                 </tr>
               </thead>
               <tbody>
-                {invites.map((invite) => {
+                {filteredInvites.map((invite) => {
                   const createdSchoolId = invite.createdSchoolId || invite.schoolId;
                   const status = inviteStatus(invite);
                   const isSuperAdminInvite = invite.role === 'super_admin';
@@ -376,6 +473,14 @@ export default function AdminInvitesPage() {
             {invites.length === 0 && (
               <p className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
                 No invites yet.
+              </p>
+            )}
+            {invites.length > 0 && filteredInvites.length === 0 && (
+              <p className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                No invites match your filters.{' '}
+                <button type="button" onClick={clearInviteFilters} className="font-medium text-primary-600 underline dark:text-primary-400">
+                  Clear filters
+                </button>
               </p>
             )}
           </div>

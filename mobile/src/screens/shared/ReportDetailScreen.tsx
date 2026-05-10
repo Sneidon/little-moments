@@ -37,7 +37,7 @@ function formatMealAmount(v: unknown): string | undefined {
 function formatNappyType(v: unknown): string | undefined {
   const s = typeof v === 'string' ? v : undefined;
   if (!s) return undefined;
-  const map: Record<string, string> = { wet: 'Wet', dirty: 'Dirty', both: 'Both' };
+  const map: Record<string, string> = { wet: 'Wet', dirty: 'Dirty', normal: 'Normal' };
   return map[s] ?? s;
 }
 

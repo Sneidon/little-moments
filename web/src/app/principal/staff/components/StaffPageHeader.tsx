@@ -105,7 +105,7 @@ export function StaffPageHeader({
         <button type="button" onClick={onInviteTeacher} className="btn-primary">
           Invite teacher
         </button>
-        <button type="button" onClick={onAddTeacher} className="btn-secondary">
+        <button type="button" onClick={onAddTeacher} className="btn-secondary hidden" aria-hidden>
           Add teacher
         </button>
       </div>

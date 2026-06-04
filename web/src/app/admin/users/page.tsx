@@ -265,7 +265,8 @@ export default function AdminUsersPage() {
               onClick={() => {
                 openAddForm();
               }}
-              className="btn-secondary"
+              className="btn-secondary hidden"
+              aria-hidden
             >
               Add super admin
             </button>

@@ -800,14 +800,15 @@ async function sendTeacherInviteEmail(params: {
 
 function parentInviteEmailHtml(params: {
   schoolName: string;
+  principalName: string;
   childName: string;
   inviteeName: string;
   acceptUrl: string;
   expiresInDays: number;
 }): string {
-  const { schoolName, childName, inviteeName, acceptUrl, expiresInDays } = params;
+  const { schoolName, principalName, childName, inviteeName, acceptUrl, expiresInDays } = params;
   const body =
-    `<strong>${escapeHtml(schoolName)}</strong> has invited you to join <strong>${escapeHtml(schoolName)}</strong> on My Little Moments — so you never miss a moment of <strong>${escapeHtml(
+    `<strong>${escapeHtml(principalName)}</strong> has invited you to join <strong>${escapeHtml(schoolName)}</strong> on My Little Moments — so you never miss a moment of <strong>${escapeHtml(
       childName
     )}</strong>&apos;s day.`;
   const features =
@@ -841,16 +842,20 @@ function parentInviteEmailHtml(params: {
 async function sendParentInviteEmail(params: {
   to: string;
   schoolName: string;
+  principalName?: string;
   childName: string;
   inviteeName?: string;
   token: string;
 }): Promise<void> {
   const acceptUrl = `${INVITE_ACCEPT_APP_BASE_URL}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  const principalLabel =
+    params.principalName && params.principalName.trim() ? params.principalName.trim() : 'Your principal';
   await sendResendEmail({
     to: params.to.trim(),
     subject: `You're invited to follow ${params.childName.trim()} on My Little Moments`,
     html: parentInviteEmailHtml({
       schoolName: params.schoolName.trim(),
+      principalName: principalLabel,
       childName: params.childName.trim(),
       inviteeName: (params.inviteeName && params.inviteeName.trim()) ? params.inviteeName.trim() : 'there',
       acceptUrl,
@@ -2418,7 +2423,7 @@ export const resendSchoolInvite = functions.https.onCall(async (data, context) =
 
   const schoolName = invite.schoolName ?? 'Your school';
   let principalNameEmail: string | undefined;
-  if (invite.role === 'teacher' && invite.schoolId) {
+  if ((invite.role === 'teacher' || invite.role === 'parent') && invite.schoolId) {
     const sSnap = await db.collection('schools').doc(invite.schoolId).get();
     if (sSnap.exists) {
       principalNameEmail = (sSnap.data() as { principalName?: string }).principalName?.trim() || undefined;
@@ -2437,6 +2442,7 @@ export const resendSchoolInvite = functions.https.onCall(async (data, context) =
     await sendParentInviteEmail({
       to: invite.email,
       schoolName,
+      principalName: principalNameEmail,
       childName: invite.childName ?? 'your child',
       inviteeName: invite.inviteeDisplayName,
       token: tokenToSend,
@@ -4277,7 +4283,12 @@ export const principalInviteParent = functions.https.onCall(async (data, context
   }
 
   const schoolSnap = await db.collection('schools').doc(schoolId).get();
-  const schoolName = ((schoolSnap.data() as { name?: string })?.name ?? 'Your school').trim();
+  const schoolData = schoolSnap.data() as { name?: string; principalName?: string };
+  const schoolName = (schoolData?.name ?? 'Your school').trim();
+  const principalDisplayNameEmail =
+    schoolData.principalName && schoolData.principalName.trim()
+      ? schoolData.principalName.trim()
+      : undefined;
   const childName = (childData.name && childData.name.trim()) ? childData.name.trim() : 'your child';
 
   try {
@@ -4326,6 +4337,7 @@ export const principalInviteParent = functions.https.onCall(async (data, context
   await sendParentInviteEmail({
     to: emailNorm,
     schoolName,
+    principalName: principalDisplayNameEmail,
     childName,
     inviteeName: typeof parentDisplayName === 'string' ? parentDisplayName.trim() || undefined : undefined,
     token: tok,

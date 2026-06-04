@@ -1,9 +1,18 @@
 /**
  * Writes assets/splash-icon.png: centered logo on a large transparent canvas so
  * native splash resizeMode contain keeps the brand mark visibly small.
+ *
+ * Run once locally: npm install --no-save sharp && node scripts/build-splash-icon.cjs
+ * (sharp is not a project dependency — avoids EAS npm ci native install failures.)
  */
 const path = require('path');
-const sharp = require('sharp');
+let sharp;
+try {
+  sharp = require('sharp');
+} catch {
+  console.error('Install sharp first: npm install --no-save sharp');
+  process.exit(1);
+}
 
 const ROOT = path.join(__dirname, '..');
 const LOGO = path.join(ROOT, 'assets/logo.png');

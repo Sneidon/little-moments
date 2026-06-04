@@ -34,6 +34,8 @@ functions/lib/
 mobile/.expo/
 mobile/dist/
 mobile/web-build/
+mobile/ios/
+mobile/android/
 *.jks
 *.p8
 *.p12

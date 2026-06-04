@@ -112,7 +112,7 @@ export async function downloadPrincipalSchoolInviteHandoutPdf(
     body = `${principalLabel} has invited you to join ${school}${classPart} on ${PDF_BRAND} — let's make every little moment count.`;
   } else {
     const child = invite.childName?.trim() || 'your child';
-    body = `${school} has invited you to join ${school} on ${PDF_BRAND} — so you never miss a moment of ${child}'s day.`;
+    body = `${principalLabel} has invited you to join ${school} on ${PDF_BRAND} — so you never miss a moment of ${child}'s day.`;
   }
 
   y = addWrapped(doc, body, margin, y, bodyW, 5.2) + 4;

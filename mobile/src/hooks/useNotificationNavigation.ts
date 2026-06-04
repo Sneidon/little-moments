@@ -1,7 +1,7 @@
 /**
  * Subscribes to notification opened (tap) and navigates to the relevant screen.
  * Backend sends data.type: daily_communication | daily_report | announcement | announcement_reminder |
- * event_reminder | chat_message. Foreground FCM uses Expo local notifications; taps use Expo response listener.
+ * event_reminder | chat_message | class_assigned. Foreground FCM uses Expo local notifications; taps use Expo response listener.
  */
 
 import { useEffect } from 'react';
@@ -70,6 +70,10 @@ export function navigateFromNotificationData(
     } else {
       navigation.navigate(isParent ? 'ParentSelectChildToMessage' : 'SelectChildToMessage');
     }
+    return;
+  }
+  if (type === NOTIFICATION_DATA_TYPES.class_assigned && !isParent) {
+    navigation.navigate('MainTabs');
     return;
   }
 }

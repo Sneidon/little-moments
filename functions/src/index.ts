@@ -997,6 +997,34 @@ async function getFcmTokensForParentUserIds(
   return tokens;
 }
 
+/** FCM tokens for specific user ids (staff or parents). Optional pref key; omit to always allow. */
+async function getFcmTokensForUserIds(
+  db: admin.firestore.Firestore,
+  userIds: string[],
+  prefKey: ParentNotificationPrefKey | null = null
+): Promise<string[]> {
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  for (const uid of Array.from(new Set(userIds.filter((id) => !!id)))) {
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) continue;
+    const data = userSnap.data() as {
+      fcmTokens?: string[];
+      isActive?: boolean;
+      notificationPreferences?: Record<string, boolean>;
+    };
+    if (data.isActive === false) continue;
+    if (prefKey && !parentNotificationPreferenceAllows(data.notificationPreferences, prefKey)) continue;
+    (data.fcmTokens || []).forEach((t: string) => {
+      if (t && !seen.has(t)) {
+        seen.add(t);
+        tokens.push(t);
+      }
+    });
+  }
+  return tokens;
+}
+
 function reportTypeToNotificationPrefKey(reportType: string | undefined): ParentNotificationPrefKey | null {
   switch (reportType) {
     case 'nappy_change':
@@ -1271,6 +1299,121 @@ export const onSchoolChildCreatedWithClass = functions.firestore
       functions.logger.error('onSchoolChildCreatedWithClass failed', {
         schoolId: context.params.schoolId,
         childId: context.params.childId,
+        error: e,
+      });
+    }
+    return null;
+  });
+
+function normalizeAssignedTeacherId(teacherId: string | null | undefined): string | null {
+  if (teacherId == null || typeof teacherId !== 'string') return null;
+  const t = teacherId.trim();
+  return t.length > 0 ? t : null;
+}
+
+async function notifyTeacherOfClassAssignment(params: {
+  db: admin.firestore.Firestore;
+  schoolId: string;
+  classId: string;
+  teacherId: string;
+  isReassignment: boolean;
+}): Promise<void> {
+  const { db, schoolId, classId, teacherId, isReassignment } = params;
+  const teacherSnap = await db.collection('users').doc(teacherId).get();
+  if (!teacherSnap.exists) return;
+  const teacher = teacherSnap.data() as { role?: string; schoolId?: string; isActive?: boolean };
+  if (teacher.isActive === false || teacher.role !== 'teacher' || teacher.schoolId !== schoolId) return;
+
+  const classSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(classId).get();
+  const classLabel = classSnap.exists
+    ? formatClassLabelForParentNotify(
+        classSnap.data() as { name?: string; minAgeMonths?: number | null; maxAgeMonths?: number | null }
+      )
+    : 'a class';
+
+  const title = isReassignment ? 'New class assignment' : 'Class assignment';
+  const body = isReassignment
+    ? `You have been assigned to ${classLabel}. Open the app to view your class.`
+    : `You have been assigned to ${classLabel}. Open the app to get started.`;
+
+  const data = { type: 'class_assigned', schoolId, classId };
+  await createInAppNotificationsForUserIds(db, [teacherId], { title, body, data });
+
+  const tokens = await getFcmTokensForUserIds(db, [teacherId], null);
+  if (tokens.length === 0) {
+    functions.logger.info('notifyTeacherOfClassAssignment: no FCM tokens', { teacherId, classId });
+    return;
+  }
+  const msg: admin.messaging.MulticastMessage = {
+    tokens,
+    notification: { title: title.slice(0, 200), body: body.slice(0, 200) },
+    data,
+    android: { priority: 'high' as const },
+    apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+  };
+  try {
+    const res = await admin.messaging().sendEachForMulticast(msg);
+    functions.logger.info('notifyTeacherOfClassAssignment: sent', {
+      teacherId,
+      classId,
+      success: res.successCount,
+      failed: res.failureCount,
+    });
+  } catch (e) {
+    functions.logger.error('notifyTeacherOfClassAssignment: send failed', { teacherId, classId, error: e });
+  }
+}
+
+/** Push + in-app notification when a teacher is assigned to a class (create or update). */
+export const onSchoolClassTeacherAssigned = functions.firestore
+  .document('schools/{schoolId}/classes/{classId}')
+  .onUpdate(async (change, context) => {
+    const beforeId = normalizeAssignedTeacherId(
+      (change.before.data() as { assignedTeacherId?: string | null }).assignedTeacherId
+    );
+    const afterId = normalizeAssignedTeacherId(
+      (change.after.data() as { assignedTeacherId?: string | null }).assignedTeacherId
+    );
+    if (!afterId || beforeId === afterId) return null;
+    const db = admin.firestore();
+    try {
+      await notifyTeacherOfClassAssignment({
+        db,
+        schoolId: context.params.schoolId,
+        classId: context.params.classId,
+        teacherId: afterId,
+        isReassignment: beforeId != null,
+      });
+    } catch (e) {
+      functions.logger.error('onSchoolClassTeacherAssigned failed', {
+        schoolId: context.params.schoolId,
+        classId: context.params.classId,
+        error: e,
+      });
+    }
+    return null;
+  });
+
+export const onSchoolClassCreatedWithTeacher = functions.firestore
+  .document('schools/{schoolId}/classes/{classId}')
+  .onCreate(async (snap, context) => {
+    const teacherId = normalizeAssignedTeacherId(
+      (snap.data() as { assignedTeacherId?: string | null }).assignedTeacherId
+    );
+    if (!teacherId) return null;
+    const db = admin.firestore();
+    try {
+      await notifyTeacherOfClassAssignment({
+        db,
+        schoolId: context.params.schoolId,
+        classId: context.params.classId,
+        teacherId,
+        isReassignment: false,
+      });
+    } catch (e) {
+      functions.logger.error('onSchoolClassCreatedWithTeacher failed', {
+        schoolId: context.params.schoolId,
+        classId: context.params.classId,
         error: e,
       });
     }

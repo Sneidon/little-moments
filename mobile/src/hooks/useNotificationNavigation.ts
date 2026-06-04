@@ -76,6 +76,15 @@ export function navigateFromNotificationData(
     navigation.navigate('MainTabs');
     return;
   }
+  if (type === NOTIFICATION_DATA_TYPES.child_joined_class && !isParent) {
+    const childId = data.childId;
+    if (childId) {
+      navigation.navigate('Reports', { childId });
+    } else {
+      navigation.navigate('MainTabs');
+    }
+    return;
+  }
 }
 
 /**

@@ -26,6 +26,7 @@ import { getAge, getInitials, formatTime } from '../../utils';
 import {
   type ReportWithExtras,
   getReportTitle,
+  isParentVisibleReportType,
   reportIcon,
   reportIconColor,
   parseTimeWithDate,
@@ -95,6 +96,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
 
   const dayReports = useMemo(() => {
     return reports.filter((r) => {
+      if (!isParentVisibleReportType(r.type)) return false;
       const t = r.timestamp || r.createdAt;
       return t >= startOfDay && t <= endOfDay;
     });

@@ -41,6 +41,7 @@ import { font } from '../../theme/typography';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 import type { DailyReport } from '../../../../shared/types';
+import { isParentVisibleReportType } from '../../utils/childDailyReportDisplay';
 
 type RootNav = { navigate: (name: string, params?: object) => void } | undefined;
 
@@ -239,7 +240,9 @@ export function ParentHomeScreen({
     );
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as DailyReport));
-      const filtered = list.filter((r) => r.timestamp >= start && r.timestamp <= end);
+      const filtered = list.filter(
+        (r) => r.timestamp >= start && r.timestamp <= end && isParentVisibleReportType(r.type)
+      );
       setReports(filtered);
       setRefreshing(false);
     });

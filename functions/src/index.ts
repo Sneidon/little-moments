@@ -1241,6 +1241,102 @@ async function createClassChangeReportForChild(params: {
     });
 }
 
+function normalizeAssignedTeacherId(teacherId: string | null | undefined): string | null {
+  if (teacherId == null || typeof teacherId !== 'string') return null;
+  const t = teacherId.trim();
+  return t.length > 0 ? t : null;
+}
+
+async function notifyTeacherChildJoinedClass(params: {
+  db: admin.firestore.Firestore;
+  schoolId: string;
+  childId: string;
+  beforeClassId: string | null;
+  afterClassId: string;
+}): Promise<void> {
+  const { db, schoolId, childId, beforeClassId, afterClassId } = params;
+  const childSnap = await db.collection('schools').doc(schoolId).collection('children').doc(childId).get();
+  if (!childSnap.exists) return;
+  const child = childSnap.data() as { name?: string; isActive?: boolean };
+  if (!childEnrollmentIsActive(child)) return;
+
+  const classSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(afterClassId).get();
+  if (!classSnap.exists) return;
+  const classData = classSnap.data() as { assignedTeacherId?: string | null };
+  const teacherId = normalizeAssignedTeacherId(classData.assignedTeacherId);
+  if (!teacherId) return;
+
+  const teacherSnap = await db.collection('users').doc(teacherId).get();
+  if (!teacherSnap.exists) return;
+  const teacher = teacherSnap.data() as { role?: string; schoolId?: string; isActive?: boolean };
+  if (teacher.isActive === false || teacher.role !== 'teacher' || teacher.schoolId !== schoolId) return;
+
+  const childName = (child.name && String(child.name).trim()) || 'A child';
+  const [beforeLabel, afterLabel] = await Promise.all([
+    fetchClassLabel(db, schoolId, beforeClassId),
+    fetchClassLabel(db, schoolId, afterClassId),
+  ]);
+  const classLabel = afterLabel || 'your class';
+  const notes =
+    beforeClassId == null
+      ? `${childName} has been added to ${classLabel}.`
+      : `${childName} joined your class from ${beforeLabel || 'another class'}.`;
+
+  const now = isoNow();
+  const reportRef = await db
+    .collection('schools')
+    .doc(schoolId)
+    .collection('children')
+    .doc(childId)
+    .collection('reports')
+    .add({
+      childId,
+      schoolId,
+      type: 'child_joined_class',
+      reportedBy: 'system',
+      notes,
+      timestamp: now,
+      createdAt: now,
+      previousClassId: beforeClassId ?? undefined,
+      newClassId: afterClassId,
+    });
+
+  const title = `${childName} joined your class`;
+  const body = notes;
+  const data = {
+    type: 'child_joined_class',
+    schoolId,
+    childId,
+    reportId: reportRef.id,
+    classId: afterClassId,
+  };
+  await createInAppNotificationsForUserIds(db, [teacherId], { title, body, data });
+
+  const tokens = await getFcmTokensForUserIds(db, [teacherId], null);
+  if (tokens.length === 0) {
+    functions.logger.info('notifyTeacherChildJoinedClass: no FCM tokens', { teacherId, childId });
+    return;
+  }
+  const msg: admin.messaging.MulticastMessage = {
+    tokens,
+    notification: { title: title.slice(0, 200), body: body.slice(0, 200) },
+    data,
+    android: { priority: 'high' as const },
+    apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+  };
+  try {
+    const res = await admin.messaging().sendEachForMulticast(msg);
+    functions.logger.info('notifyTeacherChildJoinedClass: sent', {
+      teacherId,
+      childId,
+      success: res.successCount,
+      failed: res.failureCount,
+    });
+  } catch (e) {
+    functions.logger.error('notifyTeacherChildJoinedClass: send failed', { teacherId, childId, error: e });
+  }
+}
+
 /** Notify parents (report + push via onReportCreated) when class assignment changes. */
 async function handleChildClassAssignmentChange(
   db: admin.firestore.Firestore,
@@ -1254,6 +1350,7 @@ async function handleChildClassAssignmentChange(
   const afterClassId = normalizeChildClassId(after.classId);
   if (!afterClassId || beforeClassId === afterClassId) return;
   await createClassChangeReportForChild({ db, schoolId, childId, beforeClassId, afterClassId });
+  await notifyTeacherChildJoinedClass({ db, schoolId, childId, beforeClassId, afterClassId });
 }
 
 export const onSchoolChildClassAssignmentChanged = functions.firestore
@@ -1295,6 +1392,13 @@ export const onSchoolChildCreatedWithClass = functions.firestore
         beforeClassId: null,
         afterClassId,
       });
+      await notifyTeacherChildJoinedClass({
+        db,
+        schoolId: context.params.schoolId,
+        childId: context.params.childId,
+        beforeClassId: null,
+        afterClassId,
+      });
     } catch (e) {
       functions.logger.error('onSchoolChildCreatedWithClass failed', {
         schoolId: context.params.schoolId,
@@ -1304,12 +1408,6 @@ export const onSchoolChildCreatedWithClass = functions.firestore
     }
     return null;
   });
-
-function normalizeAssignedTeacherId(teacherId: string | null | undefined): string | null {
-  if (teacherId == null || typeof teacherId !== 'string') return null;
-  const t = teacherId.trim();
-  return t.length > 0 ? t : null;
-}
 
 async function notifyTeacherOfClassAssignment(params: {
   db: admin.firestore.Firestore;
@@ -1433,6 +1531,10 @@ export const onReportCreated = functions.firestore
       photoCategory?: string;
     };
     functions.logger.info('Report created', { schoolId, childId, reportId, type: report?.type });
+
+    if (report.type === 'child_joined_class') {
+      return null;
+    }
 
     const db = admin.firestore();
     const childSnap = await db.collection('schools').doc(schoolId).collection('children').doc(childId).get();

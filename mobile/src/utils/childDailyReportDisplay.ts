@@ -4,6 +4,13 @@ import type { DailyReport } from '../../../shared/types';
 type IonName = keyof typeof Ionicons.glyphMap;
 
 /** Report fields sometimes stored in Firestore beyond DailyReport. */
+/** Reports generated for teachers only — hidden from parent activity feeds. */
+export const TEACHER_ONLY_REPORT_TYPES = new Set(['child_joined_class']);
+
+export function isParentVisibleReportType(type: string): boolean {
+  return !TEACHER_ONLY_REPORT_TYPES.has(type);
+}
+
 export type ReportWithExtras = DailyReport & {
   napStartTime?: string;
   napEndTime?: string;
@@ -28,6 +35,10 @@ export function getReportTitle(item: ReportWithExtras): string {
     const n = item.notes?.trim();
     return n || 'Class update';
   }
+  if (item.type === 'child_joined_class') {
+    const n = item.notes?.trim();
+    return n || 'Joined class';
+  }
   if (item.type === 'medication') return item.medicationName || 'Medication';
   if (item.type === 'incident') return 'Photo';
   return String(item.type).replace('_', ' ');
@@ -41,6 +52,7 @@ export function reportIcon(type: string): IonName {
   if (type === 'check_out') return 'log-out-outline';
   if (type === 'activity') return 'sparkles-outline';
   if (type === 'class_change') return 'school-outline';
+  if (type === 'child_joined_class') return 'person-add-outline';
   if (type === 'medication') return 'medical-outline';
   if (type === 'incident') return 'camera-outline';
   return 'ellipse-outline';
@@ -54,6 +66,7 @@ export function reportIconColor(type: string): string {
   if (type === 'check_out') return '#b45309';
   if (type === 'activity') return '#ea580c';
   if (type === 'class_change') return '#6A4BB1';
+  if (type === 'child_joined_class') return '#16a34a';
   if (type === 'medication') return '#2563eb';
   if (type === 'incident') return '#db2777';
   return '#64748b';

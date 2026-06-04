@@ -244,4 +244,5 @@ export const NOTIFICATION_DATA_TYPES = {
   event_reminder: 'event_reminder',
   chat_message: 'chat_message',
   class_assigned: 'class_assigned',
+  child_joined_class: 'child_joined_class',
 } as const;

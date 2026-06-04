@@ -80,7 +80,9 @@ export type ReportType =
   | 'medication'
   | 'incident'
   /** System-generated when a child is assigned to or moved between classes. */
-  | 'class_change';
+  | 'class_change'
+  /** System-generated for the class teacher when a child joins their class. */
+  | 'child_joined_class';
 
 export interface DailyReport {
   id: string;

@@ -51,6 +51,8 @@ function getUpdateTypeLeadLabel(type: string): string {
       return 'Check Out';
     case 'activity':
       return 'Activity';
+    case 'class_change':
+      return 'Class update';
     case 'medication':
       return 'Medication';
     case 'incident':
@@ -113,6 +115,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
   const activities = dayReports.filter(
     (r) =>
       r.type === 'activity' ||
+      r.type === 'class_change' ||
       r.type === 'medication' ||
       r.type === 'incident' ||
       r.type === 'check_in' ||

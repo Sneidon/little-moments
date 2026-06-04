@@ -58,6 +58,8 @@ function formatParentReportLabel(type: string): string {
       return 'Check out';
     case 'activity':
       return 'Activity';
+    case 'class_change':
+      return 'Class update';
     case 'medication':
       return 'Medication';
     case 'incident':
@@ -75,6 +77,7 @@ function reportTypeIconName(type: string): keyof typeof Ionicons.glyphMap {
   if (type === 'check_out') return 'log-out';
   if (type === 'medication') return 'medical';
   if (type === 'incident') return 'camera';
+  if (type === 'class_change') return 'school';
   return 'color-palette';
 }
 
@@ -311,6 +314,8 @@ export function ParentHomeScreen({
         return { soft: colors.accentTealSoft, icon: colors.accentTeal };
       if (type === 'incident')
         return { soft: colors.accentTealSoft, icon: colors.accentTeal };
+      if (type === 'class_change')
+        return { soft: colors.accentPurpleSoft, icon: colors.accentPurple };
       return { soft: colors.accentOrangeSoft, icon: colors.accentOrange };
     },
     [colors]

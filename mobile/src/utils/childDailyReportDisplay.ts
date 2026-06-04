@@ -24,6 +24,10 @@ export function getReportTitle(item: ReportWithExtras): string {
   if (item.type === 'check_in') return 'Check In';
   if (item.type === 'check_out') return 'Check Out';
   if (item.type === 'activity') return item.activityTitle || item.activityType || 'Activity';
+  if (item.type === 'class_change') {
+    const n = item.notes?.trim();
+    return n || 'Class update';
+  }
   if (item.type === 'medication') return item.medicationName || 'Medication';
   if (item.type === 'incident') return 'Photo';
   return String(item.type).replace('_', ' ');
@@ -36,6 +40,7 @@ export function reportIcon(type: string): IonName {
   if (type === 'check_in') return 'log-in-outline';
   if (type === 'check_out') return 'log-out-outline';
   if (type === 'activity') return 'sparkles-outline';
+  if (type === 'class_change') return 'school-outline';
   if (type === 'medication') return 'medical-outline';
   if (type === 'incident') return 'camera-outline';
   return 'ellipse-outline';
@@ -48,6 +53,7 @@ export function reportIconColor(type: string): string {
   if (type === 'check_in') return '#16a34a';
   if (type === 'check_out') return '#b45309';
   if (type === 'activity') return '#ea580c';
+  if (type === 'class_change') return '#6A4BB1';
   if (type === 'medication') return '#2563eb';
   if (type === 'incident') return '#db2777';
   return '#64748b';

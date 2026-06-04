@@ -1010,6 +1010,7 @@ function reportTypeToNotificationPrefKey(reportType: string | undefined): Parent
     case 'check_out':
       return 'checkOut';
     case 'activity':
+    case 'class_change':
       return 'activity';
     case 'medication':
       return 'medication';
@@ -1070,6 +1071,12 @@ function buildReportNotificationCopy(
       body: shortNotes || 'New activity update from school.',
     };
   }
+  if (type === 'class_change') {
+    return {
+      title: `${childName}: Class update`,
+      body: shortNotes || 'Your child\'s class has been updated.',
+    };
+  }
   if (type === 'medication') {
     return {
       title: `${childName}: Medication`,
@@ -1124,6 +1131,149 @@ export const onSchoolChildUpdatedClearClassIfInactive = functions.firestore
       childId: context.params.childId,
       previousClassId: classId,
     });
+    return null;
+  });
+
+function normalizeChildClassId(classId: string | null | undefined): string | null {
+  if (classId == null || typeof classId !== 'string') return null;
+  const t = classId.trim();
+  return t.length > 0 ? t : null;
+}
+
+function formatClassLabelForParentNotify(data: {
+  name?: string;
+  minAgeMonths?: number | null;
+  maxAgeMonths?: number | null;
+} | null): string {
+  if (!data?.name || !String(data.name).trim()) return 'their new class';
+  const name = String(data.name).trim();
+  const min = data.minAgeMonths;
+  const max = data.maxAgeMonths;
+  const fmtMonths = (m: number) => (m >= 24 ? `${Math.round(m / 12)} yr` : `${m} mo`);
+  if (min != null && max != null && !Number.isNaN(Number(min)) && !Number.isNaN(Number(max))) {
+    return `${name} (${fmtMonths(Number(min))} – ${fmtMonths(Number(max))})`;
+  }
+  if (min != null && !Number.isNaN(Number(min))) return `${name} (from ${fmtMonths(Number(min))})`;
+  if (max != null && !Number.isNaN(Number(max))) return `${name} (up to ${fmtMonths(Number(max))})`;
+  return name;
+}
+
+async function fetchClassLabel(
+  db: admin.firestore.Firestore,
+  schoolId: string,
+  classId: string | null
+): Promise<string | null> {
+  if (!classId) return null;
+  const snap = await db.collection('schools').doc(schoolId).collection('classes').doc(classId).get();
+  if (!snap.exists) return null;
+  return formatClassLabelForParentNotify(snap.data() as { name?: string; minAgeMonths?: number | null; maxAgeMonths?: number | null });
+}
+
+async function createClassChangeReportForChild(params: {
+  db: admin.firestore.Firestore;
+  schoolId: string;
+  childId: string;
+  beforeClassId: string | null;
+  afterClassId: string;
+}): Promise<void> {
+  const { db, schoolId, childId, beforeClassId, afterClassId } = params;
+  const childSnap = await db.collection('schools').doc(schoolId).collection('children').doc(childId).get();
+  if (!childSnap.exists) return;
+  const child = childSnap.data() as { isActive?: boolean; parentIds?: string[] };
+  if (!childEnrollmentIsActive(child)) return;
+  if (!child.parentIds?.length) return;
+
+  const [beforeLabel, afterLabel] = await Promise.all([
+    fetchClassLabel(db, schoolId, beforeClassId),
+    fetchClassLabel(db, schoolId, afterClassId),
+  ]);
+  const newLabel = afterLabel || 'their new class';
+  const notes =
+    beforeClassId == null
+      ? `Assigned to ${newLabel}.`
+      : `Moved from ${beforeLabel || 'their previous class'} to ${newLabel}.`;
+
+  const now = isoNow();
+  await db
+    .collection('schools')
+    .doc(schoolId)
+    .collection('children')
+    .doc(childId)
+    .collection('reports')
+    .add({
+      childId,
+      schoolId,
+      type: 'class_change',
+      reportedBy: 'system',
+      notes,
+      timestamp: now,
+      createdAt: now,
+      previousClassId: beforeClassId ?? undefined,
+      newClassId: afterClassId,
+    });
+}
+
+/** Notify parents (report + push via onReportCreated) when class assignment changes. */
+async function handleChildClassAssignmentChange(
+  db: admin.firestore.Firestore,
+  schoolId: string,
+  childId: string,
+  before: { isActive?: boolean; classId?: string | null },
+  after: { isActive?: boolean; classId?: string | null }
+): Promise<void> {
+  if (!childEnrollmentIsActive(after)) return;
+  const beforeClassId = normalizeChildClassId(before.classId);
+  const afterClassId = normalizeChildClassId(after.classId);
+  if (!afterClassId || beforeClassId === afterClassId) return;
+  await createClassChangeReportForChild({ db, schoolId, childId, beforeClassId, afterClassId });
+}
+
+export const onSchoolChildClassAssignmentChanged = functions.firestore
+  .document('schools/{schoolId}/children/{childId}')
+  .onUpdate(async (change, context) => {
+    const before = change.before.data() as { isActive?: boolean; classId?: string | null };
+    const after = change.after.data() as { isActive?: boolean; classId?: string | null };
+    const db = admin.firestore();
+    try {
+      await handleChildClassAssignmentChange(
+        db,
+        context.params.schoolId,
+        context.params.childId,
+        before,
+        after
+      );
+    } catch (e) {
+      functions.logger.error('onSchoolChildClassAssignmentChanged failed', {
+        schoolId: context.params.schoolId,
+        childId: context.params.childId,
+        error: e,
+      });
+    }
+    return null;
+  });
+
+export const onSchoolChildCreatedWithClass = functions.firestore
+  .document('schools/{schoolId}/children/{childId}')
+  .onCreate(async (snap, context) => {
+    const data = snap.data() as { isActive?: boolean; classId?: string | null };
+    const afterClassId = normalizeChildClassId(data.classId);
+    if (!afterClassId || !childEnrollmentIsActive(data)) return null;
+    const db = admin.firestore();
+    try {
+      await createClassChangeReportForChild({
+        db,
+        schoolId: context.params.schoolId,
+        childId: context.params.childId,
+        beforeClassId: null,
+        afterClassId,
+      });
+    } catch (e) {
+      functions.logger.error('onSchoolChildCreatedWithClass failed', {
+        schoolId: context.params.schoolId,
+        childId: context.params.childId,
+        error: e,
+      });
+    }
     return null;
   });
 

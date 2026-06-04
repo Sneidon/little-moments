@@ -98,6 +98,8 @@ function typeLabel(type: string): string {
       return 'Check out';
     case 'activity':
       return 'Activity';
+    case 'class_change':
+      return 'Class update';
     case 'medication':
       return 'Medication';
     case 'incident':
@@ -121,6 +123,8 @@ function typeIcon(type: string): keyof typeof Ionicons.glyphMap {
       return 'log-out-outline';
     case 'activity':
       return 'sparkles-outline';
+    case 'class_change':
+      return 'school-outline';
     case 'medication':
       return 'medical-outline';
     case 'incident':
@@ -137,6 +141,7 @@ const TYPE_COLORS: Record<string, string> = {
   check_in: '#16a34a',
   check_out: '#b45309',
   activity: '#ea580c',
+  class_change: '#6A4BB1',
   medication: '#2563eb',
   incident: '#db2777',
 };

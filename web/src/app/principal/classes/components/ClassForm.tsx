@@ -24,8 +24,8 @@ export function ClassForm({
   onSubmit,
   onCancel,
 }: ClassFormProps) {
-  const activeTeachers = teachers.filter(
-    (t) => t.role === 'principal' || (t.role === 'teacher' && t.isActive !== false)
+  const assignableTeachers = teachers.filter(
+    (t) => t.role === 'teacher' && t.isActive !== false
   );
 
   return (
@@ -110,9 +110,9 @@ export function ClassForm({
             className={inputClass}
           >
             <option value="">—</option>
-            {activeTeachers.map((t) => (
+            {assignableTeachers.map((t) => (
               <option key={t.uid} value={t.uid}>
-                {t.displayName} ({t.role})
+                {t.displayName || t.email || t.uid}
               </option>
             ))}
           </select>

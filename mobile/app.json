@@ -31,7 +31,14 @@
       ],
       "./plugins/withRnFirebaseStaticFramework",
       "expo-splash-screen",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "color": "#7B61FF",
+          "mode": "production",
+          "iosDisplayInForeground": true
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -61,6 +68,7 @@
         "UIBackgroundModes": [
           "remote-notification"
         ],
+        "NSUserNotificationsUsageDescription": "My Little Moments sends alerts for daily updates, messages, and school announcements.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },

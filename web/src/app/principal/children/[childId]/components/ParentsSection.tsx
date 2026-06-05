@@ -246,7 +246,8 @@ export function ParentsSection({
                 closeEmailInvite?.();
                 setShowInviteParent?.(true);
               }}
-              className="btn-primary"
+              className="btn-primary hidden"
+              aria-hidden
             >
               Add / link parent now
             </button>
@@ -397,7 +398,8 @@ export function ParentsSection({
                   closeEmailInvite?.();
                   setShowInviteParent?.(true);
                 }}
-                className="btn-primary"
+                className="btn-primary hidden"
+                aria-hidden
               >
                 Add / link parent now
               </button>

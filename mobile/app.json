@@ -20,8 +20,33 @@
       }
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.0",
+            "useFrameworks": "static"
+          },
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          }
+        }
+      ],
+      "@react-native-firebase/app/app.plugin.js",
+      "./plugins/withRnFirebaseStaticFramework",
       "expo-splash-screen",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "color": "#7B61FF",
+          "mode": "production",
+          "iosDisplayInForeground": true
+        }
+      ],
+      "@react-native-firebase/messaging/app.plugin.js",
+      "./plugins/withFirebaseNotificationManifestFix",
       [
         "expo-image-picker",
         {
@@ -48,7 +73,11 @@
         "aps-environment": "production"
       },
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
+        "NSUserNotificationsUsageDescription": "My Little Moments sends alerts for daily updates, messages, and school announcements.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

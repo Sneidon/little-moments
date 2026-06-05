@@ -186,7 +186,8 @@ export default function SchoolsPage() {
                 setError('');
                 setForm({ name: '', address: '', contactEmail: '', contactPhone: '', description: '', website: '', subscriptionStatus: 'active', principalEmail: '', principalDisplayName: '', principalPassword: '' });
               }}
-              className="btn-secondary"
+              className="btn-secondary hidden"
+              aria-hidden
             >
               Add school
             </button>

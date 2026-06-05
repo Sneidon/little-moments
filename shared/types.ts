@@ -78,7 +78,11 @@ export type ReportType =
   | 'check_out'
   | 'activity'
   | 'medication'
-  | 'incident';
+  | 'incident'
+  /** System-generated when a child is assigned to or moved between classes. */
+  | 'class_change'
+  /** System-generated for the class teacher when a child joins their class. */
+  | 'child_joined_class';
 
 export interface DailyReport {
   id: string;
@@ -106,6 +110,9 @@ export interface DailyReport {
   mediaType?: string;
   /** Teacher-selected label for photo posts (e.g. Outdoor play). */
   photoCategory?: string;
+  /** Set on class_change reports when a child moves between classes. */
+  previousClassId?: string;
+  newClassId?: string;
 }
 
 /** Daily real-time communication: planned activity for the day, sent to all parents. */

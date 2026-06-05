@@ -30,6 +30,8 @@ try {
   // Not installed / unavailable (should exist in this app, but keep safe)
 }
 
+let pushRegistrationPromise: Promise<void> | null = null;
+
 /** Call once at app startup, before any component mounts. */
 export function registerBackgroundMessageHandler(): void {
   if (!messaging) return;
@@ -53,6 +55,7 @@ export type NotificationData = {
   eventId?: string;
   reportType?: string;
   chatId?: string;
+  classId?: string;
   [key: string]: string | undefined;
 };
 
@@ -154,7 +157,7 @@ export function configureNotifications(): void {
   }
 }
 
-async function saveTokenToBackend(token: string): Promise<void> {  
+async function saveTokenToBackend(token: string): Promise<void> {
   const trimmed = token.trim();
   if (!trimmed) return;
   const saveFcmToken = httpsCallable<{ token: string }, { ok: boolean }>(
@@ -164,37 +167,125 @@ async function saveTokenToBackend(token: string): Promise<void> {
   await saveFcmToken({ token: trimmed });
 }
 
+function isFirebaseMessagingAuthorized(status: number): boolean {
+  const Auth = messagingModule?.AuthorizationStatus as
+    | { AUTHORIZED: number; PROVISIONAL: number; DENIED: number; NOT_DETERMINED: number }
+    | undefined;
+  if (!Auth) return status === 1 || status === 2;
+  return status === Auth.AUTHORIZED || status === Auth.PROVISIONAL;
+}
+
 /**
- * Request permission (iOS + Android 33+), get FCM token, and save to backend via saveFcmToken.
- * Call after user is signed in.
+ * Show the system permission dialog on iOS and Android (13+).
+ * Uses expo-notifications first so the prompt is reliable on iOS.
  */
-export async function registerForPushNotifications(): Promise<void> {
-  if (!messaging) return;
-  try {
-    if (Platform.OS === 'ios' && messagingModule?.AuthorizationStatus) {
-      const authStatus = await messaging().requestPermission();
-      const Auth = messagingModule.AuthorizationStatus as { AUTHORIZED: number; PROVISIONAL: number };
-      const enabled = authStatus === Auth.AUTHORIZED || authStatus === Auth.PROVISIONAL;
-      if (!enabled) return;
+export async function requestNotificationPermissions(): Promise<boolean> {
+  if (expoNotifications) {
+    try {
+      const existing = await expoNotifications.getPermissionsAsync();
+      let status = existing.status;
+      if (status !== 'granted') {
+        const requested = await expoNotifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+            allowAnnouncements: false,
+          },
+        });
+        status = requested.status;
+      }
+      if (status !== 'granted') {
+        console.warn('Notification permission not granted (expo):', status);
+        return false;
+      }
+    } catch (e) {
+      console.warn('expo-notifications permission request failed:', e);
     }
-    if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+  }
+
+  if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+    try {
       const { PermissionsAndroid } = require('react-native');
-      await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+      if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+        console.warn('POST_NOTIFICATIONS not granted:', result);
+        return false;
+      }
+    } catch (e) {
+      console.warn('Android POST_NOTIFICATIONS request failed:', e);
+      return false;
     }
+  }
 
-    const token = await messaging().getToken();
-    if (!token || !token.trim()) return;
-    await saveTokenToBackend(token);
+  if (Platform.OS === 'ios' && messaging) {
+    try {
+      const authStatus = await messaging().requestPermission();
+      if (!isFirebaseMessagingAuthorized(authStatus)) {
+        console.warn('Firebase messaging permission not granted on iOS:', authStatus);
+        return false;
+      }
+    } catch (e) {
+      console.warn('Firebase messaging requestPermission failed:', e);
+      return false;
+    }
+  }
 
-    if (!tokenRefreshUnsubscribe) {
-      tokenRefreshUnsubscribe = messaging().onTokenRefresh((newToken) => {
-        console.log('Token refreshed:', newToken);
-        saveTokenToBackend(newToken).catch(() => {});
-      });
+  return true;
+}
+
+async function ensureIosRegisteredForRemoteMessages(): Promise<void> {
+  if (Platform.OS !== 'ios' || !messaging) return;
+  try {
+    const registered = messaging().isDeviceRegisteredForRemoteMessages;
+    if (!registered) {
+      await messaging().registerDeviceForRemoteMessages();
     }
   } catch (e) {
-    console.warn('Push registration failed (expected in Expo Go):', e);
+    console.warn('registerDeviceForRemoteMessages failed:', e);
   }
+}
+
+/**
+ * Request permission (iOS + Android), get FCM token, and save to backend via saveFcmToken.
+ * Call after user is signed in (native build only; no-op in Expo Go).
+ */
+export async function registerForPushNotifications(): Promise<void> {
+  if (!messaging) {
+    console.warn('Push notifications unavailable (Expo Go or missing native FCM module).');
+    return;
+  }
+  if (pushRegistrationPromise) return pushRegistrationPromise;
+
+  pushRegistrationPromise = (async () => {
+    try {
+      const permitted = await requestNotificationPermissions();
+      if (!permitted) return;
+
+      await ensureIosRegisteredForRemoteMessages();
+
+      const token = await messaging().getToken();
+      if (!token || !token.trim()) {
+        console.warn('FCM getToken returned empty');
+        return;
+      }
+      await saveTokenToBackend(token);
+
+      if (!tokenRefreshUnsubscribe) {
+        tokenRefreshUnsubscribe = messaging().onTokenRefresh((newToken) => {
+          saveTokenToBackend(newToken).catch(() => {});
+        });
+      }
+    } catch (e) {
+      console.warn('Push registration failed:', e);
+    } finally {
+      pushRegistrationPromise = null;
+    }
+  })();
+
+  return pushRegistrationPromise;
 }
 
 /**
@@ -242,4 +333,6 @@ export const NOTIFICATION_DATA_TYPES = {
   announcement_reminder: 'announcement_reminder',
   event_reminder: 'event_reminder',
   chat_message: 'chat_message',
+  class_assigned: 'class_assigned',
+  child_joined_class: 'child_joined_class',
 } as const;

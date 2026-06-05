@@ -59,6 +59,8 @@ function getUpdateTypeLeadLabel(type: string): string {
       return 'Check Out';
     case 'activity':
       return 'Activity';
+    case 'child_joined_class':
+      return 'Joined class';
     case 'medication':
       return 'Medication';
     case 'incident':
@@ -115,6 +117,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   const activities = dayReports.filter(
     (r) =>
       r.type === 'activity' ||
+      r.type === 'child_joined_class' ||
       r.type === 'medication' ||
       r.type === 'incident' ||
       r.type === 'check_in' ||

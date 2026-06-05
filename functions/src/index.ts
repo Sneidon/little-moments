@@ -800,14 +800,15 @@ async function sendTeacherInviteEmail(params: {
 
 function parentInviteEmailHtml(params: {
   schoolName: string;
+  principalName: string;
   childName: string;
   inviteeName: string;
   acceptUrl: string;
   expiresInDays: number;
 }): string {
-  const { schoolName, childName, inviteeName, acceptUrl, expiresInDays } = params;
+  const { schoolName, principalName, childName, inviteeName, acceptUrl, expiresInDays } = params;
   const body =
-    `<strong>${escapeHtml(schoolName)}</strong> has invited you to join <strong>${escapeHtml(schoolName)}</strong> on My Little Moments — so you never miss a moment of <strong>${escapeHtml(
+    `<strong>${escapeHtml(principalName)}</strong> has invited you to join <strong>${escapeHtml(schoolName)}</strong> on My Little Moments — so you never miss a moment of <strong>${escapeHtml(
       childName
     )}</strong>&apos;s day.`;
   const features =
@@ -841,16 +842,20 @@ function parentInviteEmailHtml(params: {
 async function sendParentInviteEmail(params: {
   to: string;
   schoolName: string;
+  principalName?: string;
   childName: string;
   inviteeName?: string;
   token: string;
 }): Promise<void> {
   const acceptUrl = `${INVITE_ACCEPT_APP_BASE_URL}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  const principalLabel =
+    params.principalName && params.principalName.trim() ? params.principalName.trim() : 'Your principal';
   await sendResendEmail({
     to: params.to.trim(),
     subject: `You're invited to follow ${params.childName.trim()} on My Little Moments`,
     html: parentInviteEmailHtml({
       schoolName: params.schoolName.trim(),
+      principalName: principalLabel,
       childName: params.childName.trim(),
       inviteeName: (params.inviteeName && params.inviteeName.trim()) ? params.inviteeName.trim() : 'there',
       acceptUrl,
@@ -992,6 +997,34 @@ async function getFcmTokensForParentUserIds(
   return tokens;
 }
 
+/** FCM tokens for specific user ids (staff or parents). Optional pref key; omit to always allow. */
+async function getFcmTokensForUserIds(
+  db: admin.firestore.Firestore,
+  userIds: string[],
+  prefKey: ParentNotificationPrefKey | null = null
+): Promise<string[]> {
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  for (const uid of Array.from(new Set(userIds.filter((id) => !!id)))) {
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) continue;
+    const data = userSnap.data() as {
+      fcmTokens?: string[];
+      isActive?: boolean;
+      notificationPreferences?: Record<string, boolean>;
+    };
+    if (data.isActive === false) continue;
+    if (prefKey && !parentNotificationPreferenceAllows(data.notificationPreferences, prefKey)) continue;
+    (data.fcmTokens || []).forEach((t: string) => {
+      if (t && !seen.has(t)) {
+        seen.add(t);
+        tokens.push(t);
+      }
+    });
+  }
+  return tokens;
+}
+
 function reportTypeToNotificationPrefKey(reportType: string | undefined): ParentNotificationPrefKey | null {
   switch (reportType) {
     case 'nappy_change':
@@ -1005,6 +1038,7 @@ function reportTypeToNotificationPrefKey(reportType: string | undefined): Parent
     case 'check_out':
       return 'checkOut';
     case 'activity':
+    case 'class_change':
       return 'activity';
     case 'medication':
       return 'medication';
@@ -1065,6 +1099,12 @@ function buildReportNotificationCopy(
       body: shortNotes || 'New activity update from school.',
     };
   }
+  if (type === 'class_change') {
+    return {
+      title: `${childName}: Class update`,
+      body: shortNotes || 'Your child\'s class has been updated.',
+    };
+  }
   if (type === 'medication') {
     return {
       title: `${childName}: Medication`,
@@ -1122,6 +1162,362 @@ export const onSchoolChildUpdatedClearClassIfInactive = functions.firestore
     return null;
   });
 
+function normalizeChildClassId(classId: string | null | undefined): string | null {
+  if (classId == null || typeof classId !== 'string') return null;
+  const t = classId.trim();
+  return t.length > 0 ? t : null;
+}
+
+function formatClassLabelForParentNotify(data: {
+  name?: string;
+  minAgeMonths?: number | null;
+  maxAgeMonths?: number | null;
+} | null): string {
+  if (!data?.name || !String(data.name).trim()) return 'their new class';
+  const name = String(data.name).trim();
+  const min = data.minAgeMonths;
+  const max = data.maxAgeMonths;
+  const fmtMonths = (m: number) => (m >= 24 ? `${Math.round(m / 12)} yr` : `${m} mo`);
+  if (min != null && max != null && !Number.isNaN(Number(min)) && !Number.isNaN(Number(max))) {
+    return `${name} (${fmtMonths(Number(min))} – ${fmtMonths(Number(max))})`;
+  }
+  if (min != null && !Number.isNaN(Number(min))) return `${name} (from ${fmtMonths(Number(min))})`;
+  if (max != null && !Number.isNaN(Number(max))) return `${name} (up to ${fmtMonths(Number(max))})`;
+  return name;
+}
+
+async function fetchClassLabel(
+  db: admin.firestore.Firestore,
+  schoolId: string,
+  classId: string | null
+): Promise<string | null> {
+  if (!classId) return null;
+  const snap = await db.collection('schools').doc(schoolId).collection('classes').doc(classId).get();
+  if (!snap.exists) return null;
+  return formatClassLabelForParentNotify(snap.data() as { name?: string; minAgeMonths?: number | null; maxAgeMonths?: number | null });
+}
+
+async function createClassChangeReportForChild(params: {
+  db: admin.firestore.Firestore;
+  schoolId: string;
+  childId: string;
+  beforeClassId: string | null;
+  afterClassId: string;
+}): Promise<void> {
+  const { db, schoolId, childId, beforeClassId, afterClassId } = params;
+  const childSnap = await db.collection('schools').doc(schoolId).collection('children').doc(childId).get();
+  if (!childSnap.exists) return;
+  const child = childSnap.data() as { isActive?: boolean; parentIds?: string[] };
+  if (!childEnrollmentIsActive(child)) return;
+  if (!child.parentIds?.length) return;
+
+  const [beforeLabel, afterLabel] = await Promise.all([
+    fetchClassLabel(db, schoolId, beforeClassId),
+    fetchClassLabel(db, schoolId, afterClassId),
+  ]);
+  const newLabel = afterLabel || 'their new class';
+  const notes =
+    beforeClassId == null
+      ? `Assigned to ${newLabel}.`
+      : `Moved from ${beforeLabel || 'their previous class'} to ${newLabel}.`;
+
+  const now = isoNow();
+  await db
+    .collection('schools')
+    .doc(schoolId)
+    .collection('children')
+    .doc(childId)
+    .collection('reports')
+    .add({
+      childId,
+      schoolId,
+      type: 'class_change',
+      reportedBy: 'system',
+      notes,
+      timestamp: now,
+      createdAt: now,
+      previousClassId: beforeClassId ?? undefined,
+      newClassId: afterClassId,
+    });
+}
+
+function normalizeAssignedTeacherId(teacherId: string | null | undefined): string | null {
+  if (teacherId == null || typeof teacherId !== 'string') return null;
+  const t = teacherId.trim();
+  return t.length > 0 ? t : null;
+}
+
+async function notifyTeacherChildJoinedClass(params: {
+  db: admin.firestore.Firestore;
+  schoolId: string;
+  childId: string;
+  beforeClassId: string | null;
+  afterClassId: string;
+}): Promise<void> {
+  const { db, schoolId, childId, beforeClassId, afterClassId } = params;
+  const childSnap = await db.collection('schools').doc(schoolId).collection('children').doc(childId).get();
+  if (!childSnap.exists) return;
+  const child = childSnap.data() as { name?: string; isActive?: boolean };
+  if (!childEnrollmentIsActive(child)) return;
+
+  const classSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(afterClassId).get();
+  if (!classSnap.exists) return;
+  const classData = classSnap.data() as { assignedTeacherId?: string | null };
+  const teacherId = normalizeAssignedTeacherId(classData.assignedTeacherId);
+  if (!teacherId) return;
+
+  const teacherSnap = await db.collection('users').doc(teacherId).get();
+  if (!teacherSnap.exists) return;
+  const teacher = teacherSnap.data() as { role?: string; schoolId?: string; isActive?: boolean };
+  if (teacher.isActive === false || teacher.role !== 'teacher' || teacher.schoolId !== schoolId) return;
+
+  const childName = (child.name && String(child.name).trim()) || 'A child';
+  const [beforeLabel, afterLabel] = await Promise.all([
+    fetchClassLabel(db, schoolId, beforeClassId),
+    fetchClassLabel(db, schoolId, afterClassId),
+  ]);
+  const classLabel = afterLabel || 'your class';
+  const notes =
+    beforeClassId == null
+      ? `${childName} has been added to ${classLabel}.`
+      : `${childName} joined your class from ${beforeLabel || 'another class'}.`;
+
+  const now = isoNow();
+  const reportRef = await db
+    .collection('schools')
+    .doc(schoolId)
+    .collection('children')
+    .doc(childId)
+    .collection('reports')
+    .add({
+      childId,
+      schoolId,
+      type: 'child_joined_class',
+      reportedBy: 'system',
+      notes,
+      timestamp: now,
+      createdAt: now,
+      previousClassId: beforeClassId ?? undefined,
+      newClassId: afterClassId,
+    });
+
+  const title = `${childName} joined your class`;
+  const body = notes;
+  const data = {
+    type: 'child_joined_class',
+    schoolId,
+    childId,
+    reportId: reportRef.id,
+    classId: afterClassId,
+  };
+  await createInAppNotificationsForUserIds(db, [teacherId], { title, body, data });
+
+  const tokens = await getFcmTokensForUserIds(db, [teacherId], null);
+  if (tokens.length === 0) {
+    functions.logger.info('notifyTeacherChildJoinedClass: no FCM tokens', { teacherId, childId });
+    return;
+  }
+  const msg: admin.messaging.MulticastMessage = {
+    tokens,
+    notification: { title: title.slice(0, 200), body: body.slice(0, 200) },
+    data,
+    android: { priority: 'high' as const },
+    apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+  };
+  try {
+    const res = await admin.messaging().sendEachForMulticast(msg);
+    functions.logger.info('notifyTeacherChildJoinedClass: sent', {
+      teacherId,
+      childId,
+      success: res.successCount,
+      failed: res.failureCount,
+    });
+  } catch (e) {
+    functions.logger.error('notifyTeacherChildJoinedClass: send failed', { teacherId, childId, error: e });
+  }
+}
+
+/** Notify parents (report + push via onReportCreated) when class assignment changes. */
+async function handleChildClassAssignmentChange(
+  db: admin.firestore.Firestore,
+  schoolId: string,
+  childId: string,
+  before: { isActive?: boolean; classId?: string | null },
+  after: { isActive?: boolean; classId?: string | null }
+): Promise<void> {
+  if (!childEnrollmentIsActive(after)) return;
+  const beforeClassId = normalizeChildClassId(before.classId);
+  const afterClassId = normalizeChildClassId(after.classId);
+  if (!afterClassId || beforeClassId === afterClassId) return;
+  await createClassChangeReportForChild({ db, schoolId, childId, beforeClassId, afterClassId });
+  await notifyTeacherChildJoinedClass({ db, schoolId, childId, beforeClassId, afterClassId });
+}
+
+export const onSchoolChildClassAssignmentChanged = functions.firestore
+  .document('schools/{schoolId}/children/{childId}')
+  .onUpdate(async (change, context) => {
+    const before = change.before.data() as { isActive?: boolean; classId?: string | null };
+    const after = change.after.data() as { isActive?: boolean; classId?: string | null };
+    const db = admin.firestore();
+    try {
+      await handleChildClassAssignmentChange(
+        db,
+        context.params.schoolId,
+        context.params.childId,
+        before,
+        after
+      );
+    } catch (e) {
+      functions.logger.error('onSchoolChildClassAssignmentChanged failed', {
+        schoolId: context.params.schoolId,
+        childId: context.params.childId,
+        error: e,
+      });
+    }
+    return null;
+  });
+
+export const onSchoolChildCreatedWithClass = functions.firestore
+  .document('schools/{schoolId}/children/{childId}')
+  .onCreate(async (snap, context) => {
+    const data = snap.data() as { isActive?: boolean; classId?: string | null };
+    const afterClassId = normalizeChildClassId(data.classId);
+    if (!afterClassId || !childEnrollmentIsActive(data)) return null;
+    const db = admin.firestore();
+    try {
+      await createClassChangeReportForChild({
+        db,
+        schoolId: context.params.schoolId,
+        childId: context.params.childId,
+        beforeClassId: null,
+        afterClassId,
+      });
+      await notifyTeacherChildJoinedClass({
+        db,
+        schoolId: context.params.schoolId,
+        childId: context.params.childId,
+        beforeClassId: null,
+        afterClassId,
+      });
+    } catch (e) {
+      functions.logger.error('onSchoolChildCreatedWithClass failed', {
+        schoolId: context.params.schoolId,
+        childId: context.params.childId,
+        error: e,
+      });
+    }
+    return null;
+  });
+
+async function notifyTeacherOfClassAssignment(params: {
+  db: admin.firestore.Firestore;
+  schoolId: string;
+  classId: string;
+  teacherId: string;
+  isReassignment: boolean;
+}): Promise<void> {
+  const { db, schoolId, classId, teacherId, isReassignment } = params;
+  const teacherSnap = await db.collection('users').doc(teacherId).get();
+  if (!teacherSnap.exists) return;
+  const teacher = teacherSnap.data() as { role?: string; schoolId?: string; isActive?: boolean };
+  if (teacher.isActive === false || teacher.role !== 'teacher' || teacher.schoolId !== schoolId) return;
+
+  const classSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(classId).get();
+  const classLabel = classSnap.exists
+    ? formatClassLabelForParentNotify(
+        classSnap.data() as { name?: string; minAgeMonths?: number | null; maxAgeMonths?: number | null }
+      )
+    : 'a class';
+
+  const title = isReassignment ? 'New class assignment' : 'Class assignment';
+  const body = isReassignment
+    ? `You have been assigned to ${classLabel}. Open the app to view your class.`
+    : `You have been assigned to ${classLabel}. Open the app to get started.`;
+
+  const data = { type: 'class_assigned', schoolId, classId };
+  await createInAppNotificationsForUserIds(db, [teacherId], { title, body, data });
+
+  const tokens = await getFcmTokensForUserIds(db, [teacherId], null);
+  if (tokens.length === 0) {
+    functions.logger.info('notifyTeacherOfClassAssignment: no FCM tokens', { teacherId, classId });
+    return;
+  }
+  const msg: admin.messaging.MulticastMessage = {
+    tokens,
+    notification: { title: title.slice(0, 200), body: body.slice(0, 200) },
+    data,
+    android: { priority: 'high' as const },
+    apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+  };
+  try {
+    const res = await admin.messaging().sendEachForMulticast(msg);
+    functions.logger.info('notifyTeacherOfClassAssignment: sent', {
+      teacherId,
+      classId,
+      success: res.successCount,
+      failed: res.failureCount,
+    });
+  } catch (e) {
+    functions.logger.error('notifyTeacherOfClassAssignment: send failed', { teacherId, classId, error: e });
+  }
+}
+
+/** Push + in-app notification when a teacher is assigned to a class (create or update). */
+export const onSchoolClassTeacherAssigned = functions.firestore
+  .document('schools/{schoolId}/classes/{classId}')
+  .onUpdate(async (change, context) => {
+    const beforeId = normalizeAssignedTeacherId(
+      (change.before.data() as { assignedTeacherId?: string | null }).assignedTeacherId
+    );
+    const afterId = normalizeAssignedTeacherId(
+      (change.after.data() as { assignedTeacherId?: string | null }).assignedTeacherId
+    );
+    if (!afterId || beforeId === afterId) return null;
+    const db = admin.firestore();
+    try {
+      await notifyTeacherOfClassAssignment({
+        db,
+        schoolId: context.params.schoolId,
+        classId: context.params.classId,
+        teacherId: afterId,
+        isReassignment: beforeId != null,
+      });
+    } catch (e) {
+      functions.logger.error('onSchoolClassTeacherAssigned failed', {
+        schoolId: context.params.schoolId,
+        classId: context.params.classId,
+        error: e,
+      });
+    }
+    return null;
+  });
+
+export const onSchoolClassCreatedWithTeacher = functions.firestore
+  .document('schools/{schoolId}/classes/{classId}')
+  .onCreate(async (snap, context) => {
+    const teacherId = normalizeAssignedTeacherId(
+      (snap.data() as { assignedTeacherId?: string | null }).assignedTeacherId
+    );
+    if (!teacherId) return null;
+    const db = admin.firestore();
+    try {
+      await notifyTeacherOfClassAssignment({
+        db,
+        schoolId: context.params.schoolId,
+        classId: context.params.classId,
+        teacherId,
+        isReassignment: false,
+      });
+    } catch (e) {
+      functions.logger.error('onSchoolClassCreatedWithTeacher failed', {
+        schoolId: context.params.schoolId,
+        classId: context.params.classId,
+        error: e,
+      });
+    }
+    return null;
+  });
+
 // When a daily report is created, send FCM to parents (respects notificationPreferences per report type).
 // Email: SendGrid not wired yet; add when SENDGRID_API_KEY (or similar) is configured.
 export const onReportCreated = functions.firestore
@@ -1135,6 +1531,10 @@ export const onReportCreated = functions.firestore
       photoCategory?: string;
     };
     functions.logger.info('Report created', { schoolId, childId, reportId, type: report?.type });
+
+    if (report.type === 'child_joined_class') {
+      return null;
+    }
 
     const db = admin.firestore();
     const childSnap = await db.collection('schools').doc(schoolId).collection('children').doc(childId).get();
@@ -2418,7 +2818,7 @@ export const resendSchoolInvite = functions.https.onCall(async (data, context) =
 
   const schoolName = invite.schoolName ?? 'Your school';
   let principalNameEmail: string | undefined;
-  if (invite.role === 'teacher' && invite.schoolId) {
+  if ((invite.role === 'teacher' || invite.role === 'parent') && invite.schoolId) {
     const sSnap = await db.collection('schools').doc(invite.schoolId).get();
     if (sSnap.exists) {
       principalNameEmail = (sSnap.data() as { principalName?: string }).principalName?.trim() || undefined;
@@ -2437,6 +2837,7 @@ export const resendSchoolInvite = functions.https.onCall(async (data, context) =
     await sendParentInviteEmail({
       to: invite.email,
       schoolName,
+      principalName: principalNameEmail,
       childName: invite.childName ?? 'your child',
       inviteeName: invite.inviteeDisplayName,
       token: tokenToSend,
@@ -4277,7 +4678,12 @@ export const principalInviteParent = functions.https.onCall(async (data, context
   }
 
   const schoolSnap = await db.collection('schools').doc(schoolId).get();
-  const schoolName = ((schoolSnap.data() as { name?: string })?.name ?? 'Your school').trim();
+  const schoolData = schoolSnap.data() as { name?: string; principalName?: string };
+  const schoolName = (schoolData?.name ?? 'Your school').trim();
+  const principalDisplayNameEmail =
+    schoolData.principalName && schoolData.principalName.trim()
+      ? schoolData.principalName.trim()
+      : undefined;
   const childName = (childData.name && childData.name.trim()) ? childData.name.trim() : 'your child';
 
   try {
@@ -4326,6 +4732,7 @@ export const principalInviteParent = functions.https.onCall(async (data, context
   await sendParentInviteEmail({
     to: emailNorm,
     schoolName,
+    principalName: principalDisplayNameEmail,
     childName,
     inviteeName: typeof parentDisplayName === 'string' ? parentDisplayName.trim() || undefined : undefined,
     token: tok,

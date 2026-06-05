@@ -35,10 +35,15 @@
     },
     "production": {
       "autoIncrement": true,
+      "node": "20.19.4",
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      },
       "android": {
         "buildType": "apk"
       },
       "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBF8GVFMPdqcG9BDm2Wl0bYj3PpHYPsWFI",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "little-moments-6647f.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "little-moments-6647f",

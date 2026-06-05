@@ -26,6 +26,7 @@ import { getAge, getInitials, formatTime } from '../../utils';
 import {
   type ReportWithExtras,
   getReportTitle,
+  isParentVisibleReportType,
   reportIcon,
   reportIconColor,
   parseTimeWithDate,
@@ -51,6 +52,8 @@ function getUpdateTypeLeadLabel(type: string): string {
       return 'Check Out';
     case 'activity':
       return 'Activity';
+    case 'class_change':
+      return 'Class update';
     case 'medication':
       return 'Medication';
     case 'incident':
@@ -93,6 +96,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
 
   const dayReports = useMemo(() => {
     return reports.filter((r) => {
+      if (!isParentVisibleReportType(r.type)) return false;
       const t = r.timestamp || r.createdAt;
       return t >= startOfDay && t <= endOfDay;
     });
@@ -113,6 +117,7 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
   const activities = dayReports.filter(
     (r) =>
       r.type === 'activity' ||
+      r.type === 'class_change' ||
       r.type === 'medication' ||
       r.type === 'incident' ||
       r.type === 'check_in' ||

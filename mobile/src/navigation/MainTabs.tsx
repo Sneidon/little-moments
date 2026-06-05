@@ -8,6 +8,7 @@ import type { UserRole } from '../../../shared/types';
 import type { ColorPalette } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { usePushNotificationRegistration } from '../hooks/usePushNotificationRegistration';
 import { font } from '../theme/typography';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
@@ -273,6 +274,7 @@ function ParentTabs() {
 export function MainTabs({ role }: { role: UserRole }) {
   const { profile } = useAuth();
   const shouldGateParent = role === 'parent' && profile?.parentStatus && profile.parentStatus !== 'ACTIVE';
+  usePushNotificationRegistration(!shouldGateParent);
   return (
     <RootStack.Navigator
       screenOptions={{ headerShown: true, headerBackTitle: 'Back' }}

@@ -24,6 +24,7 @@ type NotificationItem = {
   eventId?: string;
   reportType?: string;
   chatId?: string;
+  classId?: string;
   createdAt?: string;
   read?: boolean;
 };
@@ -85,6 +86,7 @@ export function UserNotificationsScreen({ navigation }: Props) {
         eventId: item.eventId,
         reportType: item.reportType,
         chatId: item.chatId,
+        classId: item.classId,
       },
       profile?.role === 'parent'
     );

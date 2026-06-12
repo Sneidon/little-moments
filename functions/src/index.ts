@@ -22,6 +22,11 @@ const RESEND_FROM_FALLBACK = 'noreply@mylittlemoments.co.za';
 /** Web origin for `/invite/accept` links in invitation emails. */
 const INVITE_ACCEPT_APP_BASE_URL = 'https://app.mylittlemoments.co.za';
 
+/** Mobile store links — keep in sync with `web/src/config/mobileApp.ts`. */
+const MOBILE_APP_IOS_APP_STORE_URL = 'https://apps.apple.com/app/id6756536536';
+const MOBILE_APP_PLAY_STORE_URL =
+  'https://play.google.com/store/apps/details?id=co.za.mylittlemoments';
+
 /** Square brand logo for HTML emails (Firebase Storage public artefact). */
 const EMAIL_BRAND_LOGO_URL =
   'https://firebasestorage.googleapis.com/v0/b/little-moments-6647f.firebasestorage.app/o/artefacts%2Femails%2Flogos%2Fv1.png?alt=media&token=82c9425f-d900-4a8c-97d4-146fe1efac05';
@@ -348,6 +353,41 @@ function inviteEmailDividerRow(): string {
   return `<tr><td colspan="2" style="padding:4px 0 0;"><div style="height:1px;background:#e2e8ef;line-height:1px;font-size:1px;">&nbsp;</div></td></tr>`;
 }
 
+function inviteEmailMobileAppStoreRow(opts?: {
+  title?: string;
+  description?: string;
+  iconOnRight?: boolean;
+}): string {
+  const iconInner =
+    '<div style="width:48px;height:48px;border-radius:12px;background:#f3e8ff;text-align:center;line-height:48px;font-size:20px;">📱</div>';
+  const iconTd = `<td valign="top" width="56" style="width:56px;padding:20px 0 0;">${iconInner}</td>`;
+  const iosHref = inviteEmailEscapeHref(MOBILE_APP_IOS_APP_STORE_URL);
+  const playHref = inviteEmailEscapeHref(MOBILE_APP_PLAY_STORE_URL);
+  const linkStyle = `font-family:${INVITE_EMAIL_FONT_MONO};font-size:13px;font-weight:600;color:${INVITE_EMAIL_PURPLE};text-decoration:none;`;
+  const linksHtml =
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">' +
+    '<tr>' +
+    '<td style="padding:0 16px 0 0;vertical-align:middle;">' +
+    `<a href="${iosHref}" target="_blank" rel="noopener noreferrer" style="${linkStyle}">App Store →</a>` +
+    '</td>' +
+    '<td style="vertical-align:middle;">' +
+    `<a href="${playHref}" target="_blank" rel="noopener noreferrer" style="${linkStyle}">Google Play →</a>` +
+    '</td>' +
+    '</tr></table>';
+  const title = opts?.title ?? 'Download the mobile app';
+  const description =
+    opts?.description ??
+    'Install My Little Moments on your phone for photos, updates and reminders throughout the day.';
+  const textTd =
+    `<td valign="top" style="padding:20px 0 0;font-family:${INVITE_EMAIL_FONT_SANS};">` +
+    `<p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b;">${escapeHtml(title)}</p>` +
+    `<p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#475569;">${escapeHtml(description)}</p>` +
+    linksHtml +
+    '</td>';
+  const cells = opts?.iconOnRight ? `${textTd}${iconTd}` : `${iconTd}${textTd}`;
+  return `<tr>${cells}</tr>`;
+}
+
 function inviteEmailHeroRow(): string {
   const bannerSrc = inviteEmailBannerSrcAttr();
   return `
@@ -545,13 +585,10 @@ function parentPostAcceptWelcomeEmailHtml(params: {
       iconOnRight: true,
     }) +
     inviteEmailDividerRow() +
-    inviteEmailFeatureRow({
-      icon: '📱',
+    inviteEmailMobileAppStoreRow({
       title: '2. Download the mobile app',
       description:
-        'Get instant photos, updates and reminders on your phone — so you can be part of the day, even when you&apos;re at work.',
-      linkUrl: INVITE_ACCEPT_APP_BASE_URL,
-      linkLabel: 'App Store • Google Play',
+        'Get instant photos, updates and reminders on your phone — so you can be part of the day, even when you are at work.',
       iconOnRight: false,
     });
   return invitePostAcceptEmailCard({
@@ -623,13 +660,10 @@ function teacherPostAcceptWelcomeEmailHtml(params: {
       iconOnRight: true,
     }) +
     inviteEmailDividerRow() +
-    inviteEmailFeatureRow({
-      icon: '📱',
+    inviteEmailMobileAppStoreRow({
       title: '4. Download the mobile app',
       description:
         'Capture photos and log moments on the go — straight from your phone in the classroom or on the playground.',
-      linkUrl: INVITE_ACCEPT_APP_BASE_URL,
-      linkLabel: 'App Store • Google Play',
       iconOnRight: false,
     });
   return invitePostAcceptEmailCard({
@@ -821,12 +855,9 @@ function parentInviteEmailHtml(params: {
       iconOnRight: true,
     }) +
     inviteEmailDividerRow() +
-    inviteEmailFeatureRow({
-      icon: '📱',
-      title: 'Download the mobile app',
-      description: 'Photos, routines and reminders feel best on your phone — jump in once your account is linked.',
-      linkUrl: INVITE_ACCEPT_APP_BASE_URL,
-      linkLabel: 'Get the app →',
+    inviteEmailMobileAppStoreRow({
+      description:
+        'Photos, routines and reminders feel best on your phone — jump in once your account is linked.',
       iconOnRight: false,
     });
   return inviteEmailCard({

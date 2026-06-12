@@ -1,6 +1,6 @@
 'use client';
 
-import { REPORT_TYPE_LABELS, REPORT_TYPE_STYLES } from '@/constants/reports';
+import { getReportDetailsSummary, getReportTypeLabel, getReportTypeStyle } from '@/lib/reports';
 import type { ReportRow } from '@/hooks/useReportsPage';
 import { SectionCard } from '@/components/ui';
 
@@ -52,11 +52,9 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
                 )}
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      REPORT_TYPE_STYLES[r.type ?? ''] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                    }`}
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getReportTypeStyle(r)}`}
                   >
-                    {REPORT_TYPE_LABELS[r.type ?? ''] ?? r.type ?? '—'}
+                    {getReportTypeLabel(r)}
                   </span>
                 </td>
                 <td className="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-300">
@@ -67,12 +65,8 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
                       })
                     : '—'}
                 </td>
-                <td className="max-w-[200px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails ?? undefined}>
-                  {r.mealOptionName ??
-                    r.mealType ??
-                    r.medicationName ??
-                    r.incidentDetails ??
-                    '—'}
+                <td className="max-w-[200px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={getReportDetailsSummary(r)}>
+                  {getReportDetailsSummary(r)}
                 </td>
                 <td className="max-w-[220px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={r.notes ?? undefined}>
                   {r.notes ?? '—'}

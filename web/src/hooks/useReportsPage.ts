@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
+import { reportMatchesTypeFilter } from '@/lib/reports';
 import type { DailyReport } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
@@ -119,7 +120,7 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
   const filteredReports = useMemo(() => {
     let result = reports.filter((r) => {
       if (filters.classId && r.childClassId !== filters.classId) return false;
-      if (filters.type && r.type !== filters.type) return false;
+      if (filters.type && !reportMatchesTypeFilter(r, filters.type)) return false;
       if (filters.childSearch.trim()) {
         const search = filters.childSearch.trim().toLowerCase();
         if (!r.childName?.toLowerCase().includes(search)) return false;

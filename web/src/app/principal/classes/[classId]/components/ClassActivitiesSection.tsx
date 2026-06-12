@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { REPORT_TYPE_LABELS } from '@/constants/reports';
+import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
 import { DAYS_WITH_ACTIVITY_JUMP_LIMIT } from '@/lib/reports';
 import type { ClassReportRow } from '@/hooks/useClassDetail';
 import { SectionCard } from '@/components/ui';
@@ -134,7 +134,7 @@ export function ClassActivitiesSection({
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {REPORT_TYPE_LABELS[r.type ?? ''] ?? r.type ?? '—'}
+                    {getReportTypeLabel(r)}
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {r.timestamp
@@ -145,11 +145,7 @@ export function ClassActivitiesSection({
                       : '—'}
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {r.mealOptionName ??
-                      r.mealType ??
-                      r.medicationName ??
-                      r.incidentDetails ??
-                      '—'}
+                    {getReportDetailsSummary(r)}
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {r.notes ?? '—'}

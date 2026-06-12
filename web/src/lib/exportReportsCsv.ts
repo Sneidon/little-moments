@@ -1,4 +1,5 @@
 import type { ReportRow } from '@/hooks/useReportsPage';
+import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
 
 function escapeCsvCell(value: string | undefined | null): string {
   if (value == null || value === '') return '';
@@ -34,11 +35,11 @@ export function buildReportsCsv(
   for (const r of rows) {
     const date = r.timestamp ? new Date(r.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
     const time = r.timestamp ? new Date(r.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
-    const details = r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails ?? '';
+    const details = getReportDetailsSummary(r);
     const row = [
       r.childName ?? '',
       ...(includeClass ? [r.childClassId ?? ''] : []),
-      r.type ?? '',
+      getReportTypeLabel(r),
       date,
       time,
       details,

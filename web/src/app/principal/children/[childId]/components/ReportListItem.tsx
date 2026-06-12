@@ -1,21 +1,29 @@
 import type { DailyReport } from 'shared/types';
-import { REPORT_TYPE_LABELS, REPORT_TYPE_STYLES } from '@/constants/reports';
+import { getReportDetailsSummary, getReportTypeLabel, getReportTypeStyle } from '@/lib/reports';
 
 export interface ReportListItemProps {
   report: DailyReport;
 }
 
 export function ReportListItem({ report }: ReportListItemProps) {
-  const typeLabel = REPORT_TYPE_LABELS[report.type ?? ''] ?? report.type ?? '—';
-  const typeStyle = REPORT_TYPE_STYLES[report.type ?? ''] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
+  const typeLabel = getReportTypeLabel(report);
+  const typeStyle = getReportTypeStyle(report);
 
+  const detailsSummary = getReportDetailsSummary(report);
   const titleLine =
-    report.mealOptionName ?? report.mealType ?? report.medicationName ?? report.incidentDetails;
+    report.type === 'meal'
+      ? report.mealOptionName ?? report.mealType ?? null
+      : detailsSummary !== '—'
+        ? detailsSummary
+        : null;
   const mealPrefix = report.type === 'meal' && report.mealType ? (
     <span className="capitalize text-slate-500 dark:text-slate-400">{report.mealType}</span>
   ) : null;
-  const separator = report.type === 'meal' && report.mealType && (report.mealOptionName ?? report.notes) ? ' · ' : null;
-  const mainContent = report.mealOptionName ?? report.medicationName ?? report.incidentDetails ?? (report.type === 'meal' ? report.mealType : report.mealType);
+  const separator = report.type === 'meal' && report.mealType && report.mealOptionName ? ' · ' : null;
+  const mainContent =
+    report.type === 'meal'
+      ? report.mealOptionName ?? report.mealType ?? null
+      : detailsSummary;
 
   return (
     <li className="flex flex-wrap items-start gap-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 p-4">

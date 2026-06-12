@@ -12,7 +12,7 @@ import {
   PDF_TABLE_ALTERNATE_ROW,
   type DocWithAutoTable,
 } from '@/lib/pdfDesign';
-import { REPORT_TYPE_LABELS } from '@/constants/reports';
+import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
 import type { ReportRow } from '@/hooks/useReportsPage';
 
 export interface ExportReportsPdfOptions {
@@ -55,12 +55,11 @@ export function exportReportsToPdf(
           minute: '2-digit',
         })
       : '—';
-    const details =
-      r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails ?? '—';
+    const details = getReportDetailsSummary(r);
     return [
       r.childName ?? '—',
       ...(includeClass ? [r.childClassId ? classDisplay(r.childClassId) : '—'] : []),
-      REPORT_TYPE_LABELS[r.type ?? ''] ?? r.type ?? '—',
+      getReportTypeLabel(r),
       time,
       details,
       (r.notes ?? '—').slice(0, 80),

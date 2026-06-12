@@ -1,4 +1,4 @@
-import { REPORT_TYPE_LABELS } from '@/constants/reports';
+import { REPORT_TYPE_OPTIONS } from '@/constants/reports';
 import type { ReportsFiltersState } from '@/hooks/useReportsPage';
 
 export interface FormatReportsFiltersOptions {
@@ -38,7 +38,9 @@ export function formatReportsFiltersSummary(
   }
 
   if (filters.type) {
-    parts.push(`Type: ${REPORT_TYPE_LABELS[filters.type] ?? filters.type}`);
+    parts.push(
+      `Type: ${REPORT_TYPE_OPTIONS.find((o) => o.value === filters.type)?.label ?? filters.type}`
+    );
   } else {
     parts.push('Type: All types');
   }

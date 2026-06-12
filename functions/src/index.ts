@@ -20,7 +20,7 @@ const RESEND_API_KEY_FALLBACK = 're_S3xMBH7d_3YqMBTndWbkQxihUwyaL6sj1';
 const RESEND_FROM_FALLBACK = 'noreply@mylittlemoments.co.za';
 
 /** Web origin for `/invite/accept` links in invitation emails. */
-const INVITE_ACCEPT_APP_BASE_URL = 'https://littlemoments--little-moments-6647f.us-central1.hosted.app';
+const INVITE_ACCEPT_APP_BASE_URL = 'https://app.mylittlemoments.co.za';
 
 /** Square brand logo for HTML emails (Firebase Storage public artefact). */
 const EMAIL_BRAND_LOGO_URL =
@@ -3450,7 +3450,7 @@ async function getSchoolOrThrow(db: admin.firestore.Firestore, schoolId: string)
 }
 
 function buildJoinUrl(schoolSlug: string): string {
-  const baseUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+  const baseUrl = process.env.PUBLIC_APP_URL || 'https://app.mylittlemoments.co.za';
   return `${baseUrl}/join/${encodeURIComponent(schoolSlug)}`;
 }
 
@@ -4316,7 +4316,7 @@ export const approveOrRejectParent = functions.https.onCall(async (data, context
     await batch.commit();
 
     if (parentEmail) {
-      const continueUrl = process.env.PUBLIC_APP_URL || 'https://mylittlemoments.co.za';
+      const continueUrl = process.env.PUBLIC_APP_URL || 'https://app.mylittlemoments.co.za';
       const resetUrl = await admin.auth().generatePasswordResetLink(parentEmail, { url: `${continueUrl}` });
       await sendResendEmail({
         to: parentEmail,

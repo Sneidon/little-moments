@@ -81,9 +81,14 @@ const ACTIVITY_TABS = [
 
 const NAPPY_TYPES = [
   { value: 'wet', label: 'Wet' },
-  { value: 'dirty', label: 'Dirty' },
+  { value: 'dry', label: 'Dry' },
   { value: 'normal', label: 'Normal' },
 ];
+
+function normalizeNappyTypeValue(value: string | undefined): string {
+  if (!value) return 'wet';
+  return value === 'dirty' ? 'dry' : value;
+}
 const NAPPY_CONDITIONS = [
   { value: 'normal', label: 'Normal' },
   { value: 'rash', label: 'Rash' },
@@ -376,7 +381,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       mealAmount: o.mealAmount ?? mealAmount,
       mealOptionId: o.mealOptionId !== undefined ? o.mealOptionId : selectedMealOptionId,
       mealOptionName: o.mealOptionName ?? selectedMealOption?.name,
-      nappyType: o.nappyType ?? nappyType,
+      nappyType: normalizeNappyTypeValue(o.nappyType ?? nappyType),
       nappyCondition: o.nappyCondition ?? nappyCondition,
       napStartTime: o.napStartTime ?? napStartTime,
       napEndTime: o.napEndTime ?? napEndTime,
@@ -1255,7 +1260,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 onPress={() => setDropdownOpen(dropdownOpen === 'nappyType' ? null : 'nappyType')}
               >
                 <Text style={styles.dropdownText}>
-                  {NAPPY_TYPES.find((n) => n.value === nappyType)?.label ?? 'Wet'}
+                  {NAPPY_TYPES.find((n) => n.value === normalizeNappyTypeValue(nappyType))?.label ?? 'Wet'}
                 </Text>
                 <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -1693,10 +1698,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                       {NAPPY_TYPES.map((n) => (
                         <TouchableOpacity
                           key={n.value}
-                          style={[styles.optionChip, variationDraft.nappyType === n.value && styles.optionChipActive]}
+                          style={[styles.optionChip, normalizeNappyTypeValue(variationDraft.nappyType) === n.value && styles.optionChipActive]}
                           onPress={() => setVariationDraft((p) => (p ? { ...p, nappyType: n.value } : null))}
                         >
-                          <Text style={[styles.optionChipText, variationDraft.nappyType === n.value && styles.optionChipTextActive]}>{n.label}</Text>
+                          <Text style={[styles.optionChipText, normalizeNappyTypeValue(variationDraft.nappyType) === n.value && styles.optionChipTextActive]}>{n.label}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>

@@ -17,7 +17,7 @@ import {
 import type { ClassRoom } from 'shared/types';
 import type { Child } from 'shared/types';
 import type { DailyReport } from 'shared/types';
-import { REPORT_TYPE_LABELS } from '@/constants/reports';
+import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
 
 /** Report with child info for class-level export. */
 export type ClassReportRow = DailyReport & { childId: string; childName: string };
@@ -133,18 +133,14 @@ export function exportClassDetailToPdf(options: ExportClassDetailOptions): void 
       head: [['Child', 'Type', 'Time', 'Details', 'Notes']],
       body: reportsForDay.map((r) => [
         r.childName ?? '—',
-        REPORT_TYPE_LABELS[r.type ?? ''] ?? r.type ?? '—',
+        getReportTypeLabel(r),
         r.timestamp
           ? new Date(r.timestamp).toLocaleTimeString(undefined, {
               hour: '2-digit',
               minute: '2-digit',
             })
           : '—',
-        r.mealOptionName ??
-          r.mealType ??
-          r.medicationName ??
-          r.incidentDetails ??
-          '—',
+        getReportDetailsSummary(r),
         r.notes ?? '—',
       ]),
       margin: { left: margin, right: margin },

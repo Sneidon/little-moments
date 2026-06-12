@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
+import { reportHasNotesContent, reportMatchesTypeFilter } from '@/lib/reports';
 import type { DailyReport } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
@@ -119,12 +120,12 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
   const filteredReports = useMemo(() => {
     let result = reports.filter((r) => {
       if (filters.classId && r.childClassId !== filters.classId) return false;
-      if (filters.type && r.type !== filters.type) return false;
+      if (filters.type && !reportMatchesTypeFilter(r, filters.type)) return false;
       if (filters.childSearch.trim()) {
         const search = filters.childSearch.trim().toLowerCase();
         if (!r.childName?.toLowerCase().includes(search)) return false;
       }
-      if (filters.hasNotesOnly && !r.notes?.trim()) return false;
+      if (filters.hasNotesOnly && !reportHasNotesContent(r)) return false;
       const ts = r.timestamp ?? '';
       if (filters.day) {
         const dayStart = filters.day + 'T00:00:00.000Z';

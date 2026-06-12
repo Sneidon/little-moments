@@ -19,25 +19,13 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { formatTime } from '../../utils';
 import { getReportTitle, type ReportWithExtras } from '../../utils/childDailyReportDisplay';
+import { formatMealAmount } from '../../utils/reportLabels';
 import type { ColorPalette } from '../../theme/colors';
-
-function formatMealAmount(v: unknown): string | undefined {
-  const s = typeof v === 'string' ? v : undefined;
-  if (!s) return undefined;
-  const map: Record<string, string> = {
-    none: 'None',
-    little: 'A little',
-    half: 'Half',
-    most: 'Most',
-    all: 'All',
-  };
-  return map[s] ?? s;
-}
 
 function formatNappyType(v: unknown): string | undefined {
   const s = typeof v === 'string' ? v : undefined;
   if (!s) return undefined;
-  const map: Record<string, string> = { wet: 'Wet', dirty: 'Dirty', normal: 'Normal' };
+  const map: Record<string, string> = { wet: 'Wet', dry: 'Dry', dirty: 'Dry', normal: 'Normal' };
   return map[s] ?? s;
 }
 

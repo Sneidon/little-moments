@@ -1,5 +1,80 @@
+import { formatMealAmount, formatMealCategoryLabel } from 'shared/reportLabels';
 import type { DailyReport } from 'shared/types';
-import { REPORT_TYPE_LABELS } from '@/constants/reports';
+import {
+  PHOTO_REPORT_LABEL,
+  REPORT_TYPE_LABELS,
+  REPORT_TYPE_STYLES,
+} from '@/constants/reports';
+
+export type ReportDisplayFields = Pick<
+  DailyReport,
+  'type' | 'imageUrl' | 'photoCategory' | 'mediaType' | 'incidentDetails' | 'mealType'
+>;
+
+/** Teacher photo posts are stored as type `incident` with media attached. */
+export function isPhotoReport(report: ReportDisplayFields): boolean {
+  if (report.type !== 'incident') return false;
+  return !!(
+    report.imageUrl?.trim() ||
+    report.photoCategory?.trim() ||
+    report.mediaType?.trim()
+  );
+}
+
+export function getReportTypeLabel(report: ReportDisplayFields): string {
+  if (isPhotoReport(report)) return PHOTO_REPORT_LABEL;
+  if (report.type === 'meal') {
+    return formatMealCategoryLabel(report.mealType) ?? REPORT_TYPE_LABELS.meal;
+  }
+  return REPORT_TYPE_LABELS[report.type ?? ''] ?? report.type ?? '—';
+}
+
+export function getReportTypeStyle(report: ReportDisplayFields): string {
+  if (isPhotoReport(report)) return REPORT_TYPE_STYLES.photo;
+  return (
+    REPORT_TYPE_STYLES[report.type ?? ''] ??
+    'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+  );
+}
+
+/** Match principal report filters (`photo` / `incident` are virtual values). */
+export function reportMatchesTypeFilter(report: ReportDisplayFields, filterType: string): boolean {
+  if (!filterType) return true;
+  if (filterType === 'photo') return isPhotoReport(report);
+  if (filterType === 'incident') return report.type === 'incident' && !isPhotoReport(report);
+  return report.type === filterType;
+}
+
+export function getReportDetailsSummary(
+  report: Pick<
+    DailyReport,
+    'type' | 'mealOptionName' | 'mealType' | 'medicationName' | 'incidentDetails' | 'photoCategory'
+  >
+): string {
+  if (isPhotoReport(report)) return report.photoCategory?.trim() || '—';
+  if (report.type === 'meal') return report.mealOptionName?.trim() || '—';
+  return report.medicationName ?? report.incidentDetails ?? '—';
+}
+
+/** Notes column text — for meals, includes how much they ate before free-text notes. */
+export function getReportNotesSummary(
+  report: Pick<DailyReport, 'type' | 'notes' | 'mealAmount'>
+): string {
+  const notes = report.notes?.trim() || '';
+  if (report.type === 'meal') {
+    const amount = formatMealAmount(report.mealAmount);
+    if (amount && notes) return `${amount} · ${notes}`;
+    if (amount) return amount;
+  }
+  return notes || '—';
+}
+
+export function reportHasNotesContent(
+  report: Pick<DailyReport, 'type' | 'notes' | 'mealAmount'>
+): boolean {
+  if (report.notes?.trim()) return true;
+  return report.type === 'meal' && !!formatMealAmount(report.mealAmount);
+}
 
 /** Max dates offered as “jump to day with activity” shortcuts (see `getDaysWithActivity`). */
 export const DAYS_WITH_ACTIVITY_JUMP_LIMIT = 3;
@@ -29,13 +104,13 @@ export function getDaysWithActivity(
 }
 
 /** Human-readable summary of report counts by type for a list of reports. */
-export function getActivitySummaryText(reports: DailyReport[], typeLabels = REPORT_TYPE_LABELS): string {
+export function getActivitySummaryText(reports: DailyReport[]): string {
   const byType = reports.reduce<Record<string, number>>((acc, r) => {
-    const t = r.type ?? 'other';
-    acc[t] = (acc[t] || 0) + 1;
+    const label = getReportTypeLabel(r);
+    acc[label] = (acc[label] || 0) + 1;
     return acc;
   }, {});
   return Object.entries(byType)
-    .map(([type, count]) => `${count} ${typeLabels[type] ?? type}`)
+    .map(([label, count]) => `${count} ${label}`)
     .join(', ');
 }

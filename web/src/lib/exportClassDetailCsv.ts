@@ -1,5 +1,5 @@
 import type { ExportClassDetailOptions } from '@/lib/exportClassDetailPdf';
-import { REPORT_TYPE_LABELS } from '@/constants/reports';
+import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
 
 function escapeCsvCell(value: string | undefined | null): string {
   if (value == null || value === '') return '';
@@ -49,9 +49,9 @@ export function exportClassDetailToCsv(options: ExportClassDetailOptions): void 
     for (const r of reportsForDay) {
       const row = [
         r.childName ?? '',
-        REPORT_TYPE_LABELS[r.type ?? ''] ?? r.type ?? '',
+        getReportTypeLabel(r),
         r.timestamp ? new Date(r.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '',
-        r.mealOptionName ?? r.mealType ?? r.medicationName ?? r.incidentDetails ?? '',
+        getReportDetailsSummary(r),
         r.notes ?? '',
       ];
       lines.push(row.map(escapeCsvCell).join(','));

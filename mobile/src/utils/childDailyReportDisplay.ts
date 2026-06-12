@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { formatMealCategoryLabel } from '../../../shared/reportLabels';
 import type { DailyReport } from '../../../shared/types';
 
 type IonName = keyof typeof Ionicons.glyphMap;
@@ -21,11 +22,9 @@ export type ReportWithExtras = DailyReport & {
 };
 
 export function getReportTitle(item: ReportWithExtras): string {
-  if (item.type === 'meal')
-    return (
-      (item.mealOptionName || item.mealType || 'Meal').charAt(0).toUpperCase() +
-      (item.mealOptionName || item.mealType || 'meal').slice(1)
-    );
+  if (item.type === 'meal') {
+    return formatMealCategoryLabel(item.mealType) ?? item.mealOptionName ?? 'Meal';
+  }
   if (item.type === 'nap_time') return 'Nap Time';
   if (item.type === 'nappy_change') return 'Nappy Change';
   if (item.type === 'check_in') return 'Check In';

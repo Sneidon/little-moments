@@ -1080,10 +1080,20 @@ function reportTypeToNotificationPrefKey(reportType: string | undefined): Parent
   }
 }
 
+function formatMealCategoryLabel(mealType?: string | null): string | null {
+  if (!mealType || typeof mealType !== 'string') return null;
+  const key = mealType.trim().toLowerCase();
+  const labels: Record<string, string> = { breakfast: 'Breakfast', lunch: 'Lunch', snack: 'Snack' };
+  if (labels[key]) return labels[key];
+  const t = mealType.trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : null;
+}
+
 function buildReportNotificationCopy(
   report: {
     type?: string;
     notes?: string;
+    mealType?: string;
     mealOptionName?: string;
     photoCategory?: string;
   },
@@ -1094,10 +1104,16 @@ function buildReportNotificationCopy(
     ? String(report.notes).trim().slice(0, 100)
     : '';
   if (type === 'meal') {
-    const meal = (report.mealOptionName && String(report.mealOptionName).trim()) || 'Meal';
+    const category = formatMealCategoryLabel(report.mealType);
+    const option = report.mealOptionName && String(report.mealOptionName).trim() ? String(report.mealOptionName).trim() : '';
+    const titleMeal = category || option || 'Meal';
+    const body =
+      option && category
+        ? option
+        : shortNotes || 'New meal update from school.';
     return {
-      title: `${childName}: ${meal}`,
-      body: shortNotes || 'New meal update from school.',
+      title: `${childName}: ${titleMeal}`,
+      body,
     };
   }
   if (type === 'nap_time') {

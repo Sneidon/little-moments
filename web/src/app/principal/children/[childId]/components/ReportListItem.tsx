@@ -10,20 +10,7 @@ export function ReportListItem({ report }: ReportListItemProps) {
   const typeStyle = getReportTypeStyle(report);
 
   const detailsSummary = getReportDetailsSummary(report);
-  const titleLine =
-    report.type === 'meal'
-      ? report.mealOptionName ?? report.mealType ?? null
-      : detailsSummary !== '—'
-        ? detailsSummary
-        : null;
-  const mealPrefix = report.type === 'meal' && report.mealType ? (
-    <span className="capitalize text-slate-500 dark:text-slate-400">{report.mealType}</span>
-  ) : null;
-  const separator = report.type === 'meal' && report.mealType && report.mealOptionName ? ' · ' : null;
-  const mainContent =
-    report.type === 'meal'
-      ? report.mealOptionName ?? report.mealType ?? null
-      : detailsSummary;
+  const titleLine = detailsSummary !== '—' ? detailsSummary : null;
 
   return (
     <li className="flex flex-wrap items-start gap-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 p-4">
@@ -37,11 +24,7 @@ export function ReportListItem({ report }: ReportListItemProps) {
       </span>
       <div className="min-w-0 flex-1 space-y-1">
         {titleLine ? (
-          <p className="text-sm text-slate-800 dark:text-slate-200">
-            {mealPrefix}
-            {separator}
-            {mainContent}
-          </p>
+          <p className="text-sm text-slate-800 dark:text-slate-200">{titleLine}</p>
         ) : null}
         {report.notes ? <p className="text-sm text-slate-600 dark:text-slate-300">{report.notes}</p> : null}
         {report.imageUrl ? (

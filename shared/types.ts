@@ -98,6 +98,8 @@ export interface DailyReport {
   /** Selected meal option (from principal's list). */
   mealOptionId?: string;
   mealOptionName?: string;
+  /** How much the child ate: none | little | half | most | all */
+  mealAmount?: string;
   incidentDetails?: string;
   medicationName?: string;
   /** Dosage administered (for medication reports). */

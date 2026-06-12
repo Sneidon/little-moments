@@ -1,5 +1,5 @@
 import type { ReportRow } from '@/hooks/useReportsPage';
-import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
+import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
 
 function escapeCsvCell(value: string | undefined | null): string {
   if (value == null || value === '') return '';
@@ -36,6 +36,7 @@ export function buildReportsCsv(
     const date = r.timestamp ? new Date(r.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
     const time = r.timestamp ? new Date(r.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
     const details = getReportDetailsSummary(r);
+    const notesSummary = getReportNotesSummary(r);
     const row = [
       r.childName ?? '',
       ...(includeClass ? [r.childClassId ?? ''] : []),
@@ -43,7 +44,7 @@ export function buildReportsCsv(
       date,
       time,
       details,
-      r.notes ?? '',
+      notesSummary === '—' ? '' : notesSummary,
     ];
     lines.push(row.map(escapeCsvCell).join(','));
   }

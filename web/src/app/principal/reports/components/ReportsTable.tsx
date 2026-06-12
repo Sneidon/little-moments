@@ -1,6 +1,11 @@
 'use client';
 
-import { getReportDetailsSummary, getReportTypeLabel, getReportTypeStyle } from '@/lib/reports';
+import {
+  getReportDetailsSummary,
+  getReportNotesSummary,
+  getReportTypeLabel,
+  getReportTypeStyle,
+} from '@/lib/reports';
 import type { ReportRow } from '@/hooks/useReportsPage';
 import { SectionCard } from '@/components/ui';
 
@@ -68,8 +73,11 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
                 <td className="max-w-[200px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={getReportDetailsSummary(r)}>
                   {getReportDetailsSummary(r)}
                 </td>
-                <td className="max-w-[220px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={r.notes ?? undefined}>
-                  {r.notes ?? '—'}
+                <td
+                  className="max-w-[220px] truncate px-4 py-3 text-slate-600 dark:text-slate-300"
+                  title={getReportNotesSummary(r)}
+                >
+                  {getReportNotesSummary(r)}
                 </td>
               </tr>
             ))}

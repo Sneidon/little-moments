@@ -1,3 +1,4 @@
+import { formatMealAmount, formatMealCategoryLabel } from 'shared/reportLabels';
 import type { DailyReport } from 'shared/types';
 import {
   PHOTO_REPORT_LABEL,
@@ -7,7 +8,7 @@ import {
 
 export type ReportDisplayFields = Pick<
   DailyReport,
-  'type' | 'imageUrl' | 'photoCategory' | 'mediaType' | 'incidentDetails'
+  'type' | 'imageUrl' | 'photoCategory' | 'mediaType' | 'incidentDetails' | 'mealType'
 >;
 
 /** Teacher photo posts are stored as type `incident` with media attached. */
@@ -22,6 +23,9 @@ export function isPhotoReport(report: ReportDisplayFields): boolean {
 
 export function getReportTypeLabel(report: ReportDisplayFields): string {
   if (isPhotoReport(report)) return PHOTO_REPORT_LABEL;
+  if (report.type === 'meal') {
+    return formatMealCategoryLabel(report.mealType) ?? REPORT_TYPE_LABELS.meal;
+  }
   return REPORT_TYPE_LABELS[report.type ?? ''] ?? report.type ?? '—';
 }
 
@@ -48,13 +52,28 @@ export function getReportDetailsSummary(
   >
 ): string {
   if (isPhotoReport(report)) return report.photoCategory?.trim() || '—';
-  return (
-    report.mealOptionName ??
-    report.mealType ??
-    report.medicationName ??
-    report.incidentDetails ??
-    '—'
-  );
+  if (report.type === 'meal') return report.mealOptionName?.trim() || '—';
+  return report.medicationName ?? report.incidentDetails ?? '—';
+}
+
+/** Notes column text — for meals, includes how much they ate before free-text notes. */
+export function getReportNotesSummary(
+  report: Pick<DailyReport, 'type' | 'notes' | 'mealAmount'>
+): string {
+  const notes = report.notes?.trim() || '';
+  if (report.type === 'meal') {
+    const amount = formatMealAmount(report.mealAmount);
+    if (amount && notes) return `${amount} · ${notes}`;
+    if (amount) return amount;
+  }
+  return notes || '—';
+}
+
+export function reportHasNotesContent(
+  report: Pick<DailyReport, 'type' | 'notes' | 'mealAmount'>
+): boolean {
+  if (report.notes?.trim()) return true;
+  return report.type === 'meal' && !!formatMealAmount(report.mealAmount);
 }
 
 /** Max dates offered as “jump to day with activity” shortcuts (see `getDaysWithActivity`). */

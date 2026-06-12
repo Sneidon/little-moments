@@ -12,7 +12,7 @@ import {
   PDF_TABLE_ALTERNATE_ROW,
   type DocWithAutoTable,
 } from '@/lib/pdfDesign';
-import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
+import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
 import type { ReportRow } from '@/hooks/useReportsPage';
 
 export interface ExportReportsPdfOptions {
@@ -62,7 +62,7 @@ export function exportReportsToPdf(
       getReportTypeLabel(r),
       time,
       details,
-      (r.notes ?? '—').slice(0, 80),
+      getReportNotesSummary(r).slice(0, 80),
     ];
   });
 

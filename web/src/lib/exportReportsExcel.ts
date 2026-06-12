@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { ReportRow } from '@/hooks/useReportsPage';
-import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
+import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
 
 export interface ExportReportsExcelOptions {
   includeClass?: boolean;
@@ -28,6 +28,7 @@ export function exportReportsToExcel(
     const date = r.timestamp ? new Date(r.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
     const time = r.timestamp ? new Date(r.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
     const details = getReportDetailsSummary(r);
+    const notesSummary = getReportNotesSummary(r);
     const row: string[] = [
       r.childName ?? '',
       ...(includeClass ? [r.childClassId ?? ''] : []),
@@ -35,7 +36,7 @@ export function exportReportsToExcel(
       date,
       time,
       details,
-      r.notes ?? '',
+      notesSummary === '—' ? '' : notesSummary,
     ];
     return row;
   });

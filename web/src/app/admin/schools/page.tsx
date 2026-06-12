@@ -30,7 +30,6 @@ export default function SchoolsPage() {
     schoolName: '',
     principalName: '',
     principalEmail: '',
-    logoUrl: '',
   });
   const [inviteResult, setInviteResult] = useState<{ token: string; expiresAt: string; schoolName: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -144,17 +143,16 @@ export default function SchoolsPage() {
     try {
       const functions = getFunctions(app);
       const fn = httpsCallable<
-        { schoolName: string; principalName?: string; principalEmail: string; logoUrl?: string },
+        { schoolName: string; principalName?: string; principalEmail: string },
         { token: string; expiresAt: string; schoolName: string }
       >(functions, 'adminInvitePrincipal');
       const res = await fn({
         schoolName: inviteForm.schoolName.trim(),
         principalName: inviteForm.principalName.trim() || undefined,
         principalEmail: inviteForm.principalEmail.trim(),
-        logoUrl: inviteForm.logoUrl.trim() || undefined,
       });
       setInviteResult({ token: res.data.token, expiresAt: res.data.expiresAt, schoolName: res.data.schoolName });
-      setInviteForm({ schoolName: '', principalName: '', principalEmail: '', logoUrl: '' });
+      setInviteForm({ schoolName: '', principalName: '', principalEmail: '' });
     } catch (err: unknown) {
       const message =
         err && typeof err === 'object' && 'message' in err
@@ -199,7 +197,7 @@ export default function SchoolsPage() {
                 setEditingId(null);
                 setInviteResult(null);
                 setError('');
-                setInviteForm({ schoolName: '', principalName: '', principalEmail: '', logoUrl: '' });
+                setInviteForm({ schoolName: '', principalName: '', principalEmail: '' });
               }}
               className="btn-primary"
             >
@@ -257,16 +255,6 @@ export default function SchoolsPage() {
                   className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                   placeholder="principal@school.com"
                   required
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Logo URL (optional)</label>
-                <input
-                  type="url"
-                  value={inviteForm.logoUrl}
-                  onChange={(e) => setInviteForm((f) => ({ ...f, logoUrl: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                  placeholder="https://..."
                 />
               </div>
             </div>

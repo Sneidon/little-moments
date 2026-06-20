@@ -238,10 +238,10 @@ function ParentTabs() {
         }}
       />
       <Tab.Screen
-        name="Photos"
+        name="Media"
         component={ParentPhotosScreen}
         options={{
-          title: 'Photos',
+          title: 'Media',
           ...tabHeader,
           tabBarIcon: tabBarIconPair('images-outline', 'images'),
         }}

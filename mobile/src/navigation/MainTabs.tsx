@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -41,6 +41,7 @@ import { EditChildProfileTeacherScreen } from '../screens/teacher/EditChildProfi
 import { AddUpdateScreen } from '../screens/teacher/AddUpdateScreen';
 import { ReportDetailScreen } from '../screens/shared/ReportDetailScreen';
 import { UserNotificationsScreen } from '../screens/shared/UserNotificationsScreen';
+import { NotificationBellButton } from '../components/NotificationBellButton';
 
 function EditChildProfileScreenWrapper() {
   const navigation = useNavigation();
@@ -139,14 +140,14 @@ function TeacherTabs() {
         },
         headerShadowVisible: !isDark,
         headerRight: () => (
-          <TouchableOpacity
-            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('UserNotifications')}
-            style={{ paddingHorizontal: 6 }}
-            accessibilityRole="button"
-            accessibilityLabel="Open notifications"
-          >
-            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-          </TouchableOpacity>
+          <NotificationBellButton
+            colors={colors}
+            onPress={() =>
+              (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
+                'UserNotifications'
+              )
+            }
+          />
         ),
         ...tabBarStyleOptions(colors),
       })}
@@ -210,14 +211,14 @@ function ParentTabs() {
         },
         headerShadowVisible: !isDark,
         headerRight: () => (
-          <TouchableOpacity
-            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('UserNotifications')}
-            style={{ paddingHorizontal: 6 }}
-            accessibilityRole="button"
-            accessibilityLabel="Open notifications"
-          >
-            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-          </TouchableOpacity>
+          <NotificationBellButton
+            colors={colors}
+            onPress={() =>
+              (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
+                'UserNotifications'
+              )
+            }
+          />
         ),
         ...tabBarStyleOptions(colors),
       })}

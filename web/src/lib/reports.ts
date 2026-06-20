@@ -4,6 +4,7 @@ import {
   PHOTO_REPORT_LABEL,
   REPORT_TYPE_LABELS,
   REPORT_TYPE_STYLES,
+  VIDEO_REPORT_LABEL,
 } from '@/constants/reports';
 
 /** Normalize Firestore Timestamp / Date / ISO string to ISO string. */
@@ -48,7 +49,15 @@ export type ReportDisplayFields = Pick<
 
 export type ReportDetailsFields = Pick<
   DailyReport,
-  'type' | 'mealOptionName' | 'mealType' | 'medicationName' | 'incidentDetails' | 'photoCategory' | 'notes'
+  | 'type'
+  | 'mealOptionName'
+  | 'mealType'
+  | 'medicationName'
+  | 'incidentDetails'
+  | 'photoCategory'
+  | 'notes'
+  | 'imageUrl'
+  | 'mediaType'
 > & {
   activityTitle?: string;
   activityType?: string;
@@ -57,9 +66,20 @@ export type ReportDetailsFields = Pick<
   nappyType?: string;
 };
 
+/** Teacher media posts are stored as type `incident` with an attachment URL. */
+export function isVideoReport(report: ReportDisplayFields): boolean {
+  if (report.type !== 'incident') return false;
+  const mediaType = report.mediaType?.trim().toLowerCase();
+  if (mediaType?.includes('video')) return true;
+  const url = report.imageUrl?.trim().toLowerCase();
+  if (url && /\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(url)) return true;
+  return false;
+}
+
 /** Teacher photo posts are stored as type `incident` with media attached. */
 export function isPhotoReport(report: ReportDisplayFields): boolean {
   if (report.type !== 'incident') return false;
+  if (isVideoReport(report)) return false;
   return !!(
     report.imageUrl?.trim() ||
     report.photoCategory?.trim() ||
@@ -67,7 +87,12 @@ export function isPhotoReport(report: ReportDisplayFields): boolean {
   );
 }
 
+export function isMediaReport(report: ReportDisplayFields): boolean {
+  return isPhotoReport(report) || isVideoReport(report);
+}
+
 export function getReportTypeLabel(report: ReportDisplayFields): string {
+  if (isVideoReport(report)) return VIDEO_REPORT_LABEL;
   if (isPhotoReport(report)) return PHOTO_REPORT_LABEL;
   if (report.type === 'meal') {
     return formatMealCategoryLabel(report.mealType) ?? REPORT_TYPE_LABELS.meal;
@@ -76,6 +101,7 @@ export function getReportTypeLabel(report: ReportDisplayFields): string {
 }
 
 export function getReportTypeStyle(report: ReportDisplayFields): string {
+  if (isVideoReport(report)) return REPORT_TYPE_STYLES.video;
   if (isPhotoReport(report)) return REPORT_TYPE_STYLES.photo;
   return (
     REPORT_TYPE_STYLES[report.type ?? ''] ??
@@ -87,11 +113,13 @@ export function getReportTypeStyle(report: ReportDisplayFields): string {
 export function reportMatchesTypeFilter(report: ReportDisplayFields, filterType: string): boolean {
   if (!filterType) return true;
   if (filterType === 'photo') return isPhotoReport(report);
-  if (filterType === 'incident') return report.type === 'incident' && !isPhotoReport(report);
+  if (filterType === 'video') return isVideoReport(report);
+  if (filterType === 'incident') return report.type === 'incident' && !isMediaReport(report);
   return report.type === filterType;
 }
 
 export function getReportDetailsSummary(report: ReportDetailsFields): string {
+  if (isVideoReport(report)) return report.photoCategory?.trim() || VIDEO_REPORT_LABEL;
   if (isPhotoReport(report)) return report.photoCategory?.trim() || PHOTO_REPORT_LABEL;
   if (report.type === 'meal') return report.mealOptionName?.trim() || '—';
   if (report.type === 'check_in') return 'Checked in';

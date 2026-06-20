@@ -1,5 +1,5 @@
 import type { DailyReport } from 'shared/types';
-import { getReportDetailsSummary, getReportTypeLabel, getReportTypeStyle } from '@/lib/reports';
+import { getReportDetailsSummary, getReportTypeLabel, getReportTypeStyle, isVideoReport } from '@/lib/reports';
 
 export interface ReportListItemProps {
   report: DailyReport;
@@ -28,14 +28,25 @@ export function ReportListItem({ report }: ReportListItemProps) {
         ) : null}
         {report.notes ? <p className="text-sm text-slate-600 dark:text-slate-300">{report.notes}</p> : null}
         {report.imageUrl ? (
-          <a
-            href={report.imageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-2 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-          >
-            <img src={report.imageUrl} alt="Report attachment" className="h-20 w-auto object-cover" />
-          </a>
+          isVideoReport(report) ? (
+            <a
+              href={report.imageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mt-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-900/40"
+            >
+              Open video
+            </a>
+          ) : (
+            <a
+              href={report.imageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-2 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            >
+              <img src={report.imageUrl} alt="Report attachment" className="h-20 w-auto object-cover" />
+            </a>
+          )
         ) : null}
       </div>
     </li>

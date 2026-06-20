@@ -13,6 +13,9 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
 /** Label shown for teacher photo posts (stored as type `incident` with media). */
 export const PHOTO_REPORT_LABEL = 'Photo';
 
+/** Label shown for teacher video posts (stored as type `incident` with media). */
+export const VIDEO_REPORT_LABEL = 'Video';
+
 /** Options for report type filter (value + label). */
 export const REPORT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'All types' },
@@ -24,6 +27,7 @@ export const REPORT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'check_in', label: 'Check in' },
   { value: 'check_out', label: 'Check out' },
   { value: 'photo', label: PHOTO_REPORT_LABEL },
+  { value: 'video', label: VIDEO_REPORT_LABEL },
   { value: 'incident', label: 'Incident' },
 ];
 
@@ -38,4 +42,5 @@ export const REPORT_TYPE_STYLES: Record<string, string> = {
   check_out: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',
   incident: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
   photo: 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200',
+  video: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200',
 };

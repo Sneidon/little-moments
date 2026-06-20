@@ -1,7 +1,15 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  RefreshControl,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  Linking,
+} from 'react-native';
 import { SkeletonCard } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +17,7 @@ import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import { markAnnouncementNotificationsRead } from '../../services/inAppNotifications';
 import type { Announcement } from '../../../../shared/types';
 
 function announcementPreviewMeta(item: Announcement): { chips: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] } {
@@ -36,7 +44,6 @@ function announcementPreviewMeta(item: Announcement): { chips: { key: string; ic
 
 export function ParentAnnouncementsScreen() {
   const { profile } = useAuth();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [schoolId, setSchoolId] = useState<string | null>(null);
@@ -45,6 +52,7 @@ export function ParentAnnouncementsScreen() {
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -105,15 +113,21 @@ export function ParentAnnouncementsScreen() {
     return () => unsub();
   }, [schoolId, schoolLookupDone, refreshTrigger]);
 
-  const openDetail = useCallback(
+  const toggleExpand = useCallback(
     (item: Announcement) => {
-      if (!schoolId) return;
-      navigation.navigate('ParentAnnouncementDetail', { schoolId, announcementId: item.id });
+      setExpandedId((prev) => {
+        const next = prev === item.id ? null : item.id;
+        if (next && profile?.uid) {
+          void markAnnouncementNotificationsRead(profile.uid, item.id);
+        }
+        return next;
+      });
     },
-    [navigation, schoolId]
+    [profile?.uid]
   );
 
   const renderItem = ({ item }: { item: Announcement }) => {
+    const isExpanded = expandedId === item.id;
     const { chips } = announcementPreviewMeta(item);
     const dateLabel = new Date(item.createdAt).toLocaleDateString(undefined, {
       month: 'short',
@@ -122,42 +136,94 @@ export function ParentAnnouncementsScreen() {
     });
     return (
       <TouchableOpacity
-        style={styles.card}
-        onPress={() => openDetail(item)}
+        style={[styles.card, isExpanded && styles.cardExpanded, { borderColor: colors.cardBorder }]}
+        onPress={() => toggleExpand(item)}
         activeOpacity={0.72}
         accessibilityRole="button"
-        accessibilityHint="Opens full announcement"
+        accessibilityState={{ expanded: isExpanded }}
+        accessibilityHint={isExpanded ? 'Collapse announcement' : 'Expand announcement'}
       >
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} resizeMode="cover" />
-        ) : (
-          <View style={[styles.thumbnailPlaceholder, { backgroundColor: colors.primaryMuted }]}>
-            <Ionicons name="megaphone" size={28} color={colors.primary} />
-          </View>
-        )}
-        <View style={styles.cardContent}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.title} numberOfLines={2}>
-              {item.title}
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.chevron} />
-          </View>
-          {item.body?.trim() ? (
-            <Text style={styles.bodyPreview} numberOfLines={3}>
-              {item.body.trim()}
-            </Text>
+        <View style={isExpanded ? styles.cardExpandedInner : styles.cardRow}>
+          {!isExpanded ? (
+            item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} resizeMode="cover" />
+            ) : (
+              <View style={[styles.thumbnailPlaceholder, { backgroundColor: colors.primaryMuted }]}>
+                <Ionicons name="megaphone" size={28} color={colors.primary} />
+              </View>
+            )
           ) : null}
-          {chips.length > 0 ? (
-            <View style={styles.chipRow}>
-              {chips.map((c) => (
-                <View key={c.key} style={[styles.chip, { backgroundColor: colors.backgroundSecondary }]}>
-                  <Ionicons name={c.icon} size={14} color={colors.textSecondary} style={styles.chipIcon} />
-                  <Text style={[styles.chipLabel, { color: colors.textSecondary }]}>{c.label}</Text>
-                </View>
-              ))}
+          <View style={[styles.cardContent, isExpanded && styles.cardContentExpanded]}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.title} numberOfLines={isExpanded ? undefined : 2}>
+                {item.title}
+              </Text>
+              <Ionicons
+                name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={colors.textMuted}
+                style={styles.chevron}
+              />
             </View>
-          ) : null}
-          <Text style={styles.meta}>{dateLabel}</Text>
+            {!isExpanded && item.body?.trim() ? (
+              <Text style={styles.bodyPreview} numberOfLines={2}>
+                {item.body.trim()}
+              </Text>
+            ) : null}
+            {!isExpanded && chips.length > 0 ? (
+              <View style={styles.chipRow}>
+                {chips.map((c) => (
+                  <View key={c.key} style={[styles.chip, { backgroundColor: colors.backgroundSecondary }]}>
+                    <Ionicons name={c.icon} size={14} color={colors.textSecondary} style={styles.chipIcon} />
+                    <Text style={[styles.chipLabel, { color: colors.textSecondary }]}>{c.label}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            {isExpanded ? (
+              <>
+                {item.body?.trim() ? (
+                  <Text style={[styles.bodyFull, { color: colors.textSecondary }]}>{item.body.trim()}</Text>
+                ) : null}
+                {item.imageUrl ? (
+                  <Image source={{ uri: item.imageUrl }} style={styles.expandedImage} resizeMode="cover" />
+                ) : null}
+                {item.documents?.map((d, i) =>
+                  d.url ? (
+                    <TouchableOpacity
+                      key={`doc-${i}`}
+                      style={[styles.attachmentRow, { borderColor: colors.cardBorder }]}
+                      onPress={() => Linking.openURL(d.url)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+                      <Text style={[styles.attachmentText, { color: colors.text }]} numberOfLines={2}>
+                        {d.label || d.name || 'Attachment'}
+                      </Text>
+                      <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  ) : null
+                )}
+                {item.links?.map((l, i) =>
+                  l.url ? (
+                    <TouchableOpacity
+                      key={`link-${i}`}
+                      style={[styles.attachmentRow, { borderColor: colors.cardBorder }]}
+                      onPress={() => Linking.openURL(l.url)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="link-outline" size={18} color={colors.primary} />
+                      <Text style={[styles.attachmentText, { color: colors.text }]} numberOfLines={2}>
+                        {l.label || l.name || l.url}
+                      </Text>
+                      <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  ) : null
+                )}
+              </>
+            ) : null}
+            <Text style={styles.meta}>{dateLabel}</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -186,6 +252,7 @@ export function ParentAnnouncementsScreen() {
           data={list}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          extraData={expandedId}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
@@ -207,15 +274,22 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     card: {
-      flexDirection: 'row',
-      alignItems: 'stretch',
       backgroundColor: colors.card,
       padding: 12,
       borderRadius: 14,
       marginBottom: 12,
       borderWidth: 1,
-      borderColor: colors.cardBorder,
       overflow: 'hidden',
+    },
+    cardExpanded: {
+      padding: 14,
+    },
+    cardRow: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+    },
+    cardExpandedInner: {
+      flexDirection: 'column',
     },
     thumbnail: {
       width: 88,
@@ -231,10 +305,30 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       justifyContent: 'center',
     },
     cardContent: { flex: 1, marginLeft: 12, minWidth: 0 },
+    cardContentExpanded: { marginLeft: 0 },
     cardHeaderRow: { flexDirection: 'row', alignItems: 'flex-start' },
     title: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text, paddingRight: 4 },
     chevron: { marginTop: 2 },
     bodyPreview: { fontSize: 14, color: colors.textMuted, marginTop: 6, lineHeight: 20 },
+    bodyFull: { fontSize: 15, lineHeight: 22, marginTop: 10 },
+    expandedImage: {
+      width: '100%',
+      height: 180,
+      borderRadius: 10,
+      marginTop: 12,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    attachmentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+    },
+    attachmentText: { flex: 1, fontSize: 14, fontWeight: '500' },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
     chip: {
       flexDirection: 'row',

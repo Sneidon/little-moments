@@ -40,6 +40,7 @@ export type ReportWithExtras = DailyReport & {
   activityType?: string;
   mealType?: 'breakfast' | 'lunch' | 'snack';
   mealOptionName?: string;
+  mediaType?: string;
 };
 
 export function getReportTitle(item: ReportWithExtras): string {
@@ -60,7 +61,10 @@ export function getReportTitle(item: ReportWithExtras): string {
     return n || 'Joined class';
   }
   if (item.type === 'medication') return item.medicationName || 'Medication';
-  if (item.type === 'incident') return 'Photo';
+  if (item.type === 'incident') {
+    if (item.mediaType?.toLowerCase().includes('video')) return 'Video';
+    return 'Photo';
+  }
   return String(item.type).replace('_', ' ');
 }
 

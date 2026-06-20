@@ -64,7 +64,7 @@ function getUpdateTypeLeadLabel(type: string): string {
     case 'medication':
       return 'Medication';
     case 'incident':
-      return 'Photo';
+      return 'Media';
     default:
       return type.replace(/_/g, ' ');
   }

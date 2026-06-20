@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { takePhotoAsync, pickPhotoAsync, pickMediaAsync, showMediaSourceAlert } from '../../utils/photoPicker';
+import { takePhotoAsync, pickPhotoAsync, takeVideoAsync, pickVideoAsync, showMediaSourceAlert } from '../../utils/photoPicker';
 import { uploadPhotoAsync, uploadMediaAsync } from '../../utils/uploadPhoto';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -84,7 +84,7 @@ const ACTIVITY_TABS = [
   { type: 'nappy_change' as ReportType, label: 'Nappy', icon: 'water' as const },
   { type: 'medication' as ReportType, label: 'Medication', icon: 'medical' as const },
   { type: 'activity' as ReportType, label: 'Activity', icon: 'color-palette' as const },
-  { type: 'incident' as ReportType, label: 'Photo', icon: 'camera' as const },
+  { type: 'incident' as ReportType, label: 'Media', icon: 'images' as const },
 ];
 
 const NAPPY_TYPES = [
@@ -735,7 +735,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     const result = await takePhotoAsync();
     if (result) {
       setPhotoUri(result.uri);
-      setPhotoMimeType(undefined);
+      setPhotoMimeType('image/jpeg');
     }
   };
 
@@ -743,17 +743,31 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     const result = await pickPhotoAsync();
     if (result) {
       setPhotoUri(result.uri);
-      setPhotoMimeType(undefined);
+      setPhotoMimeType('image/jpeg');
     }
   };
 
-  const handlePickMedia = async () => {
-    const result = await pickMediaAsync();
+  const handleRecordVideo = async () => {
+    const result = await takeVideoAsync();
     if (result) {
       setPhotoUri(result.uri);
-      setPhotoMimeType(result.mimeType);
+      setPhotoMimeType(result.mimeType ?? 'video/mp4');
     }
   };
+
+  const handlePickVideo = async () => {
+    const result = await pickVideoAsync();
+    if (result) {
+      setPhotoUri(result.uri);
+      setPhotoMimeType(result.mimeType ?? 'video/mp4');
+    }
+  };
+
+  const openMediaPicker = () => {
+    showMediaSourceAlert(handleTakePhoto, handleRecordVideo, handlePickPhoto, handlePickVideo);
+  };
+
+  const isSelectedVideo = photoMimeType?.startsWith('video/') ?? false;
 
   const handleMainNapTimeChange = (_event: unknown, selectedDate?: Date) => {
     if (Platform.OS === 'android') setNapTimePickerField(null);
@@ -1179,20 +1193,34 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           {type === 'incident' && (
             <View style={[styles.screenCard, styles.formSection]}>
               <View style={styles.formSectionHead}>
-                <Text style={styles.formSectionTitle}>Add photo</Text>
+                <Text style={styles.formSectionTitle}>Add media</Text>
               </View>
-              <Text style={styles.photoZoneLabel}>Photo</Text>
+              <Text style={styles.photoZoneLabel}>Photo or video</Text>
               {photoUri ? (
                 <View style={[styles.photoUploadZone, styles.photoUploadZoneFilled]}>
                   <View style={styles.photoPreviewBlock}>
                     <View style={styles.photoThumbWrap}>
-                      <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
-                      {photoMimeType?.startsWith('video/') ? (
+                      {isSelectedVideo ? (
+                        <View style={[styles.photoThumbImage, styles.photoVideoPreview]}>
+                          <Ionicons name="play-circle" size={44} color={colors.primary} />
+                          <Text style={[styles.photoVideoPreviewText, { color: colors.textSecondary }]}>
+                            Video selected
+                          </Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
+                      )}
+                      {isSelectedVideo ? (
                         <View style={styles.photoVideoBadge}>
                           <Ionicons name="videocam" size={15} color="#FFFFFF" />
                           <Text style={styles.photoVideoBadgeText}>Video</Text>
                         </View>
-                      ) : null}
+                      ) : (
+                        <View style={styles.photoVideoBadge}>
+                          <Ionicons name="image" size={15} color="#FFFFFF" />
+                          <Text style={styles.photoVideoBadgeText}>Photo</Text>
+                        </View>
+                      )}
                       <TouchableOpacity
                         style={styles.removePhotoBtn}
                         onPress={() => {
@@ -1202,7 +1230,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                         disabled={loading}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         accessibilityRole="button"
-                        accessibilityLabel="Remove photo or video"
+                        accessibilityLabel="Remove media"
                       >
                         <View style={styles.removePhotoBtnCircle}>
                           <Ionicons name="close" size={20} color="#FFFFFF" />
@@ -1211,12 +1239,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                     </View>
                     <TouchableOpacity
                       style={styles.photoReplaceLink}
-                      onPress={() =>
-                        showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia)
-                      }
+                      onPress={openMediaPicker}
                       disabled={loading}
                       accessibilityRole="button"
-                      accessibilityLabel="Replace photo or video"
+                      accessibilityLabel="Replace media"
                     >
                       <Ionicons name="images-outline" size={18} color={colors.primary} />
                       <Text style={styles.photoReplaceLinkText}>Replace</Text>
@@ -1226,14 +1252,12 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               ) : (
                 <TouchableOpacity
                   style={styles.photoUploadZone}
-                  onPress={() =>
-                    showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia)
-                  }
+                  onPress={openMediaPicker}
                   disabled={loading}
                 >
-                  <Ionicons name="camera-outline" size={48} color="#94a3b8" />
+                  <Ionicons name="images-outline" size={48} color="#94a3b8" />
                   <Text style={styles.photoUploadHint}>Tap to add photo or video</Text>
-                  <Text style={styles.photoUploadFormats}>Photos & videos</Text>
+                  <Text style={styles.photoUploadFormats}>Take, record, or choose from library</Text>
                 </TouchableOpacity>
               )}
               <Text style={styles.label}>Caption</Text>
@@ -1241,7 +1265,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 style={[styles.input, styles.inputMultiline]}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="Describe what's happening in the photo..."
+                placeholder="Describe what you're sharing..."
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={2}
@@ -2889,6 +2913,15 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
         : { elevation: 4 }),
     },
     photoThumbImage: { width: '100%', height: '100%', backgroundColor: colors.backgroundSecondary },
+    photoVideoPreview: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    photoVideoPreviewText: {
+      fontSize: 13,
+      marginTop: 8,
+      ...f('medium'),
+    },
     photoVideoBadge: {
       position: 'absolute',
       left: 10,

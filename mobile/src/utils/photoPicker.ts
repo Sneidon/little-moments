@@ -17,6 +17,12 @@ function normalizePickerPathToUri(path: string): string {
   return `file://${p}`;
 }
 
+function assetToMediaResult(asset: ImagePicker.ImagePickerAsset): MediaResult {
+  const mimeType =
+    asset.mimeType ?? (asset.type === 'video' ? 'video/mp4' : asset.type === 'image' ? 'image/jpeg' : undefined);
+  return { uri: asset.uri, mimeType };
+}
+
 const NATIVE_CROP_OPTIONS = {
   cropping: true,
   freeStyleCropEnabled: true,
@@ -64,7 +70,7 @@ async function ensureCameraPermission(): Promise<boolean> {
   if (status === 'denied') {
     Alert.alert(
       'Camera access needed',
-      'To take photos for updates, please allow camera access in your device settings.',
+      'To take photos or record videos for updates, please allow camera access in your device settings.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Open Settings', onPress: () => Linking.openSettings() },
@@ -83,7 +89,7 @@ async function ensureMediaLibraryPermission(): Promise<boolean> {
   if (status === 'denied') {
     Alert.alert(
       'Photo library access needed',
-      'To choose photos for updates, please allow photo library access in your device settings.',
+      'To choose photos or videos for updates, please allow photo library access in your device settings.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Open Settings', onPress: () => Linking.openSettings() },
@@ -124,6 +130,23 @@ export async function takePhotoAsync(): Promise<PhotoResult> {
 }
 
 /**
+ * Record a video with the device camera.
+ */
+export async function takeVideoAsync(): Promise<MediaResult> {
+  const granted = await ensureCameraPermission();
+  if (!granted) return null;
+
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+    videoMaxDuration: 60,
+    videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
+  });
+
+  if (result.canceled || !result.assets?.[0]) return null;
+  return assetToMediaResult(result.assets[0]);
+}
+
+/**
  * Open photo library to pick an image. Handles permission request and denial.
  * Returns { uri } if user picked a photo, null if cancelled or permission denied.
  * On dev/production builds, opens a crop step after selection.
@@ -154,6 +177,20 @@ export async function pickPhotoAsync(): Promise<PhotoResult> {
 }
 
 /**
+ * Open media library to pick a video.
+ */
+export async function pickVideoAsync(): Promise<MediaResult> {
+  const granted = await ensureMediaLibraryPermission();
+  if (!granted) return null;
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+    allowsEditing: false,
+  });
+  if (result.canceled || !result.assets?.[0]) return null;
+  return assetToMediaResult(result.assets[0]);
+}
+
+/**
  * Open media library to pick a photo or video.
  */
 export async function pickMediaAsync(): Promise<MediaResult> {
@@ -164,30 +201,25 @@ export async function pickMediaAsync(): Promise<MediaResult> {
     allowsEditing: false,
   });
   if (result.canceled || !result.assets?.[0]) return null;
-  const asset = result.assets[0];
-  return {
-    uri: asset.uri,
-    mimeType: (asset as { mimeType?: string }).mimeType,
-  };
+  return assetToMediaResult(result.assets[0]);
 }
 
 /**
- * Show an action sheet / alert to choose Take Photo, Choose Photo, or Choose Video.
+ * Let the teacher choose how to add media: photo or video, camera or library.
  */
 export function showMediaSourceAlert(
   onTakePhoto: () => void,
+  onRecordVideo: () => void,
   onChoosePhoto: () => void,
-  onChooseVideo?: () => void
+  onChooseVideo: () => void
 ): void {
-  const opts = [
-    { text: 'Cancel', style: 'cancel' as const },
-    { text: 'Take Photo', onPress: onTakePhoto },
-    { text: 'Choose from Library', onPress: onChoosePhoto },
-  ];
-  if (onChooseVideo) {
-    opts.push({ text: 'Choose Video', onPress: onChooseVideo });
-  }
-  Alert.alert('Add media', 'Take a photo or choose from your library.', opts);
+  Alert.alert('Add media', 'Share a photo or video with parents.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Take photo', onPress: onTakePhoto },
+    { text: 'Record video', onPress: onRecordVideo },
+    { text: 'Choose photo', onPress: onChoosePhoto },
+    { text: 'Choose video', onPress: onChooseVideo },
+  ]);
 }
 
 /**

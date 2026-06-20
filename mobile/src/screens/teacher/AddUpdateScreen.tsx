@@ -1003,11 +1003,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               </Text>
             </View>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activityScroll}
-          >
+          <View style={styles.activityGrid}>
             {ACTIVITY_TABS.map((tab) => {
               const active = type === tab.type;
               return (
@@ -1022,11 +1018,16 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   <View style={[styles.activityCircle, active && styles.activityCircleActive]}>
                     <Ionicons name={tab.icon} size={active ? 26 : 22} color={active ? '#fff' : colors.textSecondary} />
                   </View>
-                  <Text style={[styles.activityLabel, active && styles.activityLabelActive]}>{tab.label}</Text>
+                  <Text
+                    style={[styles.activityLabel, active && styles.activityLabelActive]}
+                    numberOfLines={2}
+                  >
+                    {tab.label}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
       </View>
 
@@ -2384,13 +2385,11 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       marginBottom: 4,
       ...f('medium'),
     },
-    activityScroll: {
+    activityGrid: {
       flexDirection: 'row',
-      flexWrap: 'nowrap',
-      gap: 12,
-      paddingRight: 12,
+      flexWrap: 'wrap',
+      rowGap: 14,
       paddingVertical: 6,
-      alignItems: 'flex-start',
     },
     sectionLabel: {
       fontSize: 17,
@@ -2491,7 +2490,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     variationChipActive: { borderWidth: 1, borderColor: colors.primary },
     variationChipText: { fontSize: 13, color: colors.text, flexShrink: 1, ...f('semiBold') },
 
-    activityItem: { alignItems: 'center', minWidth: 72, paddingHorizontal: 2 },
+    activityItem: { alignItems: 'center', width: '25%', minWidth: 0, paddingHorizontal: 2 },
     activityCircle: {
       width: 56,
       height: 56,

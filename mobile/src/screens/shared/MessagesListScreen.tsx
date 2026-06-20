@@ -34,7 +34,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  ChatThread: { chatId: string; schoolId: string };
+  ChatThread: { chatId: string; schoolId: string; otherDisplayName?: string };
   SelectChildToMessage: undefined;
 };
 
@@ -219,7 +219,11 @@ export function MessagesListScreen({ navigation }: Props) {
 
   const openChat = useCallback(
     (item: ChatWithNames) => {
-      rootNav?.navigate('ChatThread', { chatId: item.id, schoolId: item.schoolId });
+      rootNav?.navigate('ChatThread', {
+        chatId: item.id,
+        schoolId: item.schoolId,
+        otherDisplayName: item.otherDisplayName,
+      });
     },
     [rootNav]
   );

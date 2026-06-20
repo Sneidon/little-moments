@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -206,7 +206,7 @@ function mergeMessagesByIdAsc(a: ChatMessage[], b: ChatMessage[]): ChatMessage[]
   return Array.from(map.values()).sort((x, y) => x.createdAt.localeCompare(y.createdAt));
 }
 
-export function ChatThreadScreen({ route }: Props) {
+export function ChatThreadScreen({ route, navigation }: Props) {
   const { chatId, schoolId } = route.params;
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
@@ -228,8 +228,9 @@ export function ChatThreadScreen({ route }: Props) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const defaultOtherLabel = profile?.role === 'parent' ? 'Daycare staff' : 'Parent';
-  const [otherLabel, setOtherLabel] = useState(defaultOtherLabel);
-  const [otherInitials, setOtherInitials] = useState(() => getInitials(defaultOtherLabel));
+  const initialOtherLabel = route.params.otherDisplayName?.trim() || defaultOtherLabel;
+  const [otherLabel, setOtherLabel] = useState(initialOtherLabel);
+  const [otherInitials, setOtherInitials] = useState(() => getInitials(initialOtherLabel));
   const flatListRef = useRef<FlatList<ListItem>>(null);
 
   const messages = useMemo(() => mergeMessagesByIdAsc(extraOlder, liveRecent), [extraOlder, liveRecent]);
@@ -251,7 +252,8 @@ export function ChatThreadScreen({ route }: Props) {
         const otherUid = profile?.role === 'teacher' ? data.parentId : data.teacherId;
         const u = await getDoc(doc(db, 'users', otherUid));
         if (cancelled) return;
-        const dn = (u.data() as UserProfile)?.displayName?.trim();
+        const userData = u.data() as UserProfile | undefined;
+        const dn = userData?.preferredName?.trim() || userData?.displayName?.trim();
         if (dn) {
           setOtherLabel(dn);
           setOtherInitials(getInitials(dn));
@@ -268,6 +270,10 @@ export function ChatThreadScreen({ route }: Props) {
       cancelled = true;
     };
   }, [schoolId, chatId, profile?.role, profile?.uid]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ title: otherLabel });
+  }, [navigation, otherLabel]);
 
   useFocusEffect(
     useCallback(() => {

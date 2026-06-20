@@ -74,7 +74,7 @@ export type RootStackParamList = {
   SelectChildToMessage: undefined;
   ParentSelectChildToMessage: undefined;
   BroadcastToClass: undefined;
-  ChatThread: { chatId: string; schoolId: string };
+  ChatThread: { chatId: string; schoolId: string; otherDisplayName?: string };
   DailyCommunication: undefined;
   EditChildProfile: { childId: string; schoolId: string };
   EditChildProfileTeacher: { childId: string; schoolId: string };

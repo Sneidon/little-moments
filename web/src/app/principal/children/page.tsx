@@ -26,6 +26,13 @@ import { ParentLinkOrInvitePanel, type ConfirmedParentAssignment } from '@/compo
 import { inviteParentToChild, principalInviteParent, getCallableErrorMessage } from '@/services/parents';
 import { MAX_PARENTS } from '@/constants/parents';
 
+function resolveAllergies(allergies: string[], allergyInput: string): string[] {
+  const list = allergies.filter(Boolean);
+  const pending = allergyInput.trim();
+  if (!pending || list.includes(pending)) return list;
+  return [...list, pending];
+}
+
 const EMPTY_CHILD_FORM = {
   name: '',
   preferredName: '',
@@ -144,10 +151,11 @@ export default function ChildrenPage() {
       const now = new Date().toISOString();
       // Firestore rejects undefined; only include defined values or null
       const enrolled = Boolean(form.isActive);
+      const allergies = resolveAllergies(form.allergies, form.allergyInput);
       const base: Record<string, unknown> = {
         name: form.name.trim(),
         dateOfBirth: form.dateOfBirth,
-        allergies: form.allergies.filter(Boolean),
+        allergies,
         emergencyContact: form.emergencyContact.trim(),
         classId: enrolled ? form.classId || null : null,
         updatedAt: now,

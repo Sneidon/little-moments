@@ -43,6 +43,7 @@ export function MealOptionsTable({
           <thead className="bg-slate-50/80 dark:bg-slate-700">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Category</th>
+              <th className="w-0 px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Image</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Description</th>
               <th className="w-0 px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Actions</th>
@@ -53,6 +54,27 @@ export function MealOptionsTable({
               <tr key={opt.id} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                   {MEAL_CATEGORY_LABELS[opt.category]}
+                </td>
+                <td className="px-4 py-3">
+                  {opt.imageUrl ? (
+                    <div
+                      className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 dark:border-slate-600 dark:bg-slate-700"
+                      title={`Image for ${opt.name}`}
+                    >
+                      <img
+                        src={opt.imageUrl}
+                        alt={opt.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500"
+                      title="No image uploaded"
+                    >
+                      None
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{opt.name}</td>
                 <td className="max-w-[280px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={opt.description || undefined}>

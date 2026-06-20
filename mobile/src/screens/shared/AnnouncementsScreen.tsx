@@ -5,22 +5,26 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
-  Image,
   TouchableOpacity,
   Linking,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { EmptyState } from '../../components/EmptyState';
+import { SkeletonCard } from '../../components/Skeleton';
+import { AnnouncementMedia } from '../../components/AnnouncementMedia';
 import type { Announcement } from '../../../../shared/types';
 
 export function AnnouncementsScreen() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [list, setList] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -31,17 +35,33 @@ export function AnnouncementsScreen() {
   }, []);
 
   useEffect(() => {
-    if (!profile?.schoolId) return;
+    if (authLoading) return;
+    if (!profile?.schoolId) {
+      setList([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    setLoading(true);
     const q = query(
       collection(db, 'schools', profile.schoolId, 'announcements'),
       orderBy('createdAt', 'desc')
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setList(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement)));
-      setRefreshing(false);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setList(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement)));
+        setLoading(false);
+        setRefreshing(false);
+      },
+      () => {
+        setList([]);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    );
     return () => unsub();
-  }, [profile?.schoolId, refreshTrigger]);
+  }, [profile?.schoolId, refreshTrigger, authLoading]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -84,14 +104,48 @@ export function AnnouncementsScreen() {
             <>
               {item.body?.trim() ? <Text style={styles.body}>{item.body.trim()}</Text> : null}
               {item.imageUrl ? (
-                <Image source={{ uri: item.imageUrl }} style={styles.announcementImage} resizeMode="cover" />
+                <AnnouncementMedia
+                  url={item.imageUrl}
+                  mediaType={item.mediaType}
+                  colors={colors}
+                  variant="expanded"
+                />
               ) : null}
               {item.documents && item.documents.length > 0 ? (
                 <View style={styles.documents}>
                   {item.documents.map((d, i) =>
                     d.url ? (
-                      <TouchableOpacity key={i} onPress={() => Linking.openURL(d.url)}>
-                        <Text style={styles.docLink}>{d.label || d.name || d.url}</Text>
+                      <TouchableOpacity
+                        key={`doc-${i}`}
+                        style={[styles.attachmentRow, { borderColor: colors.cardBorder }]}
+                        onPress={() => Linking.openURL(d.url)}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.attachmentText, { color: colors.text }]} numberOfLines={2}>
+                          {d.label || d.name || 'Attachment'}
+                        </Text>
+                        <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    ) : null
+                  )}
+                </View>
+              ) : null}
+              {item.links && item.links.length > 0 ? (
+                <View style={styles.documents}>
+                  {item.links.map((l, i) =>
+                    l.url ? (
+                      <TouchableOpacity
+                        key={`link-${i}`}
+                        style={[styles.attachmentRow, { borderColor: colors.cardBorder }]}
+                        onPress={() => Linking.openURL(l.url)}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="link-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.attachmentText, { color: colors.text }]} numberOfLines={2}>
+                          {l.label || l.name || l.url}
+                        </Text>
+                        <Ionicons name="open-outline" size={16} color={colors.textMuted} />
                       </TouchableOpacity>
                     ) : null
                   )}
@@ -105,23 +159,41 @@ export function AnnouncementsScreen() {
     );
   };
 
+  const showLoading = authLoading || loading;
+
   return (
     <View style={styles.container}>
-      <FlatList
-        data={list}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        extraData={expandedId}
-        ListEmptyComponent={<Text style={styles.empty}>No announcements.</Text>}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      />
+      {showLoading ? (
+        <ScrollView contentContainerStyle={styles.listContent}>
+          {[1, 2, 3, 4].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={list}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          extraData={expandedId}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <EmptyState
+              icon="megaphone-outline"
+              title="No announcements"
+              subtitle="School announcements will appear here."
+            />
+          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        />
+      )}
     </View>
   );
 }
 
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
   return StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: colors.background },
+    container: { flex: 1, backgroundColor: colors.background },
+    listContent: { padding: 16, flexGrow: 1 },
     card: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -142,10 +214,16 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     title: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
     bodyPreview: { fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 20 },
     body: { fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 20 },
-    announcementImage: { width: '100%', height: 160, borderRadius: 8, marginTop: 8 },
-    documents: { marginTop: 8, gap: 4 },
-    docLink: { fontSize: 14, color: colors.primary, textDecorationLine: 'underline' },
+    documents: { marginTop: 8, gap: 8 },
+    attachmentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+    },
+    attachmentText: { flex: 1, fontSize: 14 },
     meta: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
-    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   });
 }

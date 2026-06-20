@@ -5,7 +5,6 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
-  Image,
   TouchableOpacity,
   ScrollView,
   Linking,
@@ -18,11 +17,20 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { markAnnouncementNotificationsRead } from '../../services/inAppNotifications';
+import { AnnouncementMedia } from '../../components/AnnouncementMedia';
+import { isVideoMedia } from '../../utils/media';
 import type { Announcement } from '../../../../shared/types';
 
 function announcementPreviewMeta(item: Announcement): { chips: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] } {
   const chips: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [];
-  if (item.imageUrl) chips.push({ key: 'hero', icon: 'image-outline', label: 'Image' });
+  if (item.imageUrl) {
+    const isVideo = isVideoMedia(item.mediaType, item.imageUrl);
+    chips.push({
+      key: 'hero',
+      icon: isVideo ? 'videocam-outline' : 'image-outline',
+      label: isVideo ? 'Video' : 'Image',
+    });
+  }
   const docCount = item.documents?.length ?? 0;
   if (docCount > 0) {
     chips.push({
@@ -146,7 +154,12 @@ export function ParentAnnouncementsScreen() {
         <View style={isExpanded ? styles.cardExpandedInner : styles.cardRow}>
           {!isExpanded ? (
             item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} resizeMode="cover" />
+              <AnnouncementMedia
+                url={item.imageUrl}
+                mediaType={item.mediaType}
+                colors={colors}
+                variant="thumbnail"
+              />
             ) : (
               <View style={[styles.thumbnailPlaceholder, { backgroundColor: colors.primaryMuted }]}>
                 <Ionicons name="megaphone" size={28} color={colors.primary} />
@@ -186,7 +199,12 @@ export function ParentAnnouncementsScreen() {
                   <Text style={[styles.bodyFull, { color: colors.textSecondary }]}>{item.body.trim()}</Text>
                 ) : null}
                 {item.imageUrl ? (
-                  <Image source={{ uri: item.imageUrl }} style={styles.expandedImage} resizeMode="cover" />
+                  <AnnouncementMedia
+                    url={item.imageUrl}
+                    mediaType={item.mediaType}
+                    colors={colors}
+                    variant="expanded"
+                  />
                 ) : null}
                 {item.documents?.map((d, i) =>
                   d.url ? (

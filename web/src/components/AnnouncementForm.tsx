@@ -1,6 +1,7 @@
 'use client';
 
 import type { PendingDocument, PendingLink, UseAnnouncementFormResult } from '@/hooks/useAnnouncementForm';
+import { MediaUploadSection } from '@/components/MediaUploadSection';
 import type { ClassRoom } from 'shared/types';
 
 const inputBase =
@@ -116,6 +117,10 @@ export function AnnouncementForm({ form, classes }: AnnouncementFormProps) {
     setBody,
     imageFile,
     setImageFile,
+    videoFile,
+    setVideoFile,
+    existingImageUrl,
+    existingMediaType,
     documents,
     addDocument,
     removeDocument,
@@ -157,17 +162,16 @@ export function AnnouncementForm({ form, classes }: AnnouncementFormProps) {
         className={`${inputBase} mb-4 w-full resize-y`}
       />
 
-      <div className="mb-4">
-        <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Optional image
-        </label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-          className={`${inputBase} w-full text-sm ${inputFile}`}
-        />
-      </div>
+      <MediaUploadSection
+        imageFile={imageFile}
+        setImageFile={setImageFile}
+        videoFile={videoFile}
+        setVideoFile={setVideoFile}
+        existingUrl={existingImageUrl}
+        existingMediaType={existingMediaType}
+        inputBase={inputBase}
+        inputFile={inputFile}
+      />
 
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">

@@ -22,6 +22,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { markAnnouncementNotificationsRead } from '../../services/inAppNotifications';
 import { font } from '../../theme/typography';
 import type { Announcement } from '../../../../shared/types';
+import { isVideoMedia } from '../../utils/media';
 
 type Params = { schoolId: string; announcementId: string };
 
@@ -42,6 +43,7 @@ function normalizeAnnouncement(id: string, schoolIdParam: string, data: Record<s
     title: String(data.title ?? 'Announcement'),
     body: data.body != null ? String(data.body) : '',
     imageUrl: data.imageUrl != null ? String(data.imageUrl) : undefined,
+    mediaType: data.mediaType != null ? String(data.mediaType) : undefined,
     documents: data.documents as Announcement['documents'],
     links: data.links as Announcement['links'],
     createdBy: String(data.createdBy ?? ''),
@@ -236,24 +238,41 @@ export function ParentAnnouncementDetailScreen({ route, navigation }: Props) {
     a.imageUrl ? (
       <View style={[styles.heroCard, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}>
         <View style={[styles.heroImageWrap, { width: heroWidth, height: heroHeight }]}>
-          {!heroLoaded ? (
-            <View style={styles.heroLoading}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : null}
-          <Image
-            source={{ uri: a.imageUrl }}
-            style={[styles.heroImage, { opacity: heroLoaded ? 1 : 0 }]}
-            resizeMode="contain"
-            onLoad={(e) => {
-              const src = e.nativeEvent?.source;
-              if (src?.width && src?.height) {
-                setHeroIntrinsic({ w: src.width, h: src.height });
-              }
-              setHeroLoaded(true);
-            }}
-            onError={() => setHeroLoaded(true)}
-          />
+          {isVideoMedia(a.mediaType, a.imageUrl) ? (
+            <TouchableOpacity
+              style={[styles.heroImage, styles.heroVideoWrap]}
+              onPress={() => Linking.openURL(a.imageUrl!)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Open video"
+            >
+              <View style={styles.heroVideoPlay}>
+                <Ionicons name="play-circle" size={56} color={colors.primary} />
+              </View>
+              <Text style={[styles.heroVideoLabel, { color: colors.textSecondary }]}>Tap to open video</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              {!heroLoaded ? (
+                <View style={styles.heroLoading}>
+                  <ActivityIndicator color={colors.primary} />
+                </View>
+              ) : null}
+              <Image
+                source={{ uri: a.imageUrl }}
+                style={[styles.heroImage, { opacity: heroLoaded ? 1 : 0 }]}
+                resizeMode="contain"
+                onLoad={(e) => {
+                  const src = e.nativeEvent?.source;
+                  if (src?.width && src?.height) {
+                    setHeroIntrinsic({ w: src.width, h: src.height });
+                  }
+                  setHeroLoaded(true);
+                }}
+                onError={() => setHeroLoaded(true)}
+              />
+            </>
+          )}
         </View>
       </View>
     ) : null;
@@ -444,6 +463,18 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       width: '100%',
       height: '100%',
       borderRadius: 0,
+    },
+    heroVideoWrap: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+    },
+    heroVideoPlay: {
+      marginBottom: 8,
+    },
+    heroVideoLabel: {
+      fontSize: 14,
+      ...f('medium'),
     },
     heroFooter: {
       flexDirection: 'row',

@@ -138,8 +138,10 @@ export interface Announcement {
   schoolId: string;
   title: string;
   body: string;
-  /** Optional image URL (uploaded to Storage). */
+  /** Optional image or video URL (uploaded to Storage). */
   imageUrl?: string;
+  /** MIME category for `imageUrl`: image or video. */
+  mediaType?: string;
   /** Optional document uploads (label + URL). */
   documents?: EventDocumentLink[];
   /** Optional manual links (label + URL). */
@@ -171,8 +173,10 @@ export interface Event {
   schoolId: string;
   title: string;
   description?: string;
-  /** Optional image URL (uploaded to Storage). */
+  /** Optional image or video URL (uploaded to Storage). */
   imageUrl?: string;
+  /** MIME category for `imageUrl`: image or video. */
+  mediaType?: string;
   /** Optional document links (name + URL). */
   documents?: EventDocumentLink[];
   /** Optional manual links (label + URL). */

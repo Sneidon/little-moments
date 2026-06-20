@@ -1,6 +1,7 @@
 'use client';
 
 import type { Announcement, EventDocumentLink } from 'shared/types';
+import { isVideoMedia } from '@/lib/media';
 
 export interface AnnouncementCardProps {
   announcement: Announcement;
@@ -101,11 +102,19 @@ export function AnnouncementCard({ announcement, classNamesMap, onEdit }: Announ
         <p className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{a.body}</p>
       ) : null}
       {a.imageUrl && (
-        <img
-          src={a.imageUrl}
-          alt=""
-          className="mt-2 max-h-64 w-full rounded-lg object-cover"
-        />
+        isVideoMedia(a.mediaType, a.imageUrl) ? (
+          <video
+            src={a.imageUrl}
+            controls
+            className="mt-2 max-h-64 w-full rounded-lg"
+          />
+        ) : (
+          <img
+            src={a.imageUrl}
+            alt=""
+            className="mt-2 max-h-64 w-full rounded-lg object-cover"
+          />
+        )
       )}
       {hasDocuments && (
         <LinkList items={a.documents!} showTitle={hasLinks} title="Documents" />

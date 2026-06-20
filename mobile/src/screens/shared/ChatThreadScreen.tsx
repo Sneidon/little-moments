@@ -217,6 +217,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
   /** Newest-first query window, stored ascending for rendering. */
   const [liveRecent, setLiveRecent] = useState<ChatMessage[]>([]);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(true);
   const [hasMoreOlder, setHasMoreOlder] = useState(true);
   const liveOldestSnapRef = useRef<QueryDocumentSnapshot | null>(null);
   const nextOlderCursorRef = useRef<QueryDocumentSnapshot | null>(null);
@@ -296,6 +297,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
     setExtraOlder([]);
     setLiveRecent([]);
     setHasMoreOlder(true);
+    setLoadingInitial(true);
     liveOldestSnapRef.current = null;
     nextOlderCursorRef.current = null;
     prevLiveRecentRef.current = [];
@@ -307,6 +309,10 @@ export function ChatThreadScreen({ route, navigation }: Props) {
     const col = collection(db, 'schools', schoolId, 'chats', chatId, 'messages');
     const q = query(col, orderBy('createdAt', 'desc'), limit(RECENT_PAGE_SIZE));
     const unsub = onSnapshot(q, (snap) => {
+      if (snap.empty && snap.metadata.fromCache) {
+        return;
+      }
+      setLoadingInitial(false);
       if (snap.empty) {
         setLiveRecent([]);
         liveOldestSnapRef.current = null;
@@ -500,16 +506,21 @@ export function ChatThreadScreen({ route, navigation }: Props) {
   }, []);
 
   const listEmpty = useMemo(
-    () => (
-      <View style={themed.emptyWrap}>
-        <View style={themed.emptyIconCircle}>
-          <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
+    () =>
+      loadingInitial ? (
+        <View style={themed.emptyWrap}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-        <Text style={themed.emptyTitle}>No messages yet</Text>
-        <Text style={themed.emptySubtitle}>Say hello to start the conversation.</Text>
-      </View>
-    ),
-    [themed, colors.textMuted]
+      ) : (
+        <View style={themed.emptyWrap}>
+          <View style={themed.emptyIconCircle}>
+            <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
+          </View>
+          <Text style={themed.emptyTitle}>No messages yet</Text>
+          <Text style={themed.emptySubtitle}>Say hello to start the conversation.</Text>
+        </View>
+      ),
+    [themed, colors.textMuted, colors.primary, loadingInitial]
   );
 
   return (

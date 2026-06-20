@@ -74,7 +74,7 @@ function formatListTime(iso: string | undefined): string {
 }
 
 export function MessagesListScreen({ navigation }: Props) {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [chats, setChats] = useState<ChatWithNames[]>([]);
@@ -92,15 +92,22 @@ export function MessagesListScreen({ navigation }: Props) {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const uid = profile?.uid;
     const schoolId = profile?.schoolId;
     const role = profile?.role;
-    if (!uid) return;
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
 
     if (role === 'teacher' && !schoolId) {
       setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     const q =
       role === 'teacher'
@@ -118,6 +125,9 @@ export function MessagesListScreen({ navigation }: Props) {
     const unsub = onSnapshot(
       q,
       async (snap) => {
+        if (snap.empty && snap.metadata.fromCache) {
+          return;
+        }
         try {
           const list: Chat[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Chat));
           const withNames: ChatWithNames[] = await Promise.all(
@@ -166,7 +176,7 @@ export function MessagesListScreen({ navigation }: Props) {
     );
 
     return () => unsub();
-  }, [profile?.uid, profile?.schoolId, profile?.role, refreshTrigger]);
+  }, [authLoading, profile?.uid, profile?.schoolId, profile?.role, refreshTrigger]);
 
   const renderListHeader = () => {
     if (profile?.role === 'teacher') {
@@ -296,7 +306,7 @@ export function MessagesListScreen({ navigation }: Props) {
   const skeletonHeaderVariant =
     profile?.role === 'teacher' ? 'teacher' : profile?.role === 'parent' ? 'parent' : 'none';
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.container} accessibilityState={{ busy: true }}>
         <SkeletonMessagesActionHeader variant={skeletonHeaderVariant} />

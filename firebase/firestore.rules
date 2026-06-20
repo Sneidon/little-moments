@@ -22,17 +22,13 @@ service cloud.firestore {
     }
     function isActiveParent() {
       return isAuthenticated()
-        && request.auth.token.role == 'parent'
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.parentStatus == 'ACTIVE';
+        && request.auth.token.role == 'parent';
+        //&& get(/databases/$(database)/documents/users/$(request.auth.uid)).data.parentStatus == 'ACTIVE';
     }
     function isParentOfChildId(schoolId, childId) {
       return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)/children/$(childId)).data.parentIds;
     }
-
-    // Subscription / onboarding gates (callable adminSetSchoolSuspended). Super admins bypass.
-    // Default: missing subscriptionStatus => active; missing status => treat as ACTIVE for legacy schools.
-
-    // Collection group rule for chats (parents query across schools via collectionGroup)
+  
     match /{path=**}/chats/{chatId} {
       allow read: if isAuthenticated() && (
         resource.data.teacherId == request.auth.uid
@@ -44,7 +40,7 @@ service cloud.firestore {
       allow read: if request.auth != null && (
         request.auth.uid == userId
         || isSuperAdmin()
-        || (resource.data.role != null)  // authenticated users may read profiles (for messages, display names)
+        || (resource.data.role != null)  
         || (request.auth.token.role == 'principal' && request.auth.token.schoolId == resource.data.schoolId)  // principal may list staff/parents in their school
       );
       allow write: if request.auth != null && (request.auth.uid == userId || isSuperAdmin());

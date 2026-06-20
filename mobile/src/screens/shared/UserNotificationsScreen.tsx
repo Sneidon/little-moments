@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, onSnapshot, orderBy, query, updateDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import type { RootStackParamList } from '../../navigation/MainTabs';
 import { navigateFromNotificationData } from '../../hooks/useNotificationNavigation';
+import {
+  isInAppNotificationRead,
+  markInAppNotificationRead,
+} from '../../services/inAppNotifications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserNotifications'>;
 
@@ -68,12 +72,12 @@ export function UserNotificationsScreen({ navigation }: Props) {
   const openItem = async (item: NotificationItem) => {
     const uid = profile?.uid;
     if (!uid) return;
-    try {
-      if (!item.read) {
-        await updateDoc(doc(db, 'users', uid, 'notifications', item.id), { read: true });
-      }
-    } catch {
-      // Ignore read-state update failures; navigation still proceeds.
+    const alreadyRead = isInAppNotificationRead(item);
+    if (!alreadyRead) {
+      setItems((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
+      );
+      await markInAppNotificationRead(uid, item.id);
     }
     navigateFromNotificationData(
       navigation,
@@ -98,10 +102,12 @@ export function UserNotificationsScreen({ navigation }: Props) {
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={items.length === 0 ? styles.emptyWrap : styles.listContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={[styles.row, !item.read && styles.rowUnread]} onPress={() => openItem(item)}>
+        renderItem={({ item }) => {
+          const unread = !isInAppNotificationRead(item);
+          return (
+          <TouchableOpacity style={[styles.row, unread && styles.rowUnread]} onPress={() => openItem(item)}>
             <View style={styles.iconWrap}>
-              <Ionicons name={item.read ? 'notifications-outline' : 'notifications'} size={18} color={colors.primary} />
+              <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={18} color={colors.primary} />
             </View>
             <View style={styles.rowBody}>
               <Text style={styles.title} numberOfLines={1}>
@@ -115,7 +121,8 @@ export function UserNotificationsScreen({ navigation }: Props) {
               <Text style={styles.when}>{formatWhen(item.createdAt)}</Text>
             </View>
           </TouchableOpacity>
-        )}
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.emptyCard}>
             <Ionicons name="notifications-off-outline" size={30} color={colors.textMuted} />

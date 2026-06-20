@@ -10,6 +10,7 @@ import {
   PDF_TABLE_HEAD_STYLES_COMPACT,
   PDF_TABLE_BODY_STYLES_COMPACT,
   PDF_TABLE_ALTERNATE_ROW,
+  pdfSafeText,
   type DocWithAutoTable,
 } from '@/lib/pdfDesign';
 import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
@@ -59,13 +60,15 @@ export function exportReportsToPdf(
       : '—';
     const details = getReportDetailsSummary(r);
     return [
-      r.childName ?? '—',
-      formatGenderLabel(r.childGender),
-      ...(includeClass ? [r.childClassId ? classDisplay(r.childClassId) : '—'] : []),
-      getReportTypeLabel(r),
-      time,
-      details,
-      getReportNotesSummary(r),
+      pdfSafeText(r.childName),
+      pdfSafeText(formatGenderLabel(r.childGender)),
+      ...(includeClass
+        ? [pdfSafeText(r.childClassId ? classDisplay(r.childClassId) : '—')]
+        : []),
+      pdfSafeText(getReportTypeLabel(r)),
+      pdfSafeText(time),
+      pdfSafeText(details),
+      pdfSafeText(getReportNotesSummary(r)),
     ];
   });
 
@@ -91,7 +94,7 @@ export function exportReportsToPdf(
 
   let y = pdfAddHeader(doc, {
     title,
-    subtitle: filtersApplied ? `Filters: ${filtersApplied}` : undefined,
+    subtitle: filtersApplied ? `Filters: ${pdfSafeText(filtersApplied)}` : undefined,
     meta: `Exported on ${new Date().toLocaleDateString(undefined, {
       weekday: 'short',
       month: 'short',

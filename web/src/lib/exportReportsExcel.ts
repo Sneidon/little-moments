@@ -8,6 +8,7 @@ export interface ExportReportsExcelOptions {
   sheetName?: string;
   filename?: string;
   filtersApplied?: string;
+  classDisplay?: (classId: string) => string;
 }
 
 /** Export report rows to Excel (.xlsx) and trigger download. */
@@ -15,7 +16,7 @@ export function exportReportsToExcel(
   rows: ReportRow[],
   options: ExportReportsExcelOptions = {}
 ): void {
-  const { includeClass = true, sheetName = 'Reports', filename, filtersApplied } = options;
+  const { includeClass = true, sheetName = 'Reports', filename, filtersApplied, classDisplay = (id) => id } = options;
   const headers = [
     'Child',
     'Gender',
@@ -34,7 +35,7 @@ export function exportReportsToExcel(
     const row: string[] = [
       r.childName ?? '',
       formatGenderLabel(r.childGender),
-      ...(includeClass ? [r.childClassId ?? ''] : []),
+      ...(includeClass ? [r.childClassId ? classDisplay(r.childClassId) : ''] : []),
       getReportTypeLabel(r),
       date,
       time,

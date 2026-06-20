@@ -17,7 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db } from '../../config/firebase';
+import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { markAnnouncementNotificationsRead } from '../../services/inAppNotifications';
 import { font } from '../../theme/typography';
 import type { Announcement } from '../../../../shared/types';
 
@@ -73,6 +75,7 @@ function formatPostedAt(iso: string): { dateLine: string; timeLine: string } {
 
 export function ParentAnnouncementDetailScreen({ route, navigation }: Props) {
   const { schoolId, announcementId } = route.params;
+  const { profile } = useAuth();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const { width } = useWindowDimensions();
@@ -115,6 +118,12 @@ export function ParentAnnouncementDetailScreen({ route, navigation }: Props) {
     );
     return () => unsub();
   }, [schoolId, announcementId]);
+
+  useEffect(() => {
+    const uid = profile?.uid;
+    if (!uid || !announcement) return;
+    void markAnnouncementNotificationsRead(uid, announcementId);
+  }, [profile?.uid, announcementId, announcement]);
 
   const onShare = useCallback(() => {
     if (!announcement) return;

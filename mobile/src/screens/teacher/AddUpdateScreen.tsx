@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,12 @@ import type { ReportType } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { font } from '../../theme/typography';
 import { parseTimeWithDate } from '../../utils/childDailyReportDisplay';
+import {
+  isChildEligibleForUpdateType,
+  ineligibleSelectionMessage,
+  selectAllChildrenLabel,
+} from '../../utils/childPresence';
+import { usePresentChildIds } from '../../hooks/usePresentChildIds';
 
 type AddUpdateStackParamList = {
   AddUpdate: { initialType?: ReportType; initialChildId?: string } | undefined;
@@ -227,6 +233,12 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [notes, setNotes] = useState('');
   const [mealTime, setMealTime] = useState(() => formatTime(new Date()));
   const [loading, setLoading] = useState(false);
+  const { presentChildIds, loadingPresence } = usePresentChildIds(profile?.schoolId, children);
+  const selectAllLabel = useMemo(() => selectAllChildrenLabel(type), [type]);
+  const isChildEligible = useCallback(
+    (childId: string) => isChildEligibleForUpdateType(childId, presentChildIds, type),
+    [presentChildIds, type]
+  );
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoMimeType, setPhotoMimeType] = useState<string | undefined>(undefined);
   const [photoCategory, setPhotoCategory] = useState<string | null>(null);
@@ -285,12 +297,6 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
           setChildren(list);
           setClassRosterLoaded(true);
-          if (list.length > 0 && !didAutoSelectChildrenRef.current) {
-            didAutoSelectChildrenRef.current = true;
-            const initId = route.params?.initialChildId;
-            if (initId && list.some((c) => c.id === initId)) setSelectedChildIds([initId]);
-            else setSelectedChildIds([list[0].id]);
-          }
         }
       );
     })();
@@ -301,6 +307,25 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       if (unsub) unsub();
     };
   }, [profile?.schoolId, profile?.uid]);
+
+  useEffect(() => {
+    if (!classRosterLoaded || loadingPresence || children.length === 0) return;
+    if (didAutoSelectChildrenRef.current) return;
+    didAutoSelectChildrenRef.current = true;
+    const initId = route.params?.initialChildId;
+    if (initId && children.some((c) => c.id === initId) && isChildEligible(initId)) {
+      setSelectedChildIds([initId]);
+      return;
+    }
+    const firstEligible = children.find((c) => isChildEligible(c.id));
+    setSelectedChildIds(firstEligible ? [firstEligible.id] : []);
+  }, [
+    classRosterLoaded,
+    loadingPresence,
+    children,
+    route.params?.initialChildId,
+    isChildEligible,
+  ]);
 
   // Keep read-only start time display in sync with current time
   useEffect(() => {
@@ -356,6 +381,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   }, [childListModalOpen]);
 
   const toggleChildSelection = (childId: string) => {
+    if (!isChildEligible(childId)) {
+      Alert.alert('Not available', ineligibleSelectionMessage(type));
+      return;
+    }
     setSelectedChildIds((prev) =>
       prev.includes(childId) ? prev.filter((id) => id !== childId) : [...prev, childId]
     );
@@ -364,7 +393,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     }
   };
 
-  const selectAllChildren = () => setSelectedChildIds(children.map((c) => c.id));
+  const selectAllChildren = () =>
+    setSelectedChildIds(children.filter((c) => isChildEligible(c.id)).map((c) => c.id));
   const clearChildSelection = () => setSelectedChildIds([]);
 
   /** Get effective form values for a child (defaults + any overrides for this child) */
@@ -400,6 +430,18 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       return next;
     });
   };
+
+  useEffect(() => {
+    if (loadingPresence) return;
+    setSelectedChildIds((prev) => {
+      const next = prev.filter((id) => isChildEligible(id));
+      if (next.length === prev.length) return prev;
+      for (const id of prev) {
+        if (!next.includes(id)) clearOverrideForChild(id);
+      }
+      return next;
+    });
+  }, [type, presentChildIds, loadingPresence, isChildEligible]);
 
   const openVariationModal = (childId: string) => {
     setVariationModalChildId(childId);
@@ -531,6 +573,15 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       Alert.alert('Add media', 'Take or choose a photo/video to log.');
       return;
     }
+    if (!loadingPresence) {
+      Alert.alert('Please wait', 'Loading check-in status for your class…');
+      return;
+    }
+    const ineligibleSelected = selectedChildIds.filter((id) => !isChildEligible(id));
+    if (ineligibleSelected.length > 0) {
+      Alert.alert('Select children', ineligibleSelectionMessage(type));
+      return;
+    }
     if (type === 'activity') {
       for (const childId of selectedChildIds) {
         const v = getValuesForChild(childId);
@@ -584,9 +635,17 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     setLoading(true);
     try {
       const now = new Date();
-      const targetChildIds = type === 'incident' && forWholeClass ? children.map((c) => c.id) : selectedChildIds;
+      const targetChildIds =
+        type === 'incident' && forWholeClass
+          ? children.filter((c) => isChildEligible(c.id)).map((c) => c.id)
+          : selectedChildIds;
       if (targetChildIds.length === 0) {
-        Alert.alert('Select children', forWholeClass ? 'No children in your class.' : 'Choose at least one child.');
+        Alert.alert(
+          'Select children',
+          forWholeClass
+            ? 'No checked-in children in your class.'
+            : 'Choose at least one child.'
+        );
         setLoading(false);
         return;
       }
@@ -794,7 +853,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                     <Text style={styles.sectionEyebrow}>Who</Text>
                     <Text style={styles.sectionTitle}>Receives this update</Text>
                     <Text style={styles.selectionHint}>
-                      Tap a photo to select or deselect. Use search to open the full class list.
+                      {type === 'check_in'
+                        ? 'Only children not yet checked in can be selected.'
+                        : type === 'check_out'
+                          ? 'Only checked-in children can be checked out.'
+                          : 'Only checked-in children can receive this update.'}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -816,32 +879,37 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               >
                 {children.map((c) => {
                   const selected = selectedChildIds.includes(c.id);
+                  const eligible = isChildEligible(c.id);
                   return (
                     <TouchableOpacity
                       key={c.id}
-                      style={styles.childAvatarItem}
+                      style={[styles.childAvatarItem, !eligible && styles.childAvatarItemDisabled]}
                       onPress={() => toggleChildSelection(c.id)}
-                      activeOpacity={0.85}
+                      activeOpacity={eligible ? 0.85 : 1}
+                      disabled={!eligible}
                       accessibilityRole="checkbox"
-                      accessibilityState={{ checked: selected }}
-                      accessibilityLabel={`${c.name}, ${selected ? 'selected' : 'not selected'}`}
+                      accessibilityState={{ checked: selected, disabled: !eligible }}
+                      accessibilityLabel={`${c.name}, ${selected ? 'selected' : 'not selected'}${eligible ? '' : ', not available for this update'}`}
                     >
                       <View
                         style={[
                           styles.childAvatarRing,
                           selected ? styles.childAvatarRingSelected : styles.childAvatarRingIdle,
+                          !eligible && styles.childAvatarRingDisabled,
                         ]}
                       >
                         <View
                           style={[
                             styles.childAvatarInner,
                             selected && styles.childAvatarInnerSelected,
+                            !eligible && styles.childAvatarInnerDisabled,
                           ]}
                         >
                           <Text
                             style={[
                               styles.childAvatarInitials,
                               selected && styles.childAvatarInitialsSelected,
+                              !eligible && styles.childAvatarInitialsDisabled,
                             ]}
                           >
                             {getInitials(c.name)}
@@ -854,14 +922,21 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                         ) : null}
                       </View>
                       <Text
-                        style={[styles.childAvatarName, selected && styles.childAvatarNameSelected]}
+                        style={[
+                          styles.childAvatarName,
+                          selected && styles.childAvatarNameSelected,
+                          !eligible && styles.childAvatarNameDisabled,
+                        ]}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
                         {c.name.trim().split(/\s+/)[0] || c.name}
                       </Text>
                       {c.name.trim().includes(' ') ? (
-                        <Text style={styles.childAvatarSurname} numberOfLines={1}>
+                        <Text
+                          style={[styles.childAvatarSurname, !eligible && styles.childAvatarNameDisabled]}
+                          numberOfLines={1}
+                        >
                           {c.name.trim().slice(c.name.trim().indexOf(' ') + 1)}
                         </Text>
                       ) : (
@@ -878,7 +953,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               <View style={styles.childActionsRow}>
                 <TouchableOpacity style={styles.childActionPill} onPress={selectAllChildren} activeOpacity={0.8}>
                   <Ionicons name="checkmark-done" size={18} color="#fff" style={styles.childActionPillIcon} />
-                  <Text style={styles.childActionPillText}>All in class</Text>
+                  <Text style={styles.childActionPillText}>{selectAllLabel}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.childActionPillOutline} onPress={clearChildSelection} activeOpacity={0.8}>
                   <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} style={styles.childActionPillIcon} />
@@ -2013,14 +2088,20 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               ) : (
                 childrenFilteredForModal.map((c) => {
                   const isSelected = selectedChildIds.includes(c.id);
+                  const eligible = isChildEligible(c.id);
                   return (
                     <TouchableOpacity
                       key={c.id}
-                      style={[styles.childListRow, isSelected && styles.childListRowSelected]}
+                      style={[
+                        styles.childListRow,
+                        isSelected && styles.childListRowSelected,
+                        !eligible && styles.childListRowDisabled,
+                      ]}
                       onPress={() => toggleChildSelection(c.id)}
-                      activeOpacity={0.65}
+                      activeOpacity={eligible ? 0.65 : 1}
+                      disabled={!eligible}
                       accessibilityRole="checkbox"
-                      accessibilityState={{ checked: isSelected }}
+                      accessibilityState={{ checked: isSelected, disabled: !eligible }}
                     >
                       <View
                         style={[
@@ -2320,6 +2401,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     childrenRow: { flexDirection: 'row', gap: 14, paddingRight: 16, paddingBottom: 8, paddingTop: 4 },
     childAvatarItem: { width: 80, alignItems: 'center' },
+    childAvatarItemDisabled: { opacity: 0.45 },
     childAvatarRing: {
       width: 72,
       height: 72,
@@ -2336,6 +2418,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       borderColor: colors.primary,
       backgroundColor: isDark ? 'transparent' : colors.primaryMuted,
     },
+    childAvatarRingDisabled: {
+      borderColor: colors.cardBorder,
+    },
     childAvatarInner: {
       width: 58,
       height: 58,
@@ -2346,6 +2431,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     childAvatarInnerSelected: {
       backgroundColor: isDark ? colors.avatarBg : colors.card,
+    },
+    childAvatarInnerDisabled: {
+      backgroundColor: isDark ? colors.backgroundSecondary : colors.backgroundSecondary,
     },
     childAvatarCheck: {
       position: 'absolute',
@@ -2362,6 +2450,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     childAvatarInitials: { fontSize: 19, color: colors.avatarText, ...f('bold') },
     childAvatarInitialsSelected: { color: colors.primary },
+    childAvatarInitialsDisabled: { color: colors.textMuted },
     childAvatarName: {
       fontSize: 13,
       color: colors.textSecondary,
@@ -2371,6 +2460,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       ...f('semiBold'),
     },
     childAvatarNameSelected: { color: colors.primary, ...f('bold') },
+    childAvatarNameDisabled: { color: colors.textMuted },
     childAvatarSurname: {
       fontSize: 11,
       color: colors.textMuted,
@@ -2943,6 +3033,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     childListRowSelected: {
       borderColor: colors.primary,
       backgroundColor: colors.primaryMuted,
+    },
+    childListRowDisabled: {
+      opacity: 0.45,
     },
     childListRowAvatar: {
       width: 48,

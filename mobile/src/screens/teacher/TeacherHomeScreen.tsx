@@ -169,6 +169,14 @@ export function TeacherHomeScreen({
 
   const quickActions = [
     {
+      id: 'check_in',
+      label: 'Check in',
+      icon: 'log-in' as const,
+      soft: colors.accentTealSoft,
+      iconColor: '#16a34a',
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'check_in' }),
+    },
+    {
       id: 'meal',
       label: 'Log Meal',
       icon: 'restaurant' as const,

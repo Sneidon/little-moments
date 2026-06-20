@@ -232,15 +232,6 @@ export default function ChildDetailPage() {
         onCancelEdit={parentManagement.cancelEditParent}
         onRequestRemoveParentFromChild={(p) => setPendingRemoveParent(p)}
         removingParentUid={parentManagement.removingParentUid}
-        showEmailInvite={parentManagement.showEmailInvite}
-        emailInviteForm={parentManagement.emailInviteForm}
-        setEmailInviteForm={parentManagement.setEmailInviteForm}
-        emailInviteSubmitting={parentManagement.emailInviteSubmitting}
-        emailInviteError={parentManagement.emailInviteError}
-        emailInviteSuccessExpires={parentManagement.emailInviteSuccessExpires}
-        onEmailInviteSubmit={parentManagement.handleEmailInviteSubmit}
-        openEmailInvite={parentManagement.openEmailInvite}
-        closeEmailInvite={parentManagement.closeEmailInvite}
       />
 
       <ActivityList

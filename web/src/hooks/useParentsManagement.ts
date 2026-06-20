@@ -18,7 +18,6 @@ export interface InviteFormState {
   parentEmail: string;
   parentDisplayName: string;
   parentPhone: string;
-  parentPassword: string;
 }
 
 export interface EditFormState {
@@ -35,13 +34,7 @@ export interface UseParentsManagementOptions {
   setChild: (c: Child | null) => void;
 }
 
-export type InviteStep = 'email' | 'link' | 'create';
-
-export interface EmailParentInviteFormState {
-  parentEmail: string;
-  parentDisplayName: string;
-  parentPhone: string;
-}
+export type InviteStep = 'email' | 'link' | 'invite';
 
 export interface UseParentsManagementResult {
   showInviteParent: boolean;
@@ -67,15 +60,6 @@ export interface UseParentsManagementResult {
   cancelEditParent: () => void;
   canInviteMore: boolean;
   maxParents: number;
-  showEmailInvite: boolean;
-  emailInviteForm: EmailParentInviteFormState;
-  setEmailInviteForm: React.Dispatch<React.SetStateAction<EmailParentInviteFormState>>;
-  emailInviteSubmitting: boolean;
-  emailInviteError: string;
-  emailInviteSuccessExpires: string | null;
-  openEmailInvite: () => void;
-  closeEmailInvite: () => void;
-  handleEmailInviteSubmit: (e: React.FormEvent) => Promise<void>;
   removingParentUid: string | null;
   removeParentError: string;
   handleRemoveParentFromChild: (
@@ -83,17 +67,10 @@ export interface UseParentsManagementResult {
   ) => Promise<{ success: boolean; deletedAccount: boolean }>;
 }
 
-const INITIAL_EMAIL_PARENT_INVITE: EmailParentInviteFormState = {
-  parentEmail: '',
-  parentDisplayName: '',
-  parentPhone: '',
-};
-
 const INITIAL_INVITE_FORM: InviteFormState = {
   parentEmail: '',
   parentDisplayName: '',
   parentPhone: '',
-  parentPassword: '',
 };
 
 export function useParentsManagement(options: UseParentsManagementOptions): UseParentsManagementResult {
@@ -106,11 +83,6 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [editingParentUid, setEditingParentUid] = useState<string | null>(null);
-  const [showEmailInvite, setShowEmailInvite] = useState(false);
-  const [emailInviteForm, setEmailInviteForm] = useState<EmailParentInviteFormState>(INITIAL_EMAIL_PARENT_INVITE);
-  const [emailInviteSubmitting, setEmailInviteSubmitting] = useState(false);
-  const [emailInviteError, setEmailInviteError] = useState('');
-  const [emailInviteSuccessExpires, setEmailInviteSuccessExpires] = useState<string | null>(null);
 
   const setShowInviteParentWithReset = useCallback((show: boolean) => {
     setShowInviteParent(show);
@@ -118,27 +90,7 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
       setInviteStep('email');
       setInviteCheckError('');
       setInviteError('');
-      setShowEmailInvite(false);
-      setEmailInviteSuccessExpires(null);
     }
-  }, []);
-
-  const openEmailInvite = useCallback(() => {
-    setShowInviteParent(false);
-    setInviteCheckError('');
-    setInviteError('');
-    setInviteStep('email');
-    setEmailInviteError('');
-    setEmailInviteSuccessExpires(null);
-    setEmailInviteForm(INITIAL_EMAIL_PARENT_INVITE);
-    setShowEmailInvite(true);
-  }, []);
-
-  const closeEmailInvite = useCallback(() => {
-    setShowEmailInvite(false);
-    setEmailInviteError('');
-    setEmailInviteForm(INITIAL_EMAIL_PARENT_INVITE);
-    setEmailInviteSuccessExpires(null);
   }, []);
 
   const resetInviteToStep1 = useCallback(() => {
@@ -233,7 +185,7 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
       setInviteCheckLoading(true);
       try {
         const { exists } = await checkParentEmail(inviteForm.parentEmail.trim());
-        setInviteStep(exists ? 'link' : 'create');
+        setInviteStep(exists ? 'link' : 'invite');
       } catch (err) {
         setInviteCheckError(getCallableErrorMessage(err));
       } finally {
@@ -255,20 +207,24 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
         setInviteError(`Maximum ${MAX_PARENTS} parents allowed.`);
         return;
       }
-      if (inviteStep === 'create' && (!inviteForm.parentPassword || inviteForm.parentPassword.length < 6)) {
-        setInviteError('Password (min 6 characters) is required for new accounts.');
-        return;
-      }
       setInviteSubmitting(true);
       try {
-        await inviteParentToChild({
-          childId: child.id,
-          parentEmail: inviteForm.parentEmail.trim(),
-          parentDisplayName: inviteForm.parentDisplayName.trim() || undefined,
-          parentPhone: inviteForm.parentPhone.trim() || undefined,
-          parentPassword: inviteStep === 'create' ? inviteForm.parentPassword?.trim() : undefined,
-        });
-        if (schoolId) {
+        if (inviteStep === 'invite') {
+          await principalInviteParent({
+            childId: child.id,
+            parentEmail: inviteForm.parentEmail.trim(),
+            parentDisplayName: inviteForm.parentDisplayName.trim() || undefined,
+            parentPhone: inviteForm.parentPhone.trim() || undefined,
+          });
+        } else {
+          await inviteParentToChild({
+            childId: child.id,
+            parentEmail: inviteForm.parentEmail.trim(),
+            parentDisplayName: inviteForm.parentDisplayName.trim() || undefined,
+            parentPhone: inviteForm.parentPhone.trim() || undefined,
+          });
+        }
+        if (schoolId && inviteStep === 'link') {
           const updated = await refetchChild(schoolId, child.id);
           if (updated) setChild(updated);
         }
@@ -285,42 +241,6 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
 
   const parentCount = child?.parentIds?.length ?? 0;
   const canInviteMore = parentCount < MAX_PARENTS;
-
-  const handleEmailInviteSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setEmailInviteError('');
-      if (!child) {
-        setEmailInviteError('Child not loaded.');
-        return;
-      }
-      const emailTrim = emailInviteForm.parentEmail?.trim();
-      if (!emailTrim) {
-        setEmailInviteError('Email is required.');
-        return;
-      }
-      if ((child.parentIds?.length ?? 0) >= MAX_PARENTS) {
-        setEmailInviteError(`Maximum ${MAX_PARENTS} parents allowed.`);
-        return;
-      }
-      setEmailInviteSubmitting(true);
-      try {
-        const { expiresAt } = await principalInviteParent({
-          childId: child.id,
-          parentEmail: emailTrim,
-          parentDisplayName: emailInviteForm.parentDisplayName.trim() || undefined,
-          parentPhone: emailInviteForm.parentPhone.trim() || undefined,
-        });
-        setEmailInviteSuccessExpires(expiresAt);
-        setEmailInviteForm(INITIAL_EMAIL_PARENT_INVITE);
-      } catch (err) {
-        setEmailInviteError(getCallableErrorMessage(err));
-      } finally {
-        setEmailInviteSubmitting(false);
-      }
-    },
-    [child, emailInviteForm]
-  );
 
   return {
     showInviteParent,
@@ -346,15 +266,6 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
     cancelEditParent,
     canInviteMore,
     maxParents: MAX_PARENTS,
-    showEmailInvite,
-    emailInviteForm,
-    setEmailInviteForm,
-    emailInviteSubmitting,
-    emailInviteError,
-    emailInviteSuccessExpires,
-    openEmailInvite,
-    closeEmailInvite,
-    handleEmailInviteSubmit,
     removingParentUid,
     removeParentError,
     handleRemoveParentFromChild,

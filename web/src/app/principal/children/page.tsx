@@ -22,6 +22,9 @@ import type { Child, ChildGender, ClassRoom } from 'shared/types';
 import { PageHero, SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 import { DateOfBirthField, isValidIsoDateString } from '@/components/DateOfBirthField';
 import { formatGenderLabel, GENDER_FORM_OPTIONS } from '@/lib/formatGender';
+import { ParentLinkOrInvitePanel, type ConfirmedParentAssignment } from '@/components/ParentLinkOrInvitePanel';
+import { inviteParentToChild, principalInviteParent, getCallableErrorMessage } from '@/services/parents';
+import { MAX_PARENTS } from '@/constants/parents';
 
 const EMPTY_CHILD_FORM = {
   name: '',
@@ -55,6 +58,20 @@ export default function ChildrenPage() {
   const [filterClassId, setFilterClassId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [enrollmentFilter, setEnrollmentFilter] = useState<'all' | 'active' | 'inactive'>('active');
+  const [pendingParents, setPendingParents] = useState<ConfirmedParentAssignment[]>([]);
+  const [showParentPanel, setShowParentPanel] = useState(false);
+  const [parentAssignError, setParentAssignError] = useState('');
+
+  const resetParentAssignment = () => {
+    setPendingParents([]);
+    setShowParentPanel(false);
+    setParentAssignError('');
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    resetParentAssignment();
+  };
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -167,9 +184,37 @@ export default function ChildrenPage() {
           collection(db, 'schools', schoolId, 'children'),
           data
         );
-        setChildren((prev) => [...prev, { id: ref.id, ...data } as unknown as Child]);
+        let parentLinkError = '';
+        for (const parent of pendingParents) {
+          try {
+            if (parent.mode === 'link') {
+              await inviteParentToChild({
+                childId: ref.id,
+                parentEmail: parent.parentEmail,
+                parentDisplayName: parent.parentDisplayName,
+                parentPhone: parent.parentPhone,
+              });
+            } else {
+              await principalInviteParent({
+                childId: ref.id,
+                parentEmail: parent.parentEmail,
+                parentDisplayName: parent.parentDisplayName,
+                parentPhone: parent.parentPhone,
+              });
+            }
+          } catch (err) {
+            parentLinkError = getCallableErrorMessage(err);
+            break;
+          }
+        }
+        const createdChild = { id: ref.id, ...data } as unknown as Child;
+        setChildren((prev) => [...prev, createdChild]);
+        if (parentLinkError) {
+          alert(`Child was added, but linking a parent failed: ${parentLinkError}`);
+        }
       }
       setForm(EMPTY_CHILD_FORM);
+      resetParentAssignment();
       setShowForm(false);
     } finally {
       setSubmitting(false);
@@ -325,6 +370,7 @@ export default function ChildrenPage() {
                 setShowForm(true);
                 setEditingId(null);
                 setForm(EMPTY_CHILD_FORM);
+                resetParentAssignment();
               }}
               className="btn-primary"
             >
@@ -513,11 +559,98 @@ export default function ChildrenPage() {
               />
             </div>
           </div>
+
+          {!editingId ? (
+            <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-600">
+              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">Parents (optional)</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Search by email first. Existing parents are linked immediately; if no account is found, an invite
+                email is sent when you save the child.
+              </p>
+
+              {parentAssignError ? (
+                <p className="mt-3 text-sm text-red-600 dark:text-red-400">{parentAssignError}</p>
+              ) : null}
+
+              {pendingParents.length > 0 ? (
+                <ul className="mt-4 space-y-2">
+                  {pendingParents.map((parent) => (
+                    <li
+                      key={parent.parentEmail}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-600 dark:bg-slate-700/30"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-800 dark:text-slate-100">{parent.parentEmail}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {parent.mode === 'link'
+                            ? 'Existing account — link on save'
+                            : 'No account — invite email on save'}
+                          {parent.parentDisplayName ? ` · ${parent.parentDisplayName}` : ''}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingParents((prev) =>
+                            prev.filter((p) => p.parentEmail !== parent.parentEmail)
+                          )
+                        }
+                        className="btn-secondary text-sm py-1.5 px-3"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {showParentPanel && pendingParents.length < MAX_PARENTS ? (
+                <div className="mt-4">
+                  <ParentLinkOrInvitePanel
+                    childLabel={form.name.trim() ? ` to ${form.name.trim()}` : ' to this child'}
+                    confirmLinkLabel="Add to list"
+                    confirmInviteLabel="Add to list"
+                    onConfirm={(parent) => {
+                      const email = parent.parentEmail.trim().toLowerCase();
+                      if (pendingParents.some((p) => p.parentEmail.trim().toLowerCase() === email)) {
+                        setParentAssignError('That parent email is already in the list.');
+                        return;
+                      }
+                      if (pendingParents.length >= MAX_PARENTS) {
+                        setParentAssignError(`Maximum ${MAX_PARENTS} parents allowed.`);
+                        return;
+                      }
+                      setParentAssignError('');
+                      setPendingParents((prev) => [...prev, parent]);
+                      setShowParentPanel(false);
+                    }}
+                    onCancel={() => setShowParentPanel(false)}
+                  />
+                </div>
+              ) : pendingParents.length < MAX_PARENTS ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setParentAssignError('');
+                    setShowParentPanel(true);
+                  }}
+                  className="btn-secondary mt-4"
+                >
+                  Add / link parent now
+                </button>
+              ) : (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                  Maximum {MAX_PARENTS} parents reached.
+                </p>
+              )}
+            </div>
+          ) : null}
+
           <div className="mt-6 flex flex-wrap gap-3">
             <button type="submit" disabled={submitting} className="btn-primary">
               {submitting ? 'Saving…' : editingId ? 'Save' : 'Add child'}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
+            <button type="button" onClick={closeForm} className="btn-secondary">
               Cancel
             </button>
           </div>

@@ -6,6 +6,7 @@ import {
   getReportTypeLabel,
   getReportTypeStyle,
 } from '@/lib/reports';
+import { formatGenderLabel } from '@/lib/formatGender';
 import type { ReportRow } from '@/hooks/useReportsPage';
 import { SectionCard } from '@/components/ui';
 
@@ -30,6 +31,7 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
           <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-700">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Child</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Gender</th>
               {showClassColumn && (
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Class</th>
               )}
@@ -49,6 +51,9 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
               >
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
                   {r.childName}
+                </td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                  {formatGenderLabel(r.childGender)}
                 </td>
                 {showClassColumn && (
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">

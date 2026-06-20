@@ -5,13 +5,14 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
 import { reportHasNotesContent, reportMatchesTypeFilter } from '@/lib/reports';
-import type { DailyReport } from 'shared/types';
+import type { DailyReport, ChildGender } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
 export type ReportRow = DailyReport & {
   childId: string;
   childName: string;
   childClassId?: string | null;
+  childGender?: ChildGender | null;
 };
 
 export type ReportsSortOrder = 'newest' | 'oldest';
@@ -86,7 +87,7 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
       ]);
       const list: ReportRow[] = [];
       for (const childDoc of childrenSnap.docs) {
-        const data = childDoc.data() as { name?: string; classId?: string | null };
+        const data = childDoc.data() as { name?: string; classId?: string | null; gender?: ChildGender };
         const name = data.name ?? childDoc.id;
         const reportsSnap = await getDocs(
           query(
@@ -101,6 +102,7 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
             childId: childDoc.id,
             childName: name,
             childClassId: data.classId ?? null,
+            childGender: data.gender ?? null,
           } as ReportRow);
         });
       }

@@ -1,5 +1,6 @@
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
+import { formatGenderLabel } from '@/lib/formatGender';
 
 function escapeCsvCell(value: string | undefined | null): string {
   if (value == null || value === '') return '';
@@ -31,13 +32,14 @@ export function exportChildrenToCsv(
   lines.push('# Exported: ' + new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
   lines.push('# ' + children.length + ' children');
   lines.push('');
-  const headers = ['Name', 'Preferred', 'DOB', 'Class', 'Allergies', 'Emergency'];
+  const headers = ['Name', 'Preferred', 'DOB', 'Gender', 'Class', 'Allergies', 'Emergency'];
   lines.push(headers.map(escapeCsvCell).join(','));
   for (const c of children) {
     const row = [
       c.name ?? '',
       c.preferredName ?? '',
       formatDob(c.dateOfBirth),
+      formatGenderLabel(c.gender),
       c.classId ? classDisplay(c.classId) : '',
       c.allergies?.length ? (c.allergies as string[]).join('; ') : '',
       c.emergencyContactName || c.emergencyContact || '',

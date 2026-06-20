@@ -13,6 +13,7 @@ import {
   type DocWithAutoTable,
 } from '@/lib/pdfDesign';
 import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
+import { formatGenderLabel } from '@/lib/formatGender';
 import type { ReportRow } from '@/hooks/useReportsPage';
 
 export interface ExportReportsPdfOptions {
@@ -35,6 +36,7 @@ export function exportReportsToPdf(
 
   const headers = [
     'Child',
+    'Gender',
     ...(includeClass ? ['Class'] : []),
     'Type',
     'Time',
@@ -58,6 +60,7 @@ export function exportReportsToPdf(
     const details = getReportDetailsSummary(r);
     return [
       r.childName ?? '—',
+      formatGenderLabel(r.childGender),
       ...(includeClass ? [r.childClassId ? classDisplay(r.childClassId) : '—'] : []),
       getReportTypeLabel(r),
       time,

@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { ReportRow } from '@/hooks/useReportsPage';
 import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
+import { formatGenderLabel } from '@/lib/formatGender';
 
 export interface ExportReportsExcelOptions {
   includeClass?: boolean;
@@ -17,6 +18,7 @@ export function exportReportsToExcel(
   const { includeClass = true, sheetName = 'Reports', filename, filtersApplied } = options;
   const headers = [
     'Child',
+    'Gender',
     ...(includeClass ? ['Class'] : []),
     'Type',
     'Date',
@@ -31,6 +33,7 @@ export function exportReportsToExcel(
     const notesSummary = getReportNotesSummary(r);
     const row: string[] = [
       r.childName ?? '',
+      formatGenderLabel(r.childGender),
       ...(includeClass ? [r.childClassId ?? ''] : []),
       getReportTypeLabel(r),
       date,

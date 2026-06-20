@@ -1,5 +1,6 @@
 import type { ReportRow } from '@/hooks/useReportsPage';
 import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
+import { formatGenderLabel } from '@/lib/formatGender';
 
 function escapeCsvCell(value: string | undefined | null): string {
   if (value == null || value === '') return '';
@@ -24,6 +25,7 @@ export function buildReportsCsv(
   }
   const headers = [
     'Child',
+    'Gender',
     ...(includeClass ? ['Class'] : []),
     'Type',
     'Date',
@@ -39,6 +41,7 @@ export function buildReportsCsv(
     const notesSummary = getReportNotesSummary(r);
     const row = [
       r.childName ?? '',
+      formatGenderLabel(r.childGender),
       ...(includeClass ? [r.childClassId ?? ''] : []),
       getReportTypeLabel(r),
       date,

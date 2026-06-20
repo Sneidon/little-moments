@@ -18,10 +18,25 @@ import { exportChildrenToPdf } from '@/lib/exportChildrenPdf';
 import { useSchoolName } from '@/hooks/useSchoolName';
 import { exportChildrenToCsv } from '@/lib/exportChildrenCsv';
 import { exportChildrenToExcel } from '@/lib/exportChildrenExcel';
-import type { Child } from 'shared/types';
-import type { ClassRoom } from 'shared/types';
+import type { Child, ChildGender, ClassRoom } from 'shared/types';
 import { PageHero, SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 import { DateOfBirthField, isValidIsoDateString } from '@/components/DateOfBirthField';
+import { formatGenderLabel, GENDER_FORM_OPTIONS } from '@/lib/formatGender';
+
+const EMPTY_CHILD_FORM = {
+  name: '',
+  preferredName: '',
+  dateOfBirth: '',
+  gender: '' as '' | ChildGender,
+  allergies: [] as string[],
+  allergyInput: '',
+  medicalNotes: '',
+  enrollmentDate: '',
+  emergencyContact: '',
+  emergencyContactName: '',
+  classId: '',
+  isActive: true,
+};
 
 export default function ChildrenPage() {
   const { profile } = useAuth();
@@ -32,19 +47,7 @@ export default function ChildrenPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: '',
-    preferredName: '',
-    dateOfBirth: '',
-    allergies: [] as string[],
-    allergyInput: '',
-    medicalNotes: '',
-    enrollmentDate: '',
-    emergencyContact: '',
-    emergencyContactName: '',
-    classId: '',
-    isActive: true,
-  });
+  const [form, setForm] = useState(EMPTY_CHILD_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -98,6 +101,7 @@ export default function ChildrenPage() {
         name: c.name,
         preferredName: c.preferredName ?? '',
         dateOfBirth: c.dateOfBirth?.slice(0, 10) ?? '',
+        gender: c.gender ?? '',
         allergies: c.allergies ?? [],
         allergyInput: '',
         medicalNotes: c.medicalNotes ?? '',
@@ -142,6 +146,8 @@ export default function ChildrenPage() {
       if (enrollmentDate) base.enrollmentDate = enrollmentDate;
       else base.enrollmentDate = null;
       base.emergencyContactName = form.emergencyContactName.trim();
+      if (form.gender) base.gender = form.gender;
+      else base.gender = null;
       if (editingId) {
         const existing = children.find((c) => c.id === editingId);
         const updateData = { ...base, parentIds: existing?.parentIds ?? [], createdAt: existing?.createdAt ?? now };
@@ -163,19 +169,7 @@ export default function ChildrenPage() {
         );
         setChildren((prev) => [...prev, { id: ref.id, ...data } as unknown as Child]);
       }
-      setForm({
-        name: '',
-        preferredName: '',
-        dateOfBirth: '',
-        allergies: [],
-        allergyInput: '',
-        medicalNotes: '',
-        enrollmentDate: '',
-        emergencyContact: '',
-        emergencyContactName: '',
-        classId: '',
-        isActive: true,
-      });
+      setForm(EMPTY_CHILD_FORM);
       setShowForm(false);
     } finally {
       setSubmitting(false);
@@ -188,6 +182,7 @@ export default function ChildrenPage() {
       name: c.name,
       preferredName: c.preferredName ?? '',
       dateOfBirth: c.dateOfBirth?.slice(0, 10) ?? '',
+      gender: c.gender ?? '',
       allergies: c.allergies ?? [],
       allergyInput: '',
       medicalNotes: c.medicalNotes ?? '',
@@ -329,19 +324,7 @@ export default function ChildrenPage() {
               onClick={() => {
                 setShowForm(true);
                 setEditingId(null);
-                setForm({
-                  name: '',
-                  preferredName: '',
-                  dateOfBirth: '',
-                  allergies: [],
-                  allergyInput: '',
-                  medicalNotes: '',
-                  enrollmentDate: '',
-                  emergencyContact: '',
-                  emergencyContactName: '',
-                  classId: '',
-                  isActive: true,
-                });
+                setForm(EMPTY_CHILD_FORM);
               }}
               className="btn-primary"
             >
@@ -389,6 +372,26 @@ export default function ChildrenPage() {
                 required
                 inputClassName="input-base w-full"
               />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Gender</label>
+              <select
+                value={form.gender}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    gender: e.target.value as '' | ChildGender,
+                  }))
+                }
+                className="input-base"
+              >
+                <option value="">—</option>
+                {GENDER_FORM_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -598,6 +601,7 @@ export default function ChildrenPage() {
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Preferred</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">DOB</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Gender</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Class</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Allergies</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Emergency</th>
@@ -631,6 +635,7 @@ export default function ChildrenPage() {
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
                     </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatGenderLabel(c.gender)}</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.classId ? classDisplay(c.classId) : '—'}</td>
                     <td className="px-4 py-3">
                       {c.allergies?.length ? (

@@ -48,12 +48,15 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export type ChildGender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
+
 export interface Child {
   id: string;
   schoolId: string;
   name: string;
   preferredName?: string;
   dateOfBirth: string; // ISO date
+  gender?: ChildGender;
   allergies?: string[];
   /** Profile picture URL. */
   photoURL?: string;

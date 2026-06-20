@@ -417,7 +417,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
               <>
                 <Ionicons
                   name="chatbubble-outline"
-                  size={22}
+                  size={20}
                   color={
                     childLoading || childMissing || !child?.parentIds?.length
                       ? colors.textMuted
@@ -431,6 +431,9 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
                       color: colors.textMuted,
                     },
                   ]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
                 >
                   Message parents
                 </Text>
@@ -448,7 +451,14 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
             activeOpacity={0.85}
           >
             <Ionicons name="add-circle" size={24} color={colors.primaryContrast} />
-            <Text style={[styles.actionBtnText, styles.actionBtnPrimaryText]}>Add update</Text>
+            <Text
+              style={[styles.actionBtnText, styles.actionBtnPrimaryText]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              Add update
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -704,11 +714,13 @@ function createStyles(
     },
     actionBtnOutline: {
       flex: 1,
-      flexDirection: 'row',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8,
-      paddingVertical: 15,
+      gap: 6,
+      minWidth: 0,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
       borderRadius: 14,
       backgroundColor: colors.card,
       borderWidth: 2,
@@ -719,18 +731,22 @@ function createStyles(
       opacity: 0.85,
     },
     actionBtnOutlineText: {
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: font.semiBold,
       fontWeight: '600',
       color: colors.primary,
+      textAlign: 'center',
+      width: '100%',
     },
     actionBtn: {
       flex: 1,
-      flexDirection: 'row',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8,
-      paddingVertical: 15,
+      gap: 6,
+      minWidth: 0,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
       borderRadius: 14,
       borderWidth: 2,
       borderColor: colors.primary,
@@ -752,10 +768,12 @@ function createStyles(
       opacity: 0.45,
     },
     actionBtnText: {
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: font.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
+      textAlign: 'center',
+      width: '100%',
     },
     actionBtnPrimaryText: { color: colors.primaryContrast, fontFamily: font.semiBold },
 

@@ -42,6 +42,8 @@ import { AddUpdateScreen } from '../screens/teacher/AddUpdateScreen';
 import { ReportDetailScreen } from '../screens/shared/ReportDetailScreen';
 import { UserNotificationsScreen } from '../screens/shared/UserNotificationsScreen';
 import { NotificationBellButton } from '../components/NotificationBellButton';
+import { useUnreadMessageCount } from '../hooks/useUnreadMessageCount';
+import { formatTabBadgeCount } from '../utils/chatUnread';
 
 function EditChildProfileScreenWrapper() {
   const navigation = useNavigation();
@@ -124,6 +126,7 @@ function tabBarStyleOptions(colors: ColorPalette) {
 
 function TeacherTabs() {
   const { colors, isDark } = useTheme();
+  const unreadMessageCount = useUnreadMessageCount();
 
   return (
     <Tab.Navigator
@@ -177,6 +180,7 @@ function TeacherTabs() {
           headerShown: true,
           title: 'Messages',
           tabBarIcon: tabBarIconPair('chatbubbles-outline', 'chatbubbles'),
+          tabBarBadge: formatTabBadgeCount(unreadMessageCount),
         }}
       />
       <Tab.Screen
@@ -195,6 +199,7 @@ function TeacherTabs() {
 
 function ParentTabs() {
   const { colors, isDark } = useTheme();
+  const unreadMessageCount = useUnreadMessageCount();
   const tabHeader = { headerShown: true as const };
   return (
     <Tab.Navigator
@@ -257,6 +262,7 @@ function ParentTabs() {
           title: 'Messages',
           ...tabHeader,
           tabBarIcon: tabBarIconPair('chatbubbles-outline', 'chatbubbles'),
+          tabBarBadge: formatTabBadgeCount(unreadMessageCount),
         }}
       />
       <Tab.Screen

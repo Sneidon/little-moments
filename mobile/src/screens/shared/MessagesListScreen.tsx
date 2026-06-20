@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getInitials } from '../../utils';
+import { isChatUnreadForUser } from '../../utils/chatUnread';
 import type { Chat } from '../../../../shared/types';
 import type { UserProfile } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
@@ -228,6 +229,10 @@ export function MessagesListScreen({ navigation }: Props) {
       const initials = getInitials(item.otherDisplayName === '…' ? '?' : item.otherDisplayName);
       const preview = item.lastMessageText?.trim();
       const timeLabel = formatListTime(item.lastMessageAt || item.updatedAt);
+      const unread =
+        profile?.uid && profile.role
+          ? isChatUnreadForUser(item, profile.uid, profile.role)
+          : false;
 
       const cardShadow =
         !isDark && Platform.OS === 'ios'
@@ -242,7 +247,7 @@ export function MessagesListScreen({ navigation }: Props) {
 
       return (
         <TouchableOpacity
-          style={[styles.rowCard, cardShadow, cardElevation]}
+          style={[styles.rowCard, unread && styles.rowCardUnread, cardShadow, cardElevation]}
           onPress={() => openChat(item)}
           activeOpacity={0.72}
         >
@@ -251,10 +256,12 @@ export function MessagesListScreen({ navigation }: Props) {
           </View>
           <View style={styles.rowBody}>
             <View style={styles.rowTop}>
-              <Text style={styles.name} numberOfLines={1}>
+              <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
                 {item.otherDisplayName}
               </Text>
-              {timeLabel ? <Text style={styles.time}>{timeLabel}</Text> : null}
+              {timeLabel ? (
+                <Text style={[styles.time, unread && styles.timeUnread]}>{timeLabel}</Text>
+              ) : null}
             </View>
             <View style={styles.childRow}>
               <Ionicons name="happy-outline" size={14} color={colors.textMuted} />
@@ -262,15 +269,16 @@ export function MessagesListScreen({ navigation }: Props) {
                 {item.childName}
               </Text>
             </View>
-            <Text style={preview ? styles.preview : styles.previewEmpty} numberOfLines={2}>
+            <Text style={preview ? [styles.preview, unread && styles.previewUnread] : styles.previewEmpty} numberOfLines={2}>
               {preview || 'No messages yet'}
             </Text>
           </View>
+          {unread ? <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} /> : null}
           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.rowChevron} />
         </TouchableOpacity>
       );
     },
-    [colors, isDark, openChat, styles]
+    [colors, isDark, openChat, profile?.role, profile?.uid, styles]
   );
 
   const skeletonStyle = useMemo(
@@ -385,6 +393,11 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
       borderColor: colors.cardBorder,
     },
+    rowCardUnread: {
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryMuted,
+    },
     avatar: {
       width: 52,
       height: 52,
@@ -413,11 +426,18 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       fontSize: 16,
       color: colors.text,
     },
+    nameUnread: {
+      fontFamily: font.bold,
+    },
     time: {
       fontFamily: font.regular,
       fontSize: 12,
       color: colors.textMuted,
       flexShrink: 0,
+    },
+    timeUnread: {
+      color: colors.primary,
+      fontFamily: font.semiBold,
     },
     childRow: {
       flexDirection: 'row',
@@ -439,6 +459,10 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       color: colors.textSecondary,
       marginTop: 6,
     },
+    previewUnread: {
+      color: colors.text,
+      fontFamily: font.medium,
+    },
     previewEmpty: {
       fontFamily: font.regular,
       fontSize: 14,
@@ -450,6 +474,12 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     rowChevron: {
       marginLeft: 4,
       opacity: 0.65,
+    },
+    unreadDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: 6,
     },
   });
 }

@@ -404,6 +404,12 @@ export interface Chat {
   /** Preview of last message for list UI. */
   lastMessageText?: string;
   lastMessageAt?: string;
+  /** Uid of who sent the last message (for unread badges). */
+  lastMessageSenderId?: string;
+  /** When the teacher last opened this thread (ISO). */
+  teacherLastReadAt?: string;
+  /** When the parent last opened this thread (ISO). */
+  parentLastReadAt?: string;
 }
 
 /** Single message in a chat thread. */

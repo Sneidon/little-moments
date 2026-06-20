@@ -13,6 +13,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   collection,
   doc,
@@ -32,6 +33,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getInitials } from '../../utils';
+import { markChatRead } from '../../services/chatRead';
+import { getChatReadField } from '../../utils/chatUnread';
 import type { RootStackParamList } from '../../navigation/MainTabs';
 import type { ChatMessage, Chat, UserProfile } from '../../../../shared/types';
 
@@ -266,6 +269,23 @@ export function ChatThreadScreen({ route }: Props) {
     };
   }, [schoolId, chatId, profile?.role, profile?.uid]);
 
+  useFocusEffect(
+    useCallback(() => {
+      const role = profile?.role;
+      if (role !== 'teacher' && role !== 'parent') return;
+      void markChatRead(schoolId, chatId, role);
+    }, [schoolId, chatId, profile?.role])
+  );
+
+  useEffect(() => {
+    const role = profile?.role;
+    const uid = profile?.uid;
+    if (!uid || (role !== 'teacher' && role !== 'parent') || liveRecent.length === 0) return;
+    const latest = liveRecent[liveRecent.length - 1];
+    if (latest.senderId === uid) return;
+    void markChatRead(schoolId, chatId, role, latest.createdAt);
+  }, [liveRecent, schoolId, chatId, profile?.role, profile?.uid]);
+
   useEffect(() => {
     setExtraOlder([]);
     setLiveRecent([]);
@@ -366,10 +386,16 @@ export function ChatThreadScreen({ route }: Props) {
         text,
         createdAt: now,
       });
+      const readField =
+        profile.role === 'teacher' || profile.role === 'parent'
+          ? getChatReadField(profile.role)
+          : null;
       await updateDoc(chatRef, {
         lastMessageText: text.slice(0, 100),
         lastMessageAt: now,
+        lastMessageSenderId: profile.uid,
         updatedAt: now,
+        ...(readField ? { [readField]: now } : {}),
       });
     } catch {
       setInput(text);

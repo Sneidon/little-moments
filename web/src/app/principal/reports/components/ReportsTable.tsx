@@ -38,7 +38,9 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Type</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Time</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Details</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Notes</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200 min-w-[160px] max-w-md">
+                Notes
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -78,10 +80,7 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
                 <td className="max-w-[200px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={getReportDetailsSummary(r)}>
                   {getReportDetailsSummary(r)}
                 </td>
-                <td
-                  className="max-w-[220px] truncate px-4 py-3 text-slate-600 dark:text-slate-300"
-                  title={getReportNotesSummary(r)}
-                >
+                <td className="min-w-[160px] max-w-md whitespace-normal break-words px-4 py-3 text-slate-600 dark:text-slate-300">
                   {getReportNotesSummary(r)}
                 </td>
               </tr>

@@ -17,6 +17,7 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { takePhotoAsync, pickPhotoAsync, pickMediaAsync, showMediaSourceAlert } from '../../utils/photoPicker';
@@ -29,6 +30,7 @@ import type { MealOption } from '../../../../shared/types';
 import type { ReportType } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { font } from '../../theme/typography';
+import { parseTimeWithDate } from '../../utils/childDailyReportDisplay';
 
 type AddUpdateStackParamList = {
   AddUpdate: { initialType?: ReportType; initialChildId?: string } | undefined;
@@ -145,14 +147,18 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `0:${String(seconds).padStart(2, '0')}`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m < 60) return `${m}:${String(s).padStart(2, '0')}`;
-  const h = Math.floor(m / 60);
-  const min = m % 60;
-  return `${h}h ${min}m`;
+function timeStringToDate(timeStr: string): Date {
+  const now = new Date();
+  const parts = timeStr.trim().split(':').map((p) => parseInt(p, 10));
+  const h = !isNaN(parts[0]) ? parts[0] : now.getHours();
+  const m = !isNaN(parts[1]) ? parts[1] : now.getMinutes();
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export function AddUpdateScreen({ navigation, route }: Props) {
@@ -230,9 +236,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [nappyCondition, setNappyCondition] = useState('normal');
   const [napStartTime, setNapStartTime] = useState(() => formatTime(new Date()));
   const [napEndTime, setNapEndTime] = useState(() => formatTime(new Date()));
-  const [napTimerStart, setNapTimerStart] = useState<number | null>(null);
-  const [napTimerEnd, setNapTimerEnd] = useState<number | null>(null);
-  const [napElapsedSeconds, setNapElapsedSeconds] = useState(0);
+  const [napTimePickerField, setNapTimePickerField] = useState<'start' | 'end' | null>(null);
+  const [variationNapTimePickerField, setVariationNapTimePickerField] = useState<'start' | 'end' | null>(null);
   const [sleepQuality, setSleepQuality] = useState('good');
   const [activityType, setActivityType] = useState<string | null>(null);
   const [activityTitle, setActivityTitle] = useState('');
@@ -304,22 +309,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       setMealTime(t);
       setNappyTime(t);
       setActivityTime(t);
-      setNapStartTime((prev) => (napTimerStart != null ? prev : t));
-      setNapEndTime((prev) => (napTimerEnd != null ? prev : t));
     };
     tick();
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
-  }, [napTimerStart, napTimerEnd]);
-
-  // Nap timer: update elapsed seconds every second while running
-  useEffect(() => {
-    if (napTimerStart == null || napTimerEnd != null) return;
-    const id = setInterval(() => {
-      setNapElapsedSeconds(Math.floor((Date.now() - napTimerStart) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [napTimerStart, napTimerEnd]);
+  }, []);
 
   useEffect(() => {
     if (children.length === 0) setForWholeClass(false);
@@ -409,6 +403,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
   const openVariationModal = (childId: string) => {
     setVariationModalChildId(childId);
+    setVariationNapTimePickerField(null);
     const v = getValuesForChild(childId);
     setVariationDraft({
       mealType: v.mealType,
@@ -434,6 +429,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     setVariationModalChildId(null);
     setVariationDropdown(null);
     setVariationDraft(null);
+    setVariationNapTimePickerField(null);
   };
 
   /** Merge variation edits vs main form; drop override entry if nothing differs. */
@@ -564,6 +560,27 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         }
       }
     }
+    if (type === 'nap_time') {
+      const today = todayDateStr();
+      for (const childId of selectedChildIds) {
+        const v = getValuesForChild(childId);
+        const childName = children.find((c) => c.id === childId)?.name ?? 'Child';
+        if (!v.napStartTime?.trim() || !v.napEndTime?.trim()) {
+          Alert.alert('Nap times', `Enter start and end times for ${childName}.`);
+          return;
+        }
+        const startMs = parseTimeWithDate(v.napStartTime, today);
+        const endMs = parseTimeWithDate(v.napEndTime, today);
+        if (isNaN(startMs) || isNaN(endMs)) {
+          Alert.alert('Nap times', `Invalid time for ${childName}.`);
+          return;
+        }
+        if (endMs < startMs) {
+          Alert.alert('Nap times', `End time must be after start time for ${childName}.`);
+          return;
+        }
+      }
+    }
     setLoading(true);
     try {
       const now = new Date();
@@ -647,11 +664,6 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       setForWholeClass(false);
       setChildOverrides({});
       setVariationModalChildId(null);
-      if (type === 'nap_time') {
-        setNapTimerStart(null);
-        setNapTimerEnd(null);
-        setNapElapsedSeconds(0);
-      }
       navigation.goBack();
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save');
@@ -684,30 +696,25 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     }
   };
 
-  const startNapTimer = () => {
-    const now = new Date();
-    setNapStartTime(formatTime(now));
-    setNapTimerStart(now.getTime());
-    setNapTimerEnd(null);
-    setNapElapsedSeconds(0);
+  const handleMainNapTimeChange = (_event: unknown, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setNapTimePickerField(null);
+    if (!selectedDate || !napTimePickerField) return;
+    const formatted = formatTime(selectedDate);
+    if (napTimePickerField === 'start') setNapStartTime(formatted);
+    else setNapEndTime(formatted);
   };
 
-  const endNapTimer = () => {
-    const now = new Date();
-    setNapEndTime(formatTime(now));
-    setNapTimerEnd(napTimerStart != null ? Date.now() : null);
-    if (napTimerStart != null) {
-      setNapElapsedSeconds(Math.floor((Date.now() - napTimerStart) / 1000));
-    }
+  const handleVariationNapTimeChange = (_event: unknown, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setVariationNapTimePickerField(null);
+    if (!selectedDate || !variationNapTimePickerField) return;
+    const formatted = formatTime(selectedDate);
+    setVariationDraft((p) => {
+      if (!p) return p;
+      return variationNapTimePickerField === 'start'
+        ? { ...p, napStartTime: formatted }
+        : { ...p, napEndTime: formatted };
+    });
   };
-
-  const napDurationSeconds =
-    napTimerStart == null
-      ? 0
-      : napTimerEnd != null
-        ? Math.floor((napTimerEnd - napTimerStart) / 1000)
-        : napElapsedSeconds;
-  const napTimerRunning = napTimerStart != null && napTimerEnd == null;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -878,7 +885,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
               {selectedChildren.length > 1 && (
                 <>
-                  <Text style={styles.variationSectionLabel}>Different details per child? Tap a name:</Text>
+                  <Text style={styles.variationSectionLabel}>
+                    {type === 'nap_time'
+                      ? 'Different nap times per child? Tap a name (e.g. early pickup):'
+                      : 'Different details per child? Tap a name:'}
+                  </Text>
                   <View style={styles.variationChipsRow}>
                     {selectedChildren.map((c) => (
                       <TouchableOpacity
@@ -1326,73 +1337,56 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 <Text style={styles.formSectionTitle}>Nap time</Text>
               </View>
 
-              {/* Timer design */}
-              <View style={styles.napTimerWrap}>
-                <View style={[styles.napTimerCircle, napTimerRunning && styles.napTimerCircleActive]}>
-                  <Ionicons
-                    name="moon-outline"
-                    size={32}
-                    color={napTimerRunning ? colors.primary : colors.textMuted}
-                    style={styles.napTimerIcon}
-                  />
-                  <Text style={[styles.napTimerDuration, napTimerRunning && styles.napTimerDurationActive]}>
-                    {formatDuration(napDurationSeconds)}
-                  </Text>
-                  <Text style={styles.napTimerLabel}>
-                    {napTimerStart == null
-                      ? 'Tap Start when child falls asleep'
-                      : napTimerEnd == null
-                        ? 'Nap in progress…'
-                        : 'Duration'}
-                  </Text>
-                </View>
-                <View style={styles.napTimerButtons}>
-                  {napTimerStart == null ? (
-                    <TouchableOpacity
-                      style={[styles.napTimerBtn, styles.napTimerBtnStart]}
-                      onPress={startNapTimer}
-                      disabled={loading}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="play" size={24} color="#fff" />
-                      <Text style={styles.napTimerBtnStartText}>Start nap</Text>
-                    </TouchableOpacity>
-                  ) : napTimerEnd == null ? (
-                    <TouchableOpacity
-                      style={[styles.napTimerBtn, styles.napTimerBtnEnd]}
-                      onPress={endNapTimer}
-                      disabled={loading}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="stop" size={24} color="#fff" />
-                      <Text style={styles.napTimerBtnEndText}>End nap</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.napTimerSummary}>
-                      <Text style={styles.napTimerSummaryText}>
-                        Started {napStartTime}, ended {napEndTime}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
               <Text style={styles.label}>Start Time</Text>
-              <TextInput
-                style={[styles.input, styles.inputReadOnly]}
-                value={napStartTime}
-                placeholder="13:00"
-                placeholderTextColor={colors.textMuted}
-                editable={false}
-              />
+              <TouchableOpacity
+                style={styles.dropdownRow}
+                onPress={() => setNapTimePickerField((prev) => (prev === 'start' ? null : 'start'))}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dropdownText}>{napStartTime || 'Select start time'}</Text>
+                <Ionicons name="time-outline" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              {napTimePickerField === 'start' && (
+                <>
+                  <DateTimePicker
+                    value={timeStringToDate(napStartTime)}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleMainNapTimeChange}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity style={styles.timePickerDone} onPress={() => setNapTimePickerField(null)}>
+                      <Text style={styles.timePickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
               <Text style={styles.label}>End Time</Text>
-              <TextInput
-                style={[styles.input, styles.inputReadOnly]}
-                value={napEndTime}
-                placeholder="14:30"
-                placeholderTextColor={colors.textMuted}
-                editable={false}
-              />
+              <TouchableOpacity
+                style={styles.dropdownRow}
+                onPress={() => setNapTimePickerField((prev) => (prev === 'end' ? null : 'end'))}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dropdownText}>{napEndTime || 'Select end time'}</Text>
+                <Ionicons name="time-outline" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              {napTimePickerField === 'end' && (
+                <>
+                  <DateTimePicker
+                    value={timeStringToDate(napEndTime)}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleMainNapTimeChange}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity style={styles.timePickerDone} onPress={() => setNapTimePickerField(null)}>
+                      <Text style={styles.timePickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
               <Text style={styles.label}>Sleep Quality</Text>
               <TouchableOpacity
                 style={styles.dropdownRow}
@@ -1741,6 +1735,71 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 )}
                 {type === 'nap_time' && (
                   <>
+                    <Text style={[styles.labelHint, { color: colors.textMuted, marginBottom: 12 }]}>
+                      Use a different end time if this child was picked up early.
+                    </Text>
+                    <Text style={styles.label}>Start time</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownRow}
+                      onPress={() =>
+                        setVariationNapTimePickerField((prev) => (prev === 'start' ? null : 'start'))
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dropdownText}>
+                        {variationDraft.napStartTime || 'Select start time'}
+                      </Text>
+                      <Ionicons name="time-outline" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {variationNapTimePickerField === 'start' && (
+                      <>
+                        <DateTimePicker
+                          value={timeStringToDate(variationDraft.napStartTime ?? napStartTime)}
+                          mode="time"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={handleVariationNapTimeChange}
+                        />
+                        {Platform.OS === 'ios' && (
+                          <TouchableOpacity
+                            style={styles.timePickerDone}
+                            onPress={() => setVariationNapTimePickerField(null)}
+                          >
+                            <Text style={styles.timePickerDoneText}>Done</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
+                    <Text style={styles.label}>End time</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownRow}
+                      onPress={() =>
+                        setVariationNapTimePickerField((prev) => (prev === 'end' ? null : 'end'))
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dropdownText}>
+                        {variationDraft.napEndTime || 'Select end time'}
+                      </Text>
+                      <Ionicons name="time-outline" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {variationNapTimePickerField === 'end' && (
+                      <>
+                        <DateTimePicker
+                          value={timeStringToDate(variationDraft.napEndTime ?? napEndTime)}
+                          mode="time"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={handleVariationNapTimeChange}
+                        />
+                        {Platform.OS === 'ios' && (
+                          <TouchableOpacity
+                            style={styles.timePickerDone}
+                            onPress={() => setVariationNapTimePickerField(null)}
+                          >
+                            <Text style={styles.timePickerDoneText}>Done</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
                     <Text style={styles.label}>Sleep quality</Text>
                     <TouchableOpacity
                       style={styles.dropdownRow}
@@ -2635,54 +2694,17 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     timeNoteTitle: { fontSize: 13, color: colors.primary, marginBottom: 4, ...f('semiBold') },
     timeNote: { fontSize: 14, color: colors.textSecondary, lineHeight: 21, ...f('medium') },
     inputReadOnly: { backgroundColor: colors.backgroundSecondary, color: colors.textSecondary, ...f('semiBold') },
-
-    napTimerWrap: { marginBottom: 20 },
-    napTimerCircle: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'center',
-      width: 160,
-      height: 160,
-      borderRadius: 80,
-      borderWidth: 3,
-      borderColor: colors.border,
-      backgroundColor: colors.backgroundSecondary,
-    },
-    napTimerCircleActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primaryMuted,
-    },
-    napTimerIcon: { marginBottom: 4 },
-    napTimerDuration: {
-      fontSize: 28,
-      fontWeight: '800',
-      color: colors.textMuted,
-    },
-    napTimerDurationActive: { color: colors.primary },
-    napTimerLabel: {
-      fontSize: 12,
-      color: colors.textMuted,
-      marginTop: 4,
-      textAlign: 'center',
+    timePickerDone: {
+      alignSelf: 'flex-end',
+      marginTop: 8,
+      marginBottom: 4,
+      paddingVertical: 8,
       paddingHorizontal: 16,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
     },
-    napTimerButtons: { marginTop: 20, alignItems: 'center' },
-    napTimerBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-      paddingVertical: 14,
-      paddingHorizontal: 28,
-      borderRadius: 12,
-      minWidth: 160,
-    },
-    napTimerBtnStart: { backgroundColor: colors.primary },
-    napTimerBtnStartText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-    napTimerBtnEnd: { backgroundColor: colors.warning },
-    napTimerBtnEndText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-    napTimerSummary: { paddingVertical: 8, paddingHorizontal: 16 },
-    napTimerSummaryText: { fontSize: 14, color: colors.textMuted },
+    timePickerDoneText: { color: '#fff', fontSize: 15, ...f('semiBold') },
+
     /** Aligned with meal type pills (no negative bleed). */
     mealOptionsScroll: { marginBottom: 10, marginTop: 2 },
     mealOptionsScrollContent: { paddingRight: 16, paddingLeft: 0 },

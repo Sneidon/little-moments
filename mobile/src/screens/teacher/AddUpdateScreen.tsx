@@ -573,10 +573,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       Alert.alert('Add media', 'Take or choose a photo/video to log.');
       return;
     }
-    if (!loadingPresence) {
-      Alert.alert('Please wait', 'Loading check-in status for your class…');
-      return;
-    }
+    if (loadingPresence) return;
     const ineligibleSelected = selectedChildIds.filter((id) => !isChildEligible(id));
     if (ineligibleSelected.length > 0) {
       Alert.alert('Select children', ineligibleSelectionMessage(type));
@@ -1638,11 +1635,13 @@ export function AddUpdateScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={styles.postUpdateBtn}
               onPress={submit}
-              disabled={loading}
+              disabled={loading || loadingPresence}
               activeOpacity={0.92}
             >
               <Ionicons name="paper-plane" size={20} color="#FFFFFF" style={styles.postUpdateIcon} />
-              <Text style={styles.postUpdateBtnText}>{loading ? 'Posting…' : 'Post update'}</Text>
+              <Text style={styles.postUpdateBtnText}>
+                {loading ? 'Posting…' : loadingPresence ? 'Loading…' : 'Post update'}
+              </Text>
             </TouchableOpacity>
           </View>
         </>

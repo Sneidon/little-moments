@@ -50,7 +50,7 @@ export function ReportsFilters({
     filters.type ||
     filters.hasNotesOnly ||
     filters.sortOrder !== 'newest' ||
-    filters.limit !== 500;
+    filters.limit !== 0;
 
   const hasActiveFilters =
     filters.day !== localDateIso() ||

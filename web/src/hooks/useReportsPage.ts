@@ -37,7 +37,7 @@ const DEFAULT_FILTERS: Omit<ReportsFiltersState, 'day'> & { day?: string } = {
   childSearch: '',
   hasNotesOnly: false,
   sortOrder: 'newest',
-  limit: 500,
+  limit: 0,
 };
 
 function getDefaultDay(): string {
@@ -87,8 +87,12 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
       ]);
       const list: ReportRow[] = [];
       for (const childDoc of childrenSnap.docs) {
-        const data = childDoc.data() as { name?: string; classId?: string | null; gender?: ChildGender };
-        const name = data.name ?? childDoc.id;
+        const childData = childDoc.data() as {
+          name?: string;
+          classId?: string | null;
+          gender?: ChildGender;
+        };
+        const name = childData.name ?? childDoc.id;
         const reportsSnap = await getDocs(
           query(
             collection(db, 'schools', schoolId, 'children', childDoc.id, 'reports'),
@@ -96,15 +100,15 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
           )
         );
         reportsSnap.docs.forEach((r) => {
-          const data = r.data();
+          const reportData = r.data();
           list.push({
             id: r.id,
-            ...data,
-            timestamp: toIsoTimestamp(data.timestamp) || toIsoTimestamp(data.createdAt),
+            ...reportData,
+            timestamp: toIsoTimestamp(reportData.timestamp) || toIsoTimestamp(reportData.createdAt),
             childId: childDoc.id,
             childName: name,
-            childClassId: data.classId ?? null,
-            childGender: data.gender ?? null,
+            childClassId: childData.classId ?? null,
+            childGender: childData.gender ?? null,
           } as ReportRow);
         });
       }

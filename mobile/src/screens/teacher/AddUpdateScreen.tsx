@@ -622,6 +622,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
             const mealOpt = mealOptions.find((o) => o.id === v.mealOptionId);
             payload.mealOptionId = v.mealOptionId;
             payload.mealOptionName = mealOpt?.name ?? v.mealOptionName;
+            if (mealOpt?.imageUrl?.trim()) {
+              payload.imageUrl = mealOpt.imageUrl.trim();
+            }
           }
         }
         if (type === 'nappy_change') {

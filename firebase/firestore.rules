@@ -46,7 +46,11 @@ service cloud.firestore {
       allow write: if request.auth != null && (request.auth.uid == userId || isSuperAdmin());
       match /notifications/{notificationId} {
         allow read: if isAuthenticated() && request.auth.uid == userId;
-        allow write: if false;
+        allow create, delete: if false;
+        allow update: if isAuthenticated()
+          && request.auth.uid == userId
+          && request.resource.data.read == true
+          && resource.data.read != true;
       }
     }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -41,6 +41,9 @@ import { EditChildProfileTeacherScreen } from '../screens/teacher/EditChildProfi
 import { AddUpdateScreen } from '../screens/teacher/AddUpdateScreen';
 import { ReportDetailScreen } from '../screens/shared/ReportDetailScreen';
 import { UserNotificationsScreen } from '../screens/shared/UserNotificationsScreen';
+import { NotificationBellButton } from '../components/NotificationBellButton';
+import { useUnreadMessageCount } from '../hooks/useUnreadMessageCount';
+import { formatTabBadgeCount } from '../utils/chatUnread';
 
 function EditChildProfileScreenWrapper() {
   const navigation = useNavigation();
@@ -71,7 +74,7 @@ export type RootStackParamList = {
   SelectChildToMessage: undefined;
   ParentSelectChildToMessage: undefined;
   BroadcastToClass: undefined;
-  ChatThread: { chatId: string; schoolId: string };
+  ChatThread: { chatId: string; schoolId: string; otherDisplayName?: string };
   DailyCommunication: undefined;
   EditChildProfile: { childId: string; schoolId: string };
   EditChildProfileTeacher: { childId: string; schoolId: string };
@@ -123,6 +126,7 @@ function tabBarStyleOptions(colors: ColorPalette) {
 
 function TeacherTabs() {
   const { colors, isDark } = useTheme();
+  const unreadMessageCount = useUnreadMessageCount();
 
   return (
     <Tab.Navigator
@@ -139,14 +143,14 @@ function TeacherTabs() {
         },
         headerShadowVisible: !isDark,
         headerRight: () => (
-          <TouchableOpacity
-            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('UserNotifications')}
-            style={{ paddingHorizontal: 6 }}
-            accessibilityRole="button"
-            accessibilityLabel="Open notifications"
-          >
-            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-          </TouchableOpacity>
+          <NotificationBellButton
+            colors={colors}
+            onPress={() =>
+              (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
+                'UserNotifications'
+              )
+            }
+          />
         ),
         ...tabBarStyleOptions(colors),
       })}
@@ -176,6 +180,7 @@ function TeacherTabs() {
           headerShown: true,
           title: 'Messages',
           tabBarIcon: tabBarIconPair('chatbubbles-outline', 'chatbubbles'),
+          tabBarBadge: formatTabBadgeCount(unreadMessageCount),
         }}
       />
       <Tab.Screen
@@ -194,6 +199,7 @@ function TeacherTabs() {
 
 function ParentTabs() {
   const { colors, isDark } = useTheme();
+  const unreadMessageCount = useUnreadMessageCount();
   const tabHeader = { headerShown: true as const };
   return (
     <Tab.Navigator
@@ -210,14 +216,14 @@ function ParentTabs() {
         },
         headerShadowVisible: !isDark,
         headerRight: () => (
-          <TouchableOpacity
-            onPress={() => (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('UserNotifications')}
-            style={{ paddingHorizontal: 6 }}
-            accessibilityRole="button"
-            accessibilityLabel="Open notifications"
-          >
-            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-          </TouchableOpacity>
+          <NotificationBellButton
+            colors={colors}
+            onPress={() =>
+              (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
+                'UserNotifications'
+              )
+            }
+          />
         ),
         ...tabBarStyleOptions(colors),
       })}
@@ -232,10 +238,10 @@ function ParentTabs() {
         }}
       />
       <Tab.Screen
-        name="Photos"
+        name="Media"
         component={ParentPhotosScreen}
         options={{
-          title: 'Photos',
+          title: 'Media',
           ...tabHeader,
           tabBarIcon: tabBarIconPair('images-outline', 'images'),
         }}
@@ -256,6 +262,7 @@ function ParentTabs() {
           title: 'Messages',
           ...tabHeader,
           tabBarIcon: tabBarIconPair('chatbubbles-outline', 'chatbubbles'),
+          tabBarBadge: formatTabBadgeCount(unreadMessageCount),
         }}
       />
       <Tab.Screen

@@ -40,8 +40,12 @@ import { font } from '../../theme/typography';
 
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
-import type { DailyReport } from '../../../../shared/types';
-import { isParentVisibleReportType } from '../../utils/childDailyReportDisplay';
+import type { DailyReport, MealOption } from '../../../../shared/types';
+import {
+  isParentVisibleReportType,
+  buildMealOptionImageMap,
+  resolveReportImageUrl,
+} from '../../utils/childDailyReportDisplay';
 
 type RootNav = { navigate: (name: string, params?: object) => void } | undefined;
 
@@ -64,7 +68,7 @@ function formatParentReportLabel(type: string): string {
     case 'medication':
       return 'Medication';
     case 'incident':
-      return 'Photo';
+      return 'Media';
     default:
       return type.replace(/_/g, ' ');
   }
@@ -115,8 +119,11 @@ export function ParentHomeScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [className, setClassName] = useState<string | null>(null);
+  const [mealOptions, setMealOptions] = useState<MealOption[]>([]);
   const [messageLoading, setMessageLoading] = useState(false);
   const [tourShown, setTourShown] = useState(false);
+
+  const mealOptionImageMap = useMemo(() => buildMealOptionImageMap(mealOptions), [mealOptions]);
 
   const selectedChild = children.find((c) => c.id === selectedChildId) ?? children[0];
   const rootStack = navigation.getParent() as RootNav;
@@ -229,6 +236,18 @@ export function ParentHomeScreen({
       }
     })();
   }, [selectedChild?.schoolId, selectedChild?.classId]);
+
+  useEffect(() => {
+    const schoolId = selectedChild?.schoolId;
+    if (!schoolId) {
+      setMealOptions([]);
+      return;
+    }
+    const unsub = onSnapshot(collection(db, 'schools', schoolId, 'mealOptions'), (snap) => {
+      setMealOptions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as MealOption)));
+    });
+    return () => unsub();
+  }, [selectedChild?.schoolId]);
 
   useEffect(() => {
     if (!selectedChild?.schoolId || !selectedChild?.id) return;
@@ -495,6 +514,7 @@ export function ParentHomeScreen({
           ) : (
             reports.map((item) => {
               const accent = reportAccent(item.type);
+              const mealImage = resolveReportImageUrl(item, mealOptionImageMap);
               return (
                 <TouchableOpacity
                   key={item.id}
@@ -528,6 +548,9 @@ export function ParentHomeScreen({
                     ) : null}
                     <Text style={styles.updateTime}>{formatTime(item.timestamp)}</Text>
                   </View>
+                  {mealImage ? (
+                    <Image source={{ uri: mealImage }} style={styles.updateMealImage} resizeMode="cover" />
+                  ) : null}
                 </TouchableOpacity>
               );
             })
@@ -778,6 +801,15 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       marginRight: 12,
     },
     updateCardContent: { flex: 1, minWidth: 0, position: 'relative', paddingRight: 22 },
+    updateMealImage: {
+      width: 56,
+      height: 56,
+      borderRadius: 10,
+      marginLeft: 8,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
     updateChevron: {
       position: 'absolute',
       top: 0,

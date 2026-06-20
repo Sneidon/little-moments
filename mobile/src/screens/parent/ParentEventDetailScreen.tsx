@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import type { Event } from '../../../../shared/types';
+import { isVideoMedia } from '../../utils/media';
 import { formatEventTimeRange, getEventHighlight } from './calendarUtils';
 
 type ParentEventDetailParams = { schoolId: string; eventId: string };
@@ -42,6 +43,7 @@ function normalizeEvent(id: string, data: Record<string, unknown>): Event {
     title: String(data.title ?? 'Event'),
     description: data.description != null ? String(data.description) : undefined,
     imageUrl: data.imageUrl != null ? String(data.imageUrl) : undefined,
+    mediaType: data.mediaType != null ? String(data.mediaType) : undefined,
     documents: data.documents as Event['documents'],
     links: data.links as Event['links'],
     startAt: toIso(data.startAt),
@@ -129,6 +131,7 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [missing, setMissing] = useState(false);
   const [rsvpPending, setRsvpPending] = useState<'accepted' | 'declined' | null>(null);
+  const [rsvpEditing, setRsvpEditing] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [heroLoaded, setHeroLoaded] = useState(false);
   const [heroIntrinsic, setHeroIntrinsic] = useState<{ w: number; h: number } | null>(null);
@@ -206,6 +209,7 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
       try {
         const ref = doc(db, 'schools', schoolId, 'events', eventId);
         await updateDoc(ref, { [`parentResponses.${profile.uid}`]: response });
+        setRsvpEditing(false);
       } finally {
         setRsvpPending(null);
       }
@@ -258,6 +262,10 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
   const ctx = scheduleContext(event, nowMs);
   const myRsvp = profile?.uid ? event.parentResponses?.[profile.uid] : undefined;
   const rsvpOpen = ctx.highlight !== 'past';
+  const displayRsvp = rsvpPending ?? myRsvp;
+  const picking = displayRsvp == null || rsvpEditing;
+  const showAccept = picking || displayRsvp === 'accepted';
+  const showDecline = picking || displayRsvp === 'declined';
 
   const statusPill =
     ctx.highlight === 'past' ? (
@@ -336,24 +344,41 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
     event.imageUrl ? (
       <View style={[styles.heroCard, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}>
         <View style={[styles.heroImageWrap, { width: heroWidth, height: heroHeight }]}>
-          {!heroLoaded ? (
-            <View style={styles.heroLoading}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : null}
-          <Image
-            source={{ uri: event.imageUrl }}
-            style={[styles.heroImage, { opacity: heroLoaded ? 1 : 0 }]}
-            resizeMode="contain"
-            onLoad={(e) => {
-              const src = e.nativeEvent?.source;
-              if (src?.width && src?.height) {
-                setHeroIntrinsic({ w: src.width, h: src.height });
-              }
-              setHeroLoaded(true);
-            }}
-            onError={() => setHeroLoaded(true)}
-          />
+          {isVideoMedia(event.mediaType, event.imageUrl) ? (
+            <TouchableOpacity
+              style={[styles.heroImage, styles.heroVideoWrap]}
+              onPress={() => Linking.openURL(event.imageUrl!)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Open video"
+            >
+              <View style={styles.heroVideoPlay}>
+                <Ionicons name="play-circle" size={56} color={colors.primary} />
+              </View>
+              <Text style={[styles.heroVideoLabel, { color: colors.textSecondary }]}>Tap to open video</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              {!heroLoaded ? (
+                <View style={styles.heroLoading}>
+                  <ActivityIndicator color={colors.primary} />
+                </View>
+              ) : null}
+              <Image
+                source={{ uri: event.imageUrl }}
+                style={[styles.heroImage, { opacity: heroLoaded ? 1 : 0 }]}
+                resizeMode="contain"
+                onLoad={(e) => {
+                  const src = e.nativeEvent?.source;
+                  if (src?.width && src?.height) {
+                    setHeroIntrinsic({ w: src.width, h: src.height });
+                  }
+                  setHeroLoaded(true);
+                }}
+                onError={() => setHeroLoaded(true)}
+              />
+            </>
+          )}
         </View>
       </View>
     ) : null;
@@ -482,72 +507,92 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
           ]}
         >
           <View style={[styles.rsvpAccent, { backgroundColor: colors.primary }]} />
-          {myRsvp ? (
-            <Text style={[styles.rsvpSummary, { color: colors.textMuted }]}>
-              You&apos;re {myRsvp === 'accepted' ? 'going' : 'not going'}. Tap below to update.
+          {picking ? (
+            <Text style={[styles.rsvpSummary, { color: colors.text }]}>
+              {rsvpEditing ? 'Choose a new response' : 'Will your child attend?'}
             </Text>
           ) : (
-            <Text style={[styles.rsvpSummary, { color: colors.text }]}>Will your child attend?</Text>
+            <Text style={[styles.rsvpSummary, { color: colors.textMuted }]}>
+              You&apos;re {displayRsvp === 'accepted' ? 'going' : 'not going'}.
+            </Text>
           )}
           <View style={styles.rsvpActions}>
+            {showAccept ? (
             <TouchableOpacity
               style={[
                 styles.rsvpPrimary,
                 { backgroundColor: colors.success },
-                myRsvp === 'accepted' && styles.rsvpSelectedPrimary,
-                rsvpPending != null && styles.disabled,
+                displayRsvp === 'accepted' && styles.rsvpSelectedPrimary,
+                !picking && styles.rsvpConfirmed,
+                rsvpPending != null && rsvpPending !== 'accepted' && styles.disabled,
               ]}
-              onPress={() => respond('accepted')}
-              disabled={rsvpPending != null}
-              activeOpacity={0.85}
+              onPress={picking ? () => respond('accepted') : undefined}
+              disabled={!picking || rsvpPending != null}
+              activeOpacity={picking ? 0.85 : 1}
             >
               {rsvpPending === 'accepted' ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
                   <Ionicons
-                    name={myRsvp === 'accepted' ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                    name={displayRsvp === 'accepted' ? 'checkmark-circle' : 'checkmark-circle-outline'}
                     size={20}
                     color="#fff"
                     style={styles.rsvpIcon}
                   />
-                  <Text style={styles.rsvpPrimaryText}>{myRsvp === 'accepted' ? 'Going' : "We're going"}</Text>
+                  <Text style={styles.rsvpPrimaryText}>
+                    {displayRsvp === 'accepted' ? 'Going' : "We're going"}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
+            ) : null}
+            {showDecline ? (
             <TouchableOpacity
               style={[
                 styles.rsvpSecondary,
                 { borderColor: colors.cardBorder, backgroundColor: colors.backgroundSecondary },
-                myRsvp === 'declined' && { borderColor: colors.danger, backgroundColor: colors.dangerMuted },
-                rsvpPending != null && styles.disabled,
+                displayRsvp === 'declined' && { borderColor: colors.danger, backgroundColor: colors.dangerMuted },
+                !picking && styles.rsvpConfirmed,
+                rsvpPending != null && rsvpPending !== 'declined' && styles.disabled,
               ]}
-              onPress={() => respond('declined')}
-              disabled={rsvpPending != null}
-              activeOpacity={0.85}
+              onPress={picking ? () => respond('declined') : undefined}
+              disabled={!picking || rsvpPending != null}
+              activeOpacity={picking ? 0.85 : 1}
             >
               {rsvpPending === 'declined' ? (
                 <ActivityIndicator color={colors.danger} />
               ) : (
                 <>
                   <Ionicons
-                    name={myRsvp === 'declined' ? 'close-circle' : 'close-circle-outline'}
+                    name={displayRsvp === 'declined' ? 'close-circle' : 'close-circle-outline'}
                     size={20}
-                    color={myRsvp === 'declined' ? colors.danger : colors.textMuted}
+                    color={displayRsvp === 'declined' ? colors.danger : colors.textMuted}
                     style={styles.rsvpIcon}
                   />
                   <Text
                     style={[
                       styles.rsvpSecondaryText,
-                      { color: myRsvp === 'declined' ? colors.danger : colors.text },
+                      { color: displayRsvp === 'declined' ? colors.danger : colors.text },
                     ]}
                   >
-                    {myRsvp === 'declined' ? "Can't go" : "Can't make it"}
+                    {displayRsvp === 'declined' ? "Can't go" : "Can't make it"}
                   </Text>
                 </>
               )}
             </TouchableOpacity>
+            ) : null}
           </View>
+          {!picking && rsvpPending == null ? (
+            <TouchableOpacity
+              onPress={() => setRsvpEditing(true)}
+              style={styles.rsvpChangeLink}
+              accessibilityRole="button"
+              accessibilityLabel="Change RSVP response"
+            >
+              <Text style={[styles.rsvpChangeLinkText, { color: colors.primary }]}>Change response</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -659,6 +704,18 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       height: '100%',
       borderRadius: 0,
     },
+    heroVideoWrap: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundSecondary,
+    },
+    heroVideoPlay: {
+      marginBottom: 8,
+    },
+    heroVideoLabel: {
+      fontSize: 14,
+      ...f('medium'),
+    },
     sectionCard: {
       borderRadius: 16,
       borderWidth: 1,
@@ -763,6 +820,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     rsvpSecondaryText: { ...f('semiBold'), fontSize: 15 },
     rsvpIcon: { marginRight: 6 },
+    rsvpConfirmed: { opacity: 1 },
+    rsvpChangeLink: { alignSelf: 'center', marginTop: 10, paddingVertical: 4, paddingHorizontal: 8 },
+    rsvpChangeLinkText: { fontSize: 13, ...f('medium') },
     disabled: { opacity: 0.55 },
     errorIconWrap: {
       width: 88,

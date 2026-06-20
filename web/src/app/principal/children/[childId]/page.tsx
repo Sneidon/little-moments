@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { formatClassDisplay, ageFromDob } from '@/lib/formatClass';
-import { getReportsForDay, getDaysWithActivity, getActivitySummaryText } from '@/lib/reports';
+import { getReportsForDay, getDaysWithActivity, getActivitySummaryText, localDateIso } from '@/lib/reports';
 import { exportChildDetailsToPdf } from '@/lib/exportChildDetailsPdf';
 import { exportChildDetailsToCsv } from '@/lib/exportChildDetailsCsv';
 import { exportChildDetailsToExcel } from '@/lib/exportChildDetailsExcel';
@@ -40,9 +40,7 @@ export default function ChildDetailPage() {
     childId
   );
   const { parents, refetch: refetchParents } = useChildParents(child);
-  const [filterDay, setFilterDay] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [filterDay, setFilterDay] = useState(() => localDateIso());
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
   const [pendingRemoveParent, setPendingRemoveParent] = useState<UserProfile | null>(null);
   const [removeParentDialogBusy, setRemoveParentDialogBusy] = useState(false);
@@ -113,8 +111,10 @@ export default function ChildDetailPage() {
 
   const reportsForDay = getReportsForDay(reports, filterDay);
   const daysWithActivity = getDaysWithActivity(reports);
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const yesterdayIso = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  const todayIso = localDateIso();
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayIso = localDateIso(yesterdayDate);
   const activitySummaryText = getActivitySummaryText(reportsForDay);
 
   const openExportPdf = useCallback(() => setExportPdfOpen(true), []);
@@ -232,15 +232,6 @@ export default function ChildDetailPage() {
         onCancelEdit={parentManagement.cancelEditParent}
         onRequestRemoveParentFromChild={(p) => setPendingRemoveParent(p)}
         removingParentUid={parentManagement.removingParentUid}
-        showEmailInvite={parentManagement.showEmailInvite}
-        emailInviteForm={parentManagement.emailInviteForm}
-        setEmailInviteForm={parentManagement.setEmailInviteForm}
-        emailInviteSubmitting={parentManagement.emailInviteSubmitting}
-        emailInviteError={parentManagement.emailInviteError}
-        emailInviteSuccessExpires={parentManagement.emailInviteSuccessExpires}
-        onEmailInviteSubmit={parentManagement.handleEmailInviteSubmit}
-        openEmailInvite={parentManagement.openEmailInvite}
-        closeEmailInvite={parentManagement.closeEmailInvite}
       />
 
       <ActivityList

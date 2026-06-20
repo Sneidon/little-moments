@@ -5,6 +5,7 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getDoc, doc } from 'firebase/firestore';
 import { app } from '@/config/firebase';
+import type { CheckParentEmailResult } from '@/constants/parents';
 import type { Child } from 'shared/types';
 import { db } from '@/config/firebase';
 
@@ -35,10 +36,10 @@ export function getCallableErrorMessage(err: unknown): string {
   return 'Something went wrong';
 }
 
-/** Check if a user with this email already exists. Principal only. Used before invite to choose link vs create. */
-export async function checkParentEmail(email: string): Promise<{ exists: boolean }> {
+/** Check if a parent account with this email exists and can be linked. Principal only. */
+export async function checkParentEmail(email: string): Promise<CheckParentEmailResult> {
   const functions = getFunctions(app);
-  const check = httpsCallable<{ email: string }, { exists: boolean }>(functions, 'checkParentEmail');
+  const check = httpsCallable<{ email: string }, CheckParentEmailResult>(functions, 'checkParentEmail');
   const result = await check({ email: email.trim() });
   return result.data;
 }

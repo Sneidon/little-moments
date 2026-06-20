@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, getDocs } from 'firebase/firestore';
 
@@ -88,58 +89,72 @@ export function TeacherHomeScreen({
     setRefreshing(false);
   }, [children.length]);
 
-  useEffect(() => {
-    const schoolId = profile?.schoolId;
-    if (!schoolId || children.length === 0) {
-      setMealsToday(0);
-      setPhotosToday(0);
-      setPresentCount(0);
-      setPresentChildIds(new Set());
-      return;
-    }
-
-    const dayStart = `${selectedDate}T00:00:00.000Z`;
-    const dayEnd = `${selectedDate}T23:59:59.999Z`;
-    let cancelled = false;
-
-    const toIso = (ts: unknown): string => {
-      if (typeof ts === 'string') return ts;
-      if (ts && typeof (ts as { toDate?: () => Date }).toDate === 'function') {
-        return (ts as { toDate: () => Date }).toDate().toISOString();
+  useFocusEffect(
+    useCallback(() => {
+      const schoolId = profile?.schoolId;
+      if (!schoolId || children.length === 0) {
+        setMealsToday(0);
+        setPhotosToday(0);
+        setPresentCount(0);
+        setPresentChildIds(new Set());
+        return;
       }
-      return '';
-    };
 
-    const check = async () => {
-      let meals = 0;
-      let photos = 0;
-      const presentIds = new Set<string>();
-      for (const child of children) {
-        const snap = await getDocs(
-          collection(db, 'schools', schoolId, 'children', child.id, 'reports')
-        );
-        snap.docs.forEach((d) => {
-          const data = d.data() as { timestamp?: unknown; createdAt?: unknown; type?: string };
-          const ts = toIso(data.timestamp) || toIso(data.createdAt);
-          if (ts && ts >= dayStart && ts <= dayEnd) {
-            if (data.type === 'meal') meals++;
-            if (data.type === 'incident') photos++;
-            presentIds.add(child.id);
+      const dayStart = `${selectedDate}T00:00:00.000Z`;
+      const dayEnd = `${selectedDate}T23:59:59.999Z`;
+      let cancelled = false;
+
+      const toIso = (ts: unknown): string => {
+        if (typeof ts === 'string') return ts;
+        if (ts && typeof (ts as { toDate?: () => Date }).toDate === 'function') {
+          return (ts as { toDate: () => Date }).toDate().toISOString();
+        }
+        return '';
+      };
+
+      const loadStats = async () => {
+        let meals = 0;
+        let photos = 0;
+        const presentIds = new Set<string>();
+        for (const child of children) {
+          const snap = await getDocs(
+            collection(db, 'schools', schoolId, 'children', child.id, 'reports')
+          );
+          const dayReports = snap.docs
+            .map((d) => {
+              const data = d.data() as { timestamp?: unknown; createdAt?: unknown; type?: string };
+              const ts = toIso(data.timestamp) || toIso(data.createdAt);
+              return { type: data.type, ts };
+            })
+            .filter((r) => r.ts && r.ts >= dayStart && r.ts <= dayEnd)
+            .sort((a, b) => a.ts.localeCompare(b.ts));
+
+          for (const report of dayReports) {
+            if (report.type === 'meal') meals++;
+            if (report.type === 'incident') photos++;
           }
-        });
-      }
-      if (!cancelled) {
-        setMealsToday(meals);
-        setPhotosToday(photos);
-        setPresentCount(presentIds.size);
-        setPresentChildIds(presentIds);
-      }
-    };
-    check();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.schoolId, children, selectedDate, refreshTrigger]);
+
+          let isPresent = false;
+          for (const report of dayReports) {
+            if (report.type === 'check_in') isPresent = true;
+            if (report.type === 'check_out') isPresent = false;
+          }
+          if (isPresent) presentIds.add(child.id);
+        }
+        if (!cancelled) {
+          setMealsToday(meals);
+          setPhotosToday(photos);
+          setPresentCount(presentIds.size);
+          setPresentChildIds(presentIds);
+        }
+      };
+
+      void loadStats();
+      return () => {
+        cancelled = true;
+      };
+    }, [profile?.schoolId, children, selectedDate, refreshTrigger])
+  );
 
   const teacherName = profile?.displayName?.trim() || profile?.email?.split('@')[0] || 'Teacher';
   const teacherMetaLine = useMemo(() => {
@@ -153,6 +168,14 @@ export function TeacherHomeScreen({
   const rootStack = navigation.getParent();
 
   const quickActions = [
+    {
+      id: 'check_in',
+      label: 'Check in',
+      icon: 'log-in' as const,
+      soft: colors.accentTealSoft,
+      iconColor: '#16a34a',
+      onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'check_in' }),
+    },
     {
       id: 'meal',
       label: 'Log Meal',

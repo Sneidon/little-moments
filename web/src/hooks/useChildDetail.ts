@@ -7,6 +7,7 @@ import { db } from '@/config/firebase';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 import type { DailyReport } from 'shared/types';
+import { toIsoTimestamp } from '@/lib/reports';
 
 export interface UseChildDetailResult {
   child: Child | null;
@@ -60,7 +61,16 @@ export function useChildDetail(
       }
       setChild({ id: childSnap.id, ...childSnap.data() } as Child);
       setClasses(classesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as ClassRoom)));
-      setReports(reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as DailyReport)));
+      setReports(
+        reportsSnap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            timestamp: toIsoTimestamp(data.timestamp) || toIsoTimestamp(data.createdAt),
+          } as DailyReport;
+        })
+      );
       setLoading(false);
     })();
     return () => {

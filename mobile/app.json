@@ -50,8 +50,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Little Moments to access your photos to attach to updates.",
-          "cameraPermission": "Allow Little Moments to use the camera to take photos for updates."
+          "photosPermission": "Allow Little Moments to access your photos and videos to attach to updates.",
+          "cameraPermission": "Allow Little Moments to use the camera to take photos and record videos for updates.",
+          "microphonePermission": "Allow Little Moments to use the microphone when recording videos for updates."
         }
       ]
     ],

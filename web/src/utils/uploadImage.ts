@@ -1,5 +1,16 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/config/firebase';
+import { assertVideoFileSize } from '@/lib/media';
+
+async function uploadSchoolMediaFile(
+  file: File,
+  path: string,
+  defaultContentType: string
+): Promise<string> {
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type || defaultContentType });
+  return getDownloadURL(storageRef);
+}
 
 /**
  * Upload user avatar. Path: users/{uid}/avatar.{ext}
@@ -39,9 +50,22 @@ export async function uploadEventImage(
 ): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
   const path = `schools/${schoolId}/events/${eventId}.${ext}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type || 'image/jpeg' });
-  return getDownloadURL(storageRef);
+  return uploadSchoolMediaFile(file, path, 'image/jpeg');
+}
+
+/**
+ * Upload an event video to Firebase Storage and return the download URL.
+ * Path: schools/{schoolId}/events/{eventId}/video.{ext}
+ */
+export async function uploadEventVideo(
+  file: File,
+  schoolId: string,
+  eventId: string
+): Promise<string> {
+  assertVideoFileSize(file);
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+  const path = `schools/${schoolId}/events/${eventId}/video.${ext}`;
+  return uploadSchoolMediaFile(file, path, 'video/mp4');
 }
 
 /**
@@ -72,9 +96,22 @@ export async function uploadAnnouncementImage(
 ): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
   const path = `schools/${schoolId}/announcements/${announcementId}.${ext}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type || 'image/jpeg' });
-  return getDownloadURL(storageRef);
+  return uploadSchoolMediaFile(file, path, 'image/jpeg');
+}
+
+/**
+ * Upload an announcement video to Firebase Storage and return the download URL.
+ * Path: schools/{schoolId}/announcements/{announcementId}/video.{ext}
+ */
+export async function uploadAnnouncementVideo(
+  file: File,
+  schoolId: string,
+  announcementId: string
+): Promise<string> {
+  assertVideoFileSize(file);
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+  const path = `schools/${schoolId}/announcements/${announcementId}/video.${ext}`;
+  return uploadSchoolMediaFile(file, path, 'video/mp4');
 }
 
 /**

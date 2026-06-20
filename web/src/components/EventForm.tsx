@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import type { PendingDocument, PendingLink, UseEventFormResult } from '@/hooks/useEventForm';
+import { MediaUploadSection } from '@/components/MediaUploadSection';
 import type { ClassRoom } from 'shared/types';
 
 const inputBase =
@@ -146,7 +146,10 @@ export function EventForm({ form, classes, classNamesMap = {} }: EventFormProps)
     setDurationMinutes,
     imageFile,
     setImageFile,
+    videoFile,
+    setVideoFile,
     existingImageUrl,
+    existingMediaType,
     documents,
     addDocument,
     removeDocument,
@@ -167,17 +170,6 @@ export function EventForm({ form, classes, classNamesMap = {} }: EventFormProps)
     submit,
     canSubmit,
   } = form;
-
-  const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
-  useEffect(() => {
-    if (!imageFile) {
-      setNewImagePreview(null);
-      return;
-    }
-    const u = URL.createObjectURL(imageFile);
-    setNewImagePreview(u);
-    return () => URL.revokeObjectURL(u);
-  }, [imageFile]);
 
   return (
     <form onSubmit={submit} className="card mb-8 p-6">
@@ -215,9 +207,9 @@ export function EventForm({ form, classes, classNamesMap = {} }: EventFormProps)
               <div>
                 <dt className="font-medium text-slate-600 dark:text-slate-300">Attachments & links</dt>
                 <dd className="mt-1 space-y-2">
-                  {existingImageUrl && !imageFile && (
+                  {existingImageUrl && !imageFile && !videoFile && (
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Event image below (replace using the image field).
+                      Event {existingMediaType === 'video' ? 'video' : 'image'} below (replace using the media fields).
                     </p>
                   )}
                   <ul className="list-inside list-disc space-y-1 text-slate-800 dark:text-slate-200">
@@ -291,40 +283,16 @@ export function EventForm({ form, classes, classNamesMap = {} }: EventFormProps)
         className={`${inputBase} mb-3 w-full resize-y`}
       />
 
-      <div className="mb-4">
-        <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Optional image
-        </label>
-        {existingImageUrl && !imageFile && (
-          <div className="mb-2">
-            <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Current image</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={existingImageUrl}
-              alt=""
-              className="max-h-56 max-w-full rounded-lg border border-slate-200 object-contain dark:border-slate-600"
-            />
-          </div>
-        )}
-        {newImagePreview && (
-          <div className="mb-2">
-            <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">New image preview</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={newImagePreview}
-              alt=""
-              className="max-h-56 max-w-full rounded-lg border border-slate-200 object-contain dark:border-slate-600"
-            />
-          </div>
-        )}
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-          className={`${inputBase} w-full text-sm ${inputFile}`}
-          title={existingImageUrl ? 'Choose an image to replace the current one' : undefined}
-        />
-      </div>
+      <MediaUploadSection
+        imageFile={imageFile}
+        setImageFile={setImageFile}
+        videoFile={videoFile}
+        setVideoFile={setVideoFile}
+        existingUrl={existingImageUrl}
+        existingMediaType={existingMediaType}
+        inputBase={inputBase}
+        inputFile={inputFile}
+      />
 
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">

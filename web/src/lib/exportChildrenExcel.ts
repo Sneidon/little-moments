@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
+import { formatGenderLabel } from '@/lib/formatGender';
 
 export type ClassDisplayFn = (classId: string) => string;
 
@@ -19,11 +20,12 @@ export function exportChildrenToExcel(
   classes: ClassRoom[],
   classDisplay: ClassDisplayFn
 ): void {
-  const headers = ['Name', 'Preferred', 'DOB', 'Class', 'Allergies', 'Emergency'];
+  const headers = ['Name', 'Preferred', 'DOB', 'Gender', 'Class', 'Allergies', 'Emergency'];
   const rows = children.map((c) => [
     c.name ?? '',
     c.preferredName ?? '',
     formatDob(c.dateOfBirth),
+    formatGenderLabel(c.gender),
     c.classId ? classDisplay(c.classId) : '',
     c.allergies?.length ? (c.allergies as string[]).join(', ') : '',
     c.emergencyContactName || c.emergencyContact || '',

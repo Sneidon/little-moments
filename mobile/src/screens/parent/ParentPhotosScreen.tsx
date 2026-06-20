@@ -18,6 +18,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getCached, setCached, LIST_TTL_MS } from '../../utils/cache';
 import { getInitials } from '../../utils';
+import { isVideoMedia } from '../../utils/media';
 import { EmptyState } from '../../components/EmptyState';
 import type { Child } from '../../../../shared/types';
 import type { DailyReport } from '../../../../shared/types';
@@ -193,7 +194,7 @@ export function ParentPhotosScreen({ navigation }: ParentPhotosScreenProps) {
 
   const renderPost = useCallback(
     ({ item }: { item: PhotoFeedItem }) => {
-      const isVideo = item.mediaType?.startsWith('video/');
+      const isVideo = isVideoMedia(item.mediaType, item.imageUrl);
       const when = formatRelativeTime(item.timestamp);
       const categoryLine = item.photoCategory ? item.photoCategory : 'Moment from school';
 
@@ -232,7 +233,7 @@ export function ParentPhotosScreen({ navigation }: ParentPhotosScreenProps) {
             onPress={() => openDetail(item)}
             activeOpacity={0.95}
             accessibilityRole="imagebutton"
-            accessibilityLabel={isVideo ? 'Video, tap for details' : 'Photo, tap for details'}
+            accessibilityLabel={isVideo ? 'Video, tap for details' : 'Media, tap for details'}
           >
             <View style={styles.mediaFrame}>
               {isVideo ? (
@@ -284,7 +285,7 @@ export function ParentPhotosScreen({ navigation }: ParentPhotosScreenProps) {
         <EmptyState
           icon="people-outline"
           title="No children linked"
-          subtitle="When your school links your account to a child, their photos will appear here."
+          subtitle="When your school links your account to a child, their media will appear here."
         />
       </View>
     );
@@ -304,8 +305,8 @@ export function ParentPhotosScreen({ navigation }: ParentPhotosScreenProps) {
         ListEmptyComponent={
           <EmptyState
             icon="images-outline"
-            title="No photos yet"
-            subtitle="When teachers share moments from the day, they will show up here."
+            title="No media yet"
+            subtitle="When teachers share photos and videos from the day, they will show up here."
           />
         }
       />

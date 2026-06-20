@@ -15,6 +15,7 @@ import { db } from '@/config/firebase';
 import type { ClassRoom } from 'shared/types';
 import type { Child } from 'shared/types';
 import type { DailyReport } from 'shared/types';
+import { toIsoTimestamp } from '@/lib/reports';
 import type { UserProfile } from 'shared/types';
 
 export type ClassReportRow = DailyReport & { childId: string; childName: string };
@@ -99,9 +100,11 @@ export function useClassDetail(
           )
         );
         reportsSnap.docs.forEach((r) => {
+          const data = r.data();
           list.push({
             id: r.id,
-            ...r.data(),
+            ...data,
+            timestamp: toIsoTimestamp(data.timestamp) || toIsoTimestamp(data.createdAt),
             childId: child.id,
             childName: name,
           } as ClassReportRow);

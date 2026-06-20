@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getInitials } from '../../utils';
+import { isChatUnreadForUser } from '../../utils/chatUnread';
 import type { Chat } from '../../../../shared/types';
 import type { UserProfile } from '../../../../shared/types';
 import type { Child } from '../../../../shared/types';
@@ -33,7 +34,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  ChatThread: { chatId: string; schoolId: string };
+  ChatThread: { chatId: string; schoolId: string; otherDisplayName?: string };
   SelectChildToMessage: undefined;
 };
 
@@ -73,7 +74,7 @@ function formatListTime(iso: string | undefined): string {
 }
 
 export function MessagesListScreen({ navigation }: Props) {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [chats, setChats] = useState<ChatWithNames[]>([]);
@@ -91,15 +92,22 @@ export function MessagesListScreen({ navigation }: Props) {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const uid = profile?.uid;
     const schoolId = profile?.schoolId;
     const role = profile?.role;
-    if (!uid) return;
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
 
     if (role === 'teacher' && !schoolId) {
       setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     const q =
       role === 'teacher'
@@ -117,6 +125,9 @@ export function MessagesListScreen({ navigation }: Props) {
     const unsub = onSnapshot(
       q,
       async (snap) => {
+        if (snap.empty && snap.metadata.fromCache) {
+          return;
+        }
         try {
           const list: Chat[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Chat));
           const withNames: ChatWithNames[] = await Promise.all(
@@ -165,7 +176,7 @@ export function MessagesListScreen({ navigation }: Props) {
     );
 
     return () => unsub();
-  }, [profile?.uid, profile?.schoolId, profile?.role, refreshTrigger]);
+  }, [authLoading, profile?.uid, profile?.schoolId, profile?.role, refreshTrigger]);
 
   const renderListHeader = () => {
     if (profile?.role === 'teacher') {
@@ -218,7 +229,11 @@ export function MessagesListScreen({ navigation }: Props) {
 
   const openChat = useCallback(
     (item: ChatWithNames) => {
-      rootNav?.navigate('ChatThread', { chatId: item.id, schoolId: item.schoolId });
+      rootNav?.navigate('ChatThread', {
+        chatId: item.id,
+        schoolId: item.schoolId,
+        otherDisplayName: item.otherDisplayName,
+      });
     },
     [rootNav]
   );
@@ -228,6 +243,10 @@ export function MessagesListScreen({ navigation }: Props) {
       const initials = getInitials(item.otherDisplayName === '…' ? '?' : item.otherDisplayName);
       const preview = item.lastMessageText?.trim();
       const timeLabel = formatListTime(item.lastMessageAt || item.updatedAt);
+      const unread =
+        profile?.uid && profile.role
+          ? isChatUnreadForUser(item, profile.uid, profile.role)
+          : false;
 
       const cardShadow =
         !isDark && Platform.OS === 'ios'
@@ -242,7 +261,7 @@ export function MessagesListScreen({ navigation }: Props) {
 
       return (
         <TouchableOpacity
-          style={[styles.rowCard, cardShadow, cardElevation]}
+          style={[styles.rowCard, unread && styles.rowCardUnread, cardShadow, cardElevation]}
           onPress={() => openChat(item)}
           activeOpacity={0.72}
         >
@@ -251,10 +270,12 @@ export function MessagesListScreen({ navigation }: Props) {
           </View>
           <View style={styles.rowBody}>
             <View style={styles.rowTop}>
-              <Text style={styles.name} numberOfLines={1}>
+              <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
                 {item.otherDisplayName}
               </Text>
-              {timeLabel ? <Text style={styles.time}>{timeLabel}</Text> : null}
+              {timeLabel ? (
+                <Text style={[styles.time, unread && styles.timeUnread]}>{timeLabel}</Text>
+              ) : null}
             </View>
             <View style={styles.childRow}>
               <Ionicons name="happy-outline" size={14} color={colors.textMuted} />
@@ -262,15 +283,16 @@ export function MessagesListScreen({ navigation }: Props) {
                 {item.childName}
               </Text>
             </View>
-            <Text style={preview ? styles.preview : styles.previewEmpty} numberOfLines={2}>
+            <Text style={preview ? [styles.preview, unread && styles.previewUnread] : styles.previewEmpty} numberOfLines={2}>
               {preview || 'No messages yet'}
             </Text>
           </View>
+          {unread ? <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} /> : null}
           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.rowChevron} />
         </TouchableOpacity>
       );
     },
-    [colors, isDark, openChat, styles]
+    [colors, isDark, openChat, profile?.role, profile?.uid, styles]
   );
 
   const skeletonStyle = useMemo(
@@ -284,7 +306,7 @@ export function MessagesListScreen({ navigation }: Props) {
   const skeletonHeaderVariant =
     profile?.role === 'teacher' ? 'teacher' : profile?.role === 'parent' ? 'parent' : 'none';
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.container} accessibilityState={{ busy: true }}>
         <SkeletonMessagesActionHeader variant={skeletonHeaderVariant} />
@@ -385,6 +407,11 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
       borderColor: colors.cardBorder,
     },
+    rowCardUnread: {
+      borderWidth: isDark ? StyleSheet.hairlineWidth : 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryMuted,
+    },
     avatar: {
       width: 52,
       height: 52,
@@ -413,11 +440,18 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       fontSize: 16,
       color: colors.text,
     },
+    nameUnread: {
+      fontFamily: font.bold,
+    },
     time: {
       fontFamily: font.regular,
       fontSize: 12,
       color: colors.textMuted,
       flexShrink: 0,
+    },
+    timeUnread: {
+      color: colors.primary,
+      fontFamily: font.semiBold,
     },
     childRow: {
       flexDirection: 'row',
@@ -439,6 +473,10 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       color: colors.textSecondary,
       marginTop: 6,
     },
+    previewUnread: {
+      color: colors.text,
+      fontFamily: font.medium,
+    },
     previewEmpty: {
       fontFamily: font.regular,
       fontSize: 14,
@@ -450,6 +488,12 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     rowChevron: {
       marginLeft: 4,
       opacity: 0.65,
+    },
+    unreadDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: 6,
     },
   });
 }

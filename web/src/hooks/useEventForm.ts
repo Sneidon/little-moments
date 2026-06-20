@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react';
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { uploadEventImage, uploadEventDocument } from '@/utils/uploadImage';
+import { uploadEventImage, uploadEventDocument, uploadEventVideo } from '@/utils/uploadImage';
+import { assertVideoFileSize } from '@/lib/media';
 import type { Event, EventDocumentLink } from 'shared/types';
 
 export interface PendingDocument {
@@ -37,8 +38,11 @@ export interface UseEventFormResult {
   setDurationMinutes: (v: number) => void;
   imageFile: File | null;
   setImageFile: (f: File | null) => void;
-  /** Current Storage image URL when editing (hidden after choosing a replacement file). */
+  videoFile: File | null;
+  setVideoFile: (f: File | null) => void;
+  /** Current Storage media URL when editing (hidden after choosing a replacement file). */
   existingImageUrl: string | null;
+  existingMediaType: string | undefined;
   documents: PendingDocument[];
   addDocument: () => void;
   removeDocument: (i: number) => void;
@@ -74,11 +78,26 @@ export function useEventForm({
   const [startAt, setStartAt] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(DEFAULT_DURATION_MINUTES);
   const [imageFile, setImageFileState] = useState<File | null>(null);
+  const [videoFile, setVideoFileState] = useState<File | null>(null);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [existingMediaType, setExistingMediaType] = useState<string | undefined>(undefined);
 
   const setImageFile = useCallback((f: File | null) => {
     setImageFileState(f);
-    if (f) setExistingImageUrl(null);
+    if (f) {
+      setVideoFileState(null);
+      setExistingImageUrl(null);
+      setExistingMediaType(undefined);
+    }
+  }, []);
+
+  const setVideoFile = useCallback((f: File | null) => {
+    setVideoFileState(f);
+    if (f) {
+      setImageFileState(null);
+      setExistingImageUrl(null);
+      setExistingMediaType(undefined);
+    }
   }, []);
   const [documents, setDocuments] = useState<PendingDocument[]>([]);
   const [links, setLinks] = useState<PendingLink[]>([]);
@@ -95,7 +114,9 @@ export function useEventForm({
     setStartAt('');
     setDurationMinutes(DEFAULT_DURATION_MINUTES);
     setImageFileState(null);
+    setVideoFileState(null);
     setExistingImageUrl(null);
+    setExistingMediaType(undefined);
     setDocuments([]);
     setLinks([]);
     setTargetType('everyone');
@@ -117,7 +138,9 @@ export function useEventForm({
     }
     setDurationMinutes(DEFAULT_DURATION_MINUTES);
     setImageFileState(null);
+    setVideoFileState(null);
     setExistingImageUrl(null);
+    setExistingMediaType(undefined);
     setDocuments([]);
     setLinks([]);
     setTargetType('everyone');
@@ -141,7 +164,9 @@ export function useEventForm({
     setTargetType(event.targetType || 'everyone');
     setTargetClassIds(event.targetClassIds || []);
     setImageFileState(null);
+    setVideoFileState(null);
     setExistingImageUrl(event.imageUrl ?? null);
+    setExistingMediaType(event.mediaType);
     setDocuments(
       (event.documents ?? []).map((d) => ({
         label: (d.label || d.name || '').trim(),
@@ -222,6 +247,11 @@ export function useEventForm({
           };
           if (imageFile) {
             updates.imageUrl = await uploadEventImage(imageFile, schoolId, editingId);
+            updates.mediaType = 'image';
+          } else if (videoFile) {
+            assertVideoFileSize(videoFile);
+            updates.imageUrl = await uploadEventVideo(videoFile, schoolId, editingId);
+            updates.mediaType = 'video';
           }
 
           const finalDocs: EventDocumentLink[] = [];
@@ -284,6 +314,11 @@ export function useEventForm({
 
         if (imageFile) {
           updates.imageUrl = await uploadEventImage(imageFile, schoolId, ref.id);
+          updates.mediaType = 'image';
+        } else if (videoFile) {
+          assertVideoFileSize(videoFile);
+          updates.imageUrl = await uploadEventVideo(videoFile, schoolId, ref.id);
+          updates.mediaType = 'video';
         }
 
         const docsWithFiles = documents.filter((d) => d.file);
@@ -324,7 +359,7 @@ export function useEventForm({
         setSubmitting(false);
       }
     },
-    [schoolId, editingId, title, description, startAt, durationMinutes, imageFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
+    [schoolId, editingId, title, description, startAt, durationMinutes, imageFile, videoFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
   );
 
   return {
@@ -338,7 +373,10 @@ export function useEventForm({
     setDurationMinutes,
     imageFile,
     setImageFile,
+    videoFile,
+    setVideoFile,
     existingImageUrl,
+    existingMediaType,
     documents,
     addDocument,
     removeDocument,

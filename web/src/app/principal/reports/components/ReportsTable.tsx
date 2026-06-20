@@ -6,6 +6,7 @@ import {
   getReportTypeLabel,
   getReportTypeStyle,
 } from '@/lib/reports';
+import { formatGenderLabel } from '@/lib/formatGender';
 import type { ReportRow } from '@/hooks/useReportsPage';
 import { SectionCard } from '@/components/ui';
 
@@ -30,25 +31,31 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
           <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-700">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Child</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Gender</th>
               {showClassColumn && (
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Class</th>
               )}
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Type</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Time</th>
               <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Details</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Notes</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200 min-w-[160px] max-w-md">
+                Notes
+              </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
               <tr
-                key={r.id}
+                key={`${r.childId}-${r.id}`}
                 className={`border-t border-slate-100 dark:border-slate-600/80 ${
                   i % 2 === 1 ? 'bg-slate-50/50 dark:bg-slate-800/30' : ''
                 } hover:bg-slate-100/70 dark:hover:bg-slate-700/50 transition-colors`}
               >
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
                   {r.childName}
+                </td>
+                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                  {formatGenderLabel(r.childGender)}
                 </td>
                 {showClassColumn && (
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
@@ -73,10 +80,7 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
                 <td className="max-w-[200px] truncate px-4 py-3 text-slate-600 dark:text-slate-300" title={getReportDetailsSummary(r)}>
                   {getReportDetailsSummary(r)}
                 </td>
-                <td
-                  className="max-w-[220px] truncate px-4 py-3 text-slate-600 dark:text-slate-300"
-                  title={getReportNotesSummary(r)}
-                >
+                <td className="min-w-[160px] max-w-md whitespace-normal break-words px-4 py-3 text-slate-600 dark:text-slate-300">
                   {getReportNotesSummary(r)}
                 </td>
               </tr>

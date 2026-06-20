@@ -151,6 +151,7 @@ export function ReportDetailScreen({ route }: Props) {
   const [reporterDisplayName, setReporterDisplayName] = useState<string | null>(null);
   const [photoBoxWidth, setPhotoBoxWidth] = useState(0);
   const [photoIntrinsic, setPhotoIntrinsic] = useState<{ w: number; h: number } | null>(null);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>();
 
   useEffect(() => {
     let cancelled = false;
@@ -168,6 +169,18 @@ export function ReportDetailScreen({ route }: Props) {
         }
         const docData = { id: reportSnap.id, ...reportSnap.data() } as ReportDoc;
         setData(docData);
+
+        let imageUrl = str(docData.imageUrl);
+        if (!imageUrl && docData.type === 'meal') {
+          const mealOptionId = str(docData.mealOptionId);
+          if (mealOptionId) {
+            const optSnap = await getDoc(doc(db, 'schools', schoolId, 'mealOptions', mealOptionId));
+            if (optSnap.exists()) {
+              imageUrl = str((optSnap.data() as { imageUrl?: string }).imageUrl);
+            }
+          }
+        }
+        if (!cancelled) setResolvedImageUrl(imageUrl);
 
         if (childSnap.exists()) {
           const c = childSnap.data() as { preferredName?: string; name?: string };
@@ -204,7 +217,7 @@ export function ReportDetailScreen({ route }: Props) {
     if (!data) return;
     if (profile?.role !== 'parent') return;
     if ((profile as any).parentStatus !== 'ACTIVE') return;
-    const imageUrl = str((data as any).imageUrl);
+    const imageUrl = str((data as any).imageUrl) || resolvedImageUrl;
     if (!imageUrl) return;
     try {
       const fn = httpsCallable(getFunctions(app), 'recordFirstPhotoViewed');
@@ -212,11 +225,12 @@ export function ReportDetailScreen({ route }: Props) {
     } catch {
       // ignore
     }
-  }, [data, profile?.role, (profile as any)?.parentStatus, schoolId, childId, reportId]);
+  }, [data, profile?.role, (profile as any)?.parentStatus, schoolId, childId, reportId, resolvedImageUrl]);
 
   const type = str(data?.type) ?? 'update';
   const accent = TYPE_COLORS[type] ?? colors.primary;
   const ts = toIso(data?.timestamp) || toIso(data?.createdAt);
+  const imageUrl = str(data?.imageUrl) || resolvedImageUrl;
   const cardTitle = data ? getReportTitle(data as unknown as ReportWithExtras) : typeLabel(type);
 
   const rows: { label: string; value: string }[] = [];
@@ -290,7 +304,6 @@ export function ReportDetailScreen({ route }: Props) {
   const notes = str(data?.notes);
   if (notes) rows.push({ label: 'Notes', value: notes });
 
-  const imageUrl = str(data?.imageUrl);
   const mediaType = str(data?.mediaType);
   const isVideo = mediaType?.toLowerCase().includes('video');
 

@@ -61,49 +61,52 @@ export function EventsScreen() {
         {profile?.role === 'parent' && (
           <View style={styles.rsvpSection}>
             {item.parentResponses?.[profile.uid] ? (
-              <Text style={styles.rsvpStatus}>
-                You RSVP&apos;d: {item.parentResponses[profile.uid] === 'accepted' ? 'Going' : 'Not going'}
-              </Text>
-            ) : null}
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={[
-                  styles.acceptBtn,
-                  item.parentResponses?.[profile.uid] === 'accepted' && styles.acceptBtnSelected,
-                ]}
-                onPress={() => respond(item.id, 'accepted')}
-              >
+              <View style={styles.rsvpAnswered}>
                 <Ionicons
-                  name={item.parentResponses?.[profile.uid] === 'accepted' ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                  name={
+                    item.parentResponses[profile.uid] === 'accepted'
+                      ? 'checkmark-circle'
+                      : 'close-circle'
+                  }
                   size={18}
-                  color={item.parentResponses?.[profile.uid] === 'accepted' ? colors.primaryContrast : colors.primaryContrast}
-                  style={styles.btnIcon}
+                  color={
+                    item.parentResponses[profile.uid] === 'accepted'
+                      ? colors.success
+                      : colors.danger
+                  }
                 />
-                <Text style={styles.acceptText}>
-                  {item.parentResponses?.[profile.uid] === 'accepted' ? "Going ✓" : 'Going'}
+                <Text style={styles.rsvpStatus}>
+                  {item.parentResponses[profile.uid] === 'accepted' ? 'Going' : 'Not going'}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.declineBtn,
-                  item.parentResponses?.[profile.uid] === 'declined' && styles.declineBtnSelected,
-                ]}
-                onPress={() => respond(item.id, 'declined')}
-              >
-                <Ionicons
-                  name={item.parentResponses?.[profile.uid] === 'declined' ? 'close-circle' : 'close-circle-outline'}
-                  size={18}
-                  color={item.parentResponses?.[profile.uid] === 'declined' ? colors.danger : colors.textMuted}
-                  style={styles.btnIcon}
-                />
-                <Text style={[
-                  styles.declineText,
-                  item.parentResponses?.[profile.uid] === 'declined' && styles.declineTextSelected,
-                ]}>
-                  {item.parentResponses?.[profile.uid] === 'declined' ? "Can't make it ✓" : "Can't make it"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+              </View>
+            ) : (
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.acceptBtn}
+                  onPress={() => respond(item.id, 'accepted')}
+                >
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={18}
+                    color={colors.primaryContrast}
+                    style={styles.btnIcon}
+                  />
+                  <Text style={styles.acceptText}>Going</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.declineBtn}
+                  onPress={() => respond(item.id, 'declined')}
+                >
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={18}
+                    color={colors.textMuted}
+                    style={styles.btnIcon}
+                  />
+                  <Text style={styles.declineText}>Can&apos;t make it</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -153,7 +156,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     docLink: { fontSize: 14, color: colors.primary, textDecorationLine: 'underline' },
     meta: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
     rsvpSection: { marginTop: 12 },
-    rsvpStatus: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
+    rsvpAnswered: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    rsvpStatus: { fontSize: 14, color: colors.text, fontWeight: '600' },
     actions: { flexDirection: 'row', gap: 8 },
     acceptBtn: {
       flex: 1,
@@ -166,7 +170,6 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       backgroundColor: colors.success,
     },
     acceptText: { color: colors.primaryContrast, fontWeight: '600' },
-    acceptBtnSelected: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)' },
     declineBtn: {
       flex: 1,
       flexDirection: 'row',
@@ -179,8 +182,6 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       borderColor: colors.border,
     },
     declineText: { color: colors.textMuted },
-    declineBtnSelected: { borderWidth: 2, borderColor: colors.danger, backgroundColor: colors.dangerMuted },
-    declineTextSelected: { color: colors.danger, fontWeight: '600' },
     btnIcon: {},
     empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   });

@@ -18,10 +18,35 @@ import { exportChildrenToPdf } from '@/lib/exportChildrenPdf';
 import { useSchoolName } from '@/hooks/useSchoolName';
 import { exportChildrenToCsv } from '@/lib/exportChildrenCsv';
 import { exportChildrenToExcel } from '@/lib/exportChildrenExcel';
-import type { Child } from 'shared/types';
-import type { ClassRoom } from 'shared/types';
+import type { Child, ChildGender, ClassRoom } from 'shared/types';
 import { PageHero, SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 import { DateOfBirthField, isValidIsoDateString } from '@/components/DateOfBirthField';
+import { formatGenderLabel, GENDER_FORM_OPTIONS } from '@/lib/formatGender';
+import { ParentLinkOrInvitePanel, type ConfirmedParentAssignment } from '@/components/ParentLinkOrInvitePanel';
+import { inviteParentToChild, principalInviteParent, getCallableErrorMessage } from '@/services/parents';
+import { MAX_PARENTS } from '@/constants/parents';
+
+function resolveAllergies(allergies: string[], allergyInput: string): string[] {
+  const list = allergies.filter(Boolean);
+  const pending = allergyInput.trim();
+  if (!pending || list.includes(pending)) return list;
+  return [...list, pending];
+}
+
+const EMPTY_CHILD_FORM = {
+  name: '',
+  preferredName: '',
+  dateOfBirth: '',
+  gender: '' as '' | ChildGender,
+  allergies: [] as string[],
+  allergyInput: '',
+  medicalNotes: '',
+  enrollmentDate: '',
+  emergencyContact: '',
+  emergencyContactName: '',
+  classId: '',
+  isActive: true,
+};
 
 export default function ChildrenPage() {
   const { profile } = useAuth();
@@ -32,19 +57,7 @@ export default function ChildrenPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: '',
-    preferredName: '',
-    dateOfBirth: '',
-    allergies: [] as string[],
-    allergyInput: '',
-    medicalNotes: '',
-    enrollmentDate: '',
-    emergencyContact: '',
-    emergencyContactName: '',
-    classId: '',
-    isActive: true,
-  });
+  const [form, setForm] = useState(EMPTY_CHILD_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -52,6 +65,20 @@ export default function ChildrenPage() {
   const [filterClassId, setFilterClassId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [enrollmentFilter, setEnrollmentFilter] = useState<'all' | 'active' | 'inactive'>('active');
+  const [pendingParents, setPendingParents] = useState<ConfirmedParentAssignment[]>([]);
+  const [showParentPanel, setShowParentPanel] = useState(false);
+  const [parentAssignError, setParentAssignError] = useState('');
+
+  const resetParentAssignment = () => {
+    setPendingParents([]);
+    setShowParentPanel(false);
+    setParentAssignError('');
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    resetParentAssignment();
+  };
 
   useEffect(() => {
     const schoolId = profile?.schoolId;
@@ -98,6 +125,7 @@ export default function ChildrenPage() {
         name: c.name,
         preferredName: c.preferredName ?? '',
         dateOfBirth: c.dateOfBirth?.slice(0, 10) ?? '',
+        gender: c.gender ?? '',
         allergies: c.allergies ?? [],
         allergyInput: '',
         medicalNotes: c.medicalNotes ?? '',
@@ -123,10 +151,11 @@ export default function ChildrenPage() {
       const now = new Date().toISOString();
       // Firestore rejects undefined; only include defined values or null
       const enrolled = Boolean(form.isActive);
+      const allergies = resolveAllergies(form.allergies, form.allergyInput);
       const base: Record<string, unknown> = {
         name: form.name.trim(),
         dateOfBirth: form.dateOfBirth,
-        allergies: form.allergies.filter(Boolean),
+        allergies,
         emergencyContact: form.emergencyContact.trim(),
         classId: enrolled ? form.classId || null : null,
         updatedAt: now,
@@ -142,6 +171,8 @@ export default function ChildrenPage() {
       if (enrollmentDate) base.enrollmentDate = enrollmentDate;
       else base.enrollmentDate = null;
       base.emergencyContactName = form.emergencyContactName.trim();
+      if (form.gender) base.gender = form.gender;
+      else base.gender = null;
       if (editingId) {
         const existing = children.find((c) => c.id === editingId);
         const updateData = { ...base, parentIds: existing?.parentIds ?? [], createdAt: existing?.createdAt ?? now };
@@ -161,21 +192,37 @@ export default function ChildrenPage() {
           collection(db, 'schools', schoolId, 'children'),
           data
         );
-        setChildren((prev) => [...prev, { id: ref.id, ...data } as unknown as Child]);
+        let parentLinkError = '';
+        for (const parent of pendingParents) {
+          try {
+            if (parent.mode === 'link') {
+              await inviteParentToChild({
+                childId: ref.id,
+                parentEmail: parent.parentEmail,
+                parentDisplayName: parent.parentDisplayName,
+                parentPhone: parent.parentPhone,
+              });
+            } else {
+              await principalInviteParent({
+                childId: ref.id,
+                parentEmail: parent.parentEmail,
+                parentDisplayName: parent.parentDisplayName,
+                parentPhone: parent.parentPhone,
+              });
+            }
+          } catch (err) {
+            parentLinkError = getCallableErrorMessage(err);
+            break;
+          }
+        }
+        const createdChild = { id: ref.id, ...data } as unknown as Child;
+        setChildren((prev) => [...prev, createdChild]);
+        if (parentLinkError) {
+          alert(`Child was added, but linking a parent failed: ${parentLinkError}`);
+        }
       }
-      setForm({
-        name: '',
-        preferredName: '',
-        dateOfBirth: '',
-        allergies: [],
-        allergyInput: '',
-        medicalNotes: '',
-        enrollmentDate: '',
-        emergencyContact: '',
-        emergencyContactName: '',
-        classId: '',
-        isActive: true,
-      });
+      setForm(EMPTY_CHILD_FORM);
+      resetParentAssignment();
       setShowForm(false);
     } finally {
       setSubmitting(false);
@@ -188,6 +235,7 @@ export default function ChildrenPage() {
       name: c.name,
       preferredName: c.preferredName ?? '',
       dateOfBirth: c.dateOfBirth?.slice(0, 10) ?? '',
+      gender: c.gender ?? '',
       allergies: c.allergies ?? [],
       allergyInput: '',
       medicalNotes: c.medicalNotes ?? '',
@@ -329,19 +377,8 @@ export default function ChildrenPage() {
               onClick={() => {
                 setShowForm(true);
                 setEditingId(null);
-                setForm({
-                  name: '',
-                  preferredName: '',
-                  dateOfBirth: '',
-                  allergies: [],
-                  allergyInput: '',
-                  medicalNotes: '',
-                  enrollmentDate: '',
-                  emergencyContact: '',
-                  emergencyContactName: '',
-                  classId: '',
-                  isActive: true,
-                });
+                setForm(EMPTY_CHILD_FORM);
+                resetParentAssignment();
               }}
               className="btn-primary"
             >
@@ -389,6 +426,26 @@ export default function ChildrenPage() {
                 required
                 inputClassName="input-base w-full"
               />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Gender</label>
+              <select
+                value={form.gender}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    gender: e.target.value as '' | ChildGender,
+                  }))
+                }
+                className="input-base"
+              >
+                <option value="">—</option>
+                {GENDER_FORM_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -510,11 +567,98 @@ export default function ChildrenPage() {
               />
             </div>
           </div>
+
+          {!editingId ? (
+            <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-600">
+              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">Parents (optional)</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Search by email first. Existing parents are linked immediately; if no account is found, an invite
+                email is sent when you save the child.
+              </p>
+
+              {parentAssignError ? (
+                <p className="mt-3 text-sm text-red-600 dark:text-red-400">{parentAssignError}</p>
+              ) : null}
+
+              {pendingParents.length > 0 ? (
+                <ul className="mt-4 space-y-2">
+                  {pendingParents.map((parent) => (
+                    <li
+                      key={parent.parentEmail}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-600 dark:bg-slate-700/30"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-800 dark:text-slate-100">{parent.parentEmail}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {parent.mode === 'link'
+                            ? 'Existing account — link on save'
+                            : 'No account — invite email on save'}
+                          {parent.parentDisplayName ? ` · ${parent.parentDisplayName}` : ''}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingParents((prev) =>
+                            prev.filter((p) => p.parentEmail !== parent.parentEmail)
+                          )
+                        }
+                        className="btn-secondary text-sm py-1.5 px-3"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {showParentPanel && pendingParents.length < MAX_PARENTS ? (
+                <div className="mt-4">
+                  <ParentLinkOrInvitePanel
+                    childLabel={form.name.trim() ? ` to ${form.name.trim()}` : ' to this child'}
+                    confirmLinkLabel="Add to list"
+                    confirmInviteLabel="Add to list"
+                    onConfirm={(parent) => {
+                      const email = parent.parentEmail.trim().toLowerCase();
+                      if (pendingParents.some((p) => p.parentEmail.trim().toLowerCase() === email)) {
+                        setParentAssignError('That parent email is already in the list.');
+                        return;
+                      }
+                      if (pendingParents.length >= MAX_PARENTS) {
+                        setParentAssignError(`Maximum ${MAX_PARENTS} parents allowed.`);
+                        return;
+                      }
+                      setParentAssignError('');
+                      setPendingParents((prev) => [...prev, parent]);
+                      setShowParentPanel(false);
+                    }}
+                    onCancel={() => setShowParentPanel(false)}
+                  />
+                </div>
+              ) : pendingParents.length < MAX_PARENTS ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setParentAssignError('');
+                    setShowParentPanel(true);
+                  }}
+                  className="btn-secondary mt-4"
+                >
+                  Add / link parent now
+                </button>
+              ) : (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                  Maximum {MAX_PARENTS} parents reached.
+                </p>
+              )}
+            </div>
+          ) : null}
+
           <div className="mt-6 flex flex-wrap gap-3">
             <button type="submit" disabled={submitting} className="btn-primary">
               {submitting ? 'Saving…' : editingId ? 'Save' : 'Add child'}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
+            <button type="button" onClick={closeForm} className="btn-secondary">
               Cancel
             </button>
           </div>
@@ -598,6 +742,7 @@ export default function ChildrenPage() {
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Preferred</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">DOB</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Gender</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Class</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Allergies</th>
                   <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Emergency</th>
@@ -631,6 +776,7 @@ export default function ChildrenPage() {
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
                     </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatGenderLabel(c.gender)}</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.classId ? classDisplay(c.classId) : '—'}</td>
                     <td className="px-4 py-3">
                       {c.allergies?.length ? (

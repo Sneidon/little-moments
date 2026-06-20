@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react';
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { uploadAnnouncementImage, uploadAnnouncementDocument } from '@/utils/uploadImage';
+import { uploadAnnouncementImage, uploadAnnouncementDocument, uploadAnnouncementVideo } from '@/utils/uploadImage';
+import { assertVideoFileSize } from '@/lib/media';
 import type { Announcement, EventDocumentLink } from 'shared/types';
 
 export interface PendingDocument {
@@ -31,6 +32,10 @@ export interface UseAnnouncementFormResult {
   setBody: (v: string) => void;
   imageFile: File | null;
   setImageFile: (f: File | null) => void;
+  videoFile: File | null;
+  setVideoFile: (f: File | null) => void;
+  existingImageUrl: string | null;
+  existingMediaType: string | undefined;
   documents: PendingDocument[];
   addDocument: () => void;
   removeDocument: (i: number) => void;
@@ -63,7 +68,28 @@ export function useAnnouncementForm({
 }: UseAnnouncementFormOptions): UseAnnouncementFormResult {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFile, setImageFileState] = useState<File | null>(null);
+  const [videoFile, setVideoFileState] = useState<File | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [existingMediaType, setExistingMediaType] = useState<string | undefined>(undefined);
+
+  const setImageFile = useCallback((f: File | null) => {
+    setImageFileState(f);
+    if (f) {
+      setVideoFileState(null);
+      setExistingImageUrl(null);
+      setExistingMediaType(undefined);
+    }
+  }, []);
+
+  const setVideoFile = useCallback((f: File | null) => {
+    setVideoFileState(f);
+    if (f) {
+      setImageFileState(null);
+      setExistingImageUrl(null);
+      setExistingMediaType(undefined);
+    }
+  }, []);
   const [documents, setDocuments] = useState<PendingDocument[]>([]);
   const [links, setLinks] = useState<PendingLink[]>([]);
   const [targetType, setTargetType] = useState<'everyone' | 'classes'>('everyone');
@@ -76,7 +102,10 @@ export function useAnnouncementForm({
     setEditingId(null);
     setTitle('');
     setBody('');
-    setImageFile(null);
+    setImageFileState(null);
+    setVideoFileState(null);
+    setExistingImageUrl(null);
+    setExistingMediaType(undefined);
     setDocuments([]);
     setLinks([]);
     setTargetType('everyone');
@@ -89,7 +118,10 @@ export function useAnnouncementForm({
     setEditingId(null);
     setTitle('');
     setBody('');
-    setImageFile(null);
+    setImageFileState(null);
+    setVideoFileState(null);
+    setExistingImageUrl(null);
+    setExistingMediaType(undefined);
     setDocuments([]);
     setLinks([]);
     setTargetType('everyone');
@@ -103,7 +135,10 @@ export function useAnnouncementForm({
     setBody(announcement.body || '');
     setTargetType(announcement.targetType || 'everyone');
     setTargetClassIds(announcement.targetClassIds || []);
-    setImageFile(null);
+    setImageFileState(null);
+    setVideoFileState(null);
+    setExistingImageUrl(announcement.imageUrl ?? null);
+    setExistingMediaType(announcement.mediaType);
     setDocuments(
       (announcement.documents ?? []).map((d) => ({
         label: (d.label || d.name || '').trim(),
@@ -179,6 +214,11 @@ export function useAnnouncementForm({
           };
           if (imageFile) {
             updates.imageUrl = await uploadAnnouncementImage(imageFile, schoolId, editingId);
+            updates.mediaType = 'image';
+          } else if (videoFile) {
+            assertVideoFileSize(videoFile);
+            updates.imageUrl = await uploadAnnouncementVideo(videoFile, schoolId, editingId);
+            updates.mediaType = 'video';
           }
 
           const finalDocs: EventDocumentLink[] = [];
@@ -239,6 +279,11 @@ export function useAnnouncementForm({
 
         if (imageFile) {
           updates.imageUrl = await uploadAnnouncementImage(imageFile, schoolId, ref.id);
+          updates.mediaType = 'image';
+        } else if (videoFile) {
+          assertVideoFileSize(videoFile);
+          updates.imageUrl = await uploadAnnouncementVideo(videoFile, schoolId, ref.id);
+          updates.mediaType = 'video';
         }
 
         const docsWithFiles = documents.filter((d) => d.file);
@@ -279,7 +324,7 @@ export function useAnnouncementForm({
         setSubmitting(false);
       }
     },
-    [schoolId, editingId, title, body, imageFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
+    [schoolId, editingId, title, body, imageFile, videoFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
   );
 
   return {
@@ -289,6 +334,10 @@ export function useAnnouncementForm({
     setBody,
     imageFile,
     setImageFile,
+    videoFile,
+    setVideoFile,
+    existingImageUrl,
+    existingMediaType,
     documents,
     addDocument,
     removeDocument,

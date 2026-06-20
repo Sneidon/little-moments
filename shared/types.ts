@@ -48,12 +48,15 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export type ChildGender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
+
 export interface Child {
   id: string;
   schoolId: string;
   name: string;
   preferredName?: string;
   dateOfBirth: string; // ISO date
+  gender?: ChildGender;
   allergies?: string[];
   /** Profile picture URL. */
   photoURL?: string;
@@ -135,8 +138,10 @@ export interface Announcement {
   schoolId: string;
   title: string;
   body: string;
-  /** Optional image URL (uploaded to Storage). */
+  /** Optional image or video URL (uploaded to Storage). */
   imageUrl?: string;
+  /** MIME category for `imageUrl`: image or video. */
+  mediaType?: string;
   /** Optional document uploads (label + URL). */
   documents?: EventDocumentLink[];
   /** Optional manual links (label + URL). */
@@ -168,8 +173,10 @@ export interface Event {
   schoolId: string;
   title: string;
   description?: string;
-  /** Optional image URL (uploaded to Storage). */
+  /** Optional image or video URL (uploaded to Storage). */
   imageUrl?: string;
+  /** MIME category for `imageUrl`: image or video. */
+  mediaType?: string;
   /** Optional document links (name + URL). */
   documents?: EventDocumentLink[];
   /** Optional manual links (label + URL). */
@@ -401,6 +408,12 @@ export interface Chat {
   /** Preview of last message for list UI. */
   lastMessageText?: string;
   lastMessageAt?: string;
+  /** Uid of who sent the last message (for unread badges). */
+  lastMessageSenderId?: string;
+  /** When the teacher last opened this thread (ISO). */
+  teacherLastReadAt?: string;
+  /** When the parent last opened this thread (ISO). */
+  parentLastReadAt?: string;
 }
 
 /** Single message in a chat thread. */

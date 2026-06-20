@@ -45,6 +45,7 @@ export function ReportsPageHeader({
     downloadReportsCsv(filteredReports, undefined, {
       includeClass: showClassColumn,
       filtersApplied,
+      classDisplay,
     });
     setExportOpen(false);
   };
@@ -53,6 +54,7 @@ export function ReportsPageHeader({
     exportReportsToExcel(filteredReports, {
       includeClass: showClassColumn,
       filtersApplied,
+      classDisplay,
     });
     setExportOpen(false);
   };

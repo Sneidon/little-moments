@@ -10,9 +10,11 @@ import {
   PDF_TABLE_HEAD_STYLES_COMPACT,
   PDF_TABLE_BODY_STYLES_COMPACT,
   PDF_TABLE_ALTERNATE_ROW,
+  pdfSafeText,
   type DocWithAutoTable,
 } from '@/lib/pdfDesign';
 import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
+import { formatGenderLabel } from '@/lib/formatGender';
 import type { ReportRow } from '@/hooks/useReportsPage';
 
 export interface ExportReportsPdfOptions {
@@ -35,6 +37,7 @@ export function exportReportsToPdf(
 
   const headers = [
     'Child',
+    'Gender',
     ...(includeClass ? ['Class'] : []),
     'Type',
     'Time',
@@ -57,18 +60,41 @@ export function exportReportsToPdf(
       : '—';
     const details = getReportDetailsSummary(r);
     return [
-      r.childName ?? '—',
-      ...(includeClass ? [r.childClassId ? classDisplay(r.childClassId) : '—'] : []),
-      getReportTypeLabel(r),
-      time,
-      details,
-      getReportNotesSummary(r).slice(0, 80),
+      pdfSafeText(r.childName),
+      pdfSafeText(formatGenderLabel(r.childGender)),
+      ...(includeClass
+        ? [pdfSafeText(r.childClassId ? classDisplay(r.childClassId) : '—')]
+        : []),
+      pdfSafeText(getReportTypeLabel(r)),
+      pdfSafeText(time),
+      pdfSafeText(details),
+      pdfSafeText(getReportNotesSummary(r)),
     ];
   });
 
+  const notesColIndex = headers.length - 1;
+  const columnStyles: Record<number, { cellWidth: number }> = includeClass
+    ? {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 14 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 18 },
+        4: { cellWidth: 16 },
+        5: { cellWidth: 28 },
+        [notesColIndex]: { cellWidth: 38 },
+      }
+    : {
+        0: { cellWidth: 26 },
+        1: { cellWidth: 14 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 16 },
+        4: { cellWidth: 30 },
+        [notesColIndex]: { cellWidth: 44 },
+      };
+
   let y = pdfAddHeader(doc, {
     title,
-    subtitle: filtersApplied ? `Filters: ${filtersApplied}` : undefined,
+    subtitle: filtersApplied ? `Filters: ${pdfSafeText(filtersApplied)}` : undefined,
     meta: `Exported on ${new Date().toLocaleDateString(undefined, {
       weekday: 'short',
       month: 'short',
@@ -86,9 +112,11 @@ export function exportReportsToPdf(
     body,
     margin: { left: margin, right: margin },
     theme: 'plain',
+    styles: { overflow: 'linebreak', cellPadding: 2 },
     headStyles: PDF_TABLE_HEAD_STYLES_COMPACT,
     bodyStyles: PDF_TABLE_BODY_STYLES_COMPACT,
     alternateRowStyles: PDF_TABLE_ALTERNATE_ROW,
+    columnStyles,
   });
 
   const pageCount = doc.getNumberOfPages();

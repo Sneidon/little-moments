@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { Event, EventDocumentLink } from 'shared/types';
+import { isVideoMedia } from '@/lib/media';
 
 /** Event image: square aspect, no stretch. */
 const EVENT_IMAGE_CLASS = 'mt-2 aspect-square w-64 rounded-lg object-cover';
@@ -140,7 +141,11 @@ export function EventCard({ event, variant = 'upcoming', classNamesMap, onEdit }
         </p>
       )}
       {ev.imageUrl && (
-        <img src={ev.imageUrl} alt="" className={EVENT_IMAGE_CLASS} />
+        isVideoMedia(ev.mediaType, ev.imageUrl) ? (
+          <video src={ev.imageUrl} controls className={`${EVENT_IMAGE_CLASS} object-contain`} />
+        ) : (
+          <img src={ev.imageUrl} alt="" className={EVENT_IMAGE_CLASS} />
+        )
       )}
       {hasDocuments && (
         <LinkList items={ev.documents!} showTitle={hasLinks} title="Documents" />

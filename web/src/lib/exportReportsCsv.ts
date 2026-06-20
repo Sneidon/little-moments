@@ -1,5 +1,6 @@
 import type { ReportRow } from '@/hooks/useReportsPage';
 import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
+import { formatGenderLabel } from '@/lib/formatGender';
 
 function escapeCsvCell(value: string | undefined | null): string {
   if (value == null || value === '') return '';
@@ -13,9 +14,14 @@ function escapeCsvCell(value: string | undefined | null): string {
 /** Build CSV string from report rows and return as blob for download. */
 export function buildReportsCsv(
   rows: ReportRow[],
-  options?: { includeClass?: boolean; filtersApplied?: string }
+  options?: {
+    includeClass?: boolean;
+    filtersApplied?: string;
+    classDisplay?: (classId: string) => string;
+  }
 ): string {
   const includeClass = options?.includeClass ?? true;
+  const classDisplay = options?.classDisplay ?? ((id) => id);
   const lines: string[] = [];
   if (options?.filtersApplied) {
     lines.push('# Exported: ' + new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
@@ -24,6 +30,7 @@ export function buildReportsCsv(
   }
   const headers = [
     'Child',
+    'Gender',
     ...(includeClass ? ['Class'] : []),
     'Type',
     'Date',
@@ -39,7 +46,8 @@ export function buildReportsCsv(
     const notesSummary = getReportNotesSummary(r);
     const row = [
       r.childName ?? '',
-      ...(includeClass ? [r.childClassId ?? ''] : []),
+      formatGenderLabel(r.childGender),
+      ...(includeClass ? [r.childClassId ? classDisplay(r.childClassId) : ''] : []),
       getReportTypeLabel(r),
       date,
       time,
@@ -55,7 +63,11 @@ export function buildReportsCsv(
 export function downloadReportsCsv(
   rows: ReportRow[],
   filename?: string,
-  options?: { includeClass?: boolean; filtersApplied?: string }
+  options?: {
+    includeClass?: boolean;
+    filtersApplied?: string;
+    classDisplay?: (classId: string) => string;
+  }
 ): void {
   const csv = buildReportsCsv(rows, options);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

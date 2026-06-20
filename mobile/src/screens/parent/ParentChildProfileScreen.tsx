@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, doc, getDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { RootStackParamList } from '../../navigation/MainTabs';
 import { db } from '../../config/firebase';
-import type { Child, ClassRoom } from '../../../../shared/types';
+import type { Child, ClassRoom, MealOption } from '../../../../shared/types';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getAge, getInitials, formatTime } from '../../utils';
@@ -31,6 +31,8 @@ import {
   reportIconColor,
   parseTimeWithDate,
   getReportDateStr,
+  buildMealOptionImageMap,
+  resolveReportImageUrl,
 } from '../../utils/childDailyReportDisplay';
 import { getOrCreateChat } from '../../api/chat';
 import { EmptyState } from '../../components/EmptyState';
@@ -89,6 +91,9 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
   const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [mealOptions, setMealOptions] = useState<MealOption[]>([]);
+
+  const mealOptionImageMap = useMemo(() => buildMealOptionImageMap(mealOptions), [mealOptions]);
 
   const isToday = selectedDate === new Date().toISOString().slice(0, 10);
   const startOfDay = `${selectedDate}T00:00:00.000Z`;
@@ -222,6 +227,14 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
       cancelled = true;
     };
   }, [childId, schoolId]);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    const unsub = onSnapshot(collection(db, 'schools', schoolId, 'mealOptions'), (snap) => {
+      setMealOptions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as MealOption)));
+    });
+    return () => unsub();
+  }, [schoolId]);
 
   useEffect(() => {
     if (!schoolId || !childId) return;
@@ -490,7 +503,9 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
               subtitle="When teachers log meals, naps, or activities, they will show up here."
             />
           ) : (
-            sortedDayReports.map((item) => (
+            sortedDayReports.map((item) => {
+              const mealImage = resolveReportImageUrl(item, mealOptionImageMap);
+              return (
               <TouchableOpacity
                 key={item.id}
                 style={styles.timelineCard}
@@ -519,8 +534,12 @@ export function ParentChildProfileScreen({ route, navigation }: Props) {
                   ) : null}
                   <Text style={styles.timelineTime}>{formatTime(item.timestamp || item.createdAt)}</Text>
                 </View>
+                {mealImage ? (
+                  <Image source={{ uri: mealImage }} style={styles.timelineMealImage} resizeMode="cover" />
+                ) : null}
               </TouchableOpacity>
-            ))
+            );
+            })
           )}
         </View>
       </ScrollView>
@@ -790,6 +809,15 @@ function createStyles(
       marginRight: 12,
     },
     timelineContent: { flex: 1, minWidth: 0, position: 'relative', paddingRight: 22 },
+    timelineMealImage: {
+      width: 56,
+      height: 56,
+      borderRadius: 10,
+      marginLeft: 8,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
     timelineChevron: {
       position: 'absolute',
       top: 0,

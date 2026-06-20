@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,9 +17,10 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, addDoc, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { takePhotoAsync, pickPhotoAsync, pickMediaAsync, showMediaSourceAlert } from '../../utils/photoPicker';
+import { takePhotoAsync, pickPhotoAsync, takeVideoAsync, pickVideoAsync, showMediaSourceAlert } from '../../utils/photoPicker';
 import { uploadPhotoAsync, uploadMediaAsync } from '../../utils/uploadPhoto';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -29,6 +30,13 @@ import type { MealOption } from '../../../../shared/types';
 import type { ReportType } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { font } from '../../theme/typography';
+import { parseTimeWithDate } from '../../utils/childDailyReportDisplay';
+import {
+  isChildEligibleForUpdateType,
+  ineligibleSelectionMessage,
+  selectAllChildrenLabel,
+} from '../../utils/childPresence';
+import { usePresentChildIds } from '../../hooks/usePresentChildIds';
 
 type AddUpdateStackParamList = {
   AddUpdate: { initialType?: ReportType; initialChildId?: string } | undefined;
@@ -76,7 +84,7 @@ const ACTIVITY_TABS = [
   { type: 'nappy_change' as ReportType, label: 'Nappy', icon: 'water' as const },
   { type: 'medication' as ReportType, label: 'Medication', icon: 'medical' as const },
   { type: 'activity' as ReportType, label: 'Activity', icon: 'color-palette' as const },
-  { type: 'incident' as ReportType, label: 'Photo', icon: 'camera' as const },
+  { type: 'incident' as ReportType, label: 'Media', icon: 'images' as const },
 ];
 
 const NAPPY_TYPES = [
@@ -145,14 +153,18 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `0:${String(seconds).padStart(2, '0')}`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m < 60) return `${m}:${String(s).padStart(2, '0')}`;
-  const h = Math.floor(m / 60);
-  const min = m % 60;
-  return `${h}h ${min}m`;
+function timeStringToDate(timeStr: string): Date {
+  const now = new Date();
+  const parts = timeStr.trim().split(':').map((p) => parseInt(p, 10));
+  const h = !isNaN(parts[0]) ? parts[0] : now.getHours();
+  const m = !isNaN(parts[1]) ? parts[1] : now.getMinutes();
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export function AddUpdateScreen({ navigation, route }: Props) {
@@ -221,6 +233,12 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [notes, setNotes] = useState('');
   const [mealTime, setMealTime] = useState(() => formatTime(new Date()));
   const [loading, setLoading] = useState(false);
+  const { presentChildIds, loadingPresence } = usePresentChildIds(profile?.schoolId, children);
+  const selectAllLabel = useMemo(() => selectAllChildrenLabel(type), [type]);
+  const isChildEligible = useCallback(
+    (childId: string) => isChildEligibleForUpdateType(childId, presentChildIds, type),
+    [presentChildIds, type]
+  );
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoMimeType, setPhotoMimeType] = useState<string | undefined>(undefined);
   const [photoCategory, setPhotoCategory] = useState<string | null>(null);
@@ -230,9 +248,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const [nappyCondition, setNappyCondition] = useState('normal');
   const [napStartTime, setNapStartTime] = useState(() => formatTime(new Date()));
   const [napEndTime, setNapEndTime] = useState(() => formatTime(new Date()));
-  const [napTimerStart, setNapTimerStart] = useState<number | null>(null);
-  const [napTimerEnd, setNapTimerEnd] = useState<number | null>(null);
-  const [napElapsedSeconds, setNapElapsedSeconds] = useState(0);
+  const [napTimePickerField, setNapTimePickerField] = useState<'start' | 'end' | null>(null);
+  const [variationNapTimePickerField, setVariationNapTimePickerField] = useState<'start' | 'end' | null>(null);
   const [sleepQuality, setSleepQuality] = useState('good');
   const [activityType, setActivityType] = useState<string | null>(null);
   const [activityTitle, setActivityTitle] = useState('');
@@ -280,12 +297,6 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
           setChildren(list);
           setClassRosterLoaded(true);
-          if (list.length > 0 && !didAutoSelectChildrenRef.current) {
-            didAutoSelectChildrenRef.current = true;
-            const initId = route.params?.initialChildId;
-            if (initId && list.some((c) => c.id === initId)) setSelectedChildIds([initId]);
-            else setSelectedChildIds([list[0].id]);
-          }
         }
       );
     })();
@@ -297,6 +308,25 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     };
   }, [profile?.schoolId, profile?.uid]);
 
+  useEffect(() => {
+    if (!classRosterLoaded || loadingPresence || children.length === 0) return;
+    if (didAutoSelectChildrenRef.current) return;
+    didAutoSelectChildrenRef.current = true;
+    const initId = route.params?.initialChildId;
+    if (initId && children.some((c) => c.id === initId) && isChildEligible(initId)) {
+      setSelectedChildIds([initId]);
+      return;
+    }
+    const firstEligible = children.find((c) => isChildEligible(c.id));
+    setSelectedChildIds(firstEligible ? [firstEligible.id] : []);
+  }, [
+    classRosterLoaded,
+    loadingPresence,
+    children,
+    route.params?.initialChildId,
+    isChildEligible,
+  ]);
+
   // Keep read-only start time display in sync with current time
   useEffect(() => {
     const tick = () => {
@@ -304,22 +334,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       setMealTime(t);
       setNappyTime(t);
       setActivityTime(t);
-      setNapStartTime((prev) => (napTimerStart != null ? prev : t));
-      setNapEndTime((prev) => (napTimerEnd != null ? prev : t));
     };
     tick();
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
-  }, [napTimerStart, napTimerEnd]);
-
-  // Nap timer: update elapsed seconds every second while running
-  useEffect(() => {
-    if (napTimerStart == null || napTimerEnd != null) return;
-    const id = setInterval(() => {
-      setNapElapsedSeconds(Math.floor((Date.now() - napTimerStart) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [napTimerStart, napTimerEnd]);
+  }, []);
 
   useEffect(() => {
     if (children.length === 0) setForWholeClass(false);
@@ -362,6 +381,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   }, [childListModalOpen]);
 
   const toggleChildSelection = (childId: string) => {
+    if (!isChildEligible(childId)) {
+      Alert.alert('Not available', ineligibleSelectionMessage(type));
+      return;
+    }
     setSelectedChildIds((prev) =>
       prev.includes(childId) ? prev.filter((id) => id !== childId) : [...prev, childId]
     );
@@ -370,7 +393,8 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     }
   };
 
-  const selectAllChildren = () => setSelectedChildIds(children.map((c) => c.id));
+  const selectAllChildren = () =>
+    setSelectedChildIds(children.filter((c) => isChildEligible(c.id)).map((c) => c.id));
   const clearChildSelection = () => setSelectedChildIds([]);
 
   /** Get effective form values for a child (defaults + any overrides for this child) */
@@ -407,8 +431,21 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     });
   };
 
+  useEffect(() => {
+    if (loadingPresence) return;
+    setSelectedChildIds((prev) => {
+      const next = prev.filter((id) => isChildEligible(id));
+      if (next.length === prev.length) return prev;
+      for (const id of prev) {
+        if (!next.includes(id)) clearOverrideForChild(id);
+      }
+      return next;
+    });
+  }, [type, presentChildIds, loadingPresence, isChildEligible]);
+
   const openVariationModal = (childId: string) => {
     setVariationModalChildId(childId);
+    setVariationNapTimePickerField(null);
     const v = getValuesForChild(childId);
     setVariationDraft({
       mealType: v.mealType,
@@ -434,6 +471,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     setVariationModalChildId(null);
     setVariationDropdown(null);
     setVariationDraft(null);
+    setVariationNapTimePickerField(null);
   };
 
   /** Merge variation edits vs main form; drop override entry if nothing differs. */
@@ -535,6 +573,12 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       Alert.alert('Add media', 'Take or choose a photo/video to log.');
       return;
     }
+    if (loadingPresence) return;
+    const ineligibleSelected = selectedChildIds.filter((id) => !isChildEligible(id));
+    if (ineligibleSelected.length > 0) {
+      Alert.alert('Select children', ineligibleSelectionMessage(type));
+      return;
+    }
     if (type === 'activity') {
       for (const childId of selectedChildIds) {
         const v = getValuesForChild(childId);
@@ -564,12 +608,41 @@ export function AddUpdateScreen({ navigation, route }: Props) {
         }
       }
     }
+    if (type === 'nap_time') {
+      const today = todayDateStr();
+      for (const childId of selectedChildIds) {
+        const v = getValuesForChild(childId);
+        const childName = children.find((c) => c.id === childId)?.name ?? 'Child';
+        if (!v.napStartTime?.trim() || !v.napEndTime?.trim()) {
+          Alert.alert('Nap times', `Enter start and end times for ${childName}.`);
+          return;
+        }
+        const startMs = parseTimeWithDate(v.napStartTime, today);
+        const endMs = parseTimeWithDate(v.napEndTime, today);
+        if (isNaN(startMs) || isNaN(endMs)) {
+          Alert.alert('Nap times', `Invalid time for ${childName}.`);
+          return;
+        }
+        if (endMs < startMs) {
+          Alert.alert('Nap times', `End time must be after start time for ${childName}.`);
+          return;
+        }
+      }
+    }
     setLoading(true);
     try {
       const now = new Date();
-      const targetChildIds = type === 'incident' && forWholeClass ? children.map((c) => c.id) : selectedChildIds;
+      const targetChildIds =
+        type === 'incident' && forWholeClass
+          ? children.filter((c) => isChildEligible(c.id)).map((c) => c.id)
+          : selectedChildIds;
       if (targetChildIds.length === 0) {
-        Alert.alert('Select children', forWholeClass ? 'No children in your class.' : 'Choose at least one child.');
+        Alert.alert(
+          'Select children',
+          forWholeClass
+            ? 'No checked-in children in your class.'
+            : 'Choose at least one child.'
+        );
         setLoading(false);
         return;
       }
@@ -605,6 +678,9 @@ export function AddUpdateScreen({ navigation, route }: Props) {
             const mealOpt = mealOptions.find((o) => o.id === v.mealOptionId);
             payload.mealOptionId = v.mealOptionId;
             payload.mealOptionName = mealOpt?.name ?? v.mealOptionName;
+            if (mealOpt?.imageUrl?.trim()) {
+              payload.imageUrl = mealOpt.imageUrl.trim();
+            }
           }
         }
         if (type === 'nappy_change') {
@@ -647,11 +723,6 @@ export function AddUpdateScreen({ navigation, route }: Props) {
       setForWholeClass(false);
       setChildOverrides({});
       setVariationModalChildId(null);
-      if (type === 'nap_time') {
-        setNapTimerStart(null);
-        setNapTimerEnd(null);
-        setNapElapsedSeconds(0);
-      }
       navigation.goBack();
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save');
@@ -664,7 +735,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     const result = await takePhotoAsync();
     if (result) {
       setPhotoUri(result.uri);
-      setPhotoMimeType(undefined);
+      setPhotoMimeType('image/jpeg');
     }
   };
 
@@ -672,42 +743,51 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     const result = await pickPhotoAsync();
     if (result) {
       setPhotoUri(result.uri);
-      setPhotoMimeType(undefined);
+      setPhotoMimeType('image/jpeg');
     }
   };
 
-  const handlePickMedia = async () => {
-    const result = await pickMediaAsync();
+  const handleRecordVideo = async () => {
+    const result = await takeVideoAsync();
     if (result) {
       setPhotoUri(result.uri);
-      setPhotoMimeType(result.mimeType);
+      setPhotoMimeType(result.mimeType ?? 'video/mp4');
     }
   };
 
-  const startNapTimer = () => {
-    const now = new Date();
-    setNapStartTime(formatTime(now));
-    setNapTimerStart(now.getTime());
-    setNapTimerEnd(null);
-    setNapElapsedSeconds(0);
-  };
-
-  const endNapTimer = () => {
-    const now = new Date();
-    setNapEndTime(formatTime(now));
-    setNapTimerEnd(napTimerStart != null ? Date.now() : null);
-    if (napTimerStart != null) {
-      setNapElapsedSeconds(Math.floor((Date.now() - napTimerStart) / 1000));
+  const handlePickVideo = async () => {
+    const result = await pickVideoAsync();
+    if (result) {
+      setPhotoUri(result.uri);
+      setPhotoMimeType(result.mimeType ?? 'video/mp4');
     }
   };
 
-  const napDurationSeconds =
-    napTimerStart == null
-      ? 0
-      : napTimerEnd != null
-        ? Math.floor((napTimerEnd - napTimerStart) / 1000)
-        : napElapsedSeconds;
-  const napTimerRunning = napTimerStart != null && napTimerEnd == null;
+  const openMediaPicker = () => {
+    showMediaSourceAlert(handleTakePhoto, handleRecordVideo, handlePickPhoto, handlePickVideo);
+  };
+
+  const isSelectedVideo = photoMimeType?.startsWith('video/') ?? false;
+
+  const handleMainNapTimeChange = (_event: unknown, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setNapTimePickerField(null);
+    if (!selectedDate || !napTimePickerField) return;
+    const formatted = formatTime(selectedDate);
+    if (napTimePickerField === 'start') setNapStartTime(formatted);
+    else setNapEndTime(formatted);
+  };
+
+  const handleVariationNapTimeChange = (_event: unknown, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setVariationNapTimePickerField(null);
+    if (!selectedDate || !variationNapTimePickerField) return;
+    const formatted = formatTime(selectedDate);
+    setVariationDraft((p) => {
+      if (!p) return p;
+      return variationNapTimePickerField === 'start'
+        ? { ...p, napStartTime: formatted }
+        : { ...p, napEndTime: formatted };
+    });
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -784,7 +864,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                     <Text style={styles.sectionEyebrow}>Who</Text>
                     <Text style={styles.sectionTitle}>Receives this update</Text>
                     <Text style={styles.selectionHint}>
-                      Tap a photo to select or deselect. Use search to open the full class list.
+                      {type === 'check_in'
+                        ? 'Only children not yet checked in can be selected.'
+                        : type === 'check_out'
+                          ? 'Only checked-in children can be checked out.'
+                          : 'Only checked-in children can receive this update.'}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -806,32 +890,37 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               >
                 {children.map((c) => {
                   const selected = selectedChildIds.includes(c.id);
+                  const eligible = isChildEligible(c.id);
                   return (
                     <TouchableOpacity
                       key={c.id}
-                      style={styles.childAvatarItem}
+                      style={[styles.childAvatarItem, !eligible && styles.childAvatarItemDisabled]}
                       onPress={() => toggleChildSelection(c.id)}
-                      activeOpacity={0.85}
+                      activeOpacity={eligible ? 0.85 : 1}
+                      disabled={!eligible}
                       accessibilityRole="checkbox"
-                      accessibilityState={{ checked: selected }}
-                      accessibilityLabel={`${c.name}, ${selected ? 'selected' : 'not selected'}`}
+                      accessibilityState={{ checked: selected, disabled: !eligible }}
+                      accessibilityLabel={`${c.name}, ${selected ? 'selected' : 'not selected'}${eligible ? '' : ', not available for this update'}`}
                     >
                       <View
                         style={[
                           styles.childAvatarRing,
                           selected ? styles.childAvatarRingSelected : styles.childAvatarRingIdle,
+                          !eligible && styles.childAvatarRingDisabled,
                         ]}
                       >
                         <View
                           style={[
                             styles.childAvatarInner,
                             selected && styles.childAvatarInnerSelected,
+                            !eligible && styles.childAvatarInnerDisabled,
                           ]}
                         >
                           <Text
                             style={[
                               styles.childAvatarInitials,
                               selected && styles.childAvatarInitialsSelected,
+                              !eligible && styles.childAvatarInitialsDisabled,
                             ]}
                           >
                             {getInitials(c.name)}
@@ -844,14 +933,21 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                         ) : null}
                       </View>
                       <Text
-                        style={[styles.childAvatarName, selected && styles.childAvatarNameSelected]}
+                        style={[
+                          styles.childAvatarName,
+                          selected && styles.childAvatarNameSelected,
+                          !eligible && styles.childAvatarNameDisabled,
+                        ]}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
                         {c.name.trim().split(/\s+/)[0] || c.name}
                       </Text>
                       {c.name.trim().includes(' ') ? (
-                        <Text style={styles.childAvatarSurname} numberOfLines={1}>
+                        <Text
+                          style={[styles.childAvatarSurname, !eligible && styles.childAvatarNameDisabled]}
+                          numberOfLines={1}
+                        >
                           {c.name.trim().slice(c.name.trim().indexOf(' ') + 1)}
                         </Text>
                       ) : (
@@ -868,7 +964,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               <View style={styles.childActionsRow}>
                 <TouchableOpacity style={styles.childActionPill} onPress={selectAllChildren} activeOpacity={0.8}>
                   <Ionicons name="checkmark-done" size={18} color="#fff" style={styles.childActionPillIcon} />
-                  <Text style={styles.childActionPillText}>All in class</Text>
+                  <Text style={styles.childActionPillText}>{selectAllLabel}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.childActionPillOutline} onPress={clearChildSelection} activeOpacity={0.8}>
                   <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} style={styles.childActionPillIcon} />
@@ -878,7 +974,11 @@ export function AddUpdateScreen({ navigation, route }: Props) {
 
               {selectedChildren.length > 1 && (
                 <>
-                  <Text style={styles.variationSectionLabel}>Different details per child? Tap a name:</Text>
+                  <Text style={styles.variationSectionLabel}>
+                    {type === 'nap_time'
+                      ? 'Different nap times per child? Tap a name (e.g. early pickup):'
+                      : 'Different details per child? Tap a name:'}
+                  </Text>
                   <View style={styles.variationChipsRow}>
                     {selectedChildren.map((c) => (
                       <TouchableOpacity
@@ -917,11 +1017,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               </Text>
             </View>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activityScroll}
-          >
+          <View style={styles.activityGrid}>
             {ACTIVITY_TABS.map((tab) => {
               const active = type === tab.type;
               return (
@@ -936,11 +1032,16 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                   <View style={[styles.activityCircle, active && styles.activityCircleActive]}>
                     <Ionicons name={tab.icon} size={active ? 26 : 22} color={active ? '#fff' : colors.textSecondary} />
                   </View>
-                  <Text style={[styles.activityLabel, active && styles.activityLabelActive]}>{tab.label}</Text>
+                  <Text
+                    style={[styles.activityLabel, active && styles.activityLabelActive]}
+                    numberOfLines={2}
+                  >
+                    {tab.label}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
       </View>
 
@@ -1092,20 +1193,34 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           {type === 'incident' && (
             <View style={[styles.screenCard, styles.formSection]}>
               <View style={styles.formSectionHead}>
-                <Text style={styles.formSectionTitle}>Add photo</Text>
+                <Text style={styles.formSectionTitle}>Add media</Text>
               </View>
-              <Text style={styles.photoZoneLabel}>Photo</Text>
+              <Text style={styles.photoZoneLabel}>Photo or video</Text>
               {photoUri ? (
                 <View style={[styles.photoUploadZone, styles.photoUploadZoneFilled]}>
                   <View style={styles.photoPreviewBlock}>
                     <View style={styles.photoThumbWrap}>
-                      <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
-                      {photoMimeType?.startsWith('video/') ? (
+                      {isSelectedVideo ? (
+                        <View style={[styles.photoThumbImage, styles.photoVideoPreview]}>
+                          <Ionicons name="play-circle" size={44} color={colors.primary} />
+                          <Text style={[styles.photoVideoPreviewText, { color: colors.textSecondary }]}>
+                            Video selected
+                          </Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri: photoUri }} style={styles.photoThumbImage} resizeMode="cover" />
+                      )}
+                      {isSelectedVideo ? (
                         <View style={styles.photoVideoBadge}>
                           <Ionicons name="videocam" size={15} color="#FFFFFF" />
                           <Text style={styles.photoVideoBadgeText}>Video</Text>
                         </View>
-                      ) : null}
+                      ) : (
+                        <View style={styles.photoVideoBadge}>
+                          <Ionicons name="image" size={15} color="#FFFFFF" />
+                          <Text style={styles.photoVideoBadgeText}>Photo</Text>
+                        </View>
+                      )}
                       <TouchableOpacity
                         style={styles.removePhotoBtn}
                         onPress={() => {
@@ -1115,7 +1230,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                         disabled={loading}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         accessibilityRole="button"
-                        accessibilityLabel="Remove photo or video"
+                        accessibilityLabel="Remove media"
                       >
                         <View style={styles.removePhotoBtnCircle}>
                           <Ionicons name="close" size={20} color="#FFFFFF" />
@@ -1124,12 +1239,10 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                     </View>
                     <TouchableOpacity
                       style={styles.photoReplaceLink}
-                      onPress={() =>
-                        showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia)
-                      }
+                      onPress={openMediaPicker}
                       disabled={loading}
                       accessibilityRole="button"
-                      accessibilityLabel="Replace photo or video"
+                      accessibilityLabel="Replace media"
                     >
                       <Ionicons name="images-outline" size={18} color={colors.primary} />
                       <Text style={styles.photoReplaceLinkText}>Replace</Text>
@@ -1139,14 +1252,12 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               ) : (
                 <TouchableOpacity
                   style={styles.photoUploadZone}
-                  onPress={() =>
-                    showMediaSourceAlert(handleTakePhoto, handlePickPhoto, handlePickMedia)
-                  }
+                  onPress={openMediaPicker}
                   disabled={loading}
                 >
-                  <Ionicons name="camera-outline" size={48} color="#94a3b8" />
+                  <Ionicons name="images-outline" size={48} color="#94a3b8" />
                   <Text style={styles.photoUploadHint}>Tap to add photo or video</Text>
-                  <Text style={styles.photoUploadFormats}>Photos & videos</Text>
+                  <Text style={styles.photoUploadFormats}>Take, record, or choose from library</Text>
                 </TouchableOpacity>
               )}
               <Text style={styles.label}>Caption</Text>
@@ -1154,7 +1265,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 style={[styles.input, styles.inputMultiline]}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="Describe what's happening in the photo..."
+                placeholder="Describe what you're sharing..."
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={2}
@@ -1326,73 +1437,56 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 <Text style={styles.formSectionTitle}>Nap time</Text>
               </View>
 
-              {/* Timer design */}
-              <View style={styles.napTimerWrap}>
-                <View style={[styles.napTimerCircle, napTimerRunning && styles.napTimerCircleActive]}>
-                  <Ionicons
-                    name="moon-outline"
-                    size={32}
-                    color={napTimerRunning ? colors.primary : colors.textMuted}
-                    style={styles.napTimerIcon}
-                  />
-                  <Text style={[styles.napTimerDuration, napTimerRunning && styles.napTimerDurationActive]}>
-                    {formatDuration(napDurationSeconds)}
-                  </Text>
-                  <Text style={styles.napTimerLabel}>
-                    {napTimerStart == null
-                      ? 'Tap Start when child falls asleep'
-                      : napTimerEnd == null
-                        ? 'Nap in progress…'
-                        : 'Duration'}
-                  </Text>
-                </View>
-                <View style={styles.napTimerButtons}>
-                  {napTimerStart == null ? (
-                    <TouchableOpacity
-                      style={[styles.napTimerBtn, styles.napTimerBtnStart]}
-                      onPress={startNapTimer}
-                      disabled={loading}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="play" size={24} color="#fff" />
-                      <Text style={styles.napTimerBtnStartText}>Start nap</Text>
-                    </TouchableOpacity>
-                  ) : napTimerEnd == null ? (
-                    <TouchableOpacity
-                      style={[styles.napTimerBtn, styles.napTimerBtnEnd]}
-                      onPress={endNapTimer}
-                      disabled={loading}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="stop" size={24} color="#fff" />
-                      <Text style={styles.napTimerBtnEndText}>End nap</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.napTimerSummary}>
-                      <Text style={styles.napTimerSummaryText}>
-                        Started {napStartTime}, ended {napEndTime}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
               <Text style={styles.label}>Start Time</Text>
-              <TextInput
-                style={[styles.input, styles.inputReadOnly]}
-                value={napStartTime}
-                placeholder="13:00"
-                placeholderTextColor={colors.textMuted}
-                editable={false}
-              />
+              <TouchableOpacity
+                style={styles.dropdownRow}
+                onPress={() => setNapTimePickerField((prev) => (prev === 'start' ? null : 'start'))}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dropdownText}>{napStartTime || 'Select start time'}</Text>
+                <Ionicons name="time-outline" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              {napTimePickerField === 'start' && (
+                <>
+                  <DateTimePicker
+                    value={timeStringToDate(napStartTime)}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleMainNapTimeChange}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity style={styles.timePickerDone} onPress={() => setNapTimePickerField(null)}>
+                      <Text style={styles.timePickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
               <Text style={styles.label}>End Time</Text>
-              <TextInput
-                style={[styles.input, styles.inputReadOnly]}
-                value={napEndTime}
-                placeholder="14:30"
-                placeholderTextColor={colors.textMuted}
-                editable={false}
-              />
+              <TouchableOpacity
+                style={styles.dropdownRow}
+                onPress={() => setNapTimePickerField((prev) => (prev === 'end' ? null : 'end'))}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dropdownText}>{napEndTime || 'Select end time'}</Text>
+                <Ionicons name="time-outline" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              {napTimePickerField === 'end' && (
+                <>
+                  <DateTimePicker
+                    value={timeStringToDate(napEndTime)}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleMainNapTimeChange}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity style={styles.timePickerDone} onPress={() => setNapTimePickerField(null)}>
+                      <Text style={styles.timePickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
               <Text style={styles.label}>Sleep Quality</Text>
               <TouchableOpacity
                 style={styles.dropdownRow}
@@ -1566,11 +1660,13 @@ export function AddUpdateScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={styles.postUpdateBtn}
               onPress={submit}
-              disabled={loading}
+              disabled={loading || loadingPresence}
               activeOpacity={0.92}
             >
               <Ionicons name="paper-plane" size={20} color="#FFFFFF" style={styles.postUpdateIcon} />
-              <Text style={styles.postUpdateBtnText}>{loading ? 'Posting…' : 'Post update'}</Text>
+              <Text style={styles.postUpdateBtnText}>
+                {loading ? 'Posting…' : loadingPresence ? 'Loading…' : 'Post update'}
+              </Text>
             </TouchableOpacity>
           </View>
         </>
@@ -1741,6 +1837,71 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                 )}
                 {type === 'nap_time' && (
                   <>
+                    <Text style={[styles.labelHint, { color: colors.textMuted, marginBottom: 12 }]}>
+                      Use a different end time if this child was picked up early.
+                    </Text>
+                    <Text style={styles.label}>Start time</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownRow}
+                      onPress={() =>
+                        setVariationNapTimePickerField((prev) => (prev === 'start' ? null : 'start'))
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dropdownText}>
+                        {variationDraft.napStartTime || 'Select start time'}
+                      </Text>
+                      <Ionicons name="time-outline" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {variationNapTimePickerField === 'start' && (
+                      <>
+                        <DateTimePicker
+                          value={timeStringToDate(variationDraft.napStartTime ?? napStartTime)}
+                          mode="time"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={handleVariationNapTimeChange}
+                        />
+                        {Platform.OS === 'ios' && (
+                          <TouchableOpacity
+                            style={styles.timePickerDone}
+                            onPress={() => setVariationNapTimePickerField(null)}
+                          >
+                            <Text style={styles.timePickerDoneText}>Done</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
+                    <Text style={styles.label}>End time</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownRow}
+                      onPress={() =>
+                        setVariationNapTimePickerField((prev) => (prev === 'end' ? null : 'end'))
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dropdownText}>
+                        {variationDraft.napEndTime || 'Select end time'}
+                      </Text>
+                      <Ionicons name="time-outline" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {variationNapTimePickerField === 'end' && (
+                      <>
+                        <DateTimePicker
+                          value={timeStringToDate(variationDraft.napEndTime ?? napEndTime)}
+                          mode="time"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={handleVariationNapTimeChange}
+                        />
+                        {Platform.OS === 'ios' && (
+                          <TouchableOpacity
+                            style={styles.timePickerDone}
+                            onPress={() => setVariationNapTimePickerField(null)}
+                          >
+                            <Text style={styles.timePickerDoneText}>Done</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
                     <Text style={styles.label}>Sleep quality</Text>
                     <TouchableOpacity
                       style={styles.dropdownRow}
@@ -1951,14 +2112,20 @@ export function AddUpdateScreen({ navigation, route }: Props) {
               ) : (
                 childrenFilteredForModal.map((c) => {
                   const isSelected = selectedChildIds.includes(c.id);
+                  const eligible = isChildEligible(c.id);
                   return (
                     <TouchableOpacity
                       key={c.id}
-                      style={[styles.childListRow, isSelected && styles.childListRowSelected]}
+                      style={[
+                        styles.childListRow,
+                        isSelected && styles.childListRowSelected,
+                        !eligible && styles.childListRowDisabled,
+                      ]}
                       onPress={() => toggleChildSelection(c.id)}
-                      activeOpacity={0.65}
+                      activeOpacity={eligible ? 0.65 : 1}
+                      disabled={!eligible}
                       accessibilityRole="checkbox"
-                      accessibilityState={{ checked: isSelected }}
+                      accessibilityState={{ checked: isSelected, disabled: !eligible }}
                     >
                       <View
                         style={[
@@ -2242,13 +2409,11 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       marginBottom: 4,
       ...f('medium'),
     },
-    activityScroll: {
+    activityGrid: {
       flexDirection: 'row',
-      flexWrap: 'nowrap',
-      gap: 12,
-      paddingRight: 12,
+      flexWrap: 'wrap',
+      rowGap: 14,
       paddingVertical: 6,
-      alignItems: 'flex-start',
     },
     sectionLabel: {
       fontSize: 17,
@@ -2258,6 +2423,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     childrenRow: { flexDirection: 'row', gap: 14, paddingRight: 16, paddingBottom: 8, paddingTop: 4 },
     childAvatarItem: { width: 80, alignItems: 'center' },
+    childAvatarItemDisabled: { opacity: 0.45 },
     childAvatarRing: {
       width: 72,
       height: 72,
@@ -2274,6 +2440,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       borderColor: colors.primary,
       backgroundColor: isDark ? 'transparent' : colors.primaryMuted,
     },
+    childAvatarRingDisabled: {
+      borderColor: colors.cardBorder,
+    },
     childAvatarInner: {
       width: 58,
       height: 58,
@@ -2284,6 +2453,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     childAvatarInnerSelected: {
       backgroundColor: isDark ? colors.avatarBg : colors.card,
+    },
+    childAvatarInnerDisabled: {
+      backgroundColor: isDark ? colors.backgroundSecondary : colors.backgroundSecondary,
     },
     childAvatarCheck: {
       position: 'absolute',
@@ -2300,6 +2472,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     childAvatarInitials: { fontSize: 19, color: colors.avatarText, ...f('bold') },
     childAvatarInitialsSelected: { color: colors.primary },
+    childAvatarInitialsDisabled: { color: colors.textMuted },
     childAvatarName: {
       fontSize: 13,
       color: colors.textSecondary,
@@ -2309,6 +2482,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       ...f('semiBold'),
     },
     childAvatarNameSelected: { color: colors.primary, ...f('bold') },
+    childAvatarNameDisabled: { color: colors.textMuted },
     childAvatarSurname: {
       fontSize: 11,
       color: colors.textMuted,
@@ -2340,7 +2514,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     variationChipActive: { borderWidth: 1, borderColor: colors.primary },
     variationChipText: { fontSize: 13, color: colors.text, flexShrink: 1, ...f('semiBold') },
 
-    activityItem: { alignItems: 'center', minWidth: 72, paddingHorizontal: 2 },
+    activityItem: { alignItems: 'center', width: '25%', minWidth: 0, paddingHorizontal: 2 },
     activityCircle: {
       width: 56,
       height: 56,
@@ -2635,54 +2809,17 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     timeNoteTitle: { fontSize: 13, color: colors.primary, marginBottom: 4, ...f('semiBold') },
     timeNote: { fontSize: 14, color: colors.textSecondary, lineHeight: 21, ...f('medium') },
     inputReadOnly: { backgroundColor: colors.backgroundSecondary, color: colors.textSecondary, ...f('semiBold') },
-
-    napTimerWrap: { marginBottom: 20 },
-    napTimerCircle: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'center',
-      width: 160,
-      height: 160,
-      borderRadius: 80,
-      borderWidth: 3,
-      borderColor: colors.border,
-      backgroundColor: colors.backgroundSecondary,
-    },
-    napTimerCircleActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primaryMuted,
-    },
-    napTimerIcon: { marginBottom: 4 },
-    napTimerDuration: {
-      fontSize: 28,
-      fontWeight: '800',
-      color: colors.textMuted,
-    },
-    napTimerDurationActive: { color: colors.primary },
-    napTimerLabel: {
-      fontSize: 12,
-      color: colors.textMuted,
-      marginTop: 4,
-      textAlign: 'center',
+    timePickerDone: {
+      alignSelf: 'flex-end',
+      marginTop: 8,
+      marginBottom: 4,
+      paddingVertical: 8,
       paddingHorizontal: 16,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
     },
-    napTimerButtons: { marginTop: 20, alignItems: 'center' },
-    napTimerBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-      paddingVertical: 14,
-      paddingHorizontal: 28,
-      borderRadius: 12,
-      minWidth: 160,
-    },
-    napTimerBtnStart: { backgroundColor: colors.primary },
-    napTimerBtnStartText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-    napTimerBtnEnd: { backgroundColor: colors.warning },
-    napTimerBtnEndText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-    napTimerSummary: { paddingVertical: 8, paddingHorizontal: 16 },
-    napTimerSummaryText: { fontSize: 14, color: colors.textMuted },
+    timePickerDoneText: { color: '#fff', fontSize: 15, ...f('semiBold') },
+
     /** Aligned with meal type pills (no negative bleed). */
     mealOptionsScroll: { marginBottom: 10, marginTop: 2 },
     mealOptionsScrollContent: { paddingRight: 16, paddingLeft: 0 },
@@ -2776,6 +2913,15 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
         : { elevation: 4 }),
     },
     photoThumbImage: { width: '100%', height: '100%', backgroundColor: colors.backgroundSecondary },
+    photoVideoPreview: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    photoVideoPreviewText: {
+      fontSize: 13,
+      marginTop: 8,
+      ...f('medium'),
+    },
     photoVideoBadge: {
       position: 'absolute',
       left: 10,
@@ -2918,6 +3064,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     childListRowSelected: {
       borderColor: colors.primary,
       backgroundColor: colors.primaryMuted,
+    },
+    childListRowDisabled: {
+      opacity: 0.45,
     },
     childListRowAvatar: {
       width: 48,

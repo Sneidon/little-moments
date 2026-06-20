@@ -4,16 +4,82 @@ import {
   PHOTO_REPORT_LABEL,
   REPORT_TYPE_LABELS,
   REPORT_TYPE_STYLES,
+  VIDEO_REPORT_LABEL,
 } from '@/constants/reports';
+
+/** Normalize Firestore Timestamp / Date / ISO string to ISO string. */
+export function toIsoTimestamp(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString();
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  return '';
+}
+
+/** Local calendar date as YYYY-MM-DD (matches HTML date inputs). */
+export function localDateIso(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function timestampToLocalDateIso(timestamp: unknown): string {
+  const iso = toIsoTimestamp(timestamp);
+  if (!iso) return '';
+  return localDateIso(new Date(iso));
+}
+
+export function reportMatchesLocalDay(timestamp: unknown, filterDay: string): boolean {
+  if (!filterDay) return true;
+  return timestampToLocalDateIso(timestamp) === filterDay;
+}
 
 export type ReportDisplayFields = Pick<
   DailyReport,
   'type' | 'imageUrl' | 'photoCategory' | 'mediaType' | 'incidentDetails' | 'mealType'
 >;
 
+export type ReportDetailsFields = Pick<
+  DailyReport,
+  | 'type'
+  | 'mealOptionName'
+  | 'mealType'
+  | 'medicationName'
+  | 'incidentDetails'
+  | 'photoCategory'
+  | 'notes'
+  | 'imageUrl'
+  | 'mediaType'
+> & {
+  activityTitle?: string;
+  activityType?: string;
+  napStartTime?: string;
+  napEndTime?: string;
+  nappyType?: string;
+};
+
+/** Teacher media posts are stored as type `incident` with an attachment URL. */
+export function isVideoReport(report: ReportDisplayFields): boolean {
+  if (report.type !== 'incident') return false;
+  const mediaType = report.mediaType?.trim().toLowerCase();
+  if (mediaType?.includes('video')) return true;
+  const url = report.imageUrl?.trim().toLowerCase();
+  if (url && /\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(url)) return true;
+  return false;
+}
+
 /** Teacher photo posts are stored as type `incident` with media attached. */
 export function isPhotoReport(report: ReportDisplayFields): boolean {
   if (report.type !== 'incident') return false;
+  if (isVideoReport(report)) return false;
   return !!(
     report.imageUrl?.trim() ||
     report.photoCategory?.trim() ||
@@ -21,7 +87,12 @@ export function isPhotoReport(report: ReportDisplayFields): boolean {
   );
 }
 
+export function isMediaReport(report: ReportDisplayFields): boolean {
+  return isPhotoReport(report) || isVideoReport(report);
+}
+
 export function getReportTypeLabel(report: ReportDisplayFields): string {
+  if (isVideoReport(report)) return VIDEO_REPORT_LABEL;
   if (isPhotoReport(report)) return PHOTO_REPORT_LABEL;
   if (report.type === 'meal') {
     return formatMealCategoryLabel(report.mealType) ?? REPORT_TYPE_LABELS.meal;
@@ -30,6 +101,7 @@ export function getReportTypeLabel(report: ReportDisplayFields): string {
 }
 
 export function getReportTypeStyle(report: ReportDisplayFields): string {
+  if (isVideoReport(report)) return REPORT_TYPE_STYLES.video;
   if (isPhotoReport(report)) return REPORT_TYPE_STYLES.photo;
   return (
     REPORT_TYPE_STYLES[report.type ?? ''] ??
@@ -41,19 +113,33 @@ export function getReportTypeStyle(report: ReportDisplayFields): string {
 export function reportMatchesTypeFilter(report: ReportDisplayFields, filterType: string): boolean {
   if (!filterType) return true;
   if (filterType === 'photo') return isPhotoReport(report);
-  if (filterType === 'incident') return report.type === 'incident' && !isPhotoReport(report);
+  if (filterType === 'video') return isVideoReport(report);
+  if (filterType === 'incident') return report.type === 'incident' && !isMediaReport(report);
   return report.type === filterType;
 }
 
-export function getReportDetailsSummary(
-  report: Pick<
-    DailyReport,
-    'type' | 'mealOptionName' | 'mealType' | 'medicationName' | 'incidentDetails' | 'photoCategory'
-  >
-): string {
-  if (isPhotoReport(report)) return report.photoCategory?.trim() || '—';
+export function getReportDetailsSummary(report: ReportDetailsFields): string {
+  if (isVideoReport(report)) return report.photoCategory?.trim() || VIDEO_REPORT_LABEL;
+  if (isPhotoReport(report)) return report.photoCategory?.trim() || PHOTO_REPORT_LABEL;
   if (report.type === 'meal') return report.mealOptionName?.trim() || '—';
-  return report.medicationName ?? report.incidentDetails ?? '—';
+  if (report.type === 'check_in') return 'Checked in';
+  if (report.type === 'check_out') return 'Checked out';
+  if (report.type === 'nap_time') {
+    if (report.napStartTime?.trim() && report.napEndTime?.trim()) {
+      return `${report.napStartTime.trim()} – ${report.napEndTime.trim()}`;
+    }
+    return 'Nap time';
+  }
+  if (report.type === 'nappy_change') return report.nappyType?.trim() || 'Nappy change';
+  if (report.type === 'activity') {
+    return report.activityTitle?.trim() || report.activityType?.trim() || 'Activity';
+  }
+  if (report.type === 'class_change' || report.type === 'child_joined_class') {
+    return report.notes?.trim() || '—';
+  }
+  if (report.type === 'medication') return report.medicationName?.trim() || '—';
+  if (report.type === 'incident') return report.incidentDetails?.trim() || '—';
+  return '—';
 }
 
 /** Notes column text — for meals, includes how much they ate before free-text notes. */
@@ -79,26 +165,32 @@ export function reportHasNotesContent(
 /** Max dates offered as “jump to day with activity” shortcuts (see `getDaysWithActivity`). */
 export const DAYS_WITH_ACTIVITY_JUMP_LIMIT = 3;
 
-/** Filter reports to a single day (ISO date string YYYY-MM-DD) and sort by timestamp descending. */
+/** Filter reports to a single local calendar day (YYYY-MM-DD) and sort by timestamp descending. */
 export function getReportsForDay(reports: DailyReport[], filterDay: string): DailyReport[] {
   return reports
     .filter((r) => {
-      const ts = r.timestamp ?? '';
+      const ts = toIsoTimestamp(r.timestamp) || toIsoTimestamp(r.createdAt);
       if (!ts) return false;
-      const dayStart = filterDay + 'T00:00:00.000Z';
-      const dayEnd = filterDay + 'T23:59:59.999Z';
-      return ts >= dayStart && ts <= dayEnd;
+      return reportMatchesLocalDay(ts, filterDay);
     })
-    .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+    .sort((a, b) => {
+      const aTs = toIsoTimestamp(a.timestamp) || toIsoTimestamp(a.createdAt);
+      const bTs = toIsoTimestamp(b.timestamp) || toIsoTimestamp(b.createdAt);
+      return bTs.localeCompare(aTs);
+    });
 }
 
-/** Unique dates (YYYY-MM-DD) that have at least one report, sorted descending, capped (for “jump to” shortcuts). */
+/** Unique local dates (YYYY-MM-DD) that have at least one report, sorted descending, capped (for “jump to” shortcuts). */
 export function getDaysWithActivity(
   reports: DailyReport[],
   limit = DAYS_WITH_ACTIVITY_JUMP_LIMIT
 ): string[] {
   const days = Array.from(
-    new Set(reports.map((r) => r.timestamp?.slice(0, 10)).filter(Boolean)) as Set<string>
+    new Set(
+      reports
+        .map((r) => timestampToLocalDateIso(r.timestamp) || timestampToLocalDateIso(r.createdAt))
+        .filter(Boolean)
+    )
   ).sort((a, b) => b.localeCompare(a));
   return days.slice(0, limit);
 }

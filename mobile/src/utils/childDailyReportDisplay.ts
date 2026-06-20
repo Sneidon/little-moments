@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { formatMealCategoryLabel } from './reportLabels';
-import type { DailyReport } from '../../../shared/types';
+import type { DailyReport, MealOption } from '../../../shared/types';
 
 type IonName = keyof typeof Ionicons.glyphMap;
 
@@ -12,6 +12,27 @@ export function isParentVisibleReportType(type: string): boolean {
   return !TEACHER_ONLY_REPORT_TYPES.has(type);
 }
 
+/** Map meal option id → image URL for resolving meal photos on parent feeds. */
+export function buildMealOptionImageMap(options: MealOption[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const opt of options) {
+    const url = opt.imageUrl?.trim();
+    if (url) map.set(opt.id, url);
+  }
+  return map;
+}
+
+/** Report image: direct `imageUrl`, or meal menu item photo via `mealOptionId`. */
+export function resolveReportImageUrl(
+  report: { type?: string; imageUrl?: string; mealOptionId?: string | null },
+  mealOptionImages?: Map<string, string>
+): string | undefined {
+  const direct = typeof report.imageUrl === 'string' ? report.imageUrl.trim() : '';
+  if (direct) return direct;
+  if (report.type !== 'meal' || !report.mealOptionId || !mealOptionImages) return undefined;
+  return mealOptionImages.get(report.mealOptionId);
+}
+
 export type ReportWithExtras = DailyReport & {
   napStartTime?: string;
   napEndTime?: string;
@@ -19,6 +40,7 @@ export type ReportWithExtras = DailyReport & {
   activityType?: string;
   mealType?: 'breakfast' | 'lunch' | 'snack';
   mealOptionName?: string;
+  mediaType?: string;
 };
 
 export function getReportTitle(item: ReportWithExtras): string {
@@ -39,7 +61,10 @@ export function getReportTitle(item: ReportWithExtras): string {
     return n || 'Joined class';
   }
   if (item.type === 'medication') return item.medicationName || 'Medication';
-  if (item.type === 'incident') return 'Photo';
+  if (item.type === 'incident') {
+    if (item.mediaType?.toLowerCase().includes('video')) return 'Video';
+    return 'Photo';
+  }
   return String(item.type).replace('_', ' ');
 }
 

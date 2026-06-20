@@ -14,6 +14,7 @@ import {
 } from '@/lib/pdfDesign';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
+import { formatGenderLabel } from '@/lib/formatGender';
 
 export type ClassDisplayFn = (classId: string) => string;
 
@@ -57,11 +58,12 @@ export function exportChildrenToPdf(
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = PDF_MARGIN.landscape;
 
-  const head = [['Name', 'Preferred', 'DOB', 'Class', 'Allergies', 'Emergency']];
+  const head = [['Name', 'Preferred', 'DOB', 'Gender', 'Class', 'Allergies', 'Emergency']];
   const body = children.map((c) => [
     safeStr(c.name),
     safeStr(c.preferredName),
     formatDob(c.dateOfBirth),
+    formatGenderLabel(c.gender),
     c.classId ? classDisplay(c.classId) : '—',
     c.allergies?.length ? c.allergies.join(', ') : '—',
     c.emergencyContactName || c.emergencyContact ? safeStr(c.emergencyContactName || c.emergencyContact) : '—',

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, onSnapshot, orderBy, query, updateDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import type { RootStackParamList } from '../../navigation/MainTabs';
 import { navigateFromNotificationData } from '../../hooks/useNotificationNavigation';
+import {
+  isInAppNotificationRead,
+  markInAppNotificationRead,
+} from '../../services/inAppNotifications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserNotifications'>;
 
@@ -44,22 +48,30 @@ export function UserNotificationsScreen({ navigation }: Props) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const uid = profile?.uid;
-    if (!uid) return;
+    if (!uid) {
+      setLoading(false);
+      setItems([]);
+      return;
+    }
+    setLoading(true);
     const q = query(collection(db, 'users', uid, 'notifications'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(
       q,
       (snap) => {
         setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as NotificationItem) })));
         setLoadError(null);
+        setLoading(false);
       },
       (error) => {
         console.warn('Failed to load user notifications:', error);
         setItems([]);
         setLoadError('Notifications are not available yet.');
+        setLoading(false);
       }
     );
     return unsub;
@@ -68,12 +80,12 @@ export function UserNotificationsScreen({ navigation }: Props) {
   const openItem = async (item: NotificationItem) => {
     const uid = profile?.uid;
     if (!uid) return;
-    try {
-      if (!item.read) {
-        await updateDoc(doc(db, 'users', uid, 'notifications', item.id), { read: true });
-      }
-    } catch {
-      // Ignore read-state update failures; navigation still proceeds.
+    const alreadyRead = isInAppNotificationRead(item);
+    if (!alreadyRead) {
+      setItems((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
+      );
+      await markInAppNotificationRead(uid, item.id);
     }
     navigateFromNotificationData(
       navigation,
@@ -94,14 +106,21 @@ export function UserNotificationsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={items.length === 0 ? styles.emptyWrap : styles.listContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={[styles.row, !item.read && styles.rowUnread]} onPress={() => openItem(item)}>
+        renderItem={({ item }) => {
+          const unread = !isInAppNotificationRead(item);
+          return (
+          <TouchableOpacity style={[styles.row, unread && styles.rowUnread]} onPress={() => openItem(item)}>
             <View style={styles.iconWrap}>
-              <Ionicons name={item.read ? 'notifications-outline' : 'notifications'} size={18} color={colors.primary} />
+              <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={18} color={colors.primary} />
             </View>
             <View style={styles.rowBody}>
               <Text style={styles.title} numberOfLines={1}>
@@ -115,7 +134,8 @@ export function UserNotificationsScreen({ navigation }: Props) {
               <Text style={styles.when}>{formatWhen(item.createdAt)}</Text>
             </View>
           </TouchableOpacity>
-        )}
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.emptyCard}>
             <Ionicons name="notifications-off-outline" size={30} color={colors.textMuted} />
@@ -126,6 +146,7 @@ export function UserNotificationsScreen({ navigation }: Props) {
           </View>
         }
       />
+      )}
     </View>
   );
 }
@@ -135,6 +156,12 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     container: {
       flex: 1,
       backgroundColor: colors.backgroundSecondary,
+    },
+    loadingWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
     },
     listContent: {
       padding: 12,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   collection,
   doc,
@@ -32,6 +33,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getInitials } from '../../utils';
+import { markChatRead } from '../../services/chatRead';
+import { getChatReadField } from '../../utils/chatUnread';
 import type { RootStackParamList } from '../../navigation/MainTabs';
 import type { ChatMessage, Chat, UserProfile } from '../../../../shared/types';
 
@@ -203,7 +206,7 @@ function mergeMessagesByIdAsc(a: ChatMessage[], b: ChatMessage[]): ChatMessage[]
   return Array.from(map.values()).sort((x, y) => x.createdAt.localeCompare(y.createdAt));
 }
 
-export function ChatThreadScreen({ route }: Props) {
+export function ChatThreadScreen({ route, navigation }: Props) {
   const { chatId, schoolId } = route.params;
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
@@ -214,6 +217,7 @@ export function ChatThreadScreen({ route }: Props) {
   /** Newest-first query window, stored ascending for rendering. */
   const [liveRecent, setLiveRecent] = useState<ChatMessage[]>([]);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(true);
   const [hasMoreOlder, setHasMoreOlder] = useState(true);
   const liveOldestSnapRef = useRef<QueryDocumentSnapshot | null>(null);
   const nextOlderCursorRef = useRef<QueryDocumentSnapshot | null>(null);
@@ -225,8 +229,9 @@ export function ChatThreadScreen({ route }: Props) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const defaultOtherLabel = profile?.role === 'parent' ? 'Daycare staff' : 'Parent';
-  const [otherLabel, setOtherLabel] = useState(defaultOtherLabel);
-  const [otherInitials, setOtherInitials] = useState(() => getInitials(defaultOtherLabel));
+  const initialOtherLabel = route.params.otherDisplayName?.trim() || defaultOtherLabel;
+  const [otherLabel, setOtherLabel] = useState(initialOtherLabel);
+  const [otherInitials, setOtherInitials] = useState(() => getInitials(initialOtherLabel));
   const flatListRef = useRef<FlatList<ListItem>>(null);
 
   const messages = useMemo(() => mergeMessagesByIdAsc(extraOlder, liveRecent), [extraOlder, liveRecent]);
@@ -248,7 +253,8 @@ export function ChatThreadScreen({ route }: Props) {
         const otherUid = profile?.role === 'teacher' ? data.parentId : data.teacherId;
         const u = await getDoc(doc(db, 'users', otherUid));
         if (cancelled) return;
-        const dn = (u.data() as UserProfile)?.displayName?.trim();
+        const userData = u.data() as UserProfile | undefined;
+        const dn = userData?.preferredName?.trim() || userData?.displayName?.trim();
         if (dn) {
           setOtherLabel(dn);
           setOtherInitials(getInitials(dn));
@@ -266,10 +272,32 @@ export function ChatThreadScreen({ route }: Props) {
     };
   }, [schoolId, chatId, profile?.role, profile?.uid]);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({ title: otherLabel });
+  }, [navigation, otherLabel]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const role = profile?.role;
+      if (role !== 'teacher' && role !== 'parent') return;
+      void markChatRead(schoolId, chatId, role);
+    }, [schoolId, chatId, profile?.role])
+  );
+
+  useEffect(() => {
+    const role = profile?.role;
+    const uid = profile?.uid;
+    if (!uid || (role !== 'teacher' && role !== 'parent') || liveRecent.length === 0) return;
+    const latest = liveRecent[liveRecent.length - 1];
+    if (latest.senderId === uid) return;
+    void markChatRead(schoolId, chatId, role, latest.createdAt);
+  }, [liveRecent, schoolId, chatId, profile?.role, profile?.uid]);
+
   useEffect(() => {
     setExtraOlder([]);
     setLiveRecent([]);
     setHasMoreOlder(true);
+    setLoadingInitial(true);
     liveOldestSnapRef.current = null;
     nextOlderCursorRef.current = null;
     prevLiveRecentRef.current = [];
@@ -281,6 +309,10 @@ export function ChatThreadScreen({ route }: Props) {
     const col = collection(db, 'schools', schoolId, 'chats', chatId, 'messages');
     const q = query(col, orderBy('createdAt', 'desc'), limit(RECENT_PAGE_SIZE));
     const unsub = onSnapshot(q, (snap) => {
+      if (snap.empty && snap.metadata.fromCache) {
+        return;
+      }
+      setLoadingInitial(false);
       if (snap.empty) {
         setLiveRecent([]);
         liveOldestSnapRef.current = null;
@@ -366,10 +398,16 @@ export function ChatThreadScreen({ route }: Props) {
         text,
         createdAt: now,
       });
+      const readField =
+        profile.role === 'teacher' || profile.role === 'parent'
+          ? getChatReadField(profile.role)
+          : null;
       await updateDoc(chatRef, {
         lastMessageText: text.slice(0, 100),
         lastMessageAt: now,
+        lastMessageSenderId: profile.uid,
         updatedAt: now,
+        ...(readField ? { [readField]: now } : {}),
       });
     } catch {
       setInput(text);
@@ -468,16 +506,21 @@ export function ChatThreadScreen({ route }: Props) {
   }, []);
 
   const listEmpty = useMemo(
-    () => (
-      <View style={themed.emptyWrap}>
-        <View style={themed.emptyIconCircle}>
-          <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
+    () =>
+      loadingInitial ? (
+        <View style={themed.emptyWrap}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-        <Text style={themed.emptyTitle}>No messages yet</Text>
-        <Text style={themed.emptySubtitle}>Say hello to start the conversation.</Text>
-      </View>
-    ),
-    [themed, colors.textMuted]
+      ) : (
+        <View style={themed.emptyWrap}>
+          <View style={themed.emptyIconCircle}>
+            <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
+          </View>
+          <Text style={themed.emptyTitle}>No messages yet</Text>
+          <Text style={themed.emptySubtitle}>Say hello to start the conversation.</Text>
+        </View>
+      ),
+    [themed, colors.textMuted, colors.primary, loadingInitial]
   );
 
   return (

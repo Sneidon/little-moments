@@ -4,14 +4,15 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
-import { reportHasNotesContent, reportMatchesTypeFilter } from '@/lib/reports';
-import type { DailyReport } from 'shared/types';
+import { reportHasNotesContent, reportMatchesTypeFilter, localDateIso, reportMatchesLocalDay, timestampToLocalDateIso, toIsoTimestamp } from '@/lib/reports';
+import type { DailyReport, ChildGender } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
 export type ReportRow = DailyReport & {
   childId: string;
   childName: string;
   childClassId?: string | null;
+  childGender?: ChildGender | null;
 };
 
 export type ReportsSortOrder = 'newest' | 'oldest';
@@ -36,11 +37,11 @@ const DEFAULT_FILTERS: Omit<ReportsFiltersState, 'day'> & { day?: string } = {
   childSearch: '',
   hasNotesOnly: false,
   sortOrder: 'newest',
-  limit: 500,
+  limit: 0,
 };
 
 function getDefaultDay(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateIso();
 }
 
 const LIMIT_OPTIONS = [50, 100, 250, 500, 1000, 0] as const; // 0 = no limit
@@ -86,8 +87,12 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
       ]);
       const list: ReportRow[] = [];
       for (const childDoc of childrenSnap.docs) {
-        const data = childDoc.data() as { name?: string; classId?: string | null };
-        const name = data.name ?? childDoc.id;
+        const childData = childDoc.data() as {
+          name?: string;
+          classId?: string | null;
+          gender?: ChildGender;
+        };
+        const name = childData.name ?? childDoc.id;
         const reportsSnap = await getDocs(
           query(
             collection(db, 'schools', schoolId, 'children', childDoc.id, 'reports'),
@@ -95,12 +100,15 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
           )
         );
         reportsSnap.docs.forEach((r) => {
+          const reportData = r.data();
           list.push({
             id: r.id,
-            ...r.data(),
+            ...reportData,
+            timestamp: toIsoTimestamp(reportData.timestamp) || toIsoTimestamp(reportData.createdAt),
             childId: childDoc.id,
             childName: name,
-            childClassId: data.classId ?? null,
+            childClassId: childData.classId ?? null,
+            childGender: childData.gender ?? null,
           } as ReportRow);
         });
       }
@@ -128,12 +136,11 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
       if (filters.hasNotesOnly && !reportHasNotesContent(r)) return false;
       const ts = r.timestamp ?? '';
       if (filters.day) {
-        const dayStart = filters.day + 'T00:00:00.000Z';
-        const dayEnd = filters.day + 'T23:59:59.999Z';
-        if (ts < dayStart || ts > dayEnd) return false;
+        if (!reportMatchesLocalDay(ts, filters.day)) return false;
       } else {
-        if (filters.dateFrom && ts < filters.dateFrom) return false;
-        if (filters.dateTo && ts > filters.dateTo + 'T23:59:59.999Z') return false;
+        const localDay = timestampToLocalDateIso(ts);
+        if (filters.dateFrom && localDay < filters.dateFrom) return false;
+        if (filters.dateTo && localDay > filters.dateTo) return false;
       }
       return true;
     });

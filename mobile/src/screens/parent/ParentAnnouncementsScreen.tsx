@@ -40,7 +40,9 @@ export function ParentAnnouncementsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [schoolId, setSchoolId] = useState<string | null>(null);
+  const [schoolLookupDone, setSchoolLookupDone] = useState(false);
   const [list, setList] = useState<Announcement[]>([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -51,7 +53,12 @@ export function ParentAnnouncementsScreen() {
 
   useEffect(() => {
     const uid = profile?.uid;
-    if (!uid) return;
+    if (!uid) {
+      setSchoolLookupDone(true);
+      return;
+    }
+    setSchoolLookupDone(false);
+    setSchoolId(null);
     (async () => {
       const schoolsSnap = await getDocs(collection(db, 'schools'));
       for (const schoolDoc of schoolsSnap.docs) {
@@ -66,21 +73,37 @@ export function ParentAnnouncementsScreen() {
           break;
         }
       }
+      setSchoolLookupDone(true);
     })();
   }, [profile?.uid, refreshTrigger]);
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+      setList([]);
+      setLoadingAnnouncements(!schoolLookupDone);
+      setRefreshing(false);
+      return;
+    }
+    setLoadingAnnouncements(true);
     const q = query(
       collection(db, 'schools', schoolId, 'announcements'),
       orderBy('createdAt', 'desc')
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setList(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement)));
-      setRefreshing(false);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setList(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement)));
+        setLoadingAnnouncements(false);
+        setRefreshing(false);
+      },
+      () => {
+        setList([]);
+        setLoadingAnnouncements(false);
+        setRefreshing(false);
+      }
+    );
     return () => unsub();
-  }, [schoolId, refreshTrigger]);
+  }, [schoolId, schoolLookupDone, refreshTrigger]);
 
   const openDetail = useCallback(
     (item: Announcement) => {
@@ -140,14 +163,24 @@ export function ParentAnnouncementsScreen() {
     );
   };
 
+  const showLoading = !schoolLookupDone || (schoolId != null && loadingAnnouncements);
+
   return (
     <View style={styles.container}>
-      {!schoolId ? (
+      {showLoading ? (
         <ScrollView style={styles.container} contentContainerStyle={styles.listContent}>
           {[1, 2, 3, 4].map((i) => (
             <SkeletonCard key={i} />
           ))}
         </ScrollView>
+      ) : !schoolId ? (
+        <View style={styles.listContent}>
+          <EmptyState
+            icon="megaphone-outline"
+            title="No announcements"
+            subtitle="Announcements from your daycare will appear here."
+          />
+        </View>
       ) : (
         <FlatList
           data={list}

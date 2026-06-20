@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -48,22 +48,30 @@ export function UserNotificationsScreen({ navigation }: Props) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const uid = profile?.uid;
-    if (!uid) return;
+    if (!uid) {
+      setLoading(false);
+      setItems([]);
+      return;
+    }
+    setLoading(true);
     const q = query(collection(db, 'users', uid, 'notifications'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(
       q,
       (snap) => {
         setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as NotificationItem) })));
         setLoadError(null);
+        setLoading(false);
       },
       (error) => {
         console.warn('Failed to load user notifications:', error);
         setItems([]);
         setLoadError('Notifications are not available yet.');
+        setLoading(false);
       }
     );
     return unsub;
@@ -98,6 +106,11 @@ export function UserNotificationsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -133,6 +146,7 @@ export function UserNotificationsScreen({ navigation }: Props) {
           </View>
         }
       />
+      )}
     </View>
   );
 }
@@ -142,6 +156,12 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     container: {
       flex: 1,
       backgroundColor: colors.backgroundSecondary,
+    },
+    loadingWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
     },
     listContent: {
       padding: 12,

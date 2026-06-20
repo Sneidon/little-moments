@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
-import { reportHasNotesContent, reportMatchesTypeFilter } from '@/lib/reports';
+import { reportHasNotesContent, reportMatchesTypeFilter, localDateIso, reportMatchesLocalDay, timestampToLocalDateIso, toIsoTimestamp } from '@/lib/reports';
 import type { DailyReport, ChildGender } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 
@@ -41,7 +41,7 @@ const DEFAULT_FILTERS: Omit<ReportsFiltersState, 'day'> & { day?: string } = {
 };
 
 function getDefaultDay(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateIso();
 }
 
 const LIMIT_OPTIONS = [50, 100, 250, 500, 1000, 0] as const; // 0 = no limit
@@ -96,9 +96,11 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
           )
         );
         reportsSnap.docs.forEach((r) => {
+          const data = r.data();
           list.push({
             id: r.id,
-            ...r.data(),
+            ...data,
+            timestamp: toIsoTimestamp(data.timestamp) || toIsoTimestamp(data.createdAt),
             childId: childDoc.id,
             childName: name,
             childClassId: data.classId ?? null,
@@ -130,12 +132,11 @@ export function useReportsPage(schoolId: string | undefined): UseReportsPageResu
       if (filters.hasNotesOnly && !reportHasNotesContent(r)) return false;
       const ts = r.timestamp ?? '';
       if (filters.day) {
-        const dayStart = filters.day + 'T00:00:00.000Z';
-        const dayEnd = filters.day + 'T23:59:59.999Z';
-        if (ts < dayStart || ts > dayEnd) return false;
+        if (!reportMatchesLocalDay(ts, filters.day)) return false;
       } else {
-        if (filters.dateFrom && ts < filters.dateFrom) return false;
-        if (filters.dateTo && ts > filters.dateTo + 'T23:59:59.999Z') return false;
+        const localDay = timestampToLocalDateIso(ts);
+        if (filters.dateFrom && localDay < filters.dateFrom) return false;
+        if (filters.dateTo && localDay > filters.dateTo) return false;
       }
       return true;
     });

@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react';
 import { useClassDetail, type ClassReportRow } from '@/hooks/useClassDetail';
 import { useSchoolName } from '@/hooks/useSchoolName';
 import { getTeacherDisplayName } from '@/lib/teachers';
-import { getReportsForDay, getDaysWithActivity } from '@/lib/reports';
+import { getReportsForDay, getDaysWithActivity, localDateIso } from '@/lib/reports';
 import { formatClassDisplay } from '@/lib/formatClass';
 import { exportClassDetailToPdf } from '@/lib/exportClassDetailPdf';
 import { exportClassDetailToCsv } from '@/lib/exportClassDetailCsv';
@@ -32,7 +32,7 @@ export default function AdminSchoolClassDetailPage() {
     classId,
     { redirectPathIfNotFound: schoolId ? `/admin/schools/${schoolId}/classes` : '/admin/schools' }
   );
-  const [filterDay, setFilterDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [filterDay, setFilterDay] = useState(() => localDateIso());
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
 
   const teacherName = useCallback(

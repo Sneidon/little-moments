@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
+import { getReportDetailsSummary, getReportTypeLabel, localDateIso } from '@/lib/reports';
 import { DAYS_WITH_ACTIVITY_JUMP_LIMIT } from '@/lib/reports';
 import type { ClassReportRow } from '@/hooks/useClassDetail';
 import { SectionCard } from '@/components/ui';
@@ -22,7 +22,7 @@ export function ClassActivitiesSection({
   daysWithActivity,
   reportsForDay,
 }: ClassActivitiesSectionProps) {
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = localDateIso();
   const hasFilterActive = filterDay !== todayIso;
   const dateLabel = new Date(filterDay + 'T12:00:00').toLocaleDateString(
     undefined,

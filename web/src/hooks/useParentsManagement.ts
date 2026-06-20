@@ -12,7 +12,7 @@ import {
   refetchChild,
   getCallableErrorMessage,
 } from '@/services/parents';
-import { MAX_PARENTS } from '@/constants/parents';
+import { MAX_PARENTS, nonParentEmailError } from '@/constants/parents';
 
 export interface InviteFormState {
   parentEmail: string;
@@ -184,8 +184,12 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
       }
       setInviteCheckLoading(true);
       try {
-        const { exists } = await checkParentEmail(inviteForm.parentEmail.trim());
-        setInviteStep(exists ? 'link' : 'invite');
+        const result = await checkParentEmail(inviteForm.parentEmail.trim());
+        if (result.exists && result.canLink === false) {
+          setInviteCheckError(nonParentEmailError(result.existingRole ?? 'staff'));
+          return;
+        }
+        setInviteStep(result.exists ? 'link' : 'invite');
       } catch (err) {
         setInviteCheckError(getCallableErrorMessage(err));
       } finally {

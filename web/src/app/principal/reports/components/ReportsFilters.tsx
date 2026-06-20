@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { REPORT_TYPE_OPTIONS } from '@/constants/reports';
+import { localDateIso } from '@/lib/reports';
 import type { ClassRoom } from 'shared/types';
 import type { ReportsFiltersState, ReportsSortOrder } from '@/hooks/useReportsPage';
 import { SectionCard } from '@/components/ui';
@@ -52,7 +53,7 @@ export function ReportsFilters({
     filters.limit !== 500;
 
   const hasActiveFilters =
-    filters.day !== new Date().toISOString().slice(0, 10) ||
+    filters.day !== localDateIso() ||
     filters.classId ||
     filters.childSearch.trim() ||
     hasAdvancedActive;

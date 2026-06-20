@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { checkParentEmail, getCallableErrorMessage } from '@/services/parents';
+import { nonParentEmailError } from '@/constants/parents';
 
 export interface ConfirmedParentAssignment {
   parentEmail: string;
@@ -71,8 +72,12 @@ export function ParentLinkOrInvitePanel({
       }
       setInviteCheckLoading(true);
       try {
-        const { exists } = await checkParentEmail(inviteForm.parentEmail.trim());
-        setInviteStep(exists ? 'link' : 'invite');
+        const result = await checkParentEmail(inviteForm.parentEmail.trim());
+        if (result.exists && result.canLink === false) {
+          setInviteCheckError(nonParentEmailError(result.existingRole ?? 'staff'));
+          return;
+        }
+        setInviteStep(result.exists ? 'link' : 'invite');
       } catch (err) {
         setInviteCheckError(getCallableErrorMessage(err));
       } finally {
@@ -117,8 +122,8 @@ export function ParentLinkOrInvitePanel({
       >
         <h3 className="font-medium text-slate-800 dark:text-slate-100">Add parent — Step 1</h3>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Enter the parent&apos;s email. We&apos;ll check if they already have an account. Existing parents are
-          linked immediately; new emails receive an invite.
+          Enter the parent&apos;s email. We&apos;ll check if they already have a parent account. Existing parents
+          are linked immediately; new emails receive an invite.
         </p>
         {inviteCheckError ? (
           <p className="text-sm text-red-600 dark:text-red-400">{inviteCheckError}</p>
@@ -156,8 +161,8 @@ export function ParentLinkOrInvitePanel({
       >
         <h3 className="font-medium text-slate-800 dark:text-slate-100">Add parent — Link existing account</h3>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          <strong>{inviteForm.parentEmail}</strong> already has an account. Link them{childLabel} now — no invite
-          email will be sent.
+          <strong>{inviteForm.parentEmail}</strong> already has a parent account. Link them{childLabel} now — no
+          invite email will be sent.
         </p>
         {displayError ? <p className="text-sm text-red-600 dark:text-red-400">{displayError}</p> : null}
         <div>

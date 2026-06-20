@@ -44,7 +44,7 @@ export function ReportsTable({ rows, showClassColumn, classDisplay }: ReportsTab
           <tbody>
             {rows.map((r, i) => (
               <tr
-                key={r.id}
+                key={`${r.childId}-${r.id}`}
                 className={`border-t border-slate-100 dark:border-slate-600/80 ${
                   i % 2 === 1 ? 'bg-slate-50/50 dark:bg-slate-800/30' : ''
                 } hover:bg-slate-100/70 dark:hover:bg-slate-700/50 transition-colors`}

@@ -4741,11 +4741,8 @@ export const principalInviteParent = functions.https.onCall(async (data, context
     const prof = await db.collection('users').doc(existingAuth.uid).get();
     if (prof.exists) {
       const p = prof.data() as { role?: string };
-      if (p.role && p.role !== 'parent') {
-        throw new functions.https.HttpsError(
-          'failed-precondition',
-          'This email is already used for a staff or admin account. Use a different email.'
-        );
+      if (p.role && NON_PARENT_LINK_ROLES.has(p.role)) {
+        throw new functions.https.HttpsError('failed-precondition', nonParentEmailLinkError(p.role));
       }
     }
   } catch (err: unknown) {
@@ -5079,6 +5076,42 @@ export const principalDeleteTeacher = functions.https.onCall(async (data, contex
   };
 });
 
+/** Roles that cannot be linked as a parent to a child. */
+const NON_PARENT_LINK_ROLES = new Set(['teacher', 'principal', 'super_admin']);
+
+function nonParentRoleLabel(role: string): string {
+  const labels: Record<string, string> = {
+    teacher: 'a teacher',
+    principal: 'a principal',
+    super_admin: 'a super admin',
+  };
+  return labels[role] ?? `a ${role.replace(/_/g, ' ')} account`;
+}
+
+function nonParentEmailLinkError(role: string): string {
+  return `This email can't be used because it is already registered as ${nonParentRoleLabel(role)}.`;
+}
+
+async function getExistingUserLinkability(
+  db: admin.firestore.Firestore,
+  uid: string,
+  authRole?: string | null
+): Promise<{ canLink: true } | { canLink: false; existingRole: string }> {
+  const roleFromAuth = authRole?.trim();
+  if (roleFromAuth && NON_PARENT_LINK_ROLES.has(roleFromAuth)) {
+    return { canLink: false, existingRole: roleFromAuth };
+  }
+
+  const prof = await db.collection('users').doc(uid).get();
+  if (prof.exists) {
+    const role = (prof.data() as { role?: string }).role?.trim();
+    if (role && NON_PARENT_LINK_ROLES.has(role)) {
+      return { canLink: false, existingRole: role };
+    }
+  }
+  return { canLink: true };
+}
+
 // Check whether a user with this email already exists. Callable by principal only.
 // Used to decide whether to "link existing" or "create & link" when inviting a parent.
 export const checkParentEmail = functions.https.onCall(async (data, context) => {
@@ -5096,9 +5129,15 @@ export const checkParentEmail = functions.https.onCall(async (data, context) => 
   if (!email || typeof email !== 'string' || !email.trim()) {
     throw new functions.https.HttpsError('invalid-argument', 'Email is required.');
   }
+  const emailNorm = email.trim().toLowerCase();
   try {
-    await admin.auth().getUserByEmail(email.trim());
-    return { exists: true };
+    const authUser = await admin.auth().getUserByEmail(emailNorm);
+    const authRole = (authUser.customClaims as { role?: string } | undefined)?.role;
+    const linkability = await getExistingUserLinkability(db, authUser.uid, authRole);
+    if (!linkability.canLink) {
+      return { exists: true, canLink: false, existingRole: linkability.existingRole };
+    }
+    return { exists: true, canLink: true };
   } catch (err: unknown) {
     const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
     if (code === 'auth/user-not-found') {
@@ -5161,12 +5200,21 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
   let linked = false;
 
   try {
-    const existingUser = await admin.auth().getUserByEmail(emailTrim);
+    const existingUser = await admin.auth().getUserByEmail(emailTrim.toLowerCase());
     parentUid = existingUser.uid;
     linked = true;
 
     if (parentIds.includes(parentUid)) {
       throw new functions.https.HttpsError('failed-precondition', 'This parent is already linked to this child.');
+    }
+
+    const authRole = (existingUser.customClaims as { role?: string } | undefined)?.role;
+    const linkability = await getExistingUserLinkability(db, parentUid, authRole);
+    if (!linkability.canLink) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        nonParentEmailLinkError(linkability.existingRole)
+      );
     }
 
     const userRef = db.collection('users').doc(parentUid);

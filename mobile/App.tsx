@@ -11,6 +11,8 @@ import { AuthStack } from './src/navigation/AuthStack';
 import type { RootStackParamList } from './src/navigation/MainTabs';
 import { MainTabs } from './src/navigation/MainTabs';
 import { AccessDeniedScreen } from './src/screens/auth/AccessDeniedScreen';
+import { RoleSelectScreen } from './src/screens/auth/RoleSelectScreen';
+import { getMobileEligibleRoles, selectActiveRole } from './src/utils/roles';
 import {
   configureNotifications,
   registerBackgroundMessageHandler,
@@ -23,7 +25,6 @@ import { navigateFromNotificationData } from './src/hooks/useNotificationNavigat
 registerBackgroundMessageHandler();
 configureNotifications();
 
-const ALLOWED_ROLES = ['teacher', 'parent'] as const;
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 function Loader() {
@@ -36,14 +37,60 @@ function Loader() {
 }
 
 function RootNavigator() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, refreshProfile, sessionPortalRole, setSessionPortalRole } = useAuth();
+  const [resolving, setResolving] = useState(false);
 
-  if (loading || (user && !profile)) return <Loader />;
+  const eligible = getMobileEligibleRoles(profile);
+
+  useEffect(() => {
+    if (loading || !user || !profile) {
+      setSessionPortalRole(null);
+      return;
+    }
+    if (eligible.length === 0) {
+      setSessionPortalRole(null);
+      return;
+    }
+    if (eligible.length > 1) {
+      if (sessionPortalRole && eligible.includes(sessionPortalRole)) return;
+      return;
+    }
+    const only = eligible[0];
+    if (sessionPortalRole === only) return;
+    let cancelled = false;
+    setResolving(true);
+    void (async () => {
+      try {
+        if (profile.role !== only) {
+          await selectActiveRole(only);
+          await refreshProfile();
+        }
+        if (!cancelled) setSessionPortalRole(only);
+      } catch {
+        if (!cancelled) setSessionPortalRole(only);
+      } finally {
+        if (!cancelled) setResolving(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, user, profile, eligible.join('|'), refreshProfile, sessionPortalRole, setSessionPortalRole]);
+
+  if (loading || (user && !profile) || resolving) return <Loader />;
   if (!user) return <AuthStack />;
-  if (!ALLOWED_ROLES.includes(profile!.role as (typeof ALLOWED_ROLES)[number])) {
-    return <AccessDeniedScreen />;
+  if (eligible.length === 0) return <AccessDeniedScreen />;
+  if (eligible.length > 1 && !sessionPortalRole) {
+    return (
+      <RoleSelectScreen
+        onRoleSelected={(role) => {
+          setSessionPortalRole(role);
+        }}
+      />
+    );
   }
-  return <MainTabs role={profile!.role} />;
+  const role = sessionPortalRole ?? eligible[0];
+  return <MainTabs role={role} />;
 }
 
 function AppContent() {

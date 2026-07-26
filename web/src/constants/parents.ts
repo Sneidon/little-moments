@@ -1,16 +1,9 @@
 /** Maximum number of parents that can be linked to a single child. */
 export const MAX_PARENTS = 4;
 
-const NON_PARENT_ROLE_LABELS: Record<string, string> = {
-  teacher: 'a teacher',
-  principal: 'a principal',
-  super_admin: 'a super admin',
-};
-
-/** User-facing message when an email belongs to staff/admin, not a parent. */
+/** @deprecated Multi-role allows linking staff emails as parents; kept for legacy UI paths. */
 export function nonParentEmailError(role: string): string {
-  const label = NON_PARENT_ROLE_LABELS[role] ?? `a ${role.replace(/_/g, ' ')} account`;
-  return `This email can't be used because it is already registered as ${label}.`;
+  return `This email is already registered as ${role.replace(/_/g, ' ')}. It can still be linked as a parent.`;
 }
 
 export interface CheckParentEmailResult {

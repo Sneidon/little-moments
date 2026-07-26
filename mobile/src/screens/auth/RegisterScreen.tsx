@@ -49,6 +49,7 @@ export function RegisterScreen({ navigation }: Props) {
         email: u.email,
         displayName: displayName.trim(),
         role,
+        roles: [role],
         createdAt: now,
         updatedAt: now,
       });

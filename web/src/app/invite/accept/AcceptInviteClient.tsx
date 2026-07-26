@@ -15,18 +15,18 @@ type PeekInviteResponse =
   | { status: 'not_found' }
   | { status: 'used'; role?: string }
   | { status: 'expired'; role?: string }
-  | { status: 'pending'; role?: string };
+  | { status: 'pending'; role?: string; accountExists?: boolean; email?: string };
 
 type AcceptInviteResponse =
-  | { ok: true; principalUid: string; schoolId: string; customToken: string }
-  | { ok: true; superAdminUid: string; customToken: string }
-  | { ok: true; teacherUid: string }
-  | { ok: true; parentUid: string };
+  | { ok: true; principalUid: string; schoolId: string; customToken: string; existingAccount?: boolean }
+  | { ok: true; superAdminUid: string; customToken: string; existingAccount?: boolean }
+  | { ok: true; teacherUid: string; existingAccount?: boolean }
+  | { ok: true; parentUid: string; existingAccount?: boolean };
 
 type InvitePrecheck =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'ok'; role?: string }
+  | { kind: 'ok'; role?: string; accountExists?: boolean; email?: string }
   | { kind: 'already_used'; role?: string }
   | { kind: 'expired' }
   | { kind: 'not_found' };
@@ -47,6 +47,21 @@ function isInviteAlreadyAcceptedError(err: unknown): boolean {
 
 function webInviteRole(role?: string): boolean {
   return role === 'principal' || role === 'super_admin';
+}
+
+function roleAccessLabel(role?: string): string {
+  switch (role) {
+    case 'super_admin':
+      return 'super admin';
+    case 'principal':
+      return 'school admin';
+    case 'teacher':
+      return 'teacher';
+    case 'parent':
+      return 'parent';
+    default:
+      return 'member';
+  }
 }
 
 function MobileAppStoreLinks() {
@@ -86,6 +101,7 @@ export default function AcceptInviteClient() {
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [appOnlyRole, setAppOnlyRole] = useState<'teacher' | 'parent' | null>(null);
+  const [joinedExisting, setJoinedExisting] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -103,7 +119,13 @@ export default function AcceptInviteClient() {
         if (d.status === 'used') setInvitePrecheck({ kind: 'already_used', role: d.role });
         else if (d.status === 'expired') setInvitePrecheck({ kind: 'expired' });
         else if (d.status === 'not_found') setInvitePrecheck({ kind: 'not_found' });
-        else setInvitePrecheck({ kind: 'ok', role: d.role });
+        else
+          setInvitePrecheck({
+            kind: 'ok',
+            role: d.role,
+            accountExists: Boolean(d.accountExists),
+            email: d.email,
+          });
       } catch {
         if (!cancelled) setInvitePrecheck({ kind: 'ok' });
       }
@@ -112,6 +134,67 @@ export default function AcceptInviteClient() {
       cancelled = true;
     };
   }, [token]);
+
+  const finishAccept = async (payload: AcceptInviteResponse) => {
+    const existing = 'existingAccount' in payload && Boolean(payload.existingAccount);
+    setJoinedExisting(existing);
+
+    if ('principalUid' in payload && payload.principalUid) {
+      await signInWithCustomToken(auth, payload.customToken);
+      setDone(true);
+      router.replace('/principal');
+      return;
+    }
+    if ('superAdminUid' in payload && payload.superAdminUid) {
+      await signInWithCustomToken(auth, payload.customToken);
+      setDone(true);
+      router.replace('/admin');
+      return;
+    }
+    if ('teacherUid' in payload) {
+      setAppOnlyRole('teacher');
+      setDone(true);
+      return;
+    }
+    if ('parentUid' in payload) {
+      setAppOnlyRole('parent');
+      setDone(true);
+    }
+  };
+
+  const onAcceptExisting = async () => {
+    setError('');
+    if (!token) {
+      setError('Missing invite token.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const fn = httpsCallable<{ token: string }, AcceptInviteResponse>(
+        getFunctions(app),
+        'acceptInviteToken'
+      );
+      const res = await fn({ token });
+      await finishAccept(res.data as AcceptInviteResponse);
+    } catch (err: unknown) {
+      if (isInviteAlreadyAcceptedError(err)) {
+        setInvitePrecheck((prev) => ({
+          kind: 'already_used',
+          role: prev.kind === 'ok' ? prev.role : undefined,
+        }));
+        return;
+      }
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : err && typeof err === 'object' && 'details' in err
+            ? String((err as { details: unknown }).details)
+            : 'Failed to accept invite';
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,29 +214,7 @@ export default function AcceptInviteClient() {
         AcceptInviteResponse
       >(getFunctions(app), 'acceptInviteToken');
       const res = await fn({ token, password, displayName: displayName.trim() || undefined });
-      const payload = res.data as AcceptInviteResponse;
-
-      if ('principalUid' in payload && payload.principalUid) {
-        await signInWithCustomToken(auth, payload.customToken);
-        setDone(true);
-        router.replace('/principal');
-        return;
-      }
-      if ('superAdminUid' in payload && payload.superAdminUid) {
-        await signInWithCustomToken(auth, payload.customToken);
-        setDone(true);
-        router.replace('/admin');
-        return;
-      }
-      if ('teacherUid' in payload) {
-        setAppOnlyRole('teacher');
-        setDone(true);
-        return;
-      }
-      if ('parentUid' in payload) {
-        setAppOnlyRole('parent');
-        setDone(true);
-      }
+      await finishAccept(res.data as AcceptInviteResponse);
     } catch (err: unknown) {
       if (isInviteAlreadyAcceptedError(err)) {
         setInvitePrecheck((prev) => ({
@@ -178,6 +239,10 @@ export default function AcceptInviteClient() {
     'rounded-card-lg border-2 border-primary-200/50 bg-white/95 p-8 shadow-card-raised backdrop-blur-sm dark:border-primary-800/50 dark:bg-slate-800/95';
 
   const alreadyUsedRole = invitePrecheck.kind === 'already_used' ? invitePrecheck.role : undefined;
+  const pendingRole = invitePrecheck.kind === 'ok' ? invitePrecheck.role : undefined;
+  const accountExists = invitePrecheck.kind === 'ok' && Boolean(invitePrecheck.accountExists);
+  const inviteEmail = invitePrecheck.kind === 'ok' ? invitePrecheck.email : undefined;
+  const accessLabel = roleAccessLabel(pendingRole);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-warm-100 via-primary-100/70 to-accent-100/80 px-4 py-8 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
@@ -207,10 +272,10 @@ export default function AcceptInviteClient() {
             </div>
             <p className="text-center text-sm text-slate-600 dark:text-slate-300">
               {webInviteRole(alreadyUsedRole)
-                ? 'Sign in on the web with the email address from your invite and the password you chose when you first accepted.'
+                ? 'Sign in on the web with the email address from your invite and your usual password.'
                 : alreadyUsedRole === 'teacher' || alreadyUsedRole === 'parent'
-                  ? 'Sign in on the My Little Moments mobile app with the email address from your invite and the password you chose when you first accepted.'
-                  : 'This link has already been used. Sign in with the email address from your invite and the password you set when you accepted.'}
+                  ? 'Sign in on the My Little Moments mobile app with the email address from your invite and your usual password.'
+                  : 'This link has already been used. Sign in with the email address from your invite.'}
             </p>
             {!webInviteRole(alreadyUsedRole) ? <MobileAppStoreLinks /> : null}
             {webInviteRole(alreadyUsedRole) ? (
@@ -270,9 +335,13 @@ export default function AcceptInviteClient() {
               </h1>
             </div>
             <p className="text-center text-sm text-slate-600 dark:text-slate-300">
-              {appOnlyRole === 'teacher'
-                ? 'Your teacher account is active. Use the My Little Moments mobile app to sign in with the email address from your invite and the password you just chose.'
-                : 'Your parent account is linked. Use the My Little Moments mobile app to sign in with the email address from your invite and the password you just chose.'}
+              {joinedExisting
+                ? appOnlyRole === 'teacher'
+                  ? 'Teacher access is on your existing account. Sign in on the My Little Moments mobile app with your usual email and password.'
+                  : 'Parent access is on your existing account. Sign in on the My Little Moments mobile app with your usual email and password.'
+                : appOnlyRole === 'teacher'
+                  ? 'Your teacher account is active. Use the My Little Moments mobile app to sign in with the email address from your invite and the password you just chose.'
+                  : 'Your parent account is linked. Use the My Little Moments mobile app to sign in with the email address from your invite and the password you just chose.'}
             </p>
             <MobileAppStoreLinks />
             <Link
@@ -281,6 +350,50 @@ export default function AcceptInviteClient() {
             >
               Web sign-in (principals only)
             </Link>
+          </div>
+        ) : accountExists ? (
+          <div className={`${shellCardClass} transition-all duration-300`}>
+            <div className="mb-6 flex flex-col items-center">
+              <div className="relative h-14 w-14 overflow-hidden rounded-2xl shadow-lg shadow-primary-500/25">
+                <AppLogo sizes="56px" />
+              </div>
+              <h1 className="mt-5 font-display text-xl font-extrabold tracking-tight sm:text-2xl">
+                <span className="text-gradient-warm">Accept invite</span>
+              </h1>
+              <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-300">
+                {inviteEmail
+                  ? `We found an account for ${inviteEmail}. Continue to add ${accessLabel} access — no new password needed.`
+                  : `We found an existing account. Continue to add ${accessLabel} access — no new password needed.`}
+              </p>
+            </div>
+
+            {!token && (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-800">
+                This invite link is missing a token.
+              </p>
+            )}
+
+            {error && (
+              <p
+                className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={onAcceptExisting}
+              disabled={submitting || done || !token}
+              className="relative mt-6 w-full overflow-hidden rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 py-3.5 text-base font-bold text-white shadow-lg shadow-primary-500/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 active:translate-y-0 disabled:translate-y-0 disabled:opacity-50 dark:focus:ring-offset-slate-900"
+            >
+              {submitting
+                ? 'Adding access…'
+                : done
+                  ? 'Done'
+                  : `Continue as ${accessLabel}`}
+            </button>
           </div>
         ) : (
           <form onSubmit={onSubmit} className={`${shellCardClass} transition-all duration-300`} noValidate>

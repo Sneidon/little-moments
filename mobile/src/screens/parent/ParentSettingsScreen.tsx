@@ -25,6 +25,7 @@ import {
   settingsCardShadow,
 } from '../../components/SettingsSection';
 import { getAge, getInitials, formatSettingsVersionFooter } from '../../utils';
+import { getMobileEligibleRoles } from '../../utils/roles';
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
 import type { School } from '../../../../shared/types';
@@ -32,10 +33,11 @@ import type { School } from '../../../../shared/types';
 export function ParentSettingsScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { profile, selectedChildId, setSelectedChildId } = useAuth();
+  const { profile, selectedChildId, setSelectedChildId, setSessionPortalRole } = useAuth();
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const cardShadow = useMemo(() => settingsCardShadow(isDark), [isDark]);
+  const canSwitchPortal = getMobileEligibleRoles(profile).length > 1;
 
   const [children, setChildren] = useState<Child[]>([]);
   const [schoolsById, setSchoolsById] = useState<Record<string, School>>({});
@@ -305,6 +307,16 @@ export function ParentSettingsScreen() {
 
       <Text style={styles.sectionLabel}>Account</Text>
       <View style={[styles.groupCard, cardShadow]}>
+        {canSwitchPortal ? (
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => setSessionPortalRole(null)}
+            activeOpacity={0.75}
+          >
+            <SettingsIconBox name="swap-horizontal-outline" backgroundColor={colors.accentTealSoft} iconColor={colors.accentTeal} />
+            <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Switch portal</Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={styles.row} onPress={handleSignOut} activeOpacity={0.75}>
           <SettingsIconBox name="log-out-outline" backgroundColor={colors.dangerMuted} iconColor={colors.danger} />
           <Text style={[styles.rowTitle, styles.rowTitleFlex, { color: colors.danger }]}>Sign out</Text>

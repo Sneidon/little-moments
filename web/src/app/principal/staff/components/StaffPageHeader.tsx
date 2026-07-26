@@ -8,6 +8,7 @@ export interface StaffPageHeaderProps {
   onExportCsv: () => void;
   onExportExcel: () => void;
   onInviteTeacher: () => void;
+  onInviteSchoolAdmin: () => void;
   onAddTeacher: () => void;
 }
 
@@ -16,6 +17,7 @@ export function StaffPageHeader({
   onExportCsv,
   onExportExcel,
   onInviteTeacher,
+  onInviteSchoolAdmin,
   onAddTeacher,
 }: StaffPageHeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
@@ -48,7 +50,7 @@ export function StaffPageHeader({
     <PageHero
       variant="full"
       title={<span className="text-gradient-warm">Staff & teachers</span>}
-      subtitle="Teachers and principals at your school. Assign from Classes; parents are on the Parents page."
+      subtitle="Teachers and school admins at your school. Assign from Classes; parents are on the Parents page."
       actions={
       <div className="flex flex-wrap items-center gap-2 shrink-0">
         <div className="relative" ref={menuRef}>
@@ -102,6 +104,9 @@ export function StaffPageHeader({
             </div>
           )}
         </div>
+        <button type="button" onClick={onInviteSchoolAdmin} className="btn-secondary">
+          Invite school admin
+        </button>
         <button type="button" onClick={onInviteTeacher} className="btn-primary">
           Invite teacher
         </button>

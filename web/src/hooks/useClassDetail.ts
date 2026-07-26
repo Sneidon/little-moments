@@ -17,6 +17,7 @@ import type { Child } from 'shared/types';
 import type { DailyReport } from 'shared/types';
 import { toIsoTimestamp } from '@/lib/reports';
 import type { UserProfile } from 'shared/types';
+import { userHoldsRole } from '@/lib/roles';
 
 export type ClassReportRow = DailyReport & { childId: string; childName: string };
 
@@ -84,7 +85,7 @@ export function useClassDetail(
       );
       const teacherList = teachersSnap.docs
         .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
-        .filter((u) => u.role === 'teacher' || u.role === 'principal');
+        .filter((u) => userHoldsRole(u, 'teacher') || userHoldsRole(u, 'principal'));
       if (!cancelled) {
         setChildren(childList);
         setTeachers(teacherList);

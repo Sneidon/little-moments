@@ -227,10 +227,10 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
             parentDisplayName: inviteForm.parentDisplayName.trim() || undefined,
             parentPhone: inviteForm.parentPhone.trim() || undefined,
           });
-        }
-        if (schoolId && inviteStep === 'link') {
-          const updated = await refetchChild(schoolId, child.id);
-          if (updated) setChild(updated);
+          if (schoolId) {
+            const updated = await refetchChild(schoolId, child.id);
+            if (updated) setChild(updated);
+          }
         }
         setInviteForm(INITIAL_INVITE_FORM);
         setShowInviteParent(false);

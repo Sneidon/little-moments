@@ -69,7 +69,7 @@ export default function AdminLayout({
       return;
     }
     if (profile.role !== 'super_admin') {
-      router.replace(profile.role === 'principal' ? '/principal' : '/login');
+      router.replace(profile.role === 'principal' ? '/principal' : '/select-role');
       return;
     }
   }, [user, profile, loading, router]);

@@ -39,6 +39,113 @@ function isoNow(): string {
   return new Date().toISOString();
 }
 
+type AppUserRole = 'teacher' | 'parent' | 'principal' | 'super_admin';
+
+type RoleProfileSlice = {
+  role?: string | null;
+  roles?: string[] | null;
+  schoolId?: string | null;
+  displayName?: string;
+};
+
+function normalizeUserRoles(data: RoleProfileSlice | null | undefined): {
+  roles: AppUserRole[];
+  role: AppUserRole | undefined;
+} {
+  const rawRoles = Array.isArray(data?.roles)
+    ? data!.roles!.filter((r): r is string => typeof r === 'string' && r.trim().length > 0)
+    : [];
+  const single = typeof data?.role === 'string' && data.role.trim() ? data.role.trim() : undefined;
+  const merged = Array.from(new Set([...(rawRoles.length ? rawRoles : []), ...(single ? [single] : [])]));
+  const roles = merged as AppUserRole[];
+  const role = (single && roles.includes(single as AppUserRole) ? single : roles[0]) as AppUserRole | undefined;
+  return { roles, role };
+}
+
+function userHasRole(data: RoleProfileSlice | null | undefined, role: AppUserRole): boolean {
+  return normalizeUserRoles(data).roles.includes(role);
+}
+
+/** Merge a role onto an existing profile; optionally set it as the active portal role. */
+function roleMergePayload(
+  existing: RoleProfileSlice | null | undefined,
+  addRole: AppUserRole,
+  opts?: { setActive?: boolean; schoolId?: string | null }
+): { roles: AppUserRole[]; role: AppUserRole; schoolId?: string } {
+  const { roles: held, role: active } = normalizeUserRoles(existing);
+  const roles = Array.from(new Set([...held, addRole])) as AppUserRole[];
+  const setActive = opts?.setActive !== false;
+  const role = setActive ? addRole : (active && roles.includes(active) ? active : addRole);
+  const out: { roles: AppUserRole[]; role: AppUserRole; schoolId?: string } = { roles, role };
+  const nextSchool =
+    opts?.schoolId !== undefined && opts?.schoolId !== null
+      ? opts.schoolId
+      : existing?.schoolId ?? undefined;
+  if (typeof nextSchool === 'string' && nextSchool.trim()) {
+    out.schoolId = nextSchool.trim();
+  }
+  return out;
+}
+
+function assertStaffSchoolConflict(
+  existing: RoleProfileSlice | null | undefined,
+  staffRole: 'teacher' | 'principal',
+  schoolId: string
+): void {
+  const { roles } = normalizeUserRoles(existing);
+  const sid = existing?.schoolId?.trim();
+  if (roles.includes(staffRole) && sid && sid !== schoolId) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      staffRole === 'teacher'
+        ? 'This email is already used as a teacher at another school.'
+        : 'This email is already used as a principal at another school.'
+    );
+  }
+  if (roles.includes(staffRole) && sid === schoolId) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      staffRole === 'teacher'
+        ? 'You are already a teacher at this school.'
+        : 'This account is already a principal at this school.'
+    );
+  }
+}
+
+/** Resolve Auth user for an invite: existing accounts keep password; new ones require one. */
+async function resolveAuthForInviteAccept(params: {
+  emailNorm: string;
+  emailRaw: string;
+  password?: string;
+  displayName?: string | null;
+}): Promise<{ uid: string; existed: boolean; displayName: string }> {
+  const formDisplay =
+    params.displayName && typeof params.displayName === 'string' && params.displayName.trim()
+      ? params.displayName.trim()
+      : null;
+  try {
+    const existing = await admin.auth().getUserByEmail(params.emailNorm);
+    const display = formDisplay ?? existing.displayName ?? params.emailRaw;
+    if (formDisplay) {
+      await admin.auth().updateUser(existing.uid, { displayName: formDisplay });
+    }
+    return { uid: existing.uid, existed: true, displayName: display };
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
+    if (code !== 'auth/user-not-found') throw err;
+  }
+  if (!params.password || typeof params.password !== 'string' || params.password.length < 6) {
+    throw new functions.https.HttpsError('invalid-argument', 'password must be at least 6 characters.');
+  }
+  const newDisplay = formDisplay ?? params.emailRaw;
+  const userRecord = await admin.auth().createUser({
+    email: params.emailNorm,
+    password: params.password,
+    displayName: newDisplay,
+  });
+  return { uid: userRecord.uid, existed: false, displayName: newDisplay };
+}
+
 /** Child roster / parent access — false means left the school (field omitted treats as enrolled). */
 function childEnrollmentIsActive(data: { isActive?: boolean }): boolean {
   return data?.isActive !== false;
@@ -125,18 +232,22 @@ async function sendResendEmail(params: { to: string; subject: string; html: stri
   functions.logger.info('Resend email sent', { to: params.to, subject: params.subject.slice(0, 120) });
 }
 
-async function requireCallerProfile(db: admin.firestore.Firestore, uid: string): Promise<{ role?: string; schoolId?: string; displayName?: string }> {
+async function requireCallerProfile(
+  db: admin.firestore.Firestore,
+  uid: string
+): Promise<RoleProfileSlice & { displayName?: string }> {
   const snap = await db.collection('users').doc(uid).get();
   if (!snap.exists) return {};
-  return snap.data() as { role?: string; schoolId?: string; displayName?: string };
+  return snap.data() as RoleProfileSlice & { displayName?: string };
 }
 
 function requireRoleAllowed(
-  caller: { role?: string; schoolId?: string },
+  caller: RoleProfileSlice,
   allowed: Array<'super_admin' | 'principal' | 'teacher' | 'parent'>,
   opts?: { schoolId?: string; message?: string }
 ): void {
-  if (!caller.role || !allowed.includes(caller.role as any)) {
+  const { roles } = normalizeUserRoles(caller);
+  if (!roles.some((r) => allowed.includes(r))) {
     throw new functions.https.HttpsError('permission-denied', opts?.message || 'Not allowed.');
   }
   if (opts?.schoolId && caller.schoolId !== opts.schoolId) {
@@ -698,14 +809,21 @@ async function sendPrincipalInviteEmail(params: {
   schoolName: string;
   principalName?: string;
   token: string;
+  /** When true, copy is for joining an existing school as an additional admin. */
+  existingSchool?: boolean;
 }): Promise<void> {
   const acceptUrl = `${INVITE_ACCEPT_APP_BASE_URL}/invite/accept?token=${encodeURIComponent(params.token)}`;
+  const schoolName = params.schoolName.trim();
+  const greeting = (params.principalName && params.principalName.trim()) ? params.principalName.trim() : 'there';
+  const subject = params.existingSchool
+    ? `You're invited as a school admin at ${schoolName} on My Little Moments`
+    : `You're invited to set up ${schoolName} on My Little Moments`;
   await sendResendEmail({
     to: params.to.trim(),
-    subject: `You're invited to set up ${params.schoolName.trim()} on My Little Moments`,
+    subject,
     html: principalWelcomeEmailHtml({
-      schoolName: params.schoolName.trim(),
-      principalName: (params.principalName && params.principalName.trim()) ? params.principalName.trim() : 'there',
+      schoolName,
+      principalName: greeting,
       acceptUrl,
       expiresInDays: 7,
     }),
@@ -985,12 +1103,13 @@ async function getStaffUserIdsForSchool(
     const data = d.data() as {
       isActive?: boolean;
       role?: string;
+      roles?: string[];
       notificationPreferences?: Record<string, boolean>;
     };
     if (data.isActive === false) return;
     if (
       options?.filterStaffByAnnouncementsPref &&
-      (data.role === 'teacher' || data.role === 'principal') &&
+      (userHasRole(data, 'teacher') || userHasRole(data, 'principal')) &&
       !parentNotificationPreferenceAllows(data.notificationPreferences, 'announcements')
     ) {
       return;
@@ -1179,8 +1298,18 @@ export const setUserClaims = functions.firestore
     const userId = context.params.userId;
     const data = change.after.exists ? change.after.data() : null;
     if (!data || !userId) return null;
-    const role = data.role as string | undefined;
-    const schoolId = data.schoolId as string | undefined;
+    const { roles, role } = normalizeUserRoles(data as RoleProfileSlice);
+    const schoolId = (data as { schoolId?: string }).schoolId as string | undefined;
+
+    // Backfill roles[] on legacy docs so clients can detect multi-role.
+    if (roles.length && (!Array.isArray((data as { roles?: unknown }).roles) || (data as { roles: string[] }).roles.length === 0)) {
+      try {
+        await change.after.ref.set({ roles }, { merge: true });
+      } catch (e) {
+        functions.logger.warn('setUserClaims roles backfill failed', userId, e);
+      }
+    }
+
     const claims: Record<string, string> = {};
     if (role) claims.role = role;
     if (schoolId) claims.schoolId = schoolId;
@@ -1316,7 +1445,7 @@ async function notifyTeacherChildJoinedClass(params: {
   const teacherSnap = await db.collection('users').doc(teacherId).get();
   if (!teacherSnap.exists) return;
   const teacher = teacherSnap.data() as { role?: string; schoolId?: string; isActive?: boolean };
-  if (teacher.isActive === false || teacher.role !== 'teacher' || teacher.schoolId !== schoolId) return;
+  if (teacher.isActive === false || !userHasRole(teacher, 'teacher') || teacher.schoolId !== schoolId) return;
 
   const childName = (child.name && String(child.name).trim()) || 'A child';
   const [beforeLabel, afterLabel] = await Promise.all([
@@ -1467,7 +1596,7 @@ async function notifyTeacherOfClassAssignment(params: {
   const teacherSnap = await db.collection('users').doc(teacherId).get();
   if (!teacherSnap.exists) return;
   const teacher = teacherSnap.data() as { role?: string; schoolId?: string; isActive?: boolean };
-  if (teacher.isActive === false || teacher.role !== 'teacher' || teacher.schoolId !== schoolId) return;
+  if (teacher.isActive === false || !userHasRole(teacher, 'teacher') || teacher.schoolId !== schoolId) return;
 
   const classSnap = await db.collection('schools').doc(schoolId).collection('classes').doc(classId).get();
   const classLabel = classSnap.exists
@@ -1671,12 +1800,13 @@ async function getFcmTokensForSchool(
       fcmTokens?: string[];
       isActive?: boolean;
       role?: string;
+      roles?: string[];
       notificationPreferences?: Record<string, boolean>;
     };
     if (data.isActive === false) return;
     if (
       options?.filterStaffByAnnouncementsPref &&
-      (data.role === 'teacher' || data.role === 'principal') &&
+      (userHasRole(data, 'teacher') || userHasRole(data, 'principal')) &&
       !parentNotificationPreferenceAllows(data.notificationPreferences, 'announcements')
     ) {
       return;
@@ -1990,16 +2120,60 @@ export const syncClaims = functions.https.onCall(async (_data, context) => {
   }
   const uid = context.auth.uid;
   const db = admin.firestore();
-  const snap = await db.collection('users').doc(uid).get();
+  const ref = db.collection('users').doc(uid);
+  const snap = await ref.get();
   if (!snap.exists) {
     return { ok: false, message: 'No user profile' };
   }
-  const data = snap.data() as { role?: string; schoolId?: string };
+  const data = snap.data() as RoleProfileSlice & { schoolId?: string };
+  const { roles, role } = normalizeUserRoles(data);
+  if (roles.length && (!Array.isArray(data.roles) || data.roles.length === 0)) {
+    await ref.set({ roles }, { merge: true });
+  }
   const claims: Record<string, string> = {};
-  if (data.role) claims.role = data.role;
+  if (role) claims.role = role;
   if (data.schoolId) claims.schoolId = data.schoolId;
   await admin.auth().setCustomUserClaims(uid, claims);
-  return { ok: true };
+  return { ok: true, roles, role: role ?? null };
+});
+
+/** Switch the active portal role (must already be in the user's roles[]). */
+export const selectActiveRole = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+  const roleRaw = data?.role;
+  if (!roleRaw || typeof roleRaw !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'role is required.');
+  }
+  const role = roleRaw.trim() as AppUserRole;
+  const allowed: AppUserRole[] = ['teacher', 'parent', 'principal', 'super_admin'];
+  if (!allowed.includes(role)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Invalid role.');
+  }
+
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const ref = db.collection('users').doc(uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new functions.https.HttpsError('not-found', 'No user profile.');
+  }
+  const profile = snap.data() as RoleProfileSlice & { schoolId?: string };
+  const { roles } = normalizeUserRoles(profile);
+  if (!roles.includes(role)) {
+    throw new functions.https.HttpsError('permission-denied', 'You do not have this role.');
+  }
+
+  const now = isoNow();
+  await ref.set({ role, roles, updatedAt: now }, { merge: true });
+
+  const claims: Record<string, string> = { role };
+  if (profile.schoolId) {
+    claims.schoolId = profile.schoolId;
+  }
+  await admin.auth().setCustomUserClaims(uid, claims);
+  return { ok: true, role, roles };
 });
 
 // Register FCM token for push notifications (announcements, reminders, etc.). Call from mobile after getting the token.
@@ -2118,8 +2292,8 @@ export const createSchoolWithPrincipal = functions.https.onCall(async (data, con
   const callerUid = context.auth.uid;
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
-  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
-  if (callerRole !== 'super_admin') {
+  const callerProfile = callerSnap.exists ? (callerSnap.data() as RoleProfileSlice) : null;
+  if (!userHasRole(callerProfile, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can create schools.');
   }
 
@@ -2186,10 +2360,24 @@ export const createSchoolWithPrincipal = functions.https.onCall(async (data, con
       ? principalDisplayName.trim()
       : principalEmail.trim(),
     role: 'principal',
+    roles: ['principal'],
     schoolId,
     createdAt: now,
     updatedAt: now,
   });
+
+  await schoolRef.set(
+    {
+      principalUid,
+      principalUids: [principalUid],
+      principalEmail: principalEmail.trim(),
+      principalName: (principalDisplayName && typeof principalDisplayName === 'string')
+        ? principalDisplayName.trim()
+        : principalEmail.trim(),
+      updatedAt: now,
+    },
+    { merge: true }
+  );
 
   return { schoolId, principalUid };
 });
@@ -2292,7 +2480,7 @@ export const adminSetSchoolSuspended = functions.https.onCall(async (data, conte
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
   const db = admin.firestore();
   const caller = await requireCallerProfile(db, context.auth.uid);
-  if (caller.role !== 'super_admin') {
+  if (!userHasRole(caller, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can change school suspension.');
   }
   const { schoolId, suspended } = data as { schoolId?: string; suspended?: boolean };
@@ -2414,7 +2602,7 @@ export const adminQueueSchoolDeletion = functions.https.onCall(async (data, cont
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
   const db = admin.firestore();
   const caller = await requireCallerProfile(db, context.auth.uid);
-  if (caller.role !== 'super_admin') {
+  if (!userHasRole(caller, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can queue school deletion.');
   }
   const { schoolId, confirmation } = data as { schoolId?: string; confirmation?: string };
@@ -2487,7 +2675,7 @@ export const adminCancelSchoolDeletion = functions.https.onCall(async (data, con
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
   const db = admin.firestore();
   const caller = await requireCallerProfile(db, context.auth.uid);
-  if (caller.role !== 'super_admin') {
+  if (!userHasRole(caller, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can cancel scheduled deletions.');
   }
   const { jobId } = data as { jobId?: string };
@@ -2528,8 +2716,8 @@ export const adminInvitePrincipal = functions.https.onCall(async (data, context)
   const callerUid = context.auth.uid;
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
-  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
-  if (callerRole !== 'super_admin') {
+  const callerProfile = callerSnap.exists ? (callerSnap.data() as RoleProfileSlice) : null;
+  if (!userHasRole(callerProfile, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can invite principals.');
   }
 
@@ -2577,14 +2765,108 @@ export const adminInvitePrincipal = functions.https.onCall(async (data, context)
   return { token, expiresAt, schoolName: schoolName.trim() };
 });
 
+/**
+ * Invite an additional school admin (principal) to an existing school.
+ * Callable by super_admin or a principal of that school.
+ */
+export const inviteSchoolPrincipal = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  const callerUid = context.auth.uid;
+  const db = admin.firestore();
+  const callerSnap = await db.collection('users').doc(callerUid).get();
+  const caller = callerSnap.exists ? (callerSnap.data() as RoleProfileSlice) : null;
+
+  const { schoolId, principalEmail, principalName } = data as {
+    schoolId?: string;
+    principalEmail?: string;
+    principalName?: string;
+  };
+  if (!schoolId || typeof schoolId !== 'string' || !schoolId.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'schoolId is required.');
+  }
+  if (!principalEmail || typeof principalEmail !== 'string' || !principalEmail.trim()) {
+    throw new functions.https.HttpsError('invalid-argument', 'principalEmail is required.');
+  }
+  const emailNorm = principalEmail.trim().toLowerCase();
+  if (!isValidEmail(emailNorm)) {
+    throw new functions.https.HttpsError('invalid-argument', 'A valid email is required.');
+  }
+  const sid = schoolId.trim();
+
+  const isSuper = userHasRole(caller, 'super_admin');
+  const isSchoolPrincipal = userHasRole(caller, 'principal') && caller?.schoolId === sid;
+  if (!isSuper && !isSchoolPrincipal) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Only super admins or school admins can invite school administrators.'
+    );
+  }
+
+  const schoolSnap = await db.collection('schools').doc(sid).get();
+  if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found.');
+  const schoolData = schoolSnap.data() as { name?: string };
+  const schoolName = (schoolData.name && schoolData.name.trim()) ? schoolData.name.trim() : 'your school';
+
+  try {
+    const existingAuth = await admin.auth().getUserByEmail(emailNorm);
+    const prof = await db.collection('users').doc(existingAuth.uid).get();
+    const p = prof.exists ? (prof.data() as RoleProfileSlice) : null;
+    if (userHasRole(p, 'principal') && p?.schoolId === sid) {
+      throw new functions.https.HttpsError(
+        'already-exists',
+        'This user is already a school admin at this school.'
+      );
+    }
+    if (userHasRole(p, 'principal') && p?.schoolId && p.schoolId !== sid) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'This email is already a school admin at another school.'
+      );
+    }
+    // Existing account still gets an invite; accept adds the role without a new password.
+  } catch (err: unknown) {
+    if (err instanceof functions.https.HttpsError) throw err;
+    const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
+    if (code !== 'auth/user-not-found') throw err;
+  }
+
+  const now = isoNow();
+  const token = randomToken(24);
+  const expiresAt = addDays(new Date(), 7).toISOString();
+  const invitePayload: Record<string, unknown> = {
+    token,
+    email: emailNorm,
+    role: 'principal',
+    schoolId: sid,
+    schoolName,
+    expiresAt,
+    createdAt: now,
+  };
+  if (principalName && typeof principalName === 'string' && principalName.trim()) {
+    invitePayload.principalName = principalName.trim();
+    invitePayload.inviteeDisplayName = principalName.trim();
+  }
+  await db.collection('inviteTokens').doc(token).set(invitePayload);
+
+  await sendPrincipalInviteEmail({
+    to: emailNorm,
+    schoolName,
+    principalName: principalName?.trim(),
+    token,
+    existingSchool: true,
+  });
+
+  return { token, expiresAt, schoolId: sid, schoolName };
+});
+
 /** Invite-only onboarding for additional super admins (same UX as principal school invites). */
 export const adminInviteSuperAdmin = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
   const callerUid = context.auth.uid;
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
-  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
-  if (callerRole !== 'super_admin') {
+  const callerProfile = callerSnap.exists ? (callerSnap.data() as RoleProfileSlice) : null;
+  if (!userHasRole(callerProfile, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can invite administrators.');
   }
 
@@ -2597,25 +2879,17 @@ export const adminInviteSuperAdmin = functions.https.onCall(async (data, context
     throw new functions.https.HttpsError('invalid-argument', 'A valid email is required.');
   }
 
-  let authUser: admin.auth.UserRecord | null = null;
   try {
-    authUser = await admin.auth().getUserByEmail(emailNorm);
+    const authUser = await admin.auth().getUserByEmail(emailNorm);
+    const prof = await db.collection('users').doc(authUser.uid).get();
+    if (prof.exists && userHasRole(prof.data() as RoleProfileSlice, 'super_admin')) {
+      throw new functions.https.HttpsError('already-exists', 'This user is already a super administrator.');
+    }
+    // Existing account still gets an invite; accept adds the role without a new password.
   } catch (err: unknown) {
+    if (err instanceof functions.https.HttpsError) throw err;
     const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
     if (code !== 'auth/user-not-found') throw err;
-  }
-  if (authUser) {
-    const prof = await db.collection('users').doc(authUser.uid).get();
-    if (prof.exists) {
-      const role = (prof.data() as { role?: string }).role;
-      if (role === 'super_admin') {
-        throw new functions.https.HttpsError('already-exists', 'This user is already a super administrator.');
-      }
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        'This email already has an account with a different role. Use another email.'
-      );
-    }
   }
 
   const now = isoNow();
@@ -2648,8 +2922,8 @@ export const resendPrincipalInvite = functions.https.onCall(async (data, context
   const callerUid = context.auth.uid;
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
-  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
-  if (callerRole !== 'super_admin') {
+  const callerProfile = callerSnap.exists ? (callerSnap.data() as RoleProfileSlice) : null;
+  if (!userHasRole(callerProfile, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can resend principal invites.');
   }
 
@@ -2722,8 +2996,8 @@ export const resendSuperAdminInvite = functions.https.onCall(async (data, contex
   const callerUid = context.auth.uid;
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
-  const callerRole = callerSnap.exists ? (callerSnap.data() as { role?: string })?.role : null;
-  if (callerRole !== 'super_admin') {
+  const callerProfile = callerSnap.exists ? (callerSnap.data() as RoleProfileSlice) : null;
+  if (!userHasRole(callerProfile, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can resend admin invites.');
   }
 
@@ -2791,9 +3065,9 @@ export const resendSchoolInvite = functions.https.onCall(async (data, context) =
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : {};
-  const isSuperAdminCaller = callerData.role === 'super_admin';
+  const isSuperAdminCaller = userHasRole(callerData, 'super_admin');
   const principalSchoolId =
-    callerData.role === 'principal' && callerData.schoolId ? callerData.schoolId : null;
+    userHasRole(callerData, 'principal') && callerData.schoolId ? callerData.schoolId : null;
   if (!isSuperAdminCaller && !principalSchoolId) {
     throw new functions.https.HttpsError('permission-denied', 'You cannot resend this invite.');
   }
@@ -2911,9 +3185,9 @@ export const deleteInviteToken = functions.https.onCall(async (data, context) =>
   if (!inviteSnap.exists) throw new functions.https.HttpsError('not-found', 'Invite not found.');
   const inv = inviteSnap.data() as { role?: string; schoolId?: string };
 
-  const isSuper = callerData.role === 'super_admin';
+  const isSuper = userHasRole(callerData, 'super_admin');
   const isPrincipalOk =
-    callerData.role === 'principal' &&
+    userHasRole(callerData, 'principal') &&
     callerData.schoolId &&
     (inv.role === 'teacher' || inv.role === 'parent') &&
     inv.schoolId === callerData.schoolId;
@@ -2933,7 +3207,7 @@ export const listPrincipalSchoolInvites = functions.https.onCall(async (data, co
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : {};
-  if (callerData.role !== 'principal' || !callerData.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can list school invitations.');
   }
   const schoolId = callerData.schoolId;
@@ -3018,24 +3292,37 @@ export const peekInviteToken = functions.https.onCall(async (data) => {
   const db = admin.firestore();
   const snap = await db.collection('inviteTokens').doc(token.trim()).get();
   if (!snap.exists) return { status: 'not_found' as const };
-  const row = snap.data() as { expiresAt?: string; usedAt?: string; role?: string };
+  const row = snap.data() as { expiresAt?: string; usedAt?: string; role?: string; email?: string };
   const role = typeof row.role === 'string' ? row.role : undefined;
   if (row.usedAt) return { status: 'used' as const, role };
   if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) {
     return { status: 'expired' as const, role };
   }
-  return { status: 'pending' as const, role };
+  let accountExists = false;
+  const emailNorm = typeof row.email === 'string' ? row.email.trim().toLowerCase() : '';
+  if (emailNorm) {
+    try {
+      await admin.auth().getUserByEmail(emailNorm);
+      accountExists = true;
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
+      if (code !== 'auth/user-not-found') throw err;
+    }
+  }
+  return {
+    status: 'pending' as const,
+    role,
+    accountExists,
+    email: emailNorm || undefined,
+  };
 });
 
 // Accept an invite token: principal onboarding (school) or super admin onboarding (Admin console).
-export const acceptInviteToken = functions.https.onCall(async (data, context) => {
-  // Public-ish: no auth required (token is bearer secret).
+export const acceptInviteToken = functions.https.onCall(async (data, _context) => {
+  // Public-ish: token is bearer secret. Existing Auth users may omit password/displayName.
   const { token, password, displayName } = data as { token?: string; password?: string; displayName?: string };
   if (!token || typeof token !== 'string' || !token.trim()) {
     throw new functions.https.HttpsError('invalid-argument', 'token is required.');
-  }
-  if (!password || typeof password !== 'string' || password.length < 6) {
-    throw new functions.https.HttpsError('invalid-argument', 'password must be at least 6 characters.');
   }
 
   const db = admin.firestore();
@@ -3070,60 +3357,48 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
   const emailRaw = invite.email.trim();
   const emailNorm = emailRaw.toLowerCase();
   const now = isoNow();
+  const displayFromForm =
+    displayName && typeof displayName === 'string' && displayName.trim() ? displayName.trim() : null;
+  const displayFromInvite =
+    invite.inviteeDisplayName && typeof invite.inviteeDisplayName === 'string' && invite.inviteeDisplayName.trim()
+      ? invite.inviteeDisplayName.trim()
+      : null;
 
   if (invite.role === 'super_admin') {
-    const displayFromForm =
-      displayName && typeof displayName === 'string' && displayName.trim()
-        ? displayName.trim()
-        : null;
-    const displayFromInvite =
-      invite.inviteeDisplayName && typeof invite.inviteeDisplayName === 'string' && invite.inviteeDisplayName.trim()
-        ? invite.inviteeDisplayName.trim()
-        : null;
-
-    let superUid: string;
+    let accountExists = false;
     try {
       const existing = await admin.auth().getUserByEmail(emailNorm);
-      superUid = existing.uid;
-      const profSnap = await db.collection('users').doc(superUid).get();
-      if (profSnap.exists) {
-        const role = (profSnap.data() as { role?: string }).role;
-        if (role && role !== 'super_admin') {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'This email already has an account with a different role.'
-          );
-        }
-        if (role === 'super_admin') {
-          throw new functions.https.HttpsError('failed-precondition', 'This account is already a super administrator.');
-        }
+      accountExists = true;
+      const profSnap = await db.collection('users').doc(existing.uid).get();
+      if (profSnap.exists && userHasRole(profSnap.data() as RoleProfileSlice, 'super_admin')) {
+        throw new functions.https.HttpsError('failed-precondition', 'This account is already a super administrator.');
       }
-      const authDisplay =
-        displayFromForm ?? displayFromInvite ?? existing.displayName ?? emailRaw;
-      await admin.auth().updateUser(superUid, {
-        password,
-        displayName: authDisplay,
-      });
     } catch (err: unknown) {
       if (err instanceof functions.https.HttpsError) throw err;
       const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
       if (code !== 'auth/user-not-found') throw err;
-      const newDisplay = displayFromForm ?? displayFromInvite ?? emailRaw;
-      const userRecord = await admin.auth().createUser({
-        email: emailNorm,
-        password,
-        displayName: newDisplay,
-      });
-      superUid = userRecord.uid;
     }
 
-    const finalDisplayName = displayFromForm ?? displayFromInvite ?? emailRaw;
+    const resolved = await resolveAuthForInviteAccept({
+      emailNorm,
+      emailRaw,
+      password,
+      displayName: displayFromForm ?? (accountExists ? null : displayFromInvite),
+    });
+    const superUid = resolved.uid;
     const userRef = db.collection('users').doc(superUid);
     const priorSnap = await userRef.get();
+    const prior = priorSnap.exists ? (priorSnap.data() as RoleProfileSlice) : null;
+    const finalDisplayName =
+      displayFromForm ??
+      displayFromInvite ??
+      (typeof prior?.displayName === 'string' ? prior.displayName : null) ??
+      resolved.displayName;
+    const roleFields = roleMergePayload(prior, 'super_admin', { setActive: true });
     const userPayload: Record<string, unknown> = {
       email: emailNorm,
       displayName: finalDisplayName,
-      role: 'super_admin',
+      ...roleFields,
       isActive: true,
       updatedAt: now,
     };
@@ -3133,7 +3408,12 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     await ref.update({ usedAt: now });
 
     const customToken = await admin.auth().createCustomToken(superUid);
-    return { ok: true as const, superAdminUid: superUid, customToken };
+    return {
+      ok: true as const,
+      superAdminUid: superUid,
+      customToken,
+      existingAccount: resolved.existed,
+    };
   }
 
   if (invite.role === 'teacher') {
@@ -3144,14 +3424,6 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     const schoolSnap = await db.collection('schools').doc(schoolIdInvite).get();
     if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found.');
 
-    const displayFromForm =
-      displayName && typeof displayName === 'string' && displayName.trim()
-        ? displayName.trim()
-        : null;
-    const displayFromInvite =
-      invite.inviteeDisplayName && typeof invite.inviteeDisplayName === 'string' && invite.inviteeDisplayName.trim()
-        ? invite.inviteeDisplayName.trim()
-        : null;
     const preferredFromInvite =
       invite.inviteePreferredName &&
       typeof invite.inviteePreferredName === 'string' &&
@@ -3159,61 +3431,38 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
         ? invite.inviteePreferredName.trim()
         : null;
 
-    let teacherUid: string;
+    let accountExists = false;
     try {
       const existing = await admin.auth().getUserByEmail(emailNorm);
-      teacherUid = existing.uid;
-      const profSnap = await db.collection('users').doc(teacherUid).get();
+      accountExists = true;
+      const profSnap = await db.collection('users').doc(existing.uid).get();
       if (profSnap.exists) {
-        const p = profSnap.data() as { role?: string; schoolId?: string };
-        const r = p.role;
-        const sid = p.schoolId;
-        if (r === 'teacher' && sid === schoolIdInvite) {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'You are already a teacher at this school.'
-          );
-        }
-        if (r && r !== 'teacher') {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'This email already has an account with a different role.'
-          );
-        }
-        if (r === 'teacher' && sid && sid !== schoolIdInvite) {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'This email is already used as a teacher at another school.'
-          );
-        }
+        assertStaffSchoolConflict(profSnap.data() as RoleProfileSlice, 'teacher', schoolIdInvite);
       }
-      const authDisplay = displayFromForm ?? displayFromInvite ?? existing.displayName ?? emailRaw;
-      await admin.auth().updateUser(teacherUid, {
-        password,
-        displayName: authDisplay,
-      });
     } catch (err: unknown) {
       if (err instanceof functions.https.HttpsError) throw err;
       const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
       if (code !== 'auth/user-not-found') throw err;
-      const newDisplay = displayFromForm ?? displayFromInvite ?? emailRaw;
-      const userRecord = await admin.auth().createUser({
-        email: emailNorm,
-        password,
-        displayName: newDisplay,
-      });
-      teacherUid = userRecord.uid;
     }
 
-    const finalDisplayName = displayFromForm ?? displayFromInvite ?? emailRaw;
+    const resolved = await resolveAuthForInviteAccept({
+      emailNorm,
+      emailRaw,
+      password,
+      displayName: displayFromForm ?? (accountExists ? null : displayFromInvite),
+    });
+    const teacherUid = resolved.uid;
     const userRef = db.collection('users').doc(teacherUid);
     const priorSnap = await userRef.get();
+    const prior = priorSnap.exists ? (priorSnap.data() as RoleProfileSlice & { displayName?: string }) : null;
+    const finalDisplayName =
+      displayFromForm ?? displayFromInvite ?? prior?.displayName ?? resolved.displayName;
+    const roleFields = roleMergePayload(prior, 'teacher', { setActive: true, schoolId: schoolIdInvite });
     const userPayload: Record<string, unknown> = {
       email: emailNorm,
       displayName: finalDisplayName,
       ...(preferredFromInvite ? { preferredName: preferredFromInvite } : {}),
-      role: 'teacher',
-      schoolId: schoolIdInvite,
+      ...roleFields,
       isActive: true,
       updatedAt: now,
     };
@@ -3249,7 +3498,7 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
       })
     );
 
-    return { ok: true as const, teacherUid };
+    return { ok: true as const, teacherUid, existingAccount: resolved.existed };
   }
 
   if (invite.role === 'parent') {
@@ -3270,14 +3519,6 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
       );
     }
 
-    const displayFromForm =
-      displayName && typeof displayName === 'string' && displayName.trim()
-        ? displayName.trim()
-        : null;
-    const displayFromInvite =
-      invite.inviteeDisplayName && typeof invite.inviteeDisplayName === 'string' && invite.inviteeDisplayName.trim()
-        ? invite.inviteeDisplayName.trim()
-        : null;
     const preferredFromInvite =
       invite.inviteePreferredName &&
       typeof invite.inviteePreferredName === 'string' &&
@@ -3288,72 +3529,54 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
       invite.inviteePhone && typeof invite.inviteePhone === 'string' && invite.inviteePhone.trim()
         ? invite.inviteePhone.trim()
         : undefined;
-    const finalDisplayName = displayFromForm ?? displayFromInvite ?? emailRaw;
 
-    let parentUid: string;
+    let accountExists = false;
     try {
       const existing = await admin.auth().getUserByEmail(emailNorm);
-      parentUid = existing.uid;
-      if (parentIds.includes(parentUid)) {
+      accountExists = true;
+      if (parentIds.includes(existing.uid)) {
         throw new functions.https.HttpsError('failed-precondition', 'You are already linked to this child.');
       }
-      const userRef = db.collection('users').doc(parentUid);
-      const userSnap = await userRef.get();
-      if (userSnap.exists) {
-        const udata = userSnap.data() as { role?: string };
-        if (udata.role && udata.role !== 'parent') {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'This email is already used for a staff or admin account.'
-          );
-        }
-      }
-      await admin.auth().updateUser(parentUid, {
-        password,
-        displayName: finalDisplayName,
-      });
-      const updates: Record<string, unknown> = {
-        email: emailNorm,
-        displayName: finalDisplayName,
-        schoolId: schoolIdInvite,
-        role: 'parent',
-        isActive: true,
-        updatedAt: now,
-      };
-      if (phoneHint !== undefined) updates.phone = phoneHint;
-      if (userSnap.exists) {
-        await userRef.update(updates);
-      } else {
-        await userRef.set({
-          ...updates,
-          createdAt: now,
-        });
-      }
-      parentIds = [...parentIds, parentUid];
-      await childRef.update({ parentIds, updatedAt: now });
     } catch (err: unknown) {
       if (err instanceof functions.https.HttpsError) throw err;
       const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
       if (code !== 'auth/user-not-found') throw err;
-      const userRecord = await admin.auth().createUser({
-        email: emailNorm,
-        password,
-        displayName: finalDisplayName,
+    }
+
+    const resolved = await resolveAuthForInviteAccept({
+      emailNorm,
+      emailRaw,
+      password,
+      displayName: displayFromForm ?? (accountExists ? null : displayFromInvite),
+    });
+    const parentUid = resolved.uid;
+    const userRef = db.collection('users').doc(parentUid);
+    const userSnap = await userRef.get();
+    const prior = userSnap.exists ? (userSnap.data() as RoleProfileSlice & { displayName?: string }) : null;
+    const finalDisplayName =
+      displayFromForm ?? displayFromInvite ?? prior?.displayName ?? resolved.displayName;
+    const roleFields = roleMergePayload(prior, 'parent', {
+      setActive: !prior || !normalizeUserRoles(prior).role,
+      schoolId: (prior?.schoolId as string | undefined) || schoolIdInvite,
+    });
+    const updates: Record<string, unknown> = {
+      email: emailNorm,
+      displayName: finalDisplayName,
+      ...roleFields,
+      isActive: true,
+      updatedAt: now,
+    };
+    if (phoneHint !== undefined) updates.phone = phoneHint;
+    if (preferredFromInvite) updates.preferredName = preferredFromInvite;
+    if (userSnap.exists) {
+      await userRef.update(updates);
+    } else {
+      await userRef.set({
+        ...updates,
+        createdAt: now,
       });
-      parentUid = userRecord.uid;
-      await db
-        .collection('users')
-        .doc(parentUid)
-        .set({
-          email: emailNorm,
-          displayName: finalDisplayName,
-          ...(phoneHint ? { phone: phoneHint } : {}),
-          role: 'parent',
-          schoolId: schoolIdInvite,
-          isActive: true,
-          createdAt: now,
-          updatedAt: now,
-        });
+    }
+    if (!parentIds.includes(parentUid)) {
       parentIds = [...parentIds, parentUid];
       await childRef.update({ parentIds, updatedAt: now });
     }
@@ -3390,7 +3613,7 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
       })
     );
 
-    return { ok: true as const, parentUid };
+    return { ok: true as const, parentUid, existingAccount: resolved.existed };
   }
 
   if (invite.role !== 'principal') {
@@ -3399,31 +3622,37 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
 
   const email = emailNorm;
 
-  // Create or reuse existing auth user for this email.
-  let principalUid: string;
+  let accountExists = false;
   try {
     const existing = await admin.auth().getUserByEmail(email);
-    principalUid = existing.uid;
-    await admin.auth().updateUser(principalUid, {
-      password,
-      displayName: (displayName && typeof displayName === 'string' && displayName.trim())
-        ? displayName.trim()
-        : existing.displayName ?? email,
-    });
+    accountExists = true;
+    const priorCheck = await db.collection('users').doc(existing.uid).get();
+    const priorPrincipal = priorCheck.exists
+      ? (priorCheck.data() as RoleProfileSlice)
+      : null;
+    const targetSchoolId = invite.createdSchoolId || invite.schoolId;
+    if (priorPrincipal && targetSchoolId) {
+      if (!(userHasRole(priorPrincipal, 'principal') && priorPrincipal.schoolId === targetSchoolId)) {
+        assertStaffSchoolConflict(priorPrincipal, 'principal', targetSchoolId);
+      }
+    }
   } catch (err: unknown) {
+    if (err instanceof functions.https.HttpsError) throw err;
     const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
     if (code !== 'auth/user-not-found') throw err;
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName: (displayName && typeof displayName === 'string' && displayName.trim())
-        ? displayName.trim()
-        : email,
-    });
-    principalUid = userRecord.uid;
   }
 
-  // Create school only when invite is accepted (or reuse if previously created).
+  const principalInviteDisplay =
+    (invite.principalName && invite.principalName.trim()) || displayFromInvite;
+  const resolved = await resolveAuthForInviteAccept({
+    emailNorm: email,
+    emailRaw,
+    password,
+    displayName: displayFromForm ?? (accountExists ? null : principalInviteDisplay),
+  });
+  const principalUid = resolved.uid;
+
+  // Create school only when invite is for a new school; otherwise attach as additional admin.
   let schoolId = invite.createdSchoolId || invite.schoolId;
   if (!schoolId) {
     const schoolRef = db.collection('schools').doc();
@@ -3443,6 +3672,7 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
             : undefined,
       subscriptionStatus: 'active',
       principalUid,
+      principalUids: [principalUid],
       createdAt: now,
       updatedAt: now,
     };
@@ -3455,17 +3685,63 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
     const schoolRef = db.collection('schools').doc(schoolId);
     const schoolSnap = await schoolRef.get();
     if (!schoolSnap.exists) throw new functions.https.HttpsError('not-found', 'School not found for this invite.');
-    await schoolRef.update({ status: 'ACTIVE', principalUid, updatedAt: now });
+    const schoolRow = schoolSnap.data() as {
+      principalUid?: string;
+      principalUids?: string[];
+      principalName?: string;
+      principalEmail?: string;
+    };
+    const updates: Record<string, unknown> = {
+      status: 'ACTIVE',
+      updatedAt: now,
+      principalUids: admin.firestore.FieldValue.arrayUnion(principalUid),
+    };
+    // Keep the first principal as primary; only set if missing.
+    if (!schoolRow.principalUid) {
+      updates.principalUid = principalUid;
+    }
+    if (!schoolRow.principalEmail) {
+      updates.principalEmail = email;
+    }
+    const display =
+      (displayName && typeof displayName === 'string' && displayName.trim())
+        ? displayName.trim()
+        : (invite.principalName && invite.principalName.trim())
+          ? invite.principalName.trim()
+          : undefined;
+    if (!schoolRow.principalName && display) {
+      updates.principalName = display;
+    }
+    await schoolRef.update(updates);
   }
 
-  await db.collection('users').doc(principalUid).set(
+  const principalUserRef = db.collection('users').doc(principalUid);
+  const priorPrincipalSnap = await principalUserRef.get();
+  const priorPrincipal = priorPrincipalSnap.exists
+    ? (priorPrincipalSnap.data() as RoleProfileSlice & { displayName?: string })
+    : null;
+  if (priorPrincipal) {
+    // Already a principal at this school → treat as success path for re-accept after partial use.
+    if (userHasRole(priorPrincipal, 'principal') && priorPrincipal.schoolId === schoolId) {
+      await ref.update({ usedAt: now, createdSchoolId: schoolId });
+      const customToken = await admin.auth().createCustomToken(principalUid);
+      return { ok: true as const, principalUid, schoolId, customToken, existingAccount: true };
+    }
+    assertStaffSchoolConflict(priorPrincipal, 'principal', schoolId);
+  }
+  const principalRoleFields = roleMergePayload(priorPrincipal, 'principal', {
+    setActive: true,
+    schoolId,
+  });
+  const principalDisplay =
+    displayFromForm || priorPrincipal?.displayName || resolved.displayName;
+  await principalUserRef.set(
     {
       email,
-      displayName: (displayName && typeof displayName === 'string' && displayName.trim()) ? displayName.trim() : email,
-      role: 'principal',
-      schoolId,
+      displayName: principalDisplay,
+      ...principalRoleFields,
       isActive: true,
-      createdAt: now,
+      ...(priorPrincipalSnap.exists ? {} : { createdAt: now }),
       updatedAt: now,
     },
     { merge: true }
@@ -3476,7 +3752,7 @@ export const acceptInviteToken = functions.https.onCall(async (data, context) =>
   ]);
 
   const customToken = await admin.auth().createCustomToken(principalUid);
-  return { ok: true as const, principalUid, schoolId, customToken };
+  return { ok: true as const, principalUid, schoolId, customToken, existingAccount: resolved.existed };
 });
 
 type QrMode = 'WEB_FORM' | 'WHATSAPP_DEEP_LINK';
@@ -3730,7 +4006,7 @@ export const generatePersonalisedQrsFromCsv = functions.https.onCall(async (data
   const uid = context.auth.uid;
   const db = admin.firestore();
   const caller = await requireCallerProfile(db, uid);
-  if (caller.role !== 'principal' || !caller.schoolId) {
+  if (!userHasRole(caller, 'principal') || !caller.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can generate personalised QRs.');
   }
   const schoolId = caller.schoolId;
@@ -4056,6 +4332,7 @@ export const registerParentViaQr = functions.https.onRequest(async (req, res) =>
       phone: mobileNorm,
       whatsappOptIn: Boolean(whatsappOptIn),
       role: 'parent',
+      roles: ['parent'],
       schoolId,
       parentStatus: 'PENDING_APPROVAL',
       isActive: true,
@@ -4297,7 +4574,7 @@ export const approveOrRejectParent = functions.https.onCall(async (data, context
   const uid = context.auth.uid;
   const db = admin.firestore();
   const caller = await requireCallerProfile(db, uid);
-  if (caller.role !== 'teacher' || !caller.schoolId) {
+  if (!userHasRole(caller, 'teacher') || !caller.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only teachers can approve registrations.');
   }
   const schoolId = caller.schoolId;
@@ -4574,7 +4851,7 @@ export const principalInviteTeacher = functions.https.onCall(async (data, contex
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can invite teachers.');
   }
   const schoolId = callerData.schoolId;
@@ -4615,27 +4892,20 @@ export const principalInviteTeacher = functions.https.onCall(async (data, contex
   try {
     const existingAuth = await admin.auth().getUserByEmail(emailNorm);
     const prof = await db.collection('users').doc(existingAuth.uid).get();
-    if (prof.exists) {
-      const p = prof.data() as { role?: string; schoolId?: string };
-      if (p.role === 'teacher' && p.schoolId === schoolId) {
-        throw new functions.https.HttpsError(
-          'already-exists',
-          'This teacher is already part of your school.'
-        );
-      }
-      if (p.role && p.role !== 'teacher') {
-        throw new functions.https.HttpsError(
-          'failed-precondition',
-          'This email is already used for a different role. Use another email.'
-        );
-      }
-      if (p.role === 'teacher' && p.schoolId && p.schoolId !== schoolId) {
-        throw new functions.https.HttpsError(
-          'failed-precondition',
-          'This email belongs to a teacher at another school.'
-        );
-      }
+    const p = prof.exists ? (prof.data() as RoleProfileSlice) : null;
+    if (userHasRole(p, 'teacher') && p?.schoolId === schoolId) {
+      throw new functions.https.HttpsError(
+        'already-exists',
+        'This teacher is already part of your school.'
+      );
     }
+    if (userHasRole(p, 'teacher') && p?.schoolId && p.schoolId !== schoolId) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'This email belongs to a teacher at another school.'
+      );
+    }
+    // Existing account still gets an invite; accept adds the role without a new password.
   } catch (err: unknown) {
     if (err instanceof functions.https.HttpsError) throw err;
     const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
@@ -4682,7 +4952,7 @@ export const principalInviteParent = functions.https.onCall(async (data, context
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can invite parents.');
   }
   const schoolId = callerData.schoolId;
@@ -4738,13 +5008,7 @@ export const principalInviteParent = functions.https.onCall(async (data, context
     if (parentIds.includes(existingAuth.uid)) {
       throw new functions.https.HttpsError('failed-precondition', 'This parent is already linked to this child.');
     }
-    const prof = await db.collection('users').doc(existingAuth.uid).get();
-    if (prof.exists) {
-      const p = prof.data() as { role?: string };
-      if (p.role && NON_PARENT_LINK_ROLES.has(p.role)) {
-        throw new functions.https.HttpsError('failed-precondition', nonParentEmailLinkError(p.role));
-      }
-    }
+    // Existing account still gets an invite; accept adds parent access without a new password.
   } catch (err: unknown) {
     if (err instanceof functions.https.HttpsError) throw err;
     const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: string }).code) : '';
@@ -4795,7 +5059,7 @@ export const createTeacher = functions.https.onCall(async (data, context) => {
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can add teachers to their school.');
   }
   const schoolId = callerData.schoolId;
@@ -4836,6 +5100,7 @@ export const createTeacher = functions.https.onCall(async (data, context) => {
     displayName,
     ...(preferredName ? { preferredName } : {}),
     role: 'teacher',
+    roles: ['teacher'],
     schoolId,
     isActive: true,
     createdAt: now,
@@ -4853,8 +5118,8 @@ export const createSuperAdmin = functions.https.onCall(async (data, context) => 
   const callerUid = context.auth.uid;
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
-  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string }) : null;
-  if (callerData?.role !== 'super_admin') {
+  const callerData = callerSnap.exists ? (callerSnap.data() as RoleProfileSlice) : null;
+  if (!userHasRole(callerData, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can add super admins.');
   }
 
@@ -4881,6 +5146,7 @@ export const createSuperAdmin = functions.https.onCall(async (data, context) => 
     email: email.trim(),
     displayName: (displayName && typeof displayName === 'string') ? displayName.trim() : email.trim(),
     role: 'super_admin',
+    roles: ['super_admin'],
     isActive: true,
     createdAt: now,
     updatedAt: now,
@@ -4896,8 +5162,8 @@ export const removeSuperAdmin = functions.https.onCall(async (data, context) => 
   const callerUid = context.auth.uid;
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
-  const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string }) : null;
-  if (callerData?.role !== 'super_admin') {
+  const callerData = callerSnap.exists ? (callerSnap.data() as RoleProfileSlice) : null;
+  if (!userHasRole(callerData, 'super_admin')) {
     throw new functions.https.HttpsError('permission-denied', 'Only super admins can remove super admins.');
   }
 
@@ -4916,13 +5182,20 @@ export const removeSuperAdmin = functions.https.onCall(async (data, context) => 
   if (!targetSnap.exists) {
     throw new functions.https.HttpsError('not-found', 'User not found.');
   }
-  const targetData = targetSnap.data() as { role?: string };
-  if (targetData.role !== 'super_admin') {
+  const targetData = targetSnap.data() as RoleProfileSlice;
+  if (!userHasRole(targetData, 'super_admin')) {
     throw new functions.https.HttpsError('invalid-argument', 'That user is not a super administrator.');
   }
 
-  const superAdminsSnap = await db.collection('users').where('role', '==', 'super_admin').get();
-  if (superAdminsSnap.size < 2) {
+  const [byActiveRole, byRoles] = await Promise.all([
+    db.collection('users').where('role', '==', 'super_admin').get(),
+    db.collection('users').where('roles', 'array-contains', 'super_admin').get(),
+  ]);
+  const adminUids = new Set<string>([
+    ...byActiveRole.docs.map((d) => d.id),
+    ...byRoles.docs.map((d) => d.id),
+  ]);
+  if (adminUids.size < 2) {
     throw new functions.https.HttpsError('failed-precondition', 'Cannot remove the last super administrator.');
   }
 
@@ -4958,7 +5231,7 @@ export const updateTeacher = functions.https.onCall(async (data, context) => {
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can update teachers.');
   }
   const schoolId = callerData.schoolId;
@@ -4979,8 +5252,8 @@ export const updateTeacher = functions.https.onCall(async (data, context) => {
   if (!teacherSnap.exists) {
     throw new functions.https.HttpsError('not-found', 'Teacher not found.');
   }
-  const teacherData = teacherSnap.data() as { role?: string; schoolId?: string };
-  if (teacherData.role !== 'teacher' || teacherData.schoolId !== schoolId) {
+  const teacherData = teacherSnap.data() as RoleProfileSlice;
+  if (!userHasRole(teacherData, 'teacher') || teacherData.schoolId !== schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Can only update teachers in your school.');
   }
 
@@ -5007,7 +5280,7 @@ export const principalDeleteTeacher = functions.https.onCall(async (data, contex
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can delete teachers from their school.');
   }
   const schoolId = callerData.schoolId;
@@ -5023,8 +5296,8 @@ export const principalDeleteTeacher = functions.https.onCall(async (data, contex
   if (!teacherSnap.exists) {
     throw new functions.https.HttpsError('not-found', 'Teacher not found.');
   }
-  const teacherData = teacherSnap.data() as { role?: string; schoolId?: string };
-  if (teacherData.role !== 'teacher' || teacherData.schoolId !== schoolId) {
+  const teacherData = teacherSnap.data() as RoleProfileSlice;
+  if (!userHasRole(teacherData, 'teacher') || teacherData.schoolId !== schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'You can only delete teachers in your school.');
   }
 
@@ -5076,39 +5349,12 @@ export const principalDeleteTeacher = functions.https.onCall(async (data, contex
   };
 });
 
-/** Roles that cannot be linked as a parent to a child. */
-const NON_PARENT_LINK_ROLES = new Set(['teacher', 'principal', 'super_admin']);
-
-function nonParentRoleLabel(role: string): string {
-  const labels: Record<string, string> = {
-    teacher: 'a teacher',
-    principal: 'a principal',
-    super_admin: 'a super admin',
-  };
-  return labels[role] ?? `a ${role.replace(/_/g, ' ')} account`;
-}
-
-function nonParentEmailLinkError(role: string): string {
-  return `This email can't be used because it is already registered as ${nonParentRoleLabel(role)}.`;
-}
-
+/** Parent linking is allowed for any existing account (multi-role). */
 async function getExistingUserLinkability(
-  db: admin.firestore.Firestore,
-  uid: string,
-  authRole?: string | null
-): Promise<{ canLink: true } | { canLink: false; existingRole: string }> {
-  const roleFromAuth = authRole?.trim();
-  if (roleFromAuth && NON_PARENT_LINK_ROLES.has(roleFromAuth)) {
-    return { canLink: false, existingRole: roleFromAuth };
-  }
-
-  const prof = await db.collection('users').doc(uid).get();
-  if (prof.exists) {
-    const role = (prof.data() as { role?: string }).role?.trim();
-    if (role && NON_PARENT_LINK_ROLES.has(role)) {
-      return { canLink: false, existingRole: role };
-    }
-  }
+  _db: admin.firestore.Firestore,
+  _uid: string,
+  _authRole?: string | null
+): Promise<{ canLink: true }> {
   return { canLink: true };
 }
 
@@ -5122,7 +5368,7 @@ export const checkParentEmail = functions.https.onCall(async (data, context) => 
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can check parent email.');
   }
   const { email } = data as { email?: string };
@@ -5132,11 +5378,7 @@ export const checkParentEmail = functions.https.onCall(async (data, context) => 
   const emailNorm = email.trim().toLowerCase();
   try {
     const authUser = await admin.auth().getUserByEmail(emailNorm);
-    const authRole = (authUser.customClaims as { role?: string } | undefined)?.role;
-    const linkability = await getExistingUserLinkability(db, authUser.uid, authRole);
-    if (!linkability.canLink) {
-      return { exists: true, canLink: false, existingRole: linkability.existingRole };
-    }
+    await getExistingUserLinkability(db, authUser.uid, (authUser.customClaims as { role?: string } | undefined)?.role);
     return { exists: true, canLink: true };
   } catch (err: unknown) {
     const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
@@ -5158,7 +5400,7 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can invite parents.');
   }
   const schoolId = callerData.schoolId;
@@ -5209,17 +5451,20 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
     }
 
     const authRole = (existingUser.customClaims as { role?: string } | undefined)?.role;
-    const linkability = await getExistingUserLinkability(db, parentUid, authRole);
-    if (!linkability.canLink) {
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        nonParentEmailLinkError(linkability.existingRole)
-      );
-    }
+    await getExistingUserLinkability(db, parentUid, authRole);
 
     const userRef = db.collection('users').doc(parentUid);
     const userSnap = await userRef.get();
-    const updates: Record<string, unknown> = { updatedAt: now, schoolId };
+    const prior = userSnap.exists ? (userSnap.data() as RoleProfileSlice) : null;
+    const roleFields = roleMergePayload(prior, 'parent', {
+      setActive: !prior || !normalizeUserRoles(prior).role,
+      schoolId: (prior?.schoolId as string | undefined) || schoolId,
+    });
+    const updates: Record<string, unknown> = {
+      ...roleFields,
+      updatedAt: now,
+    };
+    if (!prior?.schoolId) updates.schoolId = schoolId;
     if (displayName) updates.displayName = displayName;
     if (phone !== undefined) updates.phone = phone;
 
@@ -5230,7 +5475,7 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
         email: emailTrim,
         displayName: displayName ?? emailTrim,
         ...(phone ? { phone } : {}),
-        role: 'parent',
+        ...roleFields,
         schoolId,
         isActive: true,
         createdAt: now,
@@ -5260,6 +5505,7 @@ export const inviteParentToChild = functions.https.onCall(async (data, context) 
         displayName: displayName ?? emailTrim,
         ...(phone ? { phone } : {}),
         role: 'parent',
+        roles: ['parent'],
         schoolId,
         isActive: true,
         createdAt: now,
@@ -5289,7 +5535,7 @@ export const updateParent = functions.https.onCall(async (data, context) => {
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can update parents.');
   }
   const schoolId = callerData.schoolId;
@@ -5361,7 +5607,7 @@ export const principalRemoveParentFromChild = functions.https.onCall(async (data
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can remove parents.');
   }
   const schoolId = callerData.schoolId;
@@ -5430,7 +5676,7 @@ export const principalDeleteParent = functions.https.onCall(async (data, context
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(callerUid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'principal' || !callerData?.schoolId) {
+  if (!userHasRole(callerData, 'principal') || !callerData?.schoolId) {
     throw new functions.https.HttpsError('permission-denied', 'Only principals can delete parents.');
   }
   const schoolId = callerData.schoolId;
@@ -5518,7 +5764,7 @@ export const updateChildProfileByTeacher = functions.https.onCall(async (data, c
   const db = admin.firestore();
   const callerSnap = await db.collection('users').doc(uid).get();
   const callerData = callerSnap.exists ? (callerSnap.data() as { role?: string; schoolId?: string }) : null;
-  if (callerData?.role !== 'teacher' || callerData?.schoolId === undefined) {
+  if (!userHasRole(callerData, 'teacher') || callerData?.schoolId === undefined) {
     throw new functions.https.HttpsError('permission-denied', 'Only teachers can use this.');
   }
   const { schoolId, childId, name, dateOfBirth, allergies, photoURL } = data as {
@@ -5587,8 +5833,8 @@ export const updateTeacherNotificationPreferences = functions.https.onCall(async
   const userRef = db.collection('users').doc(uid);
   const snap = await userRef.get();
   if (!snap.exists) throw new functions.https.HttpsError('not-found', 'User not found.');
-  const d = snap.data() as { role?: string; notificationPreferences?: Record<string, boolean> };
-  if (d.role !== 'teacher') {
+  const d = snap.data() as RoleProfileSlice & { notificationPreferences?: Record<string, boolean> };
+  if (!userHasRole(d, 'teacher')) {
     throw new functions.https.HttpsError('permission-denied', 'Only teachers can use this.');
   }
   const { notificationPreferences } = data as { notificationPreferences?: Record<string, boolean> };

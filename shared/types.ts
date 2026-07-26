@@ -34,6 +34,9 @@ export interface UserProfile {
   phone?: string;
   /** Profile picture URL. */
   photoURL?: string;
+  /** All roles this account holds. Missing on legacy docs — treat as [role]. */
+  roles?: UserRole[];
+  /** Active portal role (drives Auth claims + client routing). */
   role: UserRole;
   /** Parent approval gate. When not ACTIVE, parents should not access content. */
   parentStatus?: ParentApprovalStatus;
@@ -252,8 +255,10 @@ export interface School {
   status?: SchoolOnboardingStatus;
   /** Branding/logo used on join and QR code. */
   logoUrl?: string;
-  /** Principal uid once invite is accepted. */
+  /** Principal uid once invite is accepted (primary / first admin; optional when multiple). */
   principalUid?: string;
+  /** All school admin (principal) uids for this school. */
+  principalUids?: string[];
   address?: string;
   contactEmail?: string;
   contactPhone?: string;

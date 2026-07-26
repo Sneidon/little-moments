@@ -43,7 +43,24 @@ service cloud.firestore {
         || (resource.data.role != null)  
         || (request.auth.token.role == 'principal' && request.auth.token.schoolId == resource.data.schoolId)  // principal may list staff/parents in their school
       );
-      allow write: if request.auth != null && (request.auth.uid == userId || isSuperAdmin());
+      // Create: own profile only (registration). Role fields may be set on first create;
+      // elevating roles later must go through Cloud Functions.
+      allow create: if request.auth != null
+        && (request.auth.uid == userId || isSuperAdmin());
+      // Self-update: cannot change role, roles, or schoolId (selectActiveRole / invites use Admin SDK).
+      allow update: if request.auth != null && (
+        isSuperAdmin()
+        || (
+          request.auth.uid == userId
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.schoolId == resource.data.schoolId
+          && (
+            (!('roles' in resource.data) && !('roles' in request.resource.data))
+            || request.resource.data.roles == resource.data.roles
+          )
+        )
+      );
+      allow delete: if isSuperAdmin();
       match /notifications/{notificationId} {
         allow read: if isAuthenticated() && request.auth.uid == userId;
         allow create, delete: if false;

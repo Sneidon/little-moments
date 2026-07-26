@@ -4,12 +4,21 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db, app } from '@/config/firebase';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { InviteSchoolAdminForm } from '@/app/principal/staff/components/InviteSchoolAdminForm';
+import type { InviteSchoolAdminFormState } from '@/hooks/useStaffPage';
+import { userHoldsRole } from '@/lib/roles';
 import type { UserProfile } from 'shared/types';
 import { PageHero, SectionCard } from '@/components/ui';
+
+function getCallableErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: string }).message);
+  return 'Something went wrong';
+}
 
 export default function AdminSchoolUsersPage() {
   const params = useParams();
@@ -22,6 +31,14 @@ export default function AdminSchoolUsersPage() {
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
   const [passwordResetError, setPasswordResetError] = useState('');
   const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null);
+  const [showInviteAdmin, setShowInviteAdmin] = useState(false);
+  const [inviteForm, setInviteForm] = useState<InviteSchoolAdminFormState>({
+    principalEmail: '',
+    principalName: '',
+  });
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ expiresAt: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!schoolId) return;
@@ -68,6 +85,34 @@ export default function AdminSchoolUsersPage() {
     }
   }, []);
 
+  const handleInviteSchoolAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!schoolId) return;
+    setInviteError('');
+    if (!inviteForm.principalEmail.trim()) {
+      setInviteError('Email is required.');
+      return;
+    }
+    setInviteSubmitting(true);
+    try {
+      const fn = httpsCallable<
+        { schoolId: string; principalEmail: string; principalName?: string },
+        { expiresAt?: string }
+      >(getFunctions(app), 'inviteSchoolPrincipal');
+      const res = await fn({
+        schoolId,
+        principalEmail: inviteForm.principalEmail.trim(),
+        principalName: inviteForm.principalName.trim() || undefined,
+      });
+      setInviteResult({ expiresAt: res.data.expiresAt || '' });
+      setInviteForm({ principalEmail: '', principalName: '' });
+    } catch (err: unknown) {
+      setInviteError(getCallableErrorMessage(err));
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
+
   if (!schoolId) return null;
 
   if (loading && !schoolName && !error) {
@@ -109,13 +154,43 @@ export default function AdminSchoolUsersPage() {
         backHref={`/admin/schools/${schoolId}`}
         backLabel={schoolName || 'school'}
         title={<span className="text-gradient-warm">Users</span>}
-        subtitle={`${schoolName || 'School'} — staff and principals`}
+        subtitle={`${schoolName || 'School'} — staff and school admins`}
         actions={
-          <Link href="/admin/users" className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
-            All users
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShowInviteAdmin(true);
+                setInviteError('');
+                setInviteResult(null);
+              }}
+              className="btn-primary"
+            >
+              Invite school admin
+            </button>
+            <Link href="/admin/users" className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
+              All users
+            </Link>
+          </div>
         }
       />
+
+      {showInviteAdmin && (
+        <InviteSchoolAdminForm
+          form={inviteForm}
+          setForm={setInviteForm}
+          error={inviteError}
+          submitting={inviteSubmitting}
+          inviteResult={inviteResult}
+          onSubmit={handleInviteSchoolAdmin}
+          onCancel={() => {
+            setShowInviteAdmin(false);
+            setInviteError('');
+            setInviteResult(null);
+            setInviteForm({ principalEmail: '', principalName: '' });
+          }}
+        />
+      )}
 
       {(passwordResetError || passwordResetSuccess) && (
         <div
@@ -155,46 +230,57 @@ export default function AdminSchoolUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
-                <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600">
-                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
-                    {u.preferredName ?? u.displayName ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                        u.role === 'principal'
-                          ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-200'
-                          : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                      }`}
-                    >
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right">
-                    {(u.role === 'principal' || u.role === 'teacher') && u.email ? (
-                      <button
-                        type="button"
-                        onClick={() => setPendingPasswordReset(u)}
-                        disabled={!!passwordResetLoadingUid}
-                        className="inline-flex shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                        title="Send password reset email"
+              {users.map((u) => {
+                const isPrincipal = userHoldsRole(u, 'principal');
+                const isTeacher = userHoldsRole(u, 'teacher');
+                const roleLabel = [
+                  isPrincipal ? 'school admin' : null,
+                  isTeacher ? 'teacher' : null,
+                  !isPrincipal && !isTeacher ? u.role : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ');
+                return (
+                  <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-600">
+                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                      {u.preferredName ?? u.displayName ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                          isPrincipal
+                            ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-200'
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                        }`}
                       >
-                        {passwordResetLoadingUid === u.uid ? 'Sending…' : 'Reset password'}
-                      </button>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                </tr>
-              ))}
+                        {roleLabel}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      {(isPrincipal || isTeacher) && u.email ? (
+                        <button
+                          type="button"
+                          onClick={() => setPendingPasswordReset(u)}
+                          disabled={!!passwordResetLoadingUid}
+                          className="inline-flex shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                          title="Send password reset email"
+                        >
+                          {passwordResetLoadingUid === u.uid ? 'Sending…' : 'Reset password'}
+                        </button>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
         {users.length === 0 && (
           <p className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
-            No users (principals or teachers) for this school.
+            No users (school admins or teachers) for this school.
           </p>
         )}
       </SectionCard>

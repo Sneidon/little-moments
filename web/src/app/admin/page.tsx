@@ -6,6 +6,8 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { IconSchool, IconUsers, IconChart } from '@/components/icons/AdminIcons';
 import { PageHero, StatCard, QuickActionLink, SectionHeading, StatCardSkeleton } from '@/components/ui';
+import { userHoldsRole } from '@/lib/roles';
+import type { UserProfile } from 'shared/types';
 
 export default function AdminDashboard() {
   const { profile } = useAuth();
@@ -25,13 +27,13 @@ export default function AdminDashboard() {
           getDocs(collection(db, 'schools')),
           getDocs(collection(db, 'users')),
         ]);
-        const users = usersSnap.docs.map((d) => d.data());
+        const users = usersSnap.docs.map((d) => d.data() as UserProfile);
         setStats({
           schools: schoolsSnap.size,
           users: usersSnap.size,
-          teachers: users.filter((u) => u.role === 'teacher').length,
-          principals: users.filter((u) => u.role === 'principal').length,
-          parents: users.filter((u) => u.role === 'parent').length,
+          teachers: users.filter((u) => userHoldsRole(u, 'teacher')).length,
+          principals: users.filter((u) => userHoldsRole(u, 'principal')).length,
+          parents: users.filter((u) => userHoldsRole(u, 'parent')).length,
         });
       } catch {
         // ignore

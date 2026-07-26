@@ -7,6 +7,7 @@ import { auth } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { AppLogo } from '@/components/AppLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { getWebEligibleRoles, portalPathForRole, selectActiveRole } from '@/lib/roles';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,21 +15,44 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   /** Cleared after profile resolves following a successful credential check. */
   const awaitingProfileAfterSignIn = useRef(false);
+  const routingRef = useRef(false);
 
   useEffect(() => {
-    if (profile?.role === 'principal') router.replace('/principal');
-    else if (profile?.role === 'super_admin') router.replace('/admin');
-  }, [profile?.role, router]);
+    if (!profile || routingRef.current) return;
+    const eligible = getWebEligibleRoles(profile);
+    if (eligible.length === 0) return;
+    if (eligible.length > 1) {
+      routingRef.current = true;
+      router.replace('/select-role');
+      return;
+    }
+    const only = eligible[0];
+    const path = portalPathForRole(only);
+    if (!path) return;
+    routingRef.current = true;
+    void (async () => {
+      try {
+        if (profile.role !== only) {
+          await selectActiveRole(only);
+          await refreshProfile();
+        }
+        router.replace(path);
+      } catch {
+        routingRef.current = false;
+      }
+    })();
+  }, [profile, router, refreshProfile]);
 
   useEffect(() => {
     if (!awaitingProfileAfterSignIn.current || !loading) return;
     if (authLoading) return;
     if (!user) return;
 
-    if (profile?.role === 'principal' || profile?.role === 'super_admin') {
+    const eligible = getWebEligibleRoles(profile);
+    if (eligible.length >= 1) {
       awaitingProfileAfterSignIn.current = false;
       setLoading(false);
       return;
@@ -52,6 +76,7 @@ export default function LoginPage() {
       return;
     }
     awaitingProfileAfterSignIn.current = true;
+    routingRef.current = false;
     setLoading(true);
     try {
       // Session persistence for all web roles: auth ends with the browser session

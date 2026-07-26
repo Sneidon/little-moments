@@ -1,18 +1,22 @@
 'use client';
 
-import type { InviteTeacherFormState } from '@/hooks/useStaffPage';
+export interface InviteSchoolAdminFormState {
+  principalEmail: string;
+  principalName: string;
+}
 
-export interface InviteTeacherFormProps {
-  form: InviteTeacherFormState;
-  setForm: React.Dispatch<React.SetStateAction<InviteTeacherFormState>>;
+export interface InviteSchoolAdminFormProps {
+  form: InviteSchoolAdminFormState;
+  setForm: React.Dispatch<React.SetStateAction<InviteSchoolAdminFormState>>;
   error: string;
   submitting: boolean;
   inviteResult: { expiresAt: string } | null;
   onSubmit: (e: React.FormEvent) => Promise<void>;
   onCancel: () => void;
+  title?: string;
 }
 
-export function InviteTeacherForm({
+export function InviteSchoolAdminForm({
   form,
   setForm,
   error,
@@ -20,12 +24,13 @@ export function InviteTeacherForm({
   inviteResult,
   onSubmit,
   onCancel,
-}: InviteTeacherFormProps) {
+  title = 'Invite school admin',
+}: InviteSchoolAdminFormProps) {
   return (
     <form onSubmit={onSubmit} className="card mb-8 p-6">
-      <h2 className="mb-5 text-lg font-semibold text-slate-800 dark:text-slate-100">Invite teacher</h2>
+      <h2 className="mb-5 text-lg font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
       <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
-        We email a secure invite link. New users set a password; existing accounts just tap continue to add teacher access.
+        We email a secure invite link. New users set a password; existing accounts just tap continue to add school admin access.
       </p>
       {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
       {inviteResult && (
@@ -39,31 +44,21 @@ export function InviteTeacherForm({
           <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
           <input
             type="email"
-            value={form.teacherEmail}
-            onChange={(e) => setForm((f) => ({ ...f, teacherEmail: e.target.value }))}
+            value={form.principalEmail}
+            onChange={(e) => setForm((f) => ({ ...f, principalEmail: e.target.value }))}
             className="input-base"
-            placeholder="teacher@school.com"
+            placeholder="admin@school.com"
             required
           />
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Display name</label>
           <input
             type="text"
-            value={form.teacherDisplayName}
-            onChange={(e) => setForm((f) => ({ ...f, teacherDisplayName: e.target.value }))}
+            value={form.principalName}
+            onChange={(e) => setForm((f) => ({ ...f, principalName: e.target.value }))}
             className="input-base"
-            placeholder="e.g. Jane Smith"
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Preferred name</label>
-          <input
-            type="text"
-            value={form.teacherPreferredName}
-            onChange={(e) => setForm((f) => ({ ...f, teacherPreferredName: e.target.value }))}
-            className="input-base"
-            placeholder="Optional — shown to children"
+            placeholder="Optional"
           />
         </div>
       </div>

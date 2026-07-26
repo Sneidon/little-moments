@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRef, useEffect, useState } from 'react';
 import type { UserProfile } from 'shared/types';
+import { getWebEligibleRoles } from '@/lib/roles';
 
 export interface UserMenuProps {
   profile: UserProfile;
@@ -23,6 +24,8 @@ function getInitials(profile: UserProfile): string {
 export function UserMenu({ profile, profileHref, onSignOut }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const webRoles = getWebEligibleRoles(profile);
+  const showSwitchRole = webRoles.length > 1;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -132,6 +135,24 @@ export function UserMenu({ profile, profileHref, onSignOut }: UserMenuProps) {
                 <span className="block text-xs text-slate-500 dark:text-slate-400">Name and photo</span>
               </span>
             </Link>
+            {showSwitchRole && (
+              <Link
+                href="/select-role"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 focus:bg-slate-50 focus:outline-none dark:text-slate-200 dark:hover:bg-slate-700/50 dark:focus:bg-slate-700/50"
+                role="menuitem"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700">
+                  <svg className="h-4 w-4 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </span>
+                <span>
+                  <span className="block font-medium">Switch portal</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">Choose another role</span>
+                </span>
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => {

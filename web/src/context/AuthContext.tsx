@@ -7,12 +7,23 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db, app } from '@/config/firebase';
 import { InactivitySignOut } from '@/components/InactivitySignOut';
 import type { UserProfile } from 'shared/types';
+import { normalizeUserRoles } from 'shared/roles';
 
 interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
+}
+
+function hydrateProfile(uid: string, data: Record<string, unknown>): UserProfile {
+  const { roles, role } = normalizeUserRoles(data as { role?: string; roles?: string[] });
+  return {
+    uid,
+    ...data,
+    roles,
+    role: role ?? (data.role as UserProfile['role']),
+  } as UserProfile;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -36,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const snap = await getDoc(doc(db, 'users', u.uid));
         if (snap.exists()) {
-          const profileData = { uid: u.uid, ...snap.data() } as UserProfile;
+          const profileData = hydrateProfile(u.uid, snap.data() as Record<string, unknown>);
           setProfile(profileData);
           shouldSyncClaims = true;
         } else {
@@ -71,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const snap = await getDoc(doc(db, 'users', u.uid));
       if (snap.exists()) {
-        const profileData = { uid: u.uid, ...snap.data() } as UserProfile;
+        const profileData = hydrateProfile(u.uid, snap.data() as Record<string, unknown>);
         setProfile(profileData);
       }
     } catch {

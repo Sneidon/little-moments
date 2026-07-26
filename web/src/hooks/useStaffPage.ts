@@ -12,6 +12,7 @@ import { exportStaffPageToExcel } from '@/lib/exportStaffPageExcel';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import type { UserProfile } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
+import { userHoldsRole } from '@/lib/roles';
 
 export type StaffRoleFilter = 'all' | 'principal' | 'teacher';
 
@@ -26,6 +27,11 @@ export interface InviteTeacherFormState {
   teacherEmail: string;
   teacherDisplayName: string;
   teacherPreferredName: string;
+}
+
+export interface InviteSchoolAdminFormState {
+  principalEmail: string;
+  principalName: string;
 }
 
 export interface EditTeacherFormState {
@@ -45,6 +51,11 @@ const INITIAL_INVITE_TEACHER_FORM: InviteTeacherFormState = {
   teacherEmail: '',
   teacherDisplayName: '',
   teacherPreferredName: '',
+};
+
+const INITIAL_INVITE_SCHOOL_ADMIN_FORM: InviteSchoolAdminFormState = {
+  principalEmail: '',
+  principalName: '',
 };
 
 const getEditFormState = (u: UserProfile): EditTeacherFormState => ({
@@ -106,6 +117,15 @@ export interface UseStaffPageResult {
   inviteTeacherResult: { expiresAt: string } | null;
   handleInviteTeacherByEmail: (e: React.FormEvent) => Promise<void>;
   openInviteTeacherForm: () => void;
+  showInviteSchoolAdminForm: boolean;
+  inviteSchoolAdminForm: InviteSchoolAdminFormState;
+  setInviteSchoolAdminForm: React.Dispatch<React.SetStateAction<InviteSchoolAdminFormState>>;
+  inviteSchoolAdminError: string;
+  inviteSchoolAdminSubmitting: boolean;
+  inviteSchoolAdminResult: { expiresAt: string } | null;
+  handleInviteSchoolAdmin: (e: React.FormEvent) => Promise<void>;
+  openInviteSchoolAdminForm: () => void;
+  resetInviteSchoolAdminForm: () => void;
   deletingTeacherUid: string | null;
   deleteTeacherError: string;
   handleDeleteTeacher: (teacherUid: string) => Promise<boolean>;
@@ -125,6 +145,13 @@ export function useStaffPage(): UseStaffPageResult {
   const [inviteTeacherError, setInviteTeacherError] = useState('');
   const [inviteTeacherSubmitting, setInviteTeacherSubmitting] = useState(false);
   const [inviteTeacherResult, setInviteTeacherResult] = useState<{ expiresAt: string } | null>(null);
+  const [showInviteSchoolAdminForm, setShowInviteSchoolAdminForm] = useState(false);
+  const [inviteSchoolAdminForm, setInviteSchoolAdminForm] = useState<InviteSchoolAdminFormState>(
+    INITIAL_INVITE_SCHOOL_ADMIN_FORM
+  );
+  const [inviteSchoolAdminError, setInviteSchoolAdminError] = useState('');
+  const [inviteSchoolAdminSubmitting, setInviteSchoolAdminSubmitting] = useState(false);
+  const [inviteSchoolAdminResult, setInviteSchoolAdminResult] = useState<{ expiresAt: string } | null>(null);
   const [addForm, setAddForm] = useState<AddTeacherFormState>(INITIAL_ADD_FORM);
   const [addTeacherError, setAddTeacherError] = useState('');
   const [addTeacherSubmitting, setAddTeacherSubmitting] = useState(false);
@@ -168,7 +195,7 @@ export function useStaffPage(): UseStaffPageResult {
   }, [profile?.schoolId, load]);
 
   const staffMembers = useMemo(
-    () => users.filter((u) => u.role === 'teacher' || u.role === 'principal'),
+    () => users.filter((u) => userHoldsRole(u, 'teacher') || userHoldsRole(u, 'principal')),
     [users]
   );
 
@@ -179,8 +206,8 @@ export function useStaffPage(): UseStaffPageResult {
 
   const filteredStaff = useMemo(() => {
     let list = staffMembers;
-    if (staffRoleFilter === 'principal') list = list.filter((u) => u.role === 'principal');
-    else if (staffRoleFilter === 'teacher') list = list.filter((u) => u.role === 'teacher');
+    if (staffRoleFilter === 'principal') list = list.filter((u) => userHoldsRole(u, 'principal'));
+    else if (staffRoleFilter === 'teacher') list = list.filter((u) => userHoldsRole(u, 'teacher'));
     if (staffSearch.trim()) {
       const q = staffSearch.trim().toLowerCase();
       list = list.filter(
@@ -211,11 +238,63 @@ export function useStaffPage(): UseStaffPageResult {
   const openInviteTeacherForm = useCallback(() => {
     setAddTeacherError('');
     setShowAddForm(false);
+    setShowInviteSchoolAdminForm(false);
     setInviteTeacherError('');
     setInviteTeacherResult(null);
     setInviteTeacherForm(INITIAL_INVITE_TEACHER_FORM);
     setShowInviteTeacherForm(true);
   }, []);
+
+  const openInviteSchoolAdminForm = useCallback(() => {
+    setAddTeacherError('');
+    setShowAddForm(false);
+    setShowInviteTeacherForm(false);
+    setInviteSchoolAdminError('');
+    setInviteSchoolAdminResult(null);
+    setInviteSchoolAdminForm(INITIAL_INVITE_SCHOOL_ADMIN_FORM);
+    setShowInviteSchoolAdminForm(true);
+  }, []);
+
+  const resetInviteSchoolAdminForm = useCallback(() => {
+    setInviteSchoolAdminError('');
+    setInviteSchoolAdminResult(null);
+    setInviteSchoolAdminForm(INITIAL_INVITE_SCHOOL_ADMIN_FORM);
+    setShowInviteSchoolAdminForm(false);
+  }, []);
+
+  const handleInviteSchoolAdmin = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setInviteSchoolAdminError('');
+      if (!inviteSchoolAdminForm.principalEmail?.trim()) {
+        setInviteSchoolAdminError('Email is required.');
+        return;
+      }
+      if (!profile?.schoolId) {
+        setInviteSchoolAdminError('No school on your profile.');
+        return;
+      }
+      setInviteSchoolAdminSubmitting(true);
+      try {
+        const fn = httpsCallable<
+          { schoolId: string; principalEmail: string; principalName?: string },
+          { token?: string; expiresAt?: string }
+        >(getFunctions(app), 'inviteSchoolPrincipal');
+        const res = await fn({
+          schoolId: profile.schoolId,
+          principalEmail: inviteSchoolAdminForm.principalEmail.trim(),
+          principalName: inviteSchoolAdminForm.principalName.trim() || undefined,
+        });
+        setInviteSchoolAdminResult({ expiresAt: res.data.expiresAt || '' });
+        setInviteSchoolAdminForm(INITIAL_INVITE_SCHOOL_ADMIN_FORM);
+      } catch (err: unknown) {
+        setInviteSchoolAdminError(getCallableErrorMessage(err));
+      } finally {
+        setInviteSchoolAdminSubmitting(false);
+      }
+    },
+    [inviteSchoolAdminForm, profile?.schoolId, load]
+  );
 
   const resetInviteTeacherForm = useCallback(() => {
     setInviteTeacherError('');
@@ -240,14 +319,14 @@ export function useStaffPage(): UseStaffPageResult {
             teacherDisplayName?: string;
             teacherPreferredName?: string;
           },
-          { token: string; expiresAt: string }
+          { token?: string; expiresAt?: string }
         >(getFunctions(app), 'principalInviteTeacher');
         const res = await fn({
           teacherEmail: inviteTeacherForm.teacherEmail.trim(),
           teacherDisplayName: inviteTeacherForm.teacherDisplayName.trim() || undefined,
           teacherPreferredName: inviteTeacherForm.teacherPreferredName.trim() || undefined,
         });
-        setInviteTeacherResult({ expiresAt: res.data.expiresAt });
+        setInviteTeacherResult({ expiresAt: res.data.expiresAt || '' });
         setInviteTeacherForm(INITIAL_INVITE_TEACHER_FORM);
       } catch (err: unknown) {
         setInviteTeacherError(getCallableErrorMessage(err));
@@ -255,7 +334,7 @@ export function useStaffPage(): UseStaffPageResult {
         setInviteTeacherSubmitting(false);
       }
     },
-    [inviteTeacherForm]
+    [inviteTeacherForm, load]
   );
 
   const handleAddTeacher = useCallback(
@@ -292,7 +371,7 @@ export function useStaffPage(): UseStaffPageResult {
   );
 
   const startEditTeacher = useCallback((u: UserProfile) => {
-    if (u.role === 'principal') return;
+    if (userHoldsRole(u, 'principal') && !userHoldsRole(u, 'teacher')) return;
     setEditingUid(u.uid);
     setEditError('');
     setEditForm(getEditFormState(u));
@@ -455,6 +534,15 @@ export function useStaffPage(): UseStaffPageResult {
     inviteTeacherResult,
     handleInviteTeacherByEmail,
     openInviteTeacherForm,
+    showInviteSchoolAdminForm,
+    inviteSchoolAdminForm,
+    setInviteSchoolAdminForm,
+    inviteSchoolAdminError,
+    inviteSchoolAdminSubmitting,
+    inviteSchoolAdminResult,
+    handleInviteSchoolAdmin,
+    openInviteSchoolAdminForm,
+    resetInviteSchoolAdminForm,
     deletingTeacherUid,
     deleteTeacherError,
     handleDeleteTeacher,

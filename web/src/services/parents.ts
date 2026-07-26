@@ -50,11 +50,11 @@ export async function principalInviteParent(params: {
   parentEmail: string;
   parentDisplayName?: string;
   parentPhone?: string;
-}): Promise<{ token: string; expiresAt: string }> {
+}): Promise<{ token?: string; expiresAt?: string }> {
   const functions = getFunctions(app);
   const fn = httpsCallable<
     { childId: string; parentEmail: string; parentDisplayName?: string; parentPhone?: string },
-    { token: string; expiresAt: string }
+    { token?: string; expiresAt?: string }
   >(functions, 'principalInviteParent');
   const res = await fn({
     childId: params.childId,

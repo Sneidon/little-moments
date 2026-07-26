@@ -105,7 +105,7 @@ export default function PrincipalLayout({
       return;
     }
     if (profile.role !== 'principal') {
-      router.replace(profile.role === 'super_admin' ? '/admin' : '/login');
+      router.replace(profile.role === 'super_admin' ? '/admin' : '/select-role');
       return;
     }
   }, [user, profile, loading, router]);

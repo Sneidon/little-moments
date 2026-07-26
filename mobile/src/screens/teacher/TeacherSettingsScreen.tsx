@@ -18,16 +18,18 @@ import {
   settingsCardShadow,
 } from '../../components/SettingsSection';
 import { getInitials, formatSettingsVersionFooter } from '../../utils';
+import { getMobileEligibleRoles } from '../../utils/roles';
 import type { ClassRoom } from '../../../../shared/types';
 import type { School } from '../../../../shared/types';
 
 export function TeacherSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
-  const { profile } = useAuth();
+  const { profile, setSessionPortalRole } = useAuth();
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const cardShadow = useMemo(() => settingsCardShadow(isDark), [isDark]);
+  const canSwitchPortal = getMobileEligibleRoles(profile).length > 1;
 
   const [className, setClassName] = useState<string | null>(null);
   const [school, setSchool] = useState<School | null>(null);
@@ -223,6 +225,16 @@ export function TeacherSettingsScreen() {
 
       <Text style={styles.sectionLabel}>Account</Text>
       <View style={[styles.groupCard, cardShadow]}>
+        {canSwitchPortal ? (
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => setSessionPortalRole(null)}
+            activeOpacity={0.75}
+          >
+            <SettingsIconBox name="swap-horizontal-outline" backgroundColor={colors.accentTealSoft} iconColor={colors.accentTeal} />
+            <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Switch portal</Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={styles.row} onPress={handleSignOut} activeOpacity={0.75}>
           <SettingsIconBox name="log-out-outline" backgroundColor={colors.dangerMuted} iconColor={colors.danger} />
           <Text style={[styles.rowTitle, styles.rowTitleFlex, { color: colors.danger }]}>Sign out</Text>

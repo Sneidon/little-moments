@@ -11,6 +11,7 @@ import { InviteLinkShareControls } from '@/components/InviteLinkShareControls';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddSuperAdminForm, type AddSuperAdminFormState } from './components/AddSuperAdminForm';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
+import { userHoldsRole } from '@/lib/roles';
 
 type SchoolUserCount = {
   id: string;
@@ -51,7 +52,7 @@ export default function AdminUsersPage() {
   const [inviteForm, setInviteForm] = useState(INITIAL_INVITE_FORM);
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState('');
-  const [inviteResult, setInviteResult] = useState<{ token: string; expiresAt: string } | null>(null);
+  const [inviteResult, setInviteResult] = useState<{ token?: string; expiresAt?: string } | null>(null);
   const [inviteShareFeedback, setInviteShareFeedback] = useState<string | null>(null);
   const [pendingPasswordReset, setPendingPasswordReset] = useState<SuperAdminUser | null>(null);
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export default function AdminUsersPage() {
       ]);
       const users = usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() } as { uid: string; schoolId?: string; role?: string; email?: string; displayName?: string }));
 
-      const admins = users.filter((u) => u.role === 'super_admin') as SuperAdminUser[];
+      const admins = users.filter((u) => userHoldsRole(u, 'super_admin')) as SuperAdminUser[];
       setSuperAdmins(admins);
 
       const list: SchoolUserCount[] = schoolsSnap.docs.map((doc) => {
@@ -126,7 +127,7 @@ export default function AdminUsersPage() {
       try {
         const fn = httpsCallable<
           { email: string; displayName?: string },
-          { token: string; expiresAt: string }
+          { token?: string; expiresAt?: string }
         >(getFunctions(app), 'adminInviteSuperAdmin');
         const res = await fn({
           email: emailTrim,
@@ -280,7 +281,7 @@ export default function AdminUsersPage() {
             <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-100">Invite super admin</h2>
             <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
               Sends an email with a secure link — same flow as inviting a school principal. They set their password on first
-              open, then join the Admin console.
+              open, then join the Admin console. Existing accounts skip password setup and get access immediately on accept.
             </p>
             {inviteError && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{inviteError}</p>}
             {inviteResult && (
@@ -299,6 +300,7 @@ export default function AdminUsersPage() {
                 {inviteShareFeedback ? (
                   <p className="mt-2 text-xs font-medium text-green-800 dark:text-green-300">{inviteShareFeedback}</p>
                 ) : null}
+                {inviteResult.token ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   <InviteLinkShareControls
                     inviteToken={inviteResult.token}
@@ -312,6 +314,7 @@ export default function AdminUsersPage() {
                     }
                   />
                 </div>
+                ) : null}
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-2">

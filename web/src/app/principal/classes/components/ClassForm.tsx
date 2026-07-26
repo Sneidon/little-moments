@@ -1,6 +1,7 @@
 import type { ClassRoom } from 'shared/types';
 import type { UserProfile } from 'shared/types';
 import type { ClassFormData } from '@/services/classes';
+import { userHoldsRole } from '@/lib/roles';
 
 export interface ClassFormProps {
   editingId: string | null;
@@ -25,7 +26,7 @@ export function ClassForm({
   onCancel,
 }: ClassFormProps) {
   const assignableTeachers = teachers.filter(
-    (t) => t.role === 'teacher' && t.isActive !== false
+    (t) => userHoldsRole(t, 'teacher') && t.isActive !== false
   );
 
   return (

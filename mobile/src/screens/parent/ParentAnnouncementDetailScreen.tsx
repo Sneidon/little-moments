@@ -12,6 +12,7 @@ import {
   Share,
   useWindowDimensions,
 } from 'react-native';
+import { RoundIconButton } from '../../components/brand/RoundIconButton';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -190,9 +191,13 @@ export function ParentAnnouncementDetailScreen({ route, navigation }: Props) {
         <Text style={styles.errorBody}>
           It may have been removed, or there was a connection problem. Try again from the announcements list.
         </Text>
-        <TouchableOpacity style={[styles.backBtn, { borderColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={[styles.backBtnText, { color: colors.primary }]}>Back</Text>
-        </TouchableOpacity>
+        <RoundIconButton
+          icon="chevron-back"
+          variant="inverse"
+          accessibilityLabel="Back"
+          onPress={() => navigation.goBack()}
+          style={{ marginTop: 20 }}
+        />
       </View>
     );
   }
@@ -454,7 +459,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       alignItems: 'center',
     },
     heroLoading: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 1,

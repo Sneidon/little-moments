@@ -1,9 +1,12 @@
-/** Inter, loaded in App.tsx via @expo-google-fonts/inter */
+/**
+ * Body font for screens styled with the legacy weight names. Mapped onto the
+ * redesign's Figtree (loaded in App.tsx) so every screen uses the new type.
+ */
 export const font = {
-  regular: 'Inter_400Regular',
-  medium: 'Inter_500Medium',
-  semiBold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
+  regular: 'Figtree_400Regular',
+  medium: 'Figtree_500Medium',
+  semiBold: 'Figtree_700Bold',
+  bold: 'Figtree_800ExtraBold',
 } as const;
 
 /**

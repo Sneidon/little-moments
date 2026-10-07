@@ -8,6 +8,7 @@ import {
   brandLight,
   categoryDark,
   categoryLight,
+  legacyPaletteFromBrand,
   type BrandPalette,
   type CategoryPalette,
 } from '../theme/tokens';
@@ -49,14 +50,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark';
-  const colors = isDark ? darkColors : lightColors;
   const brand = isDark ? brandDark : brandLight;
   const category = isDark ? categoryDark : categoryLight;
+  // Every screen styled with `colors.*` follows the redesign palette.
+  const colors = useMemo(
+    () => legacyPaletteFromBrand(isDark ? darkColors : lightColors, brand, category),
+    [isDark, brand, category]
+  );
 
   useEffect(() => {
-    const bg = isDark ? '#000000' : '#FFFFFF';
+    const bg = brand.background;
     SystemUI.setBackgroundColorAsync(bg).catch(() => {});
-  }, [isDark]);
+  }, [brand.background]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({ colors, brand, category, isDark, themeMode, setThemeMode }),

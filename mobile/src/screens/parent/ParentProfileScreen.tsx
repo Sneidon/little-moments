@@ -81,7 +81,7 @@ export function ParentProfileScreen() {
           disabled={savingProfile}
         >
           {savingProfile ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={colors.primaryContrast} />
           ) : (
             <Text style={styles.saveProfileText}>Save profile</Text>
           )}

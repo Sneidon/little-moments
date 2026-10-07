@@ -155,15 +155,6 @@ export function RegisterScreen({ navigation }: Props) {
             disabled={loading}
             style={styles.submit}
           />
-          <TouchableOpacity
-            style={styles.backRow}
-            onPress={() => navigation.goBack()}
-            disabled={loading}
-            accessibilityRole="link"
-          >
-            <Ionicons name="arrow-back" size={18} color={brand.textPrimary} />
-            <Text style={styles.link}>Back to sign in</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -198,13 +189,5 @@ function createStyles(brand: BrandPalette) {
     roleText: { fontFamily: brandFont.body700, fontSize: 15, color: brand.textSecondary },
     roleTextActive: { fontFamily: brandFont.body800, color: brand.onInverse },
     submit: { marginTop: 4 },
-    backRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      minHeight: 44,
-    },
-    link: { fontFamily: brandFont.body800, fontSize: 15, color: brand.textPrimary },
   });
 }

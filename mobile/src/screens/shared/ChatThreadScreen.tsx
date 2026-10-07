@@ -723,7 +723,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       marginTop: 4,
       alignSelf: 'flex-end',
     },
-    bubbleTimeMe: { color: 'rgba(255,255,255,0.72)' },
+    bubbleTimeMe: { color: colors.primaryContrast, opacity: 0.72 },
     bubbleTimeThem: { color: colors.textMuted },
     inputRow: {
       flexDirection: 'row',

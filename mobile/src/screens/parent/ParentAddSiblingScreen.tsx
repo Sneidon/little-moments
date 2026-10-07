@@ -132,7 +132,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
     checkbox: { width: 18, height: 18, borderRadius: 5, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: 'transparent' },
     checkboxText: { fontSize: 13, color: colors.textSecondary, ...f('medium') },
     primaryBtn: { marginTop: 16, backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 14, alignItems: 'center' },
-    primaryBtnText: { color: '#FFFFFF', fontSize: 14, ...f('bold') },
+    primaryBtnText: { color: colors.primaryContrast, fontSize: 14, ...f('bold') },
   });
 }
 

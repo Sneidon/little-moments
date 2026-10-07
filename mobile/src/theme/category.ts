@@ -1,7 +1,7 @@
 import type React from 'react';
 import type { Ionicons } from '@expo/vector-icons';
 
-export type CategoryKey =
+type CategoryKey =
   | 'attendance'
   | 'meal'
   | 'photo'
@@ -51,7 +51,7 @@ export const categoryDark: CategoryPalette = {
   onCategoryMuted,
 };
 
-export const AVATAR_CATEGORIES: CategoryKey[] = ['nap', 'attendance', 'meal', 'checkOut', 'media', 'activity'];
+const AVATAR_CATEGORIES: CategoryKey[] = ['nap', 'attendance', 'meal', 'checkOut', 'media', 'activity'];
 
 export function avatarCategoryColor(category: CategoryPalette, index: number): string {
   return category[AVATAR_CATEGORIES[index % AVATAR_CATEGORIES.length]];
@@ -59,7 +59,7 @@ export function avatarCategoryColor(category: CategoryPalette, index: number): s
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-export const UPDATE_TYPE_STYLE: Record<
+const UPDATE_TYPE_STYLE: Record<
   string,
   { category: CategoryKey; icon: IoniconName }
 > = {

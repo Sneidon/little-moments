@@ -2,9 +2,9 @@ import * as ImagePicker from 'expo-image-picker';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Alert, Linking } from 'react-native';
 
-export type PhotoResult = { uri: string } | null;
+type PhotoResult = { uri: string } | null;
 
-export type MediaResult = { uri: string; mimeType?: string } | null;
+type MediaResult = { uri: string; mimeType?: string } | null;
 
 /** Expo Go cannot load native crop UI; use expo-image-picker editing fallback. */
 function useNativeCropPicker(): boolean {
@@ -191,20 +191,6 @@ export async function pickVideoAsync(): Promise<MediaResult> {
 }
 
 /**
- * Open media library to pick a photo or video.
- */
-export async function pickMediaAsync(): Promise<MediaResult> {
-  const granted = await ensureMediaLibraryPermission();
-  if (!granted) return null;
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images', 'videos'],
-    allowsEditing: false,
-  });
-  if (result.canceled || !result.assets?.[0]) return null;
-  return assetToMediaResult(result.assets[0]);
-}
-
-/**
  * Let the teacher choose how to add media: photo or video, camera or library.
  */
 export function showMediaSourceAlert(
@@ -222,17 +208,3 @@ export function showMediaSourceAlert(
   ]);
 }
 
-/**
- * Show an action sheet / alert to choose Take Photo or Choose from Library.
- * Returns the result of the chosen action, or null if cancelled.
- */
-export function showPhotoSourceAlert(
-  onTakePhoto: () => void,
-  onChooseFromLibrary: () => void
-): void {
-  Alert.alert('Add Photo', 'Take a new photo or choose from your library.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Take Photo', onPress: onTakePhoto },
-    { text: 'Choose from Library', onPress: onChooseFromLibrary },
-  ]);
-}

@@ -7,7 +7,7 @@ import { spacing, updateTypeStyle, type BrandPalette } from '../../../theme/toke
 
 export type QuickAction = { label: string; typeKey: string; initialType?: string };
 
-export const QUICK_ACTIONS: QuickAction[] = [
+const QUICK_ACTIONS: QuickAction[] = [
   { label: 'Check in', typeKey: 'check_in', initialType: 'check_in' },
   { label: 'Log Meal', typeKey: 'meal', initialType: 'meal' },
   { label: 'Log Nap', typeKey: 'nap_time', initialType: 'nap_time' },

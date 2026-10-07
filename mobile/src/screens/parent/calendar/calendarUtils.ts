@@ -29,7 +29,7 @@ export function getEventHighlight(ev: Event, nowMs: number = Date.now()): EventH
 /**
  * Best highlight for a calendar day: ongoing wins, then upcoming, else past-only or empty.
  */
-export type DayHighlightLevel = 'ongoing' | 'upcoming' | 'past_only' | 'empty';
+type DayHighlightLevel = 'ongoing' | 'upcoming' | 'past_only' | 'empty';
 
 /** Events that are not past (upcoming or ongoing), soonest first; ongoing listed before upcoming. */
 export function getUpcomingAndOngoingEvents(events: Event[], nowMs: number = Date.now(), limit = 6): Event[] {

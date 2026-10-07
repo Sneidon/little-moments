@@ -2,7 +2,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { ReportType } from '@shared/types';
 
-export function toReportIsoTimestamp(ts: unknown): string {
+function toReportIsoTimestamp(ts: unknown): string {
   if (typeof ts === 'string') return ts;
   if (ts && typeof (ts as { toDate?: () => Date }).toDate === 'function') {
     return (ts as { toDate: () => Date }).toDate().toISOString();
@@ -19,7 +19,7 @@ export function isChildPresentFromDayReports(reports: Array<{ type?: string; ts:
   return isPresent;
 }
 
-export type DayReportEntry = { type?: string; ts: string };
+type DayReportEntry = { type?: string; ts: string };
 
 export async function loadDayReports(schoolId: string, childId: string, dateStr: string): Promise<DayReportEntry[]> {
   const dayStart = `${dateStr}T00:00:00.000Z`;

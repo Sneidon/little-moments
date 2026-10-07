@@ -62,8 +62,6 @@ function createFormStyles(brand: BrandPalette) {
   });
 }
 
-export type FormStyles = ReturnType<typeof createFormStyles>;
-
 export function useFormStyles() {
   const { brand } = useTheme();
   return useMemo(() => createFormStyles(brand), [brand]);

@@ -5,7 +5,7 @@ import { getChatReadField } from '../utils/chatUnread';
 
 const functions = getFunctions(app);
 
-export type GetOrCreateChatResult = { chatId: string; schoolId: string };
+type GetOrCreateChatResult = { chatId: string; schoolId: string };
 
 export async function getOrCreateChat(
   schoolId: string,

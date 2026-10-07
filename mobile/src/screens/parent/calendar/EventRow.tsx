@@ -9,7 +9,7 @@ import { formatEventTimeRange, getEventHighlight, type EventHighlight } from './
 import { softShadow } from '../../../theme/shadow';
 import { highlightColors } from './calendarStyles';
 
-export function EventBadge({ highlight }: { highlight: EventHighlight }) {
+function EventBadge({ highlight }: { highlight: EventHighlight }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   if (highlight === 'past') return null;

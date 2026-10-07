@@ -1,16 +1,17 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../../context/ThemeContext';
+import { useThemedStyles, type Theme } from '../../../../hooks/useThemedStyles';
 import { HeaderBlock, DisplayTitle } from '../../../../components/brand/HeaderBlock';
 import { RoundIconButton } from '../../../../components/brand/RoundIconButton';
 import { brandFont } from '../../../../theme/typography';
-import { radius, spacing, type BrandPalette, type CategoryPalette } from '../../../../theme/tokens';
+import { radius, spacing } from '../../../../theme/tokens';
 
 type Props = { whoStepActive: boolean; onBack: () => void };
 
 export function AddUpdateHeader({ whoStepActive, onBack }: Props) {
   const { brand, category } = useTheme();
-  const styles = useMemo(() => createStyles(brand, category), [brand, category]);
+  const styles = useThemedStyles(createStyles);
 
   const step = (num: number, label: string, active: boolean) => (
     <View style={[styles.pill, active ? styles.pillActive : styles.pillIdle]}>
@@ -35,7 +36,7 @@ export function AddUpdateHeader({ whoStepActive, onBack }: Props) {
   );
 }
 
-function createStyles(brand: BrandPalette, category: CategoryPalette) {
+function createStyles({ category }: Theme) {
   return StyleSheet.create({
     header: { marginHorizontal: -spacing.screenX, marginBottom: spacing.gapL },
     steps: { flexDirection: 'row', gap: 8 },

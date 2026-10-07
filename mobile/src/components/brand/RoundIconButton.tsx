@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { size as sizeTokens } from '../../theme/tokens';
 
-export type RoundIconButtonVariant = 'onHeader' | 'onHeaderLight' | 'inverse' | 'raised' | 'ghost';
+type RoundIconButtonVariant = 'onHeader' | 'onHeaderLight' | 'inverse' | 'raised' | 'ghost';
 
 type Props = {
   icon: React.ComponentProps<typeof Ionicons>['name'];

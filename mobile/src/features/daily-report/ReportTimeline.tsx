@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useThemedStyles, type Theme } from '../../hooks/useThemedStyles';
 import { Skeleton } from '../../components/Skeleton';
 import { brandFont } from '../../theme/typography';
-import { radius, type as typeTokens, updateTypeStyle, type BrandPalette, type CategoryPalette } from '../../theme/tokens';
+import { radius, type as typeTokens, updateTypeStyle } from '../../theme/tokens';
 import { formatTime } from '../../utils';
 import type { ReportWithExtras } from '../../utils/childDailyReportDisplay';
 import { getTimelineTitle } from './summary';
@@ -20,7 +21,7 @@ type Props = {
 
 export function ReportTimeline({ items, loading, refreshing, emptySubtitle, onPressItem, imageFor }: Props) {
   const { brand, category } = useTheme();
-  const styles = useMemo(() => createStyles(brand, category), [brand, category]);
+  const styles = useThemedStyles(createStyles);
 
   if (loading) {
     return (
@@ -94,7 +95,7 @@ export function ReportTimeline({ items, loading, refreshing, emptySubtitle, onPr
   );
 }
 
-function createStyles(brand: BrandPalette, category: CategoryPalette) {
+function createStyles({ brand }: Theme) {
   return StyleSheet.create({
     list: { gap: 10 },
     spinner: { paddingVertical: 28 },

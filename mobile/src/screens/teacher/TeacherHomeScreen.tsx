@@ -10,6 +10,7 @@ import {
   Image,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -28,6 +29,7 @@ import { StatTile } from '../../components/brand/StatTile';
 import { BrandSkeletonStudentCard, BrandSkeletonTile } from '../../components/brand/BrandSkeletons';
 import {
   avatarCategoryColor,
+  NATIVE_TAB_BAR_CLEARANCE_IOS,
   radius,
   spacing,
   type as typeTokens,
@@ -52,6 +54,8 @@ export function TeacherHomeScreen({
   const { profile } = useAuth();
   const { colors, brand, category, isDark } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const tabBarClearance = Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24;
   const styles = useMemo(
     () => createStyles(brand, category, isDark, windowWidth),
     [brand, category, isDark, windowWidth]
@@ -284,7 +288,7 @@ export function TeacherHomeScreen({
       <View style={styles.container}>
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} accessibilityState={{ busy: true }}>
           {header}
-          <View style={styles.body}>
+          <View style={[styles.body, { paddingBottom: tabBarClearance }]}>
             <Skeleton height={88} borderRadius={radius.cardL} style={{ marginTop: -44 }} />
             <BrandSkeletonTile height={200} />
             <View style={styles.row}>
@@ -343,7 +347,7 @@ export function TeacherHomeScreen({
           </View>
         )}
 
-        <View style={[styles.body, !showDatePicker && styles.bodyOverlap]}>
+        <View style={[styles.body, !showDatePicker && styles.bodyOverlap, { paddingBottom: tabBarClearance }]}>
           {/* Add Daily Update CTA */}
           <TouchableOpacity
             style={styles.ctaCard}

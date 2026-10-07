@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -22,6 +24,7 @@ import { HeaderBlock, Overline, DisplayTitle } from '../../components/brand/Head
 import { BrandSkeletonStudentCard } from '../../components/brand/BrandSkeletons';
 import {
   avatarCategoryColor,
+  NATIVE_TAB_BAR_CLEARANCE_IOS,
   radius,
   spacing,
   type as typeTokens,
@@ -40,7 +43,9 @@ export function TeacherStudentsScreen({
 }) {
   const { profile } = useAuth();
   const { colors, brand, category } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(brand, category), [brand, category]);
+  const tabBarClearance = Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24;
   const [children, setChildren] = useState<Child[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -247,7 +252,7 @@ export function TeacherStudentsScreen({
           </HeaderBlock>
         }
         ItemSeparatorComponent={() => <View style={{ height: spacing.gapM }} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarClearance }]}
         accessibilityState={showSkeleton ? { busy: true } : undefined}
         ListEmptyComponent={
           listLoaded && students.length === 0 ? (

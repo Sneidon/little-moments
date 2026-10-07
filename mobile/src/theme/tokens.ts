@@ -279,9 +279,10 @@ export const type = {
 } satisfies Record<string, TextStyle>;
 
 /**
- * Maps the redesign tokens onto the legacy ColorPalette shape, so long screens
- * whose styles read `colors.*` (e.g. Add update forms) can be reskinned without
- * rewriting every style. Status colours (success/warning/danger) are kept.
+ * Maps the redesign tokens onto the legacy ColorPalette shape. ThemeContext
+ * exposes this as `colors`, so every screen that still styles itself with
+ * `colors.*` follows the redesign palette. Status colours (success/warning/
+ * danger) and skeleton greys are kept from the legacy palette.
  */
 export function legacyPaletteFromBrand(
   legacy: ColorPalette,
@@ -300,9 +301,15 @@ export function legacyPaletteFromBrand(
     primary: brand.primaryButton,
     primaryMuted: brand.surfaceRaised,
     primaryContrast: brand.onPrimaryButton,
+    header: brand.headerBackground,
+    headerText: brand.onHeader,
+    headerTextMuted: brand.onHeaderMuted,
+    headerAccent: 'rgba(255,255,255,0.14)',
     border: brand.disabledBorder,
     inputBackground: brand.surfaceRaised,
     inputBorder: brand.surfaceRaised,
+    tabActive: brand.primaryButton,
+    tabInactive: brand.textSecondary,
     avatarBg: category.nap,
     avatarText: category.onCategory,
     accentPurple: brand.primaryButton,
@@ -312,5 +319,14 @@ export function legacyPaletteFromBrand(
     accentTealSoft: brand.surfaceRaised,
     accentOrangeSoft: brand.surfaceRaised,
     ctaPurple: brand.primaryButton,
+    online: brand.statusPresent,
+    tabBarBg: brand.surface,
   };
 }
+
+/**
+ * Extra bottom padding for scrollable tab screens that draw edge-to-edge headers
+ * and so opt out of the native tabs' automatic inset adjustment: on iOS the
+ * (Liquid Glass) tab bar floats over content; Android's Material bar does not.
+ */
+export const NATIVE_TAB_BAR_CLEARANCE_IOS = 72;

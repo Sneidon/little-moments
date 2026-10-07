@@ -98,3 +98,18 @@ export function mergeMessagesByIdAsc(a: ChatMessage[], b: ChatMessage[]): ChatMe
   for (const m of [...a, ...b]) map.set(m.id, m);
   return Array.from(map.values()).sort((x, y) => x.createdAt.localeCompare(y.createdAt));
 }
+
+export function formatChatListTime(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(d);
+  day.setHours(0, 0, 0, 0);
+  const daysAgo = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+  if (daysAgo === 0) return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  if (daysAgo === 1) return 'Yesterday';
+  if (daysAgo <= 6) return d.toLocaleDateString(undefined, { weekday: 'short' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}

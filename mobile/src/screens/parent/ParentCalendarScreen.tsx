@@ -55,7 +55,6 @@ export function ParentCalendarScreen() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   });
-  const [detailEvent, setDetailEvent] = useState<Event | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {

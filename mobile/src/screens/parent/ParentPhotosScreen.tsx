@@ -16,7 +16,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
-import { getCached, setCached, LIST_TTL_MS } from '../../utils/cache';
+import { setCached, LIST_TTL_MS } from '../../utils/cache';
 import { getInitials } from '../../utils';
 import { isVideoMedia } from '../../utils/media';
 import { EmptyState } from '../../components/EmptyState';

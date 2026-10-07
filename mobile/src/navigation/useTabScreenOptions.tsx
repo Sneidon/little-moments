@@ -11,7 +11,7 @@ import { brandFont } from '../theme/typography';
  * Material bar with the sunflower active indicator from the redesign.
  */
 export function useTabScreenOptions() {
-  const { colors, brand, category, isDark } = useTheme();
+  const { colors, brand, category } = useTheme();
   return ({ navigation }: { navigation: { getParent: () => unknown } }): NativeBottomTabNavigationOptions => ({
     headerShown: false,
     headerStyle: { backgroundColor: brand.background },

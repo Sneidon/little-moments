@@ -51,12 +51,10 @@ export function getDayHighlightLevel(
   if (!evs?.length) return 'empty';
   let hasUpcoming = false;
   let hasOngoing = false;
-  let hasPast = false;
   for (const e of evs) {
     const h = getEventHighlight(e, nowMs);
     if (h === 'ongoing') hasOngoing = true;
     else if (h === 'upcoming') hasUpcoming = true;
-    else hasPast = true;
   }
   if (hasOngoing) return 'ongoing';
   if (hasUpcoming) return 'upcoming';

@@ -1,6 +1,6 @@
 import type { Ionicons } from '@expo/vector-icons';
 import { formatMealAmount } from '@shared/reportLabels';
-import { formatTime } from '../../utils';
+import { formatTime, toIso } from '../../utils';
 
 export type ReportDoc = Record<string, unknown>;
 export type DetailRow = { label: string; value: string };
@@ -10,14 +10,6 @@ export function str(v: unknown): string | undefined {
   if (typeof v === 'string') return v || undefined;
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
   return undefined;
-}
-
-export function toIso(v: unknown): string {
-  if (typeof v === 'string') return v;
-  if (v && typeof (v as { toDate?: () => Date }).toDate === 'function') {
-    return (v as { toDate: () => Date }).toDate().toISOString();
-  }
-  return '';
 }
 
 function mapped(v: unknown, map: Record<string, string>, fallback = (s: string) => s): string | undefined {

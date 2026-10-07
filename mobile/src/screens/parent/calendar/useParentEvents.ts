@@ -3,16 +3,8 @@ import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { fetchParentChildren } from '../../../api/children';
 import { db } from '../../../config/firebase';
 import { useAuth } from '../../../context/AuthContext';
+import { useNow } from '../../../hooks/useNow';
 import type { Event } from '@shared/types';
-
-function useNow(intervalMs = 60_000) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
 
 export function useParentEvents() {
   const { profile } = useAuth();

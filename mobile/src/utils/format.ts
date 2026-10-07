@@ -20,3 +20,11 @@ export function formatTime(iso: string): string {
     return iso;
   }
 }
+
+export function toIso(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value && typeof (value as { toDate?: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  return '';
+}

@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
-import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { fetchTeacherClasses } from '../api/classes';
+import { subscribeClassChildren } from '../api/children';
 import { getCached, setCached, LIST_TTL_MS } from '../utils/cache';
-import type { Child } from '@shared/types';
-import type { ClassRoom } from '@shared/types';
+import type { Child, ClassRoom } from '@shared/types';
 
-const cacheKeyChildren = (schoolId: string, uid: string) =>
-  `teacher:children:${schoolId}:${uid}`;
-const cacheKeyClassName = (schoolId: string, uid: string) =>
-  `teacher:className:${schoolId}:${uid}`;
+const cacheKeyChildren = (schoolId: string, uid: string) => `teacher:children:${schoolId}:${uid}`;
+const cacheKeyClassName = (schoolId: string, uid: string) => `teacher:className:${schoolId}:${uid}`;
 const cacheKeySchoolName = (schoolId: string) => `teacher:schoolName:${schoolId}`;
 
-export function useTeacherClassChildren(refreshTrigger: number) {
+export function useTeacherClassChildren(refreshTrigger = 0) {
   const { profile } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
+  const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [className, setClassName] = useState<string | null>(null);
   const [schoolName, setSchoolName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +23,8 @@ export function useTeacherClassChildren(refreshTrigger: number) {
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
     if (!schoolId || !uid) {
+      setChildren([]);
+      setClasses([]);
       setSchoolName(null);
       setLoading(false);
       return;
@@ -49,31 +51,18 @@ export function useTeacherClassChildren(refreshTrigger: number) {
         if (n) await setCached(cacheKeySchoolName(schoolId), n, LIST_TTL_MS);
       }
 
-      const classesSnap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
+      const myClasses = await fetchTeacherClasses(schoolId, uid);
       if (cancelled) return;
-      const myClasses = classesSnap.docs.filter(
-        (d) => (d.data() as ClassRoom).assignedTeacherId === uid
-      );
-      const classIds = myClasses.map((d) => d.id).slice(0, 10);
-      const name = myClasses[0] ? (myClasses[0].data() as ClassRoom).name : null;
+      setClasses(myClasses);
+      const name = myClasses[0]?.name ?? null;
       setClassName(name);
       await setCached(cacheKeyClassName(schoolId, uid), name, LIST_TTL_MS);
 
-      if (classIds.length === 0) {
-        setChildren([]);
-        setLoading(false);
-        return;
-      }
-
-      unsub = onSnapshot(
-        query(
-          collection(db, 'schools', schoolId, 'children'),
-          where('classId', 'in', classIds),
-          where('isActive', '==', true)
-        ),
-        (snap) => {
+      unsub = subscribeClassChildren(
+        schoolId,
+        myClasses.map((c) => c.id),
+        (list) => {
           if (cancelled) return;
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
           setChildren(list);
           setCached(cacheKeyChildren(schoolId, uid), list, LIST_TTL_MS);
           setLoading(false);
@@ -87,5 +76,5 @@ export function useTeacherClassChildren(refreshTrigger: number) {
     };
   }, [profile?.schoolId, profile?.uid, refreshTrigger]);
 
-  return { children, className, schoolName, loading };
+  return { children, classes, className, schoolName, loading };
 }

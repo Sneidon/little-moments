@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,14 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Image,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { getOrCreateChat } from '../../api/chat';
+import { useOpenChat, NO_PARENTS_ALERT, useTeacherClassChildren } from '../../hooks';
 import { getInitials } from '../../utils';
 import { NotificationBellButton } from '../../components/NotificationBellButton';
 import { HeaderBlock, Overline, DisplayTitle } from '../../components/brand/HeaderBlock';
@@ -46,106 +43,31 @@ export function TeacherStudentsScreen({
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(brand, category), [brand, category]);
   const tabBarClearance = Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24;
-  const [children, setChildren] = useState<Child[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [messageLoadingForId, setMessageLoadingForId] = useState<string | null>(null);
-  /** True after first roster resolution (empty or not); not cleared on pull-to-refresh. */
-  const [listLoaded, setListLoaded] = useState(false);
-  /** Room name(s) from the classes already fetched for the roster query. */
-  const [roomName, setRoomName] = useState<string | null>(null);
-  const prevSchoolIdRef = useRef<string | undefined>(undefined);
-  const prevUidRef = useRef<string | undefined>(undefined);
+  const { children, classes, loading } = useTeacherClassChildren(refreshTrigger);
+  const { openChat, openingChildId } = useOpenChat();
+  const [refreshing, setRefreshing] = useState(false);
+  const listLoaded = !loading;
+  const roomName = classes.map((c) => c.name).filter(Boolean).join(' · ') || null;
+
+  useEffect(() => {
+    if (!loading) setRefreshing(false);
+  }, [loading, children]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setRefreshTrigger((t) => t + 1);
   }, []);
 
-  useEffect(() => {
-    const schoolId = profile?.schoolId;
-    const uid = profile?.uid;
-
-    if (!schoolId || !uid) {
-      setChildren([]);
-      setListLoaded(true);
-      setRefreshing(false);
-      prevSchoolIdRef.current = schoolId;
-      prevUidRef.current = uid;
-      return;
-    }
-
-    const profileChanged =
-      prevSchoolIdRef.current !== schoolId || prevUidRef.current !== uid;
-    prevSchoolIdRef.current = schoolId;
-    prevUidRef.current = uid;
-    if (profileChanged) setListLoaded(false);
-
-    let cancelled = false;
-    let unsub: (() => void) | null = null;
-
-    (async () => {
-      const classesSnap = await getDocs(collection(db, 'schools', schoolId, 'classes'));
-      if (cancelled) return;
-      const myClasses = classesSnap.docs.filter(
-        (d) => (d.data() as { assignedTeacherId?: string }).assignedTeacherId === uid
-      );
-      const classIds = myClasses.map((d) => d.id).slice(0, 10);
-      const names = myClasses
-        .map((d) => (d.data() as { name?: string }).name)
-        .filter((n): n is string => !!n);
-      setRoomName(names.length ? names.join(' · ') : null);
-
-      if (classIds.length === 0) {
-        setChildren([]);
-        setListLoaded(true);
-        setRefreshing(false);
-        return;
-      }
-
-      unsub = onSnapshot(
-        query(
-          collection(db, 'schools', schoolId, 'children'),
-          where('classId', 'in', classIds),
-          where('isActive', '==', true)
-        ),
-        (snap) => {
-          if (cancelled) return;
-          setChildren(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Child)));
-          setListLoaded(true);
-          setRefreshing(false);
-        }
-      );
-    })();
-
-    return () => {
-      cancelled = true;
-      if (unsub) unsub();
-    };
-  }, [profile?.schoolId, profile?.uid, refreshTrigger]);
-
   const onMessageParent = useCallback(
-    async (child: Child) => {
-      const schoolId = profile?.schoolId;
-      if (!schoolId || !child.parentIds?.length) {
-        Alert.alert('No parents', 'This child has no linked parents.');
-        return;
-      }
-      setMessageLoadingForId(child.id);
-      try {
-        const { chatId, schoolId: sid } = await getOrCreateChat(
-          schoolId,
-          child.id,
-          child.parentIds[0]
-        );
-        navigation.getParent()?.navigate('ChatThread', { chatId, schoolId: sid });
-      } catch {
-        Alert.alert('Error', 'Could not start conversation. Please try again.');
-      } finally {
-        setMessageLoadingForId(null);
-      }
-    },
-    [profile?.schoolId, navigation]
+    (child: Child) =>
+      openChat({
+        schoolId: profile?.schoolId,
+        childId: child.id,
+        otherParticipantId: child.parentIds?.[0],
+        ...NO_PARENTS_ALERT,
+      }),
+    [openChat, profile?.schoolId]
   );
 
   const students = useMemo(
@@ -155,7 +77,7 @@ export function TeacherStudentsScreen({
 
   const renderChild = ({ item, index }: { item: Child; index: number }) => {
     const hasParents = !!item.parentIds && item.parentIds.length > 0;
-    const isMessageLoading = messageLoadingForId === item.id;
+    const isMessageLoading = openingChildId === item.id;
     const allergies = item.allergies ?? [];
     const firstName = item.name.split(' ')[0] ?? item.name;
 

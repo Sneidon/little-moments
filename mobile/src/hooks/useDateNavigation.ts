@@ -26,8 +26,9 @@ export function useDateNavigation(options: UseDateNavigationOptions = {}) {
   const nextDay = useCallback(() => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().slice(0, 10));
-  }, [selectedDate]);
+    const next = d.toISOString().slice(0, 10);
+    if (next <= maxDate.toISOString().slice(0, 10)) setSelectedDate(next);
+  }, [selectedDate, maxDate]);
 
   const onDatePickerChange = useCallback(
     (event: { type: string }, date?: Date) => {

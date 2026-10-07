@@ -295,7 +295,11 @@ export function MainTabs({ role }: { role: UserRole }) {
       />
       <RootStack.Screen name="Announcements" component={AnnouncementsScreen} options={{ title: 'Announcements' }} />
       <RootStack.Screen name="Events" component={EventsScreen} options={{ title: 'Events' }} />
-      <RootStack.Screen name="ChildProfile" component={ParentChildProfileScreen} options={{ title: 'Daily report' }} />
+      <RootStack.Screen
+        name="ChildProfile"
+        component={ParentChildProfileScreen}
+        options={{ title: 'Daily report', headerShown: false }}
+      />
       <RootStack.Screen name="ParentAnnouncements" component={ParentAnnouncementsScreen} options={{ title: 'Announcements' }} />
       <RootStack.Screen
         name="ParentAnnouncementDetail"

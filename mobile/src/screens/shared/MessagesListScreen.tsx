@@ -8,9 +8,8 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import { SkeletonMessageListRow, SkeletonMessagesActionHeader } from '../../components/Skeleton';
-import { EmptyState } from '../../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   collection,
   collectionGroup,
@@ -24,7 +23,20 @@ import {
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { font } from '../../theme/typography';
+import { brandFont } from '../../theme/typography';
+import { NotificationBellButton } from '../../components/NotificationBellButton';
+import { HeaderBlock, Overline, DisplayTitle } from '../../components/brand/HeaderBlock';
+import { PrimaryButton, OutlineButton } from '../../components/brand/Buttons';
+import { BrandSkeletonStudentCard } from '../../components/brand/BrandSkeletons';
+import {
+  avatarCategoryColor,
+  NATIVE_TAB_BAR_CLEARANCE_IOS,
+  radius,
+  spacing,
+  type as typeTokens,
+  type BrandPalette,
+  type CategoryPalette,
+} from '../../theme/tokens';
 import { getInitials } from '../../utils';
 import { isChatUnreadForUser } from '../../utils/chatUnread';
 import type { Chat } from '../../../../shared/types';
@@ -75,8 +87,10 @@ function formatListTime(iso: string | undefined): string {
 
 export function MessagesListScreen({ navigation }: Props) {
   const { profile, loading: authLoading } = useAuth();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const { colors, brand, category } = useTheme();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(brand, category), [brand, category]);
+  const tabBarClearance = Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24;
   const [chats, setChats] = useState<ChatWithNames[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -178,54 +192,73 @@ export function MessagesListScreen({ navigation }: Props) {
     return () => unsub();
   }, [authLoading, profile?.uid, profile?.schoolId, profile?.role, refreshTrigger]);
 
-  const renderListHeader = () => {
-    if (profile?.role === 'teacher') {
-      return (
-        <View style={styles.headerActions}>
-          <View style={styles.headerActionsRow}>
-            <TouchableOpacity
-              onPress={() => rootNav?.navigate('BroadcastToClass')}
-              style={styles.actionPill}
-              accessibilityRole="button"
-              accessibilityLabel="Message all parents in a class"
-              activeOpacity={0.85}
-            >
-              <Ionicons name="megaphone-outline" size={20} color={colors.primary} />
-              <Text style={styles.actionPillText}>Message class</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => rootNav?.navigate('SelectChildToMessage')}
-              style={styles.actionPill}
-              accessibilityRole="button"
-              accessibilityLabel="Start a new chat"
-              activeOpacity={0.85}
-            >
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
-              <Text style={styles.actionPillText}>New chat</Text>
-            </TouchableOpacity>
-          </View>
+  const unreadCount = useMemo(
+    () =>
+      profile?.uid && profile.role
+        ? chats.filter((c) => isChatUnreadForUser(c, profile.uid, profile.role)).length
+        : 0,
+    [chats, profile?.uid, profile?.role]
+  );
+
+  const header = (
+    <HeaderBlock style={styles.header}>
+      <View style={styles.headerRow}>
+        <View style={styles.headerTitles}>
+          <Overline>{unreadCount > 0 ? `${unreadCount} unread` : 'Inbox'}</Overline>
+          <DisplayTitle>Messages</DisplayTitle>
         </View>
-      );
-    }
-    if (profile?.role === 'parent') {
-      return (
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() => rootNav?.navigate('ParentSelectChildToMessage')}
-            style={[styles.actionPill, styles.actionPillFull]}
-            accessibilityRole="button"
-            accessibilityLabel="Message teacher"
-            activeOpacity={0.85}
-          >
-            <Ionicons name="person-outline" size={20} color={colors.primary} />
-            <Text style={[styles.actionPillText, styles.actionPillTextGrow]}>Message teacher</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    return null;
-  };
+        <NotificationBellButton
+          variant="header"
+          colors={colors}
+          onPress={() => rootNav?.navigate('UserNotifications')}
+        />
+      </View>
+    </HeaderBlock>
+  );
+
+  const actions =
+    profile?.role === 'teacher' ? (
+      <View style={styles.actionsRow}>
+        <PrimaryButton
+          label="Message class"
+          icon="megaphone-outline"
+          size="s"
+          style={styles.actionBtn}
+          onPress={() => rootNav?.navigate('BroadcastToClass')}
+          accessibilityLabel="Message all parents in a class"
+        />
+        <OutlineButton
+          label="New chat"
+          icon="chatbubble-ellipses-outline"
+          size="s"
+          style={styles.actionBtn}
+          onPress={() => rootNav?.navigate('SelectChildToMessage')}
+          accessibilityLabel="Start a new chat"
+        />
+      </View>
+    ) : profile?.role === 'parent' ? (
+      <View style={styles.actionsRow}>
+        <PrimaryButton
+          label="Message teacher"
+          icon="person-outline"
+          size="s"
+          style={styles.actionBtn}
+          onPress={() => rootNav?.navigate('ParentSelectChildToMessage')}
+        />
+      </View>
+    ) : null;
+
+  const listHeader = (
+    <>
+      {header}
+      {actions}
+      {chats.length > 0 ? (
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          Conversations
+        </Text>
+      ) : null}
+    </>
+  );
 
   const openChat = useCallback(
     (item: ChatWithNames) => {
@@ -239,7 +272,7 @@ export function MessagesListScreen({ navigation }: Props) {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: ChatWithNames }) => {
+    ({ item, index }: { item: ChatWithNames; index: number }) => {
       const initials = getInitials(item.otherDisplayName === '…' ? '?' : item.otherDisplayName);
       const preview = item.lastMessageText?.trim();
       const timeLabel = formatListTime(item.lastMessageAt || item.updatedAt);
@@ -248,29 +281,23 @@ export function MessagesListScreen({ navigation }: Props) {
           ? isChatUnreadForUser(item, profile.uid, profile.role)
           : false;
 
-      const cardShadow =
-        !isDark && Platform.OS === 'ios'
-          ? {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.06,
-              shadowRadius: 4,
-            }
-          : {};
-      const cardElevation = !isDark && Platform.OS === 'android' ? { elevation: 2 } : {};
-
       return (
         <TouchableOpacity
-          style={[styles.rowCard, unread && styles.rowCardUnread, cardShadow, cardElevation]}
+          style={[styles.rowCard, unread && styles.rowCardUnread]}
           onPress={() => openChat(item)}
-          activeOpacity={0.72}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.otherDisplayName}, about ${item.childName}${unread ? ', unread' : ''}. ${
+            preview || 'No messages yet'
+          }`}
         >
-          <View style={[styles.avatar, { backgroundColor: colors.avatarBg }]}>
-            <Text style={[styles.avatarText, { color: colors.avatarText }]}>{initials}</Text>
+          <View style={[styles.avatar, { backgroundColor: avatarCategoryColor(category, index) }]}>
+            <Text style={styles.avatarText}>{initials}</Text>
+            {unread ? <View style={styles.unreadDot} /> : null}
           </View>
           <View style={styles.rowBody}>
             <View style={styles.rowTop}>
-              <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
+              <Text style={styles.name} numberOfLines={1}>
                 {item.otherDisplayName}
               </Text>
               {timeLabel ? (
@@ -278,41 +305,31 @@ export function MessagesListScreen({ navigation }: Props) {
               ) : null}
             </View>
             <View style={styles.childRow}>
-              <Ionicons name="happy-outline" size={14} color={colors.textMuted} />
+              <Ionicons name="happy-outline" size={14} color={brand.textSecondary} />
               <Text style={styles.childName} numberOfLines={1}>
                 {item.childName}
               </Text>
             </View>
-            <Text style={preview ? [styles.preview, unread && styles.previewUnread] : styles.previewEmpty} numberOfLines={2}>
+            <Text
+              style={preview ? [styles.preview, unread && styles.previewUnread] : styles.previewEmpty}
+              numberOfLines={2}
+            >
               {preview || 'No messages yet'}
             </Text>
           </View>
-          {unread ? <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} /> : null}
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.rowChevron} />
         </TouchableOpacity>
       );
     },
-    [colors, isDark, openChat, profile?.role, profile?.uid, styles]
+    [brand, category, openChat, profile?.role, profile?.uid, styles]
   );
-
-  const skeletonStyle = useMemo(
-    () => ({
-      marginHorizontal: 16,
-      marginBottom: 10,
-    }),
-    []
-  );
-
-  const skeletonHeaderVariant =
-    profile?.role === 'teacher' ? 'teacher' : profile?.role === 'parent' ? 'parent' : 'none';
 
   if (authLoading || loading) {
     return (
       <View style={styles.container} accessibilityState={{ busy: true }}>
-        <SkeletonMessagesActionHeader variant={skeletonHeaderVariant} />
+        <View style={{ paddingHorizontal: spacing.screenX }}>{header}</View>
         <View style={styles.loadingBlock}>
-          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-            <SkeletonMessageListRow key={i} style={skeletonStyle} />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <BrandSkeletonStudentCard key={i} compact />
           ))}
         </View>
       </View>
@@ -325,175 +342,106 @@ export function MessagesListScreen({ navigation }: Props) {
         data={chats}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        ListHeaderComponent={renderListHeader}
+        ListHeaderComponent={listHeader}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.gapS + 2 }} />}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={brand.onHeader}
+            colors={[brand.headerBackground]}
+          />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarClearance }]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <EmptyState
-            icon="chatbubbles-outline"
-            title="No conversations yet"
-            subtitle={
-              profile?.role === 'teacher'
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="chatbubbles-outline" size={28} color={category.onCategory} />
+            </View>
+            <Text style={styles.emptyTitle}>No conversations yet</Text>
+            <Text style={styles.emptyBody}>
+              {profile?.role === 'teacher'
                 ? 'Use Message class or New chat above to reach parents.'
-                : 'Tap Message teacher above to start a conversation.'
-            }
-          />
+                : 'Tap Message teacher above to start a conversation.'}
+            </Text>
+          </View>
         }
       />
     </View>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
+function createStyles(brand: BrandPalette, category: CategoryPalette) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    listContent: {
-      flexGrow: 1,
-      paddingTop: 4,
-      paddingBottom: 28,
-    },
-    loadingBlock: {
-      paddingTop: 4,
-    },
-    headerActions: {
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 8,
-    },
-    headerActionsRow: {
-      flexDirection: 'row',
-      gap: 10,
-    },
-    actionPill: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-      borderRadius: 14,
-      backgroundColor: colors.card,
-      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
-      borderColor: colors.cardBorder,
-    },
-    actionPillFull: {
-      width: '100%',
-      justifyContent: 'flex-start',
-      paddingHorizontal: 16,
-    },
-    actionPillText: {
-      fontFamily: font.semiBold,
-      fontSize: 15,
-      color: colors.primary,
-      flexShrink: 1,
-    },
-    actionPillTextGrow: {
-      flex: 1,
-      marginLeft: 4,
-    },
+    container: { flex: 1, backgroundColor: brand.background },
+    header: { marginHorizontal: -spacing.screenX },
+    headerRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+    headerTitles: { flex: 1, gap: 6 },
+    listContent: { flexGrow: 1, paddingHorizontal: spacing.screenX },
+    loadingBlock: { padding: spacing.screenX, gap: spacing.gapS + 2 },
+    actionsRow: { flexDirection: 'row', gap: 10, marginTop: spacing.gapL },
+    actionBtn: { flex: 1 },
+    sectionTitle: { ...typeTokens.section, color: brand.textPrimary, marginTop: 24, marginBottom: 12, marginHorizontal: 4 },
     rowCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.card,
-      marginHorizontal: 16,
-      marginBottom: 10,
-      paddingVertical: 12,
-      paddingHorizontal: 14,
-      borderRadius: 14,
-      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
-      borderColor: colors.cardBorder,
+      gap: 14,
+      padding: 14,
+      borderRadius: radius.card,
+      backgroundColor: brand.surface,
+      borderWidth: 2.5,
+      borderColor: brand.surface,
     },
-    rowCardUnread: {
-      borderWidth: isDark ? StyleSheet.hairlineWidth : 1,
-      borderColor: colors.primary,
-      backgroundColor: colors.primaryMuted,
-    },
+    rowCardUnread: { borderColor: brand.textPrimary },
     avatar: {
       width: 52,
       height: 52,
-      borderRadius: 26,
+      borderRadius: 18,
+      alignItems: 'center',
       justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
     },
-    avatarText: {
-      fontFamily: font.semiBold,
-      fontSize: 17,
-    },
-    rowBody: {
-      flex: 1,
-      minWidth: 0,
-    },
-    rowTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-    },
-    name: {
-      flex: 1,
-      fontFamily: font.semiBold,
-      fontSize: 16,
-      color: colors.text,
-    },
-    nameUnread: {
-      fontFamily: font.bold,
-    },
-    time: {
-      fontFamily: font.regular,
-      fontSize: 12,
-      color: colors.textMuted,
-      flexShrink: 0,
-    },
-    timeUnread: {
-      color: colors.primary,
-      fontFamily: font.semiBold,
-    },
-    childRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginTop: 4,
-      maxWidth: '100%',
-    },
-    childName: {
-      fontFamily: font.medium,
-      fontSize: 12,
-      color: colors.textMuted,
-      flex: 1,
-    },
-    preview: {
-      fontFamily: font.regular,
-      fontSize: 14,
-      lineHeight: 19,
-      color: colors.textSecondary,
-      marginTop: 6,
-    },
-    previewUnread: {
-      color: colors.text,
-      fontFamily: font.medium,
-    },
-    previewEmpty: {
-      fontFamily: font.regular,
-      fontSize: 14,
-      lineHeight: 19,
-      color: colors.textMuted,
-      fontStyle: 'italic',
-      marginTop: 6,
-    },
-    rowChevron: {
-      marginLeft: 4,
-      opacity: 0.65,
-    },
+    avatarText: { fontFamily: brandFont.display800, fontSize: 20, color: category.onCategory },
     unreadDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-      marginRight: 6,
+      position: 'absolute',
+      right: -4,
+      top: -4,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 3,
+      borderColor: brand.surface,
+      backgroundColor: category.photo,
     },
+    rowBody: { flex: 1, minWidth: 0, gap: 3 },
+    rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    name: { flex: 1, fontFamily: brandFont.display800, fontSize: 18, letterSpacing: -0.36, color: brand.textPrimary },
+    time: { fontFamily: brandFont.body600, fontSize: 12, color: brand.textTertiary, flexShrink: 0 },
+    timeUnread: { fontFamily: brandFont.body800, color: brand.textPrimary },
+    childRow: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%' },
+    childName: { flex: 1, fontFamily: brandFont.body700, fontSize: 13, color: brand.textSecondary },
+    preview: { fontFamily: brandFont.body500, fontSize: 14, lineHeight: 20, color: brand.textSecondary },
+    previewUnread: { fontFamily: brandFont.body700, color: brand.textPrimary },
+    previewEmpty: { fontFamily: brandFont.body500, fontSize: 14, lineHeight: 20, fontStyle: 'italic', color: brand.textTertiary },
+    emptyCard: {
+      marginTop: spacing.gapL,
+      backgroundColor: brand.surface,
+      borderRadius: radius.card,
+      paddingVertical: 28,
+      paddingHorizontal: 24,
+      alignItems: 'center',
+      gap: 10,
+    },
+    emptyIconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: category.nap,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 4,
+    },
+    emptyTitle: { ...typeTokens.cardTitle, color: brand.textPrimary, textAlign: 'center' },
+    emptyBody: { ...typeTokens.body, color: brand.textSecondary, textAlign: 'center', maxWidth: 280 },
   });
 }

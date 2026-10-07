@@ -109,7 +109,7 @@ export function ParentNotificationsScreen() {
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={colors.primaryContrast} />
           ) : (
             <Text style={styles.saveBtnText}>Save preferences</Text>
           )}

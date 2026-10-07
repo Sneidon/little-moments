@@ -73,7 +73,7 @@ export function navigateFromNotificationData(
     return;
   }
   if (type === NOTIFICATION_DATA_TYPES.class_assigned && !isParent) {
-    navigation.navigate('MainTabs');
+    navigation.popTo('MainTabs');
     return;
   }
   if (type === NOTIFICATION_DATA_TYPES.child_joined_class && !isParent) {
@@ -81,7 +81,7 @@ export function navigateFromNotificationData(
     if (childId) {
       navigation.navigate('Reports', { childId });
     } else {
-      navigation.navigate('MainTabs');
+      navigation.popTo('MainTabs');
     }
     return;
   }

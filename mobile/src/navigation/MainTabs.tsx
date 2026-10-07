@@ -1,15 +1,17 @@
 import React from 'react';
-import { View } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Platform, type ImageSourcePropType } from 'react-native';
+import {
+  createNativeBottomTabNavigator,
+  type NativeBottomTabIcon,
+  type NativeBottomTabNavigationOptions,
+} from '@react-navigation/bottom-tabs/unstable';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import type { UserRole } from '../../../shared/types';
-import type { ColorPalette } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { usePushNotificationRegistration } from '../hooks/usePushNotificationRegistration';
-import { font } from '../theme/typography';
+import { brandFont, font } from '../theme/typography';
 import { TeacherHomeScreen } from '../screens/teacher/TeacherHomeScreen';
 import { TeacherReportsScreen } from '../screens/teacher/TeacherReportsScreen';
 import { TeacherStudentsScreen } from '../screens/teacher/TeacherStudentsScreen';
@@ -43,6 +45,7 @@ import { ReportDetailScreen } from '../screens/shared/ReportDetailScreen';
 import { UserNotificationsScreen } from '../screens/shared/UserNotificationsScreen';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { useUnreadMessageCount } from '../hooks/useUnreadMessageCount';
+import { useStackScreenOptions } from './stackScreenOptions';
 import { formatTabBadgeCount } from '../utils/chatUnread';
 
 function EditChildProfileScreenWrapper() {
@@ -86,100 +89,107 @@ export type RootStackParamList = {
   ParentAddSibling: undefined;
 };
 
-const Tab = createBottomTabNavigator();
+const Tab = createNativeBottomTabNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-/** Fixed box so glyphs of different shapes align in the tab bar. */
-const TAB_ICON_SLOT = 28;
+type SfSymbolName = Extract<NativeBottomTabIcon, { type: 'sfSymbol' }>['name'];
 
 /**
- * Outline when inactive, solid when focused (Ionicons `-outline` vs base name).
- * Centered in a fixed slot so tabs line up visually.
+ * Native tab icon: SF Symbol on iOS (outline, filled when focused), and a PNG
+ * rendered from the app's icon fonts on Android (see scripts/build-tab-icons.py).
  */
-function tabBarIconPair(outline: IoniconName, filled: IoniconName) {
-  return ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
-    <View
-      style={{
-        width: TAB_ICON_SLOT,
-        height: TAB_ICON_SLOT,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name={focused ? filled : outline} size={size} color={color} />
-    </View>
-  );
+function tabIcon(sfOutline: SfSymbolName, sfFilled: SfSymbolName, androidSource: ImageSourcePropType) {
+  return ({ focused }: { focused: boolean }): NativeBottomTabIcon =>
+    Platform.OS === 'ios'
+      ? { type: 'sfSymbol', name: focused ? sfFilled : sfOutline }
+      : { type: 'image', source: androidSource };
 }
 
-function tabBarStyleOptions(colors: ColorPalette) {
-  return {
-    tabBarActiveTintColor: colors.tabActive,
-    tabBarInactiveTintColor: colors.tabInactive,
-    tabBarStyle: {
-      backgroundColor: colors.tabBarBg,
-      borderTopColor: colors.cardBorder,
-    },
-  };
+const TAB_ICONS = {
+  dashboard: tabIcon('square.grid.2x2', 'square.grid.2x2.fill', require('../../assets/tab-icons/dashboard.png')),
+  students: tabIcon('figure.child', 'figure.child', require('../../assets/tab-icons/students.png')),
+  messages: tabIcon(
+    'bubble.left.and.bubble.right',
+    'bubble.left.and.bubble.right.fill',
+    require('../../assets/tab-icons/messages.png')
+  ),
+  profile: tabIcon('person', 'person.fill', require('../../assets/tab-icons/profile.png')),
+  home: tabIcon('house', 'house.fill', require('../../assets/tab-icons/home.png')),
+  media: tabIcon('photo.on.rectangle', 'photo.on.rectangle.angled', require('../../assets/tab-icons/media.png')),
+  calendar: tabIcon('calendar', 'calendar', require('../../assets/tab-icons/calendar.png')),
+  settings: tabIcon('gearshape', 'gearshape.fill', require('../../assets/tab-icons/settings.png')),
+};
+
+/**
+ * Shared native tab bar + header options. On iOS 26+ the tab bar is Liquid Glass
+ * (its background follows the content and can't be overridden); Android uses the
+ * Material bar with the sunflower active indicator from the redesign.
+ */
+function useTabScreenOptions() {
+  const { colors, brand, category, isDark } = useTheme();
+  return ({ navigation }: { navigation: { getParent: () => unknown } }): NativeBottomTabNavigationOptions => ({
+    headerShown: false,
+    headerStyle: { backgroundColor: brand.background },
+    headerTintColor: brand.textPrimary,
+    headerTitleStyle: { fontFamily: brandFont.display800, fontSize: 18, color: brand.textPrimary },
+    headerShadowVisible: false,
+    headerRight: () => (
+      <NotificationBellButton
+        colors={colors}
+        onPress={() =>
+          (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
+            'UserNotifications'
+          )
+        }
+      />
+    ),
+    tabBarActiveTintColor: Platform.OS === 'ios' ? brand.primaryButton : category.onCategory,
+    tabBarInactiveTintColor: brand.textSecondary,
+    tabBarActiveIndicatorColor: category.activity,
+    tabBarStyle: { backgroundColor: brand.surface },
+    tabBarLabelStyle: { fontFamily: brandFont.body700, fontSize: 12 },
+    tabBarBadgeStyle: { backgroundColor: colors.danger, color: '#FFFFFF' },
+  });
 }
 
 function TeacherTabs() {
-  const { colors, isDark } = useTheme();
   const unreadMessageCount = useUnreadMessageCount();
+  const screenOptions = useTabScreenOptions();
 
   return (
-    <Tab.Navigator
-      screenOptions={({ navigation }) => ({
-        headerShown: false,
-        headerStyle: {
-          backgroundColor: colors.card,
-        },
-        headerTintColor: colors.primary,
-        headerTitleStyle: {
-          fontFamily: font.semiBold,
-          fontSize: 17,
-          color: colors.text,
-        },
-        headerShadowVisible: !isDark,
-        headerRight: () => (
-          <NotificationBellButton
-            colors={colors}
-            onPress={() =>
-              (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
-                'UserNotifications'
-              )
-            }
-          />
-        ),
-        ...tabBarStyleOptions(colors),
-      })}
-    >
+    <Tab.Navigator screenOptions={screenOptions}>
       <Tab.Screen
         name="Dashboard"
         component={TeacherHomeScreen}
         options={{
-          headerShown: true,
+          // Edge-to-edge header: the screen pads for the tab bar itself (tabBarClearance).
+          overrideScrollViewContentInsetAdjustmentBehavior: false,
+          // Header is drawn in-screen (HeaderBlock).
+          headerShown: false,
           title: 'Dashboard',
-          tabBarIcon: tabBarIconPair('grid-outline', 'grid'),
+          tabBarIcon: TAB_ICONS.dashboard,
         }}
       />
       <Tab.Screen
         name="Students"
         component={TeacherStudentsScreen}
         options={{
-          headerShown: true,
+          // Edge-to-edge header: the screen pads for the tab bar itself (tabBarClearance).
+          overrideScrollViewContentInsetAdjustmentBehavior: false,
+          headerShown: false,
           title: 'Students',
-          tabBarIcon: tabBarIconPair('school-outline', 'school'),
+          tabBarIcon: TAB_ICONS.students,
         }}
       />
       <Tab.Screen
         name="MessagesList"
         component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
         options={{
-          headerShown: true,
+          // Header is drawn in-screen (HeaderBlock); the screen pads for the tab bar itself.
+          headerShown: false,
+          overrideScrollViewContentInsetAdjustmentBehavior: false,
           title: 'Messages',
-          tabBarIcon: tabBarIconPair('chatbubbles-outline', 'chatbubbles'),
+          tabBarIcon: TAB_ICONS.messages,
           tabBarBadge: formatTabBadgeCount(unreadMessageCount),
         }}
       />
@@ -187,10 +197,12 @@ function TeacherTabs() {
         name="Settings"
         component={TeacherSettingsScreen}
         options={{
-          headerShown: true,
+          // Header is drawn in-screen (HeaderBlock); the screen pads for the tab bar itself.
+          headerShown: false,
+          overrideScrollViewContentInsetAdjustmentBehavior: false,
           title: 'Profile',
           tabBarLabel: 'Profile',
-          tabBarIcon: tabBarIconPair('person-outline', 'person'),
+          tabBarIcon: TAB_ICONS.profile,
         }}
       />
     </Tab.Navigator>
@@ -198,43 +210,18 @@ function TeacherTabs() {
 }
 
 function ParentTabs() {
-  const { colors, isDark } = useTheme();
   const unreadMessageCount = useUnreadMessageCount();
+  const screenOptions = useTabScreenOptions();
   const tabHeader = { headerShown: true as const };
   return (
-    <Tab.Navigator
-      screenOptions={({ navigation }) => ({
-        headerShown: false,
-        headerStyle: {
-          backgroundColor: colors.card,
-        },
-        headerTintColor: colors.primary,
-        headerTitleStyle: {
-          fontFamily: font.semiBold,
-          fontSize: 17,
-          color: colors.text,
-        },
-        headerShadowVisible: !isDark,
-        headerRight: () => (
-          <NotificationBellButton
-            colors={colors}
-            onPress={() =>
-              (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate(
-                'UserNotifications'
-              )
-            }
-          />
-        ),
-        ...tabBarStyleOptions(colors),
-      })}
-    >
+    <Tab.Navigator screenOptions={screenOptions}>
       <Tab.Screen
         name="Home"
         component={ParentHomeScreen}
         options={{
           title: 'Home',
           headerShown: true,
-          tabBarIcon: tabBarIconPair('home-outline', 'home'),
+          tabBarIcon: TAB_ICONS.home,
         }}
       />
       <Tab.Screen
@@ -243,7 +230,7 @@ function ParentTabs() {
         options={{
           title: 'Media',
           ...tabHeader,
-          tabBarIcon: tabBarIconPair('images-outline', 'images'),
+          tabBarIcon: TAB_ICONS.media,
         }}
       />
       <Tab.Screen
@@ -252,7 +239,7 @@ function ParentTabs() {
         options={{
           title: 'Calendar',
           ...tabHeader,
-          tabBarIcon: tabBarIconPair('calendar-outline', 'calendar'),
+          tabBarIcon: TAB_ICONS.calendar,
         }}
       />
       <Tab.Screen
@@ -260,8 +247,9 @@ function ParentTabs() {
         component={MessagesListScreen as React.ComponentType<Record<string, unknown>>}
         options={{
           title: 'Messages',
-          ...tabHeader,
-          tabBarIcon: tabBarIconPair('chatbubbles-outline', 'chatbubbles'),
+          headerShown: false,
+          overrideScrollViewContentInsetAdjustmentBehavior: false,
+          tabBarIcon: TAB_ICONS.messages,
           tabBarBadge: formatTabBadgeCount(unreadMessageCount),
         }}
       />
@@ -271,7 +259,7 @@ function ParentTabs() {
         options={{
           title: 'Settings',
           ...tabHeader,
-          tabBarIcon: tabBarIconPair('settings-outline', 'settings'),
+          tabBarIcon: TAB_ICONS.settings,
         }}
       />
     </Tab.Navigator>
@@ -282,16 +270,19 @@ export function MainTabs({ role }: { role: UserRole }) {
   const { profile } = useAuth();
   const shouldGateParent = role === 'parent' && profile?.parentStatus && profile.parentStatus !== 'ACTIVE';
   usePushNotificationRegistration(!shouldGateParent);
+  const stackScreenOptions = useStackScreenOptions();
   return (
-    <RootStack.Navigator
-      screenOptions={{ headerShown: true, headerBackTitle: 'Back' }}
-    >
+    <RootStack.Navigator screenOptions={stackScreenOptions}>
       <RootStack.Screen
         name="MainTabs"
         component={role === 'teacher' ? TeacherTabs : shouldGateParent ? ParentPendingApprovalScreen : ParentTabs}
         options={{ headerShown: false }}
       />
-      <RootStack.Screen name="Reports" component={TeacherReportsScreen} options={{ title: 'Daily report' }} />
+      <RootStack.Screen
+        name="Reports"
+        component={TeacherReportsScreen}
+        options={{ title: 'Daily report', headerShown: false }}
+      />
       <RootStack.Screen
         name="ReportDetail"
         component={ReportDetailScreen}
@@ -300,7 +291,7 @@ export function MainTabs({ role }: { role: UserRole }) {
       <RootStack.Screen
         name="AddUpdate"
         component={AddUpdateScreen as React.ComponentType<Record<string, unknown>>}
-        options={{ title: 'Add Update' }}
+        options={{ title: 'Add Update', headerShown: false }}
       />
       <RootStack.Screen name="Announcements" component={AnnouncementsScreen} options={{ title: 'Announcements' }} />
       <RootStack.Screen name="Events" component={EventsScreen} options={{ title: 'Events' }} />

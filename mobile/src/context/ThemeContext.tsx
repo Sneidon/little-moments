@@ -3,6 +3,15 @@ import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SystemUI from 'expo-system-ui';
 import { lightColors, darkColors, type ColorPalette } from '../theme/colors';
+import {
+  brandDark,
+  brandLight,
+  categoryDark,
+  categoryLight,
+  legacyPaletteFromBrand,
+  type BrandPalette,
+  type CategoryPalette,
+} from '../theme/tokens';
 
 const THEME_KEY = '@little_moments_theme';
 
@@ -10,6 +19,10 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 type ThemeContextValue = {
   colors: ColorPalette;
+  /** Teacher redesign palette (tokens.ts). */
+  brand: BrandPalette;
+  /** Update-type category fills (tokens.ts). */
+  category: CategoryPalette;
   isDark: boolean;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
@@ -37,16 +50,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark';
-  const colors = isDark ? darkColors : lightColors;
+  const brand = isDark ? brandDark : brandLight;
+  const category = isDark ? categoryDark : categoryLight;
+  // Every screen styled with `colors.*` follows the redesign palette.
+  const colors = useMemo(
+    () => legacyPaletteFromBrand(isDark ? darkColors : lightColors, brand, category),
+    [isDark, brand, category]
+  );
 
   useEffect(() => {
-    const bg = isDark ? '#000000' : '#FFFFFF';
+    const bg = brand.background;
     SystemUI.setBackgroundColorAsync(bg).catch(() => {});
-  }, [isDark]);
+  }, [brand.background]);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ colors, isDark, themeMode, setThemeMode }),
-    [colors, isDark, themeMode, setThemeMode]
+    () => ({ colors, brand, category, isDark, themeMode, setThemeMode }),
+    [colors, brand, category, isDark, themeMode, setThemeMode]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

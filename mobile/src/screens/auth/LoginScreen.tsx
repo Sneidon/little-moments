@@ -1,24 +1,25 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   Alert,
   ScrollView,
-  ActivityIndicator,
-  Pressable,
   Image,
+  type TextInput,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { useTheme } from '../../context/ThemeContext';
-import { font } from '../../theme/typography';
+import { brandFont } from '../../theme/typography';
+import { HeaderBlock, DisplayTitle } from '../../components/brand/HeaderBlock';
+import { PrimaryButton } from '../../components/brand/Buttons';
+import { TextField } from '../../components/brand/TextField';
+import { radius, spacing, type BrandPalette } from '../../theme/tokens';
+
 function mapAuthError(e: unknown): string {
   const code =
     e && typeof e === 'object' && 'code' in e ? String((e as { code: string }).code) : '';
@@ -41,15 +42,13 @@ function mapAuthError(e: unknown): string {
 }
 
 export function LoginScreen() {
-  const { colors, isDark } = useTheme();
+  const { brand } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(brand), [brand]);
+  const passwordRef = useRef<TextInput>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const handleLogin = useCallback(async () => {
     if (!email.trim() || !password) {
@@ -66,231 +65,97 @@ export function LoginScreen() {
     }
   }, [email, password]);
 
-  const bottomPad = Math.max(insets.bottom, 20);
-
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + 12, paddingBottom: bottomPad },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <View style={styles.hero}>
+        <HeaderBlock paddingBottom={72} gap={20}>
           <Image
             source={require('../../../assets/logo.png')}
-            style={[styles.logoImage, isDark && styles.logoImageDark]}
+            style={styles.logoImage}
             resizeMode="contain"
             accessibilityRole="image"
             accessibilityLabel="My Little Moments"
           />
-          <Text style={styles.brandTitle}>My Little Moments</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Stay connected to every little moment.
-          </Text>
-        </View>
-
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.inputBackground,
-                  borderColor: emailFocused ? colors.primary : colors.inputBorder,
-                  color: colors.text,
-                },
-              ]}
-              placeholder="you@example.com"
-              placeholderTextColor={colors.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              autoComplete="email"
-              editable={!loading}
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-            />
+          <View style={styles.heroText}>
+            <DisplayTitle>My Little Moments</DisplayTitle>
+            <Text style={styles.subtitle}>Stay connected to every little moment.</Text>
           </View>
+        </HeaderBlock>
 
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Password</Text>
-            <View style={styles.passwordWrap}>
-              <TextInput
-                style={[
-                  styles.input,
-                  styles.inputPassword,
-                  {
-                    backgroundColor: colors.inputBackground,
-                    borderColor: passwordFocused ? colors.primary : colors.inputBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="••••••••"
-                placeholderTextColor={colors.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                textContentType="password"
-                autoComplete="password"
-                editable={!loading}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
-                onSubmitEditing={handleLogin}
-                returnKeyType="go"
-              />
-              <Pressable
-                style={styles.eyeBtn}
-                onPress={() => setShowPassword((v) => !v)}
-                hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={22}
-                  color={colors.textMuted}
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
+        <View style={styles.card}>
+          <TextField
+            label="Email"
+            placeholder="you@example.com"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            autoComplete="email"
+            editable={!loading}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+          />
+          <TextField
+            ref={passwordRef}
+            label="Password"
+            secure
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            textContentType="password"
+            autoComplete="password"
+            editable={!loading}
+            onSubmitEditing={handleLogin}
+            returnKeyType="go"
+          />
+          <PrimaryButton
+            label="Sign in"
+            icon="log-in-outline"
             onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.88}
-            accessibilityRole="button"
-            accessibilityLabel="Sign in"
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.primaryContrast} />
-            ) : (
-              <>
-                <Ionicons name="log-in-outline" size={20} color={colors.primaryContrast} />
-                <Text style={[styles.primaryBtnText, { color: colors.primaryContrast }]}>Sign in</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            loading={loading}
+            style={styles.submit}
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
-  const f = (w: 'regular' | 'medium' | 'semiBold' | 'bold') => ({ fontFamily: font[w] });
-
+function createStyles(brand: BrandPalette) {
   return StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: colors.backgroundSecondary,
-    },
-    scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: 24,
-      justifyContent: 'center',
-    },
-    hero: {
-      alignItems: 'center',
-      marginBottom: 22,
-    },
+    root: { flex: 1, backgroundColor: brand.background },
+    scrollContent: { flexGrow: 1 },
     logoImage: {
-      width: 88,
-      height: 88,
-      borderRadius: 20,
-      marginBottom: 16,
+      width: 72,
+      height: 72,
+      borderRadius: 22,
       overflow: 'hidden',
+      transform: [{ rotate: '-4deg' }],
     },
-    logoImageDark: {
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.cardBorder,
-    },
-    brandTitle: {
-      fontSize: 26,
-      letterSpacing: -0.5,
-      ...f('bold'),
-      color: colors.text,
-      textAlign: 'center',
-    },
-    subtitle: {
-      fontSize: 16,
-      lineHeight: 22,
-      ...f('medium'),
-      textAlign: 'center',
-      marginTop: 8,
-      paddingHorizontal: 12,
-    },
+    heroText: { gap: 10 },
+    subtitle: { fontFamily: brandFont.body600, fontSize: 16, lineHeight: 22, color: brand.onHeaderMuted },
     card: {
-      borderRadius: 20,
-      borderWidth: isDark ? StyleSheet.hairlineWidth : 1,
-      padding: 22,
-      ...(!isDark && Platform.OS === 'ios'
-        ? {
-            shadowColor: '#0f172a',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.07,
-            shadowRadius: 16,
-          }
-        : {}),
-      ...(!isDark && Platform.OS === 'android' ? { elevation: 3 } : {}),
+      marginTop: -44,
+      marginHorizontal: spacing.screenX,
+      padding: spacing.cardPadding,
+      gap: 18,
+      borderRadius: radius.cardL,
+      backgroundColor: brand.surface,
+      borderWidth: 3,
+      borderColor: brand.background,
+      shadowColor: brand.shadow,
+      shadowOffset: { width: 0, height: 14 },
+      shadowOpacity: 0.2,
+      shadowRadius: 14,
+      elevation: 6,
     },
-    field: {
-      marginBottom: 18,
-    },
-    label: {
-      fontSize: 13,
-      ...f('semiBold'),
-      marginBottom: 8,
-      letterSpacing: 0.2,
-    },
-    input: {
-      borderWidth: 1.5,
-      borderRadius: 14,
-      paddingHorizontal: 16,
-      paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-      fontSize: 16,
-      ...f('regular'),
-    },
-    passwordWrap: {
-      position: 'relative',
-      justifyContent: 'center',
-    },
-    inputPassword: {
-      paddingRight: 52,
-    },
-    eyeBtn: {
-      position: 'absolute',
-      right: 14,
-      height: 44,
-      justifyContent: 'center',
-    },
-    primaryBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-      backgroundColor: colors.primary,
-      paddingVertical: 16,
-      borderRadius: 14,
-      marginTop: 6,
-    },
-    primaryBtnDisabled: {
-      opacity: 0.75,
-    },
-    primaryBtnText: {
-      fontSize: 16,
-      ...f('semiBold'),
-    },
+    submit: { marginTop: 4 },
   });
 }

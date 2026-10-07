@@ -694,7 +694,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       alignItems: 'center',
     },
     heroLoading: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 1,

@@ -437,7 +437,7 @@ export function ParentHomeScreen({
               <Text style={styles.ctaTitle}>School announcements</Text>
               <Text style={styles.ctaSubtitle}>News and reminders from your school</Text>
             </View>
-            <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.95)" />
+            <Ionicons name="chevron-forward" size={22} color={colors.primaryContrast} />
           </TouchableOpacity>
         </View>
 
@@ -647,13 +647,13 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       width: 52,
       height: 52,
       borderRadius: 26,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.primaryContrast,
       alignItems: 'center',
       justifyContent: 'center',
     },
     ctaTextWrap: { flex: 1 },
-    ctaTitle: { fontSize: 17, color: '#FFFFFF', ...f('bold') },
-    ctaSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginTop: 4, ...f('medium') },
+    ctaTitle: { fontSize: 17, color: colors.primaryContrast, ...f('bold') },
+    ctaSubtitle: { fontSize: 13, color: colors.primaryContrast, opacity: 0.88, marginTop: 4, ...f('medium') },
 
     sectionOverview: { marginTop: 12, paddingHorizontal: 20 },
     sectionTitleRow: {

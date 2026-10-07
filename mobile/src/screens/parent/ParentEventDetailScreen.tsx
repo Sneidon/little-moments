@@ -6,9 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useNow } from '../../hooks/useNow';
 import type { RootStackParamList } from '../../navigation/types';
-import { EventAttachments } from './event-detail/EventAttachments';
-import { EventHero } from './event-detail/EventHero';
-import { EventLoading, EventMissing } from './event-detail/EventStates';
+import { OutlineBackButton, PostAttachments, PostHero, PostLoading, PostMissing } from '../../features/school-post';
 import { EventSummaryCard } from './event-detail/EventSummaryCard';
 import { PastRsvpCard, RsvpBar } from './event-detail/RsvpBar';
 import { scheduleContext } from './event-detail/eventDetail';
@@ -42,8 +40,17 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
     });
   }, [event, missing, navigation, share, colors.primary]);
 
-  if (loading) return <EventLoading />;
-  if (missing || !event) return <EventMissing onBack={() => navigation.goBack()} />;
+  if (loading) return <PostLoading label="Loading event…" />;
+  if (missing || !event) {
+    return (
+      <PostMissing
+        icon="calendar-outline"
+        title="We couldn't load this event"
+        body="It may have been removed, or there was a connection problem. Check your internet and try opening it again from the calendar."
+        action={<OutlineBackButton label="Back to calendar" onPress={() => navigation.goBack()} />}
+      />
+    );
+  }
 
   const ctx = scheduleContext(event, nowMs);
   const rsvpOpen = ctx.highlight !== 'past' && !!uid;
@@ -55,9 +62,16 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {event.imageUrl ? <EventHero uri={event.imageUrl} mediaType={event.mediaType} /> : null}
+        {event.imageUrl ? <PostHero uri={event.imageUrl} mediaType={event.mediaType} /> : null}
         <EventSummaryCard event={event} ctx={ctx} />
-        <EventAttachments event={event} />
+        <PostAttachments
+          body={event.description}
+          bodyTitle="About"
+          documents={event.documents}
+          links={event.links}
+          imagesTitle="More photos"
+          imageFallback="Photo"
+        />
         {!rsvpOpen && uid ? <PastRsvpCard mine={rsvp.mine} /> : null}
       </ScrollView>
       {rsvpOpen ? (

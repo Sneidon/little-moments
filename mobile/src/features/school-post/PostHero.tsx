@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../context/ThemeContext';
-import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
-import { font } from '../../../theme/typography';
-import { isVideoMedia } from '../../../utils/media';
+import { useTheme } from '../../context/ThemeContext';
+import { useThemedStyles, type Theme } from '../../hooks/useThemedStyles';
+import { font } from '../../theme/typography';
+import { isVideoMedia } from '../../utils/media';
 
 const DEFAULT_HEIGHT = 220;
 
@@ -13,7 +13,7 @@ function fittedHeight(width: number, intrinsic: { w: number; h: number } | null)
   return Math.round(Math.min(Math.max((width * intrinsic.h) / intrinsic.w, 180), 520));
 }
 
-export function EventHero({ uri, mediaType }: { uri: string; mediaType?: string }) {
+export function PostHero({ uri, mediaType }: { uri: string; mediaType?: string }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const width = useWindowDimensions().width - 32;

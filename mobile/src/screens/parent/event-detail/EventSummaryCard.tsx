@@ -7,7 +7,7 @@ import type { ColorPalette } from '../../../theme/colors';
 import { font } from '../../../theme/typography';
 import type { Event } from '@shared/types';
 import type { EventHighlight } from '../calendar/calendarUtils';
-import { softShadow } from '../calendar/calendarStyles';
+import { ClassAudienceNote, PostSummaryCard } from '../../../features/school-post';
 import type { ScheduleContext } from './eventDetail';
 
 function statusStyle(colors: ColorPalette, h: EventHighlight) {
@@ -24,7 +24,7 @@ export function EventSummaryCard({ event, ctx }: { event: Event; ctx: ScheduleCo
   const relative = ongoing ? { bg: colors.accentTealSoft, fg: colors.success } : { bg: colors.primaryMuted, fg: colors.primary };
 
   return (
-    <View style={styles.card}>
+    <PostSummaryCard>
       <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
         <Ionicons name={status.icon} size={15} color={status.fg} style={styles.statusIcon} />
         <Text style={[styles.statusText, { color: status.fg }]}>{status.label}</Text>
@@ -58,27 +58,13 @@ export function EventSummaryCard({ event, ctx }: { event: Event; ctx: ScheduleCo
         </View>
       </View>
 
-      {event.targetType === 'classes' ? (
-        <View style={styles.audienceRow}>
-          <Ionicons name="people-outline" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
-          <Text style={styles.audienceText}>Shared with specific classes at the school</Text>
-        </View>
-      ) : null}
-    </View>
+      {event.targetType === 'classes' ? <ClassAudienceNote /> : null}
+    </PostSummaryCard>
   );
 }
 
-const createStyles = ({ colors, isDark }: Theme) =>
+const createStyles = ({ colors }: Theme) =>
   StyleSheet.create({
-    card: {
-      borderRadius: 16,
-      borderWidth: 1,
-      padding: 16,
-      marginBottom: 14,
-      backgroundColor: colors.card,
-      borderColor: colors.cardBorder,
-      ...softShadow(isDark, { shadowColor: '#0f172a', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6 }, 1),
-    },
     statusPill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -110,6 +96,4 @@ const createStyles = ({ colors, isDark }: Theme) =>
     time: { fontSize: 16, fontFamily: font.semiBold, color: colors.primary },
     durationChip: { marginLeft: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.backgroundSecondary },
     durationText: { fontSize: 12, fontFamily: font.semiBold, color: colors.textSecondary },
-    audienceRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: colors.backgroundSecondary },
-    audienceText: { fontSize: 13, lineHeight: 18, flex: 1, fontFamily: font.regular, color: colors.textMuted },
   });

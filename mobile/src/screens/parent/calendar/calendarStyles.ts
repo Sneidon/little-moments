@@ -1,4 +1,5 @@
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { softShadow } from '../../../theme/shadow';
 import type { Theme } from '../../../hooks/useThemedStyles';
 import type { ColorPalette } from '../../../theme/colors';
 import { font } from '../../../theme/typography';
@@ -8,11 +9,6 @@ export function highlightColors(colors: ColorPalette, h: EventHighlight) {
   if (h === 'upcoming') return { accent: colors.primary, background: colors.primaryMuted, border: colors.primary };
   if (h === 'ongoing') return { accent: colors.success, background: colors.accentTealSoft, border: colors.success };
   return { accent: colors.textMuted, background: colors.backgroundSecondary, border: colors.cardBorder };
-}
-
-export function softShadow(isDark: boolean, ios: object, androidElevation: number) {
-  if (isDark) return {};
-  return Platform.OS === 'ios' ? ios : Platform.OS === 'android' ? { elevation: androidElevation } : {};
 }
 
 export const createCalendarStyles = ({ colors, isDark }: Theme) =>

@@ -1,37 +1,49 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../context/ThemeContext';
-import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
-import { font } from '../../../theme/typography';
+import { useTheme } from '../../context/ThemeContext';
+import { useThemedStyles, type Theme } from '../../hooks/useThemedStyles';
+import { font } from '../../theme/typography';
 
-export function EventLoading() {
+export function PostLoading({ label }: { label: string }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.centered}>
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={styles.loadingHint}>Loading event…</Text>
+      <Text style={styles.loadingHint}>{label}</Text>
     </View>
   );
 }
 
-export function EventMissing({ onBack }: { onBack: () => void }) {
+type MissingProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  body: string;
+  action?: React.ReactNode;
+};
+
+export function PostMissing({ icon, title, body, action }: MissingProps) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <View style={[styles.centered, { padding: 24 }]}>
       <View style={styles.iconWrap}>
-        <Ionicons name="calendar-outline" size={40} color={colors.primary} />
+        <Ionicons name={icon} size={40} color={colors.primary} />
       </View>
-      <Text style={styles.title}>We couldn&apos;t load this event</Text>
-      <Text style={styles.body}>
-        It may have been removed, or there was a connection problem. Check your internet and try opening it again from the calendar.
-      </Text>
-      <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-        <Text style={styles.backBtnText}>Back to calendar</Text>
-      </TouchableOpacity>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.body}>{body}</Text>
+      {action}
     </View>
+  );
+}
+
+export function OutlineBackButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity style={styles.backBtn} onPress={onPress}>
+      <Text style={styles.backBtnText}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 

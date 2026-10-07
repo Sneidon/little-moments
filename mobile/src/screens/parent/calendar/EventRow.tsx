@@ -6,7 +6,8 @@ import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
 import { font } from '../../../theme/typography';
 import type { Event } from '@shared/types';
 import { formatEventTimeRange, getEventHighlight, type EventHighlight } from './calendarUtils';
-import { highlightColors, softShadow } from './calendarStyles';
+import { softShadow } from '../../../theme/shadow';
+import { highlightColors } from './calendarStyles';
 
 export function EventBadge({ highlight }: { highlight: EventHighlight }) {
   const { colors } = useTheme();

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../context/ThemeContext';
 import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
 import { font } from '../../../theme/typography';
-import { softShadow } from '../calendar/calendarStyles';
+import { softShadow } from '../../../theme/shadow';
 import type { Rsvp } from './eventDetail';
 
 type Props = {

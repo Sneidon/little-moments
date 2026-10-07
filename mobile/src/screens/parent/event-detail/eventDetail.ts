@@ -1,4 +1,3 @@
-import type { Ionicons } from '@expo/vector-icons';
 import { toIso } from '../../../utils';
 import type { Event } from '@shared/types';
 import { getEventHighlight, type EventHighlight } from '../calendar/calendarUtils';
@@ -24,16 +23,6 @@ export function normalizeEvent(id: string, data: Record<string, unknown>): Event
     targetClassIds: data.targetClassIds as Event['targetClassIds'],
     parentResponses: data.parentResponses as Event['parentResponses'],
   };
-}
-
-export function isLikelyImageUrl(url: string): boolean {
-  return /\.(jpg|jpeg|png|gif|webp)(\?|#|$)/i.test(url);
-}
-
-export function docIcon(url: string): keyof typeof Ionicons.glyphMap {
-  if (/\.pdf(\?|#|$)/i.test(url)) return 'document-text-outline';
-  if (isLikelyImageUrl(url)) return 'image-outline';
-  return 'attach-outline';
 }
 
 function durationLabel(start: Date, end: Date | null): string | null {

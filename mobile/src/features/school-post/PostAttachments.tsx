@@ -1,11 +1,11 @@
 import React from 'react';
 import { Image, Linking, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../context/ThemeContext';
-import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
-import { font } from '../../../theme/typography';
-import type { Event } from '@shared/types';
-import { docIcon, isLikelyImageUrl } from './eventDetail';
+import { useTheme } from '../../context/ThemeContext';
+import { useThemedStyles, type Theme } from '../../hooks/useThemedStyles';
+import { font } from '../../theme/typography';
+import type { EventDocumentLink } from '@shared/types';
+import { docIcon, isLikelyImageUrl } from './attachments';
 
 type Attachment = { url: string; label?: string; name?: string };
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -46,30 +46,39 @@ function withUrl<T extends { url?: string }>(items: T[] | undefined): (T & Attac
   return (items ?? []).filter((d): d is T & Attachment => !!d.url);
 }
 
-export function EventAttachments({ event }: { event: Event }) {
+type Props = {
+  body?: string;
+  bodyTitle: string;
+  documents?: EventDocumentLink[];
+  links?: EventDocumentLink[];
+  imagesTitle: string;
+  imageFallback: string;
+};
+
+export function PostAttachments({ body, bodyTitle, documents: allDocuments, links: allLinks, imagesTitle, imageFallback }: Props) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const imageWidth = useWindowDimensions().width - 34;
-  const documents = withUrl(event.documents);
+  const documents = withUrl(allDocuments);
   const images = documents.filter((d) => isLikelyImageUrl(d.url));
   const files = documents.filter((d) => !isLikelyImageUrl(d.url));
-  const links = withUrl(event.links);
+  const links = withUrl(allLinks);
 
   return (
     <>
-      {event.description ? (
+      {body ? (
         <View style={styles.aboutCard}>
-          <Text style={styles.aboutTitle}>About</Text>
-          <Text style={styles.body}>{event.description}</Text>
+          <Text style={styles.aboutTitle}>{bodyTitle}</Text>
+          <Text style={styles.body}>{body}</Text>
         </View>
       ) : null}
 
-      {images.length > 0 ? <Text style={styles.sectionLabel}>More photos</Text> : null}
+      {images.length > 0 ? <Text style={styles.sectionLabel}>{imagesTitle}</Text> : null}
       {images.map((d, i) => (
         <TouchableOpacity key={`img-doc-${i}`} activeOpacity={0.9} onPress={() => Linking.openURL(d.url)} style={styles.imageCard}>
           <Image source={{ uri: d.url }} style={[styles.image, { width: imageWidth }]} resizeMode="cover" />
           <Text style={styles.imageCaption} numberOfLines={2}>
-            {d.label || d.name || 'Photo'}
+            {d.label || d.name || imageFallback}
           </Text>
         </TouchableOpacity>
       ))}

@@ -1,13 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { useTheme } from '../../context/ThemeContext';
+import { HeaderBlock, DisplayTitle } from '../../components/brand/HeaderBlock';
+import { PrimaryButton } from '../../components/brand/Buttons';
+import { radius, spacing, type as typeTokens, type BrandPalette, type CategoryPalette } from '../../theme/tokens';
 
 export function AccessDeniedScreen() {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { brand, category } = useTheme();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(brand, category), [brand, category]);
   const [loading, setLoading] = useState(false);
 
   const handleSignOut = async () => {
@@ -20,63 +25,53 @@ export function AccessDeniedScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Ionicons name="lock-closed" size={48} color={colors.textMuted} />
-        <Text style={styles.title}>Access denied</Text>
+    <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+      <HeaderBlock paddingBottom={72}>
+        <DisplayTitle>Access denied</DisplayTitle>
+      </HeaderBlock>
+      <View style={styles.card}>
+        <View style={styles.iconTile}>
+          <Ionicons name="lock-closed-outline" size={28} color={category.onCategory} />
+        </View>
         <Text style={styles.message}>
           This app is only available for teachers and parents. Please use the web app for other roles.
         </Text>
-        <TouchableOpacity
-          style={styles.button}
+        <PrimaryButton
+          label={loading ? 'Signing out…' : 'Sign out'}
+          icon="log-out-outline"
           onPress={handleSignOut}
           disabled={loading}
-        >
-          <Ionicons name="log-out-outline" size={20} color={colors.primaryContrast} style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>{loading ? 'Signing out…' : 'Sign out'}</Text>
-        </TouchableOpacity>
+          style={styles.button}
+        />
       </View>
     </View>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette) {
+function createStyles(brand: BrandPalette, category: CategoryPalette) {
   return StyleSheet.create({
-    container: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+    root: { flex: 1, backgroundColor: brand.background },
+    card: {
+      marginTop: -44,
+      marginHorizontal: spacing.screenX,
       padding: 24,
-      backgroundColor: colors.background,
-    },
-    content: {
+      gap: 16,
       alignItems: 'center',
-      maxWidth: 320,
+      borderRadius: radius.cardL,
+      backgroundColor: brand.surface,
+      borderWidth: 3,
+      borderColor: brand.background,
     },
-    title: {
-      fontSize: 22,
-      fontWeight: '700',
-      color: colors.text,
-      marginTop: 20,
-    },
-    message: {
-      fontSize: 16,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      marginTop: 12,
-      lineHeight: 24,
-    },
-    button: {
-      flexDirection: 'row',
+    iconTile: {
+      width: 64,
+      height: 64,
+      borderRadius: radius.tile,
+      backgroundColor: category.photo,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.primary,
-      padding: 14,
-      borderRadius: 8,
-      marginTop: 32,
-      minWidth: 160,
+      transform: [{ rotate: '-6deg' }],
     },
-    buttonIcon: { marginRight: 8 },
-    buttonText: { color: colors.primaryContrast, fontWeight: '600' },
+    message: { ...typeTokens.body, fontSize: 16, lineHeight: 24, color: brand.textSecondary, textAlign: 'center' },
+    button: { alignSelf: 'stretch', marginTop: 4 },
   });
 }

@@ -14,7 +14,11 @@ export function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: true, headerBackTitle: 'Back' }}>
       <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Create account' }} />
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{ title: 'Create account', headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

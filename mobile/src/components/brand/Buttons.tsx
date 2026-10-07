@@ -44,7 +44,7 @@ export function PrimaryButton({ label, onPress, icon, disabled, loading, size = 
       ) : icon ? (
         <Ionicons name={icon} size={20} color={brand.primaryButtonIcon} />
       ) : null}
-      <Text style={[styles.label, size === 's' && styles.labelS, { color: brand.onPrimaryButton }]} numberOfLines={1}>
+      <Text style={[styles.label, size === 's' && styles.labelS, { color: brand.onPrimaryButton }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
         {label}
       </Text>
     </Pressable>
@@ -77,7 +77,7 @@ export function OutlineButton({ label, onPress, icon, disabled, loading, size = 
       ) : icon ? (
         <Ionicons name={icon} size={19} color={brand.textPrimary} />
       ) : null}
-      <Text style={[styles.label, size === 's' && styles.labelS, { color: brand.textPrimary }]} numberOfLines={1}>
+      <Text style={[styles.label, size === 's' && styles.labelS, { color: brand.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
         {label}
       </Text>
     </Pressable>

@@ -22,7 +22,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import type { Event } from '@shared/types';
 import { isVideoMedia } from '../../utils/media';
-import { formatEventTimeRange, getEventHighlight } from './calendarUtils';
+import { formatEventTimeRange, getEventHighlight } from './calendar/calendarUtils';
 
 type ParentEventDetailParams = { schoolId: string; eventId: string };
 

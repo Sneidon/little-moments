@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useAdminSchoolDetail } from '@/hooks/useAdminSchoolDetail';
 import { formatClassDisplay } from '@/lib/formatClass';
 import { exportChildrenToPdf } from '@/lib/export/childrenPdf';
-import { exportChildrenToCsv } from '@/lib/export/children';
-import { exportChildrenToExcel } from '@/lib/export/children';
+import { exportChildrenToCsv, exportChildrenToExcel } from '@/lib/export/children';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { PageHero, SectionCard } from '@/components/ui';
+import { ChildrenTable } from '@/components/children/ChildrenTable';
+import { ExportMenu, PageHero, SectionCard } from '@/components/ui';
 
 export default function AdminSchoolChildrenPage() {
   const params = useParams();
@@ -17,26 +17,13 @@ export default function AdminSchoolChildrenPage() {
   const { school, classes, children, loading, error } = useAdminSchoolDetail(schoolId);
   const [filterClassId, setFilterClassId] = useState<string>('');
   const [exportingPdf, setExportingPdf] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const classDisplay = (id: string) => formatClassDisplay(classes.find((r) => r.id === id)) || id;
   const filteredChildren = filterClassId
     ? children.filter((c) => c.classId === filterClassId)
     : children;
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
-        setExportOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const handleExportPdf = () => {
-    setExportOpen(false);
     setExportingPdf(true);
     try {
       exportChildrenToPdf(filteredChildren, classDisplay, {
@@ -49,14 +36,6 @@ export default function AdminSchoolChildrenPage() {
       console.error(e);
       setExportingPdf(false);
     }
-  };
-  const handleExportCsv = () => {
-    setExportOpen(false);
-    exportChildrenToCsv(filteredChildren, classDisplay);
-  };
-  const handleExportExcel = () => {
-    setExportOpen(false);
-    exportChildrenToExcel(filteredChildren, classDisplay);
   };
 
   if (loading) {
@@ -85,43 +64,14 @@ export default function AdminSchoolChildrenPage() {
         title={<span className="text-gradient-warm">Children</span>}
         subtitle={`Enrolled children at ${school.name}`}
         actions={
-          <div className="relative shrink-0" ref={exportMenuRef}>
-            <button
-              type="button"
-              onClick={() => setExportOpen((o) => !o)}
-              disabled={exportingPdf || filteredChildren.length === 0}
-              className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
-              aria-expanded={exportOpen}
-              aria-haspopup="true"
-            >
-              <span>{exportingPdf ? 'Exporting…' : 'Export'}</span>
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {exportOpen && (
-              <div
-                className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-1.5 shadow-xl"
-                role="menu"
-              >
-                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  Download as
-                </div>
-                <button type="button" role="menuitem" onClick={handleExportCsv} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
-                  <span className="rounded bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 font-mono text-xs">CSV</span>
-                  Spreadsheet (CSV)
-                </button>
-                <button type="button" role="menuitem" onClick={handleExportExcel} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
-                  <span className="rounded bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 font-mono text-xs text-emerald-800 dark:text-emerald-200">XLSX</span>
-                  Excel
-                </button>
-                <button type="button" role="menuitem" onClick={handleExportPdf} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
-                  <span className="rounded bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 font-mono text-xs text-red-800 dark:text-red-200">PDF</span>
-                  PDF document
-                </button>
-              </div>
-            )}
-          </div>
+          <ExportMenu
+            className="relative shrink-0"
+            onCsv={() => exportChildrenToCsv(filteredChildren, classDisplay)}
+            onExcel={() => exportChildrenToExcel(filteredChildren, classDisplay)}
+            onPdf={handleExportPdf}
+            busy={exportingPdf}
+            disabled={filteredChildren.length === 0}
+          />
         }
       />
 
@@ -159,59 +109,11 @@ export default function AdminSchoolChildrenPage() {
       </SectionCard>
 
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="data-table">
-            <thead className="bg-slate-50/80 dark:bg-slate-700">
-              <tr>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Name</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Preferred</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">DOB</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Class</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Allergies</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Emergency</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredChildren.map((c) => (
-                <tr key={c.id} className="border-t border-slate-100 dark:border-slate-600 transition hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
-                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
-                    <Link
-                      href={`/admin/schools/${schoolId}/children/${c.id}`}
-                      className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
-                    >
-                      {c.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.preferredName ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.classId ? classDisplay(c.classId) : '—'}</td>
-                  <td className="px-4 py-3">
-                    {c.allergies?.length ? (
-                      <ul className="flex flex-wrap gap-1.5" role="list">
-                        {c.allergies.map((a, idx) => (
-                          <li key={idx}>
-                            <span className="inline-flex rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/40 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-                              {a.trim()}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="text-slate-500 dark:text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {c.emergencyContactName || c.emergencyContact ? (
-                      <span title={c.emergencyContact ?? ''}>{c.emergencyContactName ?? c.emergencyContact ?? '—'}</span>
-                    ) : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ChildrenTable
+          childList={filteredChildren}
+          classDisplay={classDisplay}
+          hrefFor={(c) => `/admin/schools/${schoolId}/children/${c.id}`}
+        />
         {filteredChildren.length === 0 && (
           <div className="px-4 py-12 text-center">
             <p className="text-slate-500 dark:text-slate-400">

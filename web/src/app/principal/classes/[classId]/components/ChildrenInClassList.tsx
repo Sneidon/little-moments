@@ -4,7 +4,6 @@ import { SectionCard } from '@/components/ui';
 import { IconChild, IconCalendar } from '@/components/icons/AdminIcons';
 import { getInitials } from 'shared/format';
 
-
 export interface ChildrenInClassListProps {
   children: Child[];
   /** Link href for each child. Default: /principal/children/{id} */

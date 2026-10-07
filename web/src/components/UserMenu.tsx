@@ -12,7 +12,6 @@ export interface UserMenuProps {
   onSignOut: () => void;
 }
 
-
 export function UserMenu({ profile, profileHref, onSignOut }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

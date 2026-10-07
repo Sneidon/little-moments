@@ -9,7 +9,6 @@ import { SectionCard } from '@/components/ui';
 import { IconMail, IconPhone, IconUser } from '@/components/icons/AdminIcons';
 import { getInitials } from 'shared/format';
 
-
 export interface ParentsSectionProps {
   childName?: string;
   maxParents: number;

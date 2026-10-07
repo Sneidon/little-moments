@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { UserRole } from '../../../shared/types';
 import type { ColorPalette } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
@@ -114,6 +114,24 @@ function tabBarIconPair(outline: IoniconName, filled: IoniconName) {
   );
 }
 
+type MciName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+/** Same as tabBarIconPair, for MaterialCommunityIcons glyphs (e.g. the child figure). */
+function tabBarMciIconPair(outline: MciName, filled: MciName) {
+  return ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+    <View
+      style={{
+        width: TAB_ICON_SLOT,
+        height: TAB_ICON_SLOT,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <MaterialCommunityIcons name={focused ? filled : outline} size={size + 2} color={color} />
+    </View>
+  );
+}
+
 function tabBarStyleOptions(colors: ColorPalette) {
   return {
     tabBarActiveTintColor: colors.tabActive,
@@ -173,7 +191,7 @@ function TeacherTabs() {
         options={{
           headerShown: false,
           title: 'Students',
-          tabBarIcon: tabBarIconPair('school-outline', 'school'),
+          tabBarIcon: tabBarMciIconPair('account-child-outline', 'account-child'),
         }}
       />
       <Tab.Screen

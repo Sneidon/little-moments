@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -29,7 +30,31 @@ import type { ClassRoom } from '../../../../shared/types';
 import type { MealOption } from '../../../../shared/types';
 import type { ReportType } from '../../../../shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { font } from '../../theme/typography';
+import { brandFont } from '../../theme/typography';
+import { HeaderBlock, DisplayTitle } from '../../components/brand/HeaderBlock';
+import { RoundIconButton } from '../../components/brand/RoundIconButton';
+import { PrimaryButton, OutlineButton } from '../../components/brand/Buttons';
+import { CategoryIconTile, CheckBadge } from '../../components/brand/CategoryIconTile';
+import { HatchedBackground } from '../../components/brand/HatchedBackground';
+import { Skeleton } from '../../components/Skeleton';
+import {
+  avatarCategoryColor,
+  legacyPaletteFromBrand,
+  radius,
+  spacing,
+  type as typeTokens,
+  updateTypeStyle,
+  type BrandPalette,
+  type CategoryPalette,
+} from '../../theme/tokens';
+
+/** Redesign body font (Figtree) mapped onto this screen's legacy weight names. */
+const font = {
+  regular: brandFont.body400,
+  medium: brandFont.body500,
+  semiBold: brandFont.body700,
+  bold: brandFont.body800,
+} as const;
 import { parseTimeWithDate } from '../../utils/childDailyReportDisplay';
 import {
   isChildEligibleForUpdateType,
@@ -169,8 +194,17 @@ function todayDateStr(): string {
 
 export function AddUpdateScreen({ navigation, route }: Props) {
   const { profile } = useAuth();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const { colors: legacyColors, isDark, brand, category } = useTheme();
+  // Legacy-shaped palette fed by the redesign tokens, so form styles reskin in place.
+  const colors = useMemo(
+    () => legacyPaletteFromBrand(legacyColors, brand, category),
+    [legacyColors, brand, category]
+  );
+  const { width: windowWidth } = useWindowDimensions();
+  const styles = useMemo(
+    () => createStyles(colors, isDark, brand, category, windowWidth),
+    [colors, isDark, brand, category, windowWidth]
+  );
 
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
@@ -789,271 +823,235 @@ export function AddUpdateScreen({ navigation, route }: Props) {
     });
   };
 
+  const whoHint =
+    type === 'check_in'
+      ? 'Only children not yet checked in can be selected.'
+      : type === 'check_out'
+        ? 'Only checked-in children can be checked out.'
+        : 'Only checked-in children can receive this update.';
+  const whoStepActive = selectedChildren.length === 0;
+
+  const whoHeader = (hint: string, withSearch: boolean) => (
+    <View style={styles.cardHeadRow}>
+      <View style={styles.cardHeadText}>
+        <Text style={styles.sectionEyebrow}>Who</Text>
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          Receives this update
+        </Text>
+        {hint ? <Text style={styles.selectionHint}>{hint}</Text> : null}
+      </View>
+      {withSearch ? (
+        <RoundIconButton
+          icon="search-outline"
+          variant="raised"
+          accessibilityLabel="Search children"
+          onPress={() => setChildListModalOpen(true)}
+        />
+      ) : null}
+    </View>
+  );
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <HeaderBlock style={styles.header} paddingBottom={28} gap={20}>
+        <View>
+          <RoundIconButton
+            icon="chevron-back"
+            variant="onHeader"
+            accessibilityLabel="Back"
+            onPress={() => navigation.goBack()}
+          />
+        </View>
+        <DisplayTitle>Add Update</DisplayTitle>
+        <View style={styles.stepRow} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+          <View style={[styles.stepPill, whoStepActive ? styles.stepPillActive : styles.stepPillIdle]}>
+            <View style={[styles.stepNum, whoStepActive ? styles.stepNumActive : styles.stepNumIdle]}>
+              <Text style={[styles.stepNumText, { color: whoStepActive ? category.activity : brand.onHeader }]}>1</Text>
+            </View>
+            <Text style={[styles.stepLabel, { color: whoStepActive ? category.onCategory : brand.onHeader }]}>Who</Text>
+          </View>
+          <View style={[styles.stepPill, !whoStepActive ? styles.stepPillActive : styles.stepPillIdle]}>
+            <View style={[styles.stepNum, !whoStepActive ? styles.stepNumActive : styles.stepNumIdle]}>
+              <Text style={[styles.stepNumText, { color: !whoStepActive ? category.activity : brand.onHeader }]}>2</Text>
+            </View>
+            <Text style={[styles.stepLabel, { color: !whoStepActive ? category.onCategory : brand.onHeader }]}>
+              What
+            </Text>
+          </View>
+        </View>
+      </HeaderBlock>
 
-      <View style={styles.heroCard}>
-        <View style={styles.heroBlock}>
-          {!classRosterLoaded ? (
-            <View style={styles.rosterLoadingWrap} accessibilityState={{ busy: true }}>
-              <View style={styles.whoHeaderBlock}>
-                <View style={styles.sectionTitleRow}>
-                  <View style={[styles.sectionAccentBar, { backgroundColor: colors.primary }]} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.sectionEyebrow}>Who</Text>
-                    <Text style={styles.sectionTitle}>Receives this update</Text>
-                    <Text style={styles.selectionHint}>
-                      Fetching your class roster. You can select children here in a moment.
-                    </Text>
-                  </View>
-                </View>
-              </View>
+      <View style={styles.brandCard}>
+        {!classRosterLoaded ? (
+          <View accessibilityState={{ busy: true }}>
+            {whoHeader('Fetching your class roster. You can select children here in a moment.', false)}
+            <View style={styles.childGrid}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} width={styles.childTile.width as number} height={112} borderRadius={radius.tile} />
+              ))}
+            </View>
+            <View style={styles.childActionsRow}>
+              <Skeleton height={54} borderRadius={radius.buttonS} style={{ flex: 1 }} />
+              <Skeleton height={54} borderRadius={radius.buttonS} style={{ flex: 1 }} />
+            </View>
+          </View>
+        ) : children.length === 0 ? (
+          <View>
+            {whoHeader('', false)}
+            <View style={styles.emptyChildrenCard}>
+              <Ionicons name="people-outline" size={40} color={colors.textMuted} />
+              <Text style={styles.emptyChildrenTitle}>No children in your class</Text>
+              <Text style={styles.emptyChildrenHint}>When children are enrolled in your assigned class, they’ll appear here.</Text>
+            </View>
+          </View>
+        ) : (
+          <>
+            {whoHeader(whoHint, true)}
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.childrenRow}
-              >
-                {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                  <View key={i} style={styles.childAvatarItem}>
-                    <Animated.View
+            <View style={styles.childGrid}>
+              {children.map((c, index) => {
+                const selected = selectedChildIds.includes(c.id);
+                const eligible = isChildEligible(c.id);
+                const trimmed = c.name.trim();
+                const firstName = trimmed.split(/\s+/)[0] || c.name;
+                const surname = trimmed.includes(' ') ? trimmed.slice(trimmed.indexOf(' ') + 1) : '';
+                const unavailableReason = type === 'check_in' ? 'already checked in' : 'not checked in';
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.childTile,
+                      eligible ? styles.childTileEligible : styles.childTileDisabled,
+                      selected && styles.childTileSelected,
+                    ]}
+                    onPress={() => toggleChildSelection(c.id)}
+                    activeOpacity={eligible ? 0.85 : 1}
+                    disabled={!eligible}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected, disabled: !eligible }}
+                    accessibilityLabel={
+                      eligible
+                        ? `${c.name}, ${selected ? 'selected' : 'not selected'}`
+                        : `${c.name}, ${unavailableReason}`
+                    }
+                  >
+                    {!eligible ? <HatchedBackground /> : null}
+                    <View
                       style={[
-                        styles.childAvatarRing,
-                        styles.rosterSkelRing,
-                        { opacity: rosterSkelPulse },
+                        styles.childTileAvatar,
+                        { backgroundColor: eligible ? avatarCategoryColor(category, index) : brand.disabledAvatar },
                       ]}
                     >
-                      <View style={[styles.childAvatarInner, styles.rosterSkelInnerFill]} />
-                    </Animated.View>
-                    <Animated.View
-                      style={[styles.rosterSkelNameBar, styles.rosterSkelNameBarWide, { opacity: rosterSkelPulse }]}
-                    />
-                    <Animated.View
-                      style={[styles.rosterSkelNameBar, styles.rosterSkelNameBarNarrow, { opacity: rosterSkelPulse }]}
-                    />
-                  </View>
-                ))}
-              </ScrollView>
-
-              <View style={styles.childActionsRow}>
-                <Animated.View style={[styles.rosterSkelActionPill, { opacity: rosterSkelPulse }]} />
-                <Animated.View style={[styles.rosterSkelActionPillOutline, { opacity: rosterSkelPulse }]} />
-              </View>
-            </View>
-          ) : children.length === 0 ? (
-            <View style={styles.emptyChildrenWrap}>
-              <View style={styles.sectionTitleRow}>
-                <View style={[styles.sectionAccentBar, { backgroundColor: colors.primary }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionEyebrow}>Who</Text>
-                  <Text style={styles.sectionTitle}>Receives this update</Text>
-                </View>
-              </View>
-              <View style={styles.emptyChildrenCard}>
-                <Ionicons name="people-outline" size={40} color={colors.textMuted} />
-                <Text style={styles.emptyChildrenTitle}>No children in your class</Text>
-                <Text style={styles.emptyChildrenHint}>When children are enrolled in your assigned class, they’ll appear here.</Text>
-              </View>
-            </View>
-          ) : (
-            <>
-              <View style={styles.whoHeaderBlock}>
-                <View style={styles.sectionTitleRowWithActions}>
-                  <View style={[styles.sectionAccentBar, { backgroundColor: colors.primary }]} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.sectionEyebrow}>Who</Text>
-                    <Text style={styles.sectionTitle}>Receives this update</Text>
-                    <Text style={styles.selectionHint}>
-                      {type === 'check_in'
-                        ? 'Only children not yet checked in can be selected.'
-                        : type === 'check_out'
-                          ? 'Only checked-in children can be checked out.'
-                          : 'Only checked-in children can receive this update.'}
+                      <Text style={[styles.childTileInitials, !eligible && { color: brand.disabledText }]}>
+                        {getInitials(c.name)}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[styles.childTileName, !eligible && { color: brand.textSecondary }]}
+                      numberOfLines={1}
+                    >
+                      {firstName}
                     </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setChildListModalOpen(true)}
-                    style={styles.whoSearchBtn}
-                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-                    accessibilityLabel="Search class list"
-                    accessibilityRole="button"
-                  >
-                    <Ionicons name="search-outline" size={22} color={colors.text} />
+                    <Text
+                      style={[styles.childTileSurname, !eligible && { color: brand.disabledText }]}
+                      numberOfLines={1}
+                    >
+                      {surname || ' '}
+                    </Text>
+                    {selected ? <CheckBadge style={styles.childTileCheck} /> : null}
                   </TouchableOpacity>
-                </View>
-              </View>
+                );
+              })}
+            </View>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.childrenRow}
-              >
-                {children.map((c) => {
-                  const selected = selectedChildIds.includes(c.id);
-                  const eligible = isChildEligible(c.id);
-                  return (
+            <View style={styles.childActionsRow}>
+              <PrimaryButton
+                label={selectAllLabel}
+                icon="checkmark-done"
+                size="s"
+                style={styles.childActionBtn}
+                onPress={selectAllChildren}
+              />
+              <OutlineButton
+                label="Clear"
+                icon="close-circle-outline"
+                size="s"
+                style={styles.childActionBtn}
+                onPress={clearChildSelection}
+              />
+            </View>
+
+            {selectedChildren.length > 1 && (
+              <>
+                <Text style={styles.variationSectionLabel}>
+                  {type === 'nap_time'
+                    ? 'Different nap times per child? Tap a name (e.g. early pickup):'
+                    : 'Different details per child? Tap a name:'}
+                </Text>
+                <View style={styles.variationChipsRow}>
+                  {selectedChildren.map((c) => (
                     <TouchableOpacity
                       key={c.id}
-                      style={[styles.childAvatarItem, !eligible && styles.childAvatarItemDisabled]}
-                      onPress={() => toggleChildSelection(c.id)}
-                      activeOpacity={eligible ? 0.85 : 1}
-                      disabled={!eligible}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: selected, disabled: !eligible }}
-                      accessibilityLabel={`${c.name}, ${selected ? 'selected' : 'not selected'}${eligible ? '' : ', not available for this update'}`}
+                      style={[styles.variationChip, childOverrides[c.id] && styles.variationChipActive]}
+                      onPress={() => openVariationModal(c.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Different details for ${c.name}`}
                     >
-                      <View
-                        style={[
-                          styles.childAvatarRing,
-                          selected ? styles.childAvatarRingSelected : styles.childAvatarRingIdle,
-                          !eligible && styles.childAvatarRingDisabled,
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.childAvatarInner,
-                            selected && styles.childAvatarInnerSelected,
-                            !eligible && styles.childAvatarInnerDisabled,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.childAvatarInitials,
-                              selected && styles.childAvatarInitialsSelected,
-                              !eligible && styles.childAvatarInitialsDisabled,
-                            ]}
-                          >
-                            {getInitials(c.name)}
-                          </Text>
-                        </View>
-                        {selected ? (
-                          <View style={styles.childAvatarCheck}>
-                            <Ionicons name="checkmark" size={14} color="#fff" />
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text
-                        style={[
-                          styles.childAvatarName,
-                          selected && styles.childAvatarNameSelected,
-                          !eligible && styles.childAvatarNameDisabled,
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {c.name.trim().split(/\s+/)[0] || c.name}
+                      <Text style={styles.variationChipText} numberOfLines={1}>
+                        {c.name.split(' ')[0]}
                       </Text>
-                      {c.name.trim().includes(' ') ? (
-                        <Text
-                          style={[styles.childAvatarSurname, !eligible && styles.childAvatarNameDisabled]}
-                          numberOfLines={1}
-                        >
-                          {c.name.trim().slice(c.name.trim().indexOf(' ') + 1)}
-                        </Text>
-                      ) : (
-                        <View style={styles.childAvatarNameSpacer} />
-                      )}
+                      <Ionicons name="create-outline" size={14} color={brand.textPrimary} />
                     </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              {children.length > 5 ? (
-                <Text style={styles.childrenScrollHint}>Swipe sideways for more children →</Text>
-              ) : null}
+                  ))}
+                </View>
+              </>
+            )}
+          </>
+        )}
+      </View>
 
-              <View style={styles.childActionsRow}>
-                <TouchableOpacity style={styles.childActionPill} onPress={selectAllChildren} activeOpacity={0.8}>
-                  <Ionicons name="checkmark-done" size={18} color="#fff" style={styles.childActionPillIcon} />
-                  <Text style={styles.childActionPillText}>{selectAllLabel}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.childActionPillOutline} onPress={clearChildSelection} activeOpacity={0.8}>
-                  <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} style={styles.childActionPillIcon} />
-                  <Text style={styles.childActionPillOutlineText}>Clear</Text>
-                </TouchableOpacity>
-              </View>
-
-              {selectedChildren.length > 1 && (
-                <>
-                  <Text style={styles.variationSectionLabel}>
-                    {type === 'nap_time'
-                      ? 'Different nap times per child? Tap a name (e.g. early pickup):'
-                      : 'Different details per child? Tap a name:'}
-                  </Text>
-                  <View style={styles.variationChipsRow}>
-                    {selectedChildren.map((c) => (
-                      <TouchableOpacity
-                        key={c.id}
-                        style={[styles.variationChip, childOverrides[c.id] && styles.variationChipActive]}
-                        onPress={() => openVariationModal(c.id)}
-                      >
-                        <Text style={styles.variationChipText} numberOfLines={1}>
-                          {c.name.split(' ')[0]}
-                        </Text>
-                        <Ionicons name="create-outline" size={14} color={colors.primary} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              )}
-            </>
-          )}
+      <View style={styles.brandCard}>
+        <View style={styles.cardHeadRow}>
+          <View style={styles.cardHeadText}>
+            <Text style={styles.sectionEyebrow}>What</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              Type of update
+            </Text>
+            <Text style={styles.selectionHint}>Pick what you’re logging. You can change it anytime.</Text>
+          </View>
+          <View style={styles.whatTypeBadge}>
+            <Text style={styles.whatTypeBadgeText} numberOfLines={1}>
+              {ACTIVITY_TABS.find((t) => t.type === type)?.label ?? 'Meal'}
+            </Text>
+          </View>
         </View>
-
-        <View style={styles.heroDivider} />
-
-        <View style={styles.heroBlock}>
-          <View style={styles.whatHeaderRow}>
-            <View style={styles.sectionTitleRow}>
-              <View style={[styles.sectionAccentBar, { backgroundColor: colors.accentTeal }]} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.sectionEyebrow}>What</Text>
-                <Text style={styles.sectionTitle}>Type of update</Text>
-                <Text style={styles.whatTypeHint}>Pick what you’re logging. You can change it anytime.</Text>
-              </View>
-            </View>
-            <View style={styles.whatTypeBadge}>
-              <Text style={styles.whatTypeBadgeText} numberOfLines={1}>
-                {ACTIVITY_TABS.find((t) => t.type === type)?.label ?? 'Meal'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.activityGrid}>
-            {ACTIVITY_TABS.map((tab) => {
-              const active = type === tab.type;
-              return (
-                <TouchableOpacity
-                  key={tab.type}
-                  style={styles.activityItem}
+        <View style={styles.typeGrid}>
+          {ACTIVITY_TABS.map((tab) => {
+            const typeStyle = updateTypeStyle(tab.type);
+            return (
+              <View key={tab.type} style={styles.typeGridCell}>
+                <CategoryIconTile
+                  label={tab.label}
+                  icon={typeStyle.icon}
+                  color={category[typeStyle.category]}
+                  selected={type === tab.type}
                   onPress={() => setType(tab.type)}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                >
-                  <View style={[styles.activityCircle, active && styles.activityCircleActive]}>
-                    <Ionicons name={tab.icon} size={active ? 26 : 22} color={active ? '#fff' : colors.textSecondary} />
-                  </View>
-                  <Text
-                    style={[styles.activityLabel, active && styles.activityLabelActive]}
-                    numberOfLines={2}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                />
+              </View>
+            );
+          })}
         </View>
       </View>
 
       {classRosterLoaded && children.length > 0 && selectedChildren.length === 0 && (
         <View style={styles.needSelectionCard}>
           <View style={styles.needSelectionIconWrap}>
-            <Ionicons name="hand-left-outline" size={28} color={colors.primary} />
+            <Ionicons name="hand-left-outline" size={22} color={category.activity} />
           </View>
           <View style={styles.needSelectionTextWrap}>
             <Text style={styles.needSelectionTitle}>Who is this update for?</Text>
             <Text style={styles.needSelectionBody}>
-              Tap photos above, use All in class, or tap the search icon at the top to pick from the full list.
+              Tap a child above, use {selectAllLabel}, or tap search to find someone.
             </Text>
           </View>
         </View>
@@ -1657,17 +1655,12 @@ export function AddUpdateScreen({ navigation, route }: Props) {
           )}
 
           <View style={styles.postUpdateWrap}>
-            <TouchableOpacity
-              style={styles.postUpdateBtn}
+            <PrimaryButton
+              label={loading ? 'Posting…' : loadingPresence ? 'Loading…' : 'Post update'}
+              icon="send"
               onPress={submit}
               disabled={loading || loadingPresence}
-              activeOpacity={0.92}
-            >
-              <Ionicons name="paper-plane" size={20} color="#FFFFFF" style={styles.postUpdateIcon} />
-              <Text style={styles.postUpdateBtnText}>
-                {loading ? 'Posting…' : loadingPresence ? 'Loading…' : 'Post update'}
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
         </>
       )}
@@ -2149,7 +2142,7 @@ export function AddUpdateScreen({ navigation, route }: Props) {
                         <Text style={styles.modalOptionAge}>{getAge(c.dateOfBirth)} old</Text>
                       </View>
                       <View style={[styles.modalCheckbox, isSelected && styles.modalCheckboxChecked]}>
-                        {isSelected ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
+                        {isSelected ? <Ionicons name="checkmark" size={16} color={colors.primaryContrast} /> : null}
                       </View>
                     </TouchableOpacity>
                   );
@@ -2184,32 +2177,103 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
+function createStyles(
+  colors: import('../../theme/colors').ColorPalette,
+  isDark: boolean,
+  brand: BrandPalette,
+  category: CategoryPalette,
+  windowWidth: number
+) {
   const f = (weight: 'regular' | 'medium' | 'semiBold' | 'bold') => ({ fontFamily: font[weight] });
-  const activityIdleBg = isDark ? '#252525' : '#F0F2F5';
+  const activityIdleBg = brand.surfaceRaised;
+  // Card inner width: screen minus page gutters and card padding.
+  const cardInner = windowWidth - spacing.screenX * 2 - spacing.cardPadding * 2;
+  const childTileWidth = Math.floor((cardInner - 10 * 2) / 3);
 
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40 },
+    container: { flex: 1, backgroundColor: brand.background },
+    content: { paddingHorizontal: spacing.screenX, paddingBottom: 40 },
+    header: { marginHorizontal: -spacing.screenX, marginBottom: spacing.gapL },
+    stepRow: { flexDirection: 'row', gap: 8 },
+    stepPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderRadius: radius.pill,
+      paddingVertical: 4,
+      paddingLeft: 4,
+      paddingRight: 14,
+      borderWidth: 2,
+    },
+    stepPillActive: { backgroundColor: category.activity, borderColor: category.activity },
+    stepPillIdle: { borderColor: 'rgba(255,255,255,0.35)' },
+    stepNum: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    stepNumActive: { backgroundColor: category.onCategory },
+    stepNumIdle: { backgroundColor: 'rgba(255,255,255,0.2)' },
+    stepNumText: { fontFamily: brandFont.body800, fontSize: 13 },
+    stepLabel: { fontFamily: brandFont.body800, fontSize: 14 },
+    brandCard: {
+      backgroundColor: brand.surface,
+      borderRadius: radius.cardL,
+      padding: spacing.cardPadding,
+      marginBottom: 16,
+    },
+    cardHeadRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 18 },
+    cardHeadText: { flex: 1, minWidth: 0, gap: 6 },
+    childGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    childTile: {
+      width: childTileWidth,
+      alignItems: 'center',
+      gap: 8,
+      paddingTop: 14,
+      paddingBottom: 12,
+      paddingHorizontal: 6,
+      borderRadius: radius.tile,
+      borderWidth: 2,
+      overflow: 'hidden',
+    },
+    childTileEligible: { backgroundColor: brand.surfaceRaised, borderColor: brand.surfaceRaised },
+    childTileDisabled: { borderColor: brand.disabledBorder, borderStyle: 'dashed' },
+    childTileSelected: { borderColor: brand.textPrimary, borderWidth: 2.5 },
+    childTileAvatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    childTileInitials: {
+      fontFamily: brandFont.display800,
+      fontSize: 20,
+      color: category.onCategory,
+    },
+    childTileName: {
+      fontFamily: brandFont.body800,
+      fontSize: 13,
+      lineHeight: 16,
+      color: brand.textPrimary,
+      maxWidth: '100%',
+    },
+    childTileSurname: {
+      fontFamily: brandFont.body600,
+      fontSize: 13,
+      lineHeight: 16,
+      marginTop: -8,
+      color: brand.textTertiary,
+      maxWidth: '100%',
+    },
+    childTileCheck: { right: 6, top: 6 },
+    childActionBtn: { flex: 1 },
+    typeGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 18 },
+    typeGridCell: { width: '25%', alignItems: 'center' },
     pageTitle: { fontSize: 28, fontWeight: '800', color: colors.text },
     pageSubtitle: { fontSize: 15, color: colors.textMuted, marginTop: 4, marginBottom: 24 },
 
     screenCard: {
-      backgroundColor: colors.card,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      padding: 16,
-      marginBottom: 14,
-      ...(!isDark
-        ? {
-            shadowColor: '#0f172a',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.06,
-            shadowRadius: 10,
-            elevation: 3,
-          }
-        : {}),
+      backgroundColor: brand.surface,
+      borderRadius: radius.cardL,
+      padding: spacing.cardPadding,
+      marginBottom: 16,
     },
     heroCard: {
       backgroundColor: colors.card,
@@ -2252,14 +2316,13 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       marginRight: 12,
     },
     sectionEyebrow: {
-      fontSize: 11,
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
-      color: colors.textMuted,
-      ...f('semiBold'),
+      ...typeTokens.overline,
+      fontSize: 12,
+      letterSpacing: 0.96,
+      color: brand.textSecondary,
     },
-    sectionTitle: { fontSize: 18, color: colors.text, marginTop: 2, ...f('bold') },
-    childActionsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+    sectionTitle: { ...typeTokens.section, lineHeight: 25, color: brand.textPrimary },
+    childActionsRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
     childActionPill: {
       flex: 1,
       flexDirection: 'row',
@@ -2331,47 +2394,40 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     whatTypeBadge: {
       paddingHorizontal: 12,
       paddingVertical: 8,
-      borderRadius: 12,
-      backgroundColor: colors.accentTealSoft,
+      borderRadius: radius.chip,
+      backgroundColor: brand.surfaceRaised,
       maxWidth: 110,
-      marginTop: 4,
     },
-    whatTypeBadgeText: { fontSize: 13, color: colors.text, ...f('semiBold') },
+    whatTypeBadgeText: { fontSize: 13, color: brand.textPrimary, ...f('bold') },
     needSelectionCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 14,
       padding: 18,
-      borderRadius: 18,
+      borderRadius: radius.card,
       marginBottom: 16,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      ...(!isDark
-        ? {
-            shadowColor: '#0f172a',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.05,
-            shadowRadius: 8,
-            elevation: 2,
-          }
-        : {}),
+      backgroundColor: category.activity,
     },
     needSelectionIconWrap: {
-      width: 52,
-      height: 52,
-      borderRadius: 16,
-      backgroundColor: colors.primaryMuted,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: category.onCategory,
       alignItems: 'center',
       justifyContent: 'center',
+      transform: [{ rotate: '-8deg' }],
     },
-    needSelectionTextWrap: { flex: 1, minWidth: 0 },
-    needSelectionTitle: { fontSize: 17, color: colors.text, ...f('semiBold') },
+    needSelectionTextWrap: { flex: 1, minWidth: 0, gap: 4 },
+    needSelectionTitle: {
+      fontFamily: brandFont.display800,
+      fontSize: 19,
+      letterSpacing: -0.19,
+      color: category.onCategory,
+    },
     needSelectionBody: {
       fontSize: 14,
-      color: colors.textMuted,
-      marginTop: 6,
-      lineHeight: 21,
+      color: '#3D3300',
+      lineHeight: 20,
       ...f('medium'),
     },
     emptyChildrenWrap: { width: '100%' },
@@ -2379,11 +2435,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       alignItems: 'center',
       paddingVertical: 28,
       paddingHorizontal: 20,
-      marginTop: 8,
-      borderRadius: 16,
-      backgroundColor: colors.backgroundSecondary,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      borderRadius: radius.tile,
+      backgroundColor: brand.surfaceRaised,
     },
     emptyChildrenTitle: { fontSize: 17, color: colors.text, marginTop: 14, textAlign: 'center', ...f('semiBold') },
     emptyChildrenHint: {
@@ -2396,11 +2449,10 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     whoHeaderBlock: { width: '100%', marginBottom: 14 },
     selectionHint: {
-      fontSize: 13,
-      color: colors.textMuted,
-      marginTop: 8,
-      lineHeight: 19,
-      ...f('medium'),
+      fontSize: 14,
+      color: brand.textSecondary,
+      lineHeight: 20,
+      ...f('regular'),
     },
     variationSectionLabel: {
       fontSize: 13,
@@ -2505,13 +2557,16 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 12,
+      minHeight: 44,
+      paddingHorizontal: 14,
       paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: colors.primaryMuted,
+      borderRadius: radius.chip,
+      backgroundColor: brand.surfaceRaised,
+      borderWidth: 2,
+      borderColor: brand.surfaceRaised,
       maxWidth: '48%',
     },
-    variationChipActive: { borderWidth: 1, borderColor: colors.primary },
+    variationChipActive: { borderColor: brand.textPrimary },
     variationChipText: { fontSize: 13, color: colors.text, flexShrink: 1, ...f('semiBold') },
 
     activityItem: { alignItems: 'center', width: '25%', minWidth: 0, paddingHorizontal: 2 },
@@ -2549,23 +2604,20 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       paddingBottom: 12,
       marginBottom: 16,
     },
-    formSectionTitle: { fontSize: 19, color: colors.text, marginBottom: 0, marginTop: 0, ...f('bold') },
+    formSectionTitle: { ...typeTokens.cardTitle, color: brand.textPrimary, marginBottom: 0, marginTop: 0 },
     mealTypeRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
     mealTypePill: {
       flex: 1,
-      paddingVertical: 12,
-      borderRadius: 14,
-      borderWidth: 1.5,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.card,
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: radius.chip,
+      backgroundColor: brand.surfaceRaised,
       alignItems: 'center',
     },
-    mealTypePillActive: {
-      borderColor: colors.primary,
-      backgroundColor: isDark ? colors.primaryMuted : colors.card,
-    },
-    mealTypePillText: { fontSize: 14, color: colors.textSecondary, ...f('semiBold') },
-    mealTypePillTextActive: { color: colors.primary, ...f('bold') },
+    mealTypePillActive: { backgroundColor: brand.inverseFill },
+    mealTypePillText: { fontSize: 14, color: brand.textSecondary, ...f('semiBold') },
+    mealTypePillTextActive: { color: brand.onInverse, ...f('bold') },
     amountScroll: {
       flexDirection: 'row',
       flexWrap: 'nowrap',
@@ -2585,8 +2637,8 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       justifyContent: 'center',
     },
     amountCircleActive: {
-      borderColor: colors.primary,
-      backgroundColor: isDark ? colors.primaryMuted : colors.primaryMuted,
+      borderColor: brand.inverseFill,
+      backgroundColor: brand.inverseFill,
     },
     amountCircleText: {
       fontSize: 12,
@@ -2595,11 +2647,11 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       ...f('semiBold'),
       paddingHorizontal: 4,
     },
-    amountCircleTextActive: { color: colors.primary, ...f('bold') },
-    amountLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 6, textAlign: 'center', ...f('semiBold') },
-    amountLabelActive: { color: colors.primary, ...f('bold') },
+    amountCircleTextActive: { color: brand.onInverse, ...f('bold') },
+    amountLabel: { fontSize: 12, color: brand.textSecondary, marginTop: 6, textAlign: 'center', ...f('semiBold') },
+    amountLabelActive: { color: brand.textPrimary, ...f('bold') },
 
-    postUpdateWrap: { marginTop: 8, marginBottom: 8 },
+    postUpdateWrap: { marginTop: 4, marginBottom: 8 },
     postUpdateBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2713,7 +2765,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     tabLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 6 },
     tabLabelActive: { color: colors.primary },
 
-    label: { fontSize: 14, color: colors.textSecondary, marginBottom: 8, marginTop: 14, ...f('semiBold') },
+    label: { fontSize: 14, color: brand.textPrimary, marginBottom: 8, marginTop: 16, ...f('bold') },
     labelHint: {
       fontSize: 13,
       lineHeight: 18,
@@ -2723,16 +2775,16 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     },
     optionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     optionChip: {
+      minHeight: 44,
+      justifyContent: 'center',
       paddingHorizontal: 14,
       paddingVertical: 10,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.background,
+      borderRadius: radius.chip,
+      backgroundColor: brand.surfaceRaised,
     },
-    optionChipActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
-    optionChipText: { fontSize: 14, color: colors.textMuted },
-    optionChipTextActive: { color: colors.primary, fontWeight: '600' },
+    optionChipActive: { backgroundColor: brand.inverseFill },
+    optionChipText: { fontSize: 14, color: brand.textSecondary, ...f('semiBold') },
+    optionChipTextActive: { color: brand.onInverse, ...f('bold') },
 
     wholeClassCard: {
       flexDirection: 'row',
@@ -2787,26 +2839,21 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 14,
-      backgroundColor: colors.primaryMuted,
-      paddingVertical: 16,
-      paddingHorizontal: 16,
-      borderRadius: 18,
+      backgroundColor: brand.surface,
+      padding: 18,
+      borderRadius: radius.card,
       marginBottom: 16,
-      borderWidth: 1,
-      borderColor: isDark ? colors.cardBorder : 'rgba(0,0,0,0.05)',
     },
     timeNoteIconCircle: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: isDark ? colors.card : colors.card,
+      backgroundColor: category.checkOut,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: isDark ? colors.cardBorder : 'rgba(0,0,0,0.06)',
     },
     timeNoteTextWrap: { flex: 1, minWidth: 0 },
-    timeNoteTitle: { fontSize: 13, color: colors.primary, marginBottom: 4, ...f('semiBold') },
+    timeNoteTitle: { ...typeTokens.overline, fontSize: 12, color: brand.textSecondary, marginBottom: 4 },
     timeNote: { fontSize: 14, color: colors.textSecondary, lineHeight: 21, ...f('medium') },
     inputReadOnly: { backgroundColor: colors.backgroundSecondary, color: colors.textSecondary, ...f('semiBold') },
     timePickerDone: {
@@ -2818,7 +2865,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       borderRadius: 10,
       backgroundColor: colors.primary,
     },
-    timePickerDoneText: { color: '#fff', fontSize: 15, ...f('semiBold') },
+    timePickerDoneText: { color: colors.primaryContrast, fontSize: 15, ...f('semiBold') },
 
     /** Aligned with meal type pills (no negative bleed). */
     mealOptionsScroll: { marginBottom: 10, marginTop: 2 },
@@ -2826,30 +2873,30 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     mealOptionCard: {
       width: 120,
       marginRight: 10,
-      borderRadius: 10,
-      borderWidth: 2,
-      borderColor: colors.border,
-      backgroundColor: colors.background,
+      borderRadius: radius.chip,
+      borderWidth: 2.5,
+      borderColor: brand.surfaceRaised,
+      backgroundColor: brand.surfaceRaised,
       overflow: 'hidden',
     },
-    mealOptionCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
+    mealOptionCardActive: { borderColor: brand.textPrimary },
     mealOptionImage: { width: '100%', height: 72 },
     mealOptionImagePlaceholder: {
       backgroundColor: colors.border,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    mealOptionName: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, padding: 6 },
+    mealOptionName: { fontSize: 12, color: brand.textPrimary, padding: 6, ...f('bold') },
     mealOptionDesc: { fontSize: 11, color: colors.textMuted, paddingHorizontal: 6, paddingBottom: 6 },
 
     input: {
       borderWidth: 1.5,
-      borderColor: colors.cardBorder,
-      borderRadius: 12,
+      borderColor: brand.surfaceRaised,
+      borderRadius: radius.chip,
       padding: 14,
       fontSize: 15,
-      backgroundColor: colors.backgroundSecondary,
-      color: colors.text,
+      backgroundColor: brand.surfaceRaised,
+      color: brand.textPrimary,
       ...f('medium'),
     },
     inputMultiline: { minHeight: 88, textAlignVertical: 'top' },
@@ -3117,7 +3164,7 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
       paddingVertical: 14,
       alignItems: 'center',
       backgroundColor: colors.primary,
-      borderRadius: 10,
+      borderRadius: radius.buttonS,
     },
     modalDoneBtnText: { fontSize: 16, fontWeight: '700', color: colors.primaryContrast },
 
@@ -3203,12 +3250,12 @@ function createStyles(colors: import('../../theme/colors').ColorPalette, isDark:
     variationModalSaveBtn: {
       flex: 1,
       paddingVertical: 15,
-      borderRadius: 14,
+      borderRadius: radius.buttonS,
       backgroundColor: colors.ctaPurple,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    variationModalSaveBtnText: { fontSize: 16, color: '#FFFFFF', ...f('bold') },
+    variationModalSaveBtnText: { fontSize: 16, color: colors.primaryContrast, ...f('bold') },
     variationModalCancelBtn: {
       paddingVertical: 15,
       paddingHorizontal: 20,

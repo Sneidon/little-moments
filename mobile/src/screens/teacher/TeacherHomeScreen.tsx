@@ -8,9 +8,9 @@ import {
   RefreshControl,
   Platform,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, getDocs } from 'firebase/firestore';
@@ -18,13 +18,23 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { font } from '../../theme/typography';
+import { brandFont } from '../../theme/typography';
+import { Skeleton } from '../../components/Skeleton';
+import { NotificationBellButton } from '../../components/NotificationBellButton';
+import { HeaderBlock, Overline } from '../../components/brand/HeaderBlock';
+import { RoundIconButton } from '../../components/brand/RoundIconButton';
+import { OutlineButton } from '../../components/brand/Buttons';
+import { StatTile } from '../../components/brand/StatTile';
+import { BrandSkeletonStudentCard, BrandSkeletonTile } from '../../components/brand/BrandSkeletons';
 import {
-  Skeleton,
-  SkeletonCircle,
-  SkeletonStatCard,
-  SkeletonStudentCard,
-} from '../../components/Skeleton';
+  avatarCategoryColor,
+  radius,
+  spacing,
+  type as typeTokens,
+  updateTypeStyle,
+  type BrandPalette,
+  type CategoryPalette,
+} from '../../theme/tokens';
 import { useDateNavigation, useTeacherClassChildren } from '../../hooks';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { getAge, getInitials } from '../../utils';
@@ -39,10 +49,13 @@ export function TeacherHomeScreen({
     getParent: () => { navigate: (name: string, params?: object) => void } | undefined;
   };
 }) {
-  const insets = useSafeAreaInsets();
   const { profile } = useAuth();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, brand, category, isDark } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const styles = useMemo(
+    () => createStyles(brand, category, isDark, windowWidth),
+    [brand, category, isDark, windowWidth]
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -167,565 +180,459 @@ export function TeacherHomeScreen({
   }, [schoolName, className]);
   const rootStack = navigation.getParent();
 
-  const quickActions = [
+  /** Existing quick actions (all 8, existing labels), coloured by update category. */
+  const quickActions: { id: string; label: string; typeKey: string; onPress: () => void }[] = [
     {
       id: 'check_in',
       label: 'Check in',
-      icon: 'log-in' as const,
-      soft: colors.accentTealSoft,
-      iconColor: '#16a34a',
+      typeKey: 'check_in',
       onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'check_in' }),
     },
     {
       id: 'meal',
       label: 'Log Meal',
-      icon: 'restaurant' as const,
-      soft: colors.accentOrangeSoft,
-      iconColor: colors.accentOrange,
+      typeKey: 'meal',
       onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'meal' }),
     },
     {
       id: 'nap',
       label: 'Log Nap',
-      icon: 'moon' as const,
-      soft: colors.accentPurpleSoft,
-      iconColor: colors.accentPurple,
+      typeKey: 'nap_time',
       onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'nap_time' }),
     },
     {
       id: 'nappy',
       label: 'Log Nappy',
-      icon: 'water' as const,
-      soft: colors.accentTealSoft,
-      iconColor: colors.accentTeal,
+      typeKey: 'nappy_change',
       onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'nappy_change' }),
     },
     {
       id: 'medication',
       label: 'Log Medication',
-      icon: 'medical' as const,
-      soft: colors.primaryMuted,
-      iconColor: colors.primary,
+      typeKey: 'medication',
       onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'medication' }),
     },
     {
       id: 'activity',
       label: 'Add Activity',
-      icon: 'color-palette' as const,
-      soft: colors.accentOrangeSoft,
-      iconColor: colors.accentOrange,
+      typeKey: 'activity',
       onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'activity' }),
     },
     {
       id: 'photo',
       label: 'Add Photo',
-      icon: 'camera' as const,
-      soft: colors.accentTealSoft,
-      iconColor: colors.accentTeal,
+      typeKey: 'incident',
       onPress: () => rootStack?.navigate('AddUpdate', { initialType: 'incident' }),
     },
     {
       id: 'planned',
       label: 'Planned',
-      icon: 'calendar' as const,
-      soft: colors.accentPurpleSoft,
-      iconColor: colors.accentPurple,
+      typeKey: 'planned',
       onPress: () => rootStack?.navigate('DailyCommunication'),
     },
   ];
 
   const isChildPresentToday = (childId: string): boolean => presentChildIds.has(childId);
 
-  const overviewStats = [
-    {
-      key: 'present',
-      label: 'PRESENT',
-      value: presentCount,
-      icon: 'checkmark-circle' as const,
-      border: colors.accentPurple,
-      soft: colors.accentPurpleSoft,
-      iconColor: colors.accentPurple,
-    },
-    {
-      key: 'total',
-      label: 'TOTAL STUDENTS',
-      value: children.length,
-      icon: 'people' as const,
-      border: colors.accentTeal,
-      soft: colors.accentTealSoft,
-      iconColor: colors.accentTeal,
-    },
-    {
-      key: 'meals',
-      label: 'MEALS LOGGED',
-      value: mealsToday,
-      icon: 'restaurant' as const,
-      border: colors.accentOrange,
-      soft: colors.accentOrangeSoft,
-      iconColor: colors.accentOrange,
-    },
-    {
-      key: 'photos',
-      label: 'PHOTOS SHARED',
-      value: photosToday,
-      icon: 'images' as const,
-      border: colors.accentPurple,
-      soft: colors.accentPurpleSoft,
-      iconColor: colors.accentPurple,
-    },
-  ];
+  const header = (
+    <HeaderBlock paddingBottom={72} gap={30}>
+      <View style={styles.profileRow}>
+        {profile?.photoURL ? (
+          <Image source={{ uri: profile.photoURL }} style={styles.profileAvatar} />
+        ) : (
+          <View style={styles.profileAvatar}>
+            <Text style={styles.profileAvatarText}>{getInitials(teacherName).slice(0, 1)}</Text>
+          </View>
+        )}
+        <View style={styles.profileTextCol}>
+          <Text style={styles.profileName} numberOfLines={1}>
+            {teacherName}
+          </Text>
+          <Text style={styles.profileMeta} numberOfLines={1}>
+            {teacherMetaLine}
+          </Text>
+        </View>
+        <NotificationBellButton
+          variant="header"
+          colors={colors}
+          onPress={() => rootStack?.navigate('UserNotifications')}
+        />
+      </View>
+      <View style={styles.dateRow}>
+        <TouchableOpacity
+          style={styles.dateTextCol}
+          onPress={() => setShowDatePicker(true)}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={`Today's overview, ${overviewDateLabel}. Choose a date`}
+        >
+          <Overline>{"Today's Overview"}</Overline>
+          <Text style={styles.dateDisplay} numberOfLines={1} adjustsFontSizeToFit>
+            {overviewDateLabel}
+          </Text>
+        </TouchableOpacity>
+        <View style={styles.dateButtons}>
+          <RoundIconButton icon="chevron-back" variant="onHeader" accessibilityLabel="Previous day" onPress={prevDay} />
+          <RoundIconButton icon="chevron-forward" variant="onHeader" accessibilityLabel="Next day" onPress={nextDay} />
+        </View>
+      </View>
+    </HeaderBlock>
+  );
 
   if (initialLoading) {
     return (
       <View style={styles.container}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.backgroundSecondary }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.topPad}>
-            <View style={styles.profileSummaryCard}>
-              <SkeletonCircle size={52} />
-              <View style={styles.profileSummaryTextCol}>
-                <Skeleton width={160} height={18} style={{ marginBottom: 8 }} />
-                <Skeleton width={120} height={14} />
-              </View>
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} accessibilityState={{ busy: true }}>
+          {header}
+          <View style={styles.body}>
+            <Skeleton height={88} borderRadius={radius.cardL} style={{ marginTop: -44 }} />
+            <BrandSkeletonTile height={200} />
+            <View style={styles.row}>
+              <BrandSkeletonTile height={170} />
+              <BrandSkeletonTile height={170} />
             </View>
-            <View style={{ marginHorizontal: 16, marginTop: 16 }}>
-              <Skeleton width="100%" height={72} style={{ borderRadius: 20 }} />
-            </View>
-          </View>
-          <View style={styles.sectionOverview}>
-            <View style={styles.sectionTitleRow}>
-              <Skeleton width={140} height={18} />
-              <Skeleton width={100} height={32} style={{ borderRadius: 20 }} />
-            </View>
-            <View style={styles.statsGrid}>
-              {[1, 2, 3, 4].map((i) => (
-                <SkeletonStatCard key={i} />
-              ))}
-            </View>
-          </View>
-          <View style={styles.section}>
-            <Skeleton width={120} height={18} style={{ marginBottom: 12 }} />
+            <Skeleton width={160} height={24} borderRadius={8} style={styles.sectionTitle} />
             <View style={styles.quickGrid}>
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <View key={i} style={styles.quickActionBtn}>
-                  <SkeletonCircle size={48} />
-                  <Skeleton width={64} height={12} style={{ marginTop: 8 }} />
-                </View>
+                <Skeleton key={i} width={styles.quickTile.width as number} height={112} borderRadius={24} />
               ))}
             </View>
-          </View>
-          <View style={styles.section}>
-            <Skeleton width="100%" height={52} style={{ borderRadius: 16 }} />
-          </View>
-          <View style={styles.section}>
-            <Skeleton width={140} height={18} style={{ marginBottom: 12 }} />
             {[1, 2, 3].map((i) => (
-              <SkeletonStudentCard key={i} />
+              <BrandSkeletonStudentCard key={i} compact />
             ))}
           </View>
-          <View style={styles.bottomPad} />
         </ScrollView>
       </View>
     );
   }
 
-  const renderChild = ({ item }: { item: Child }) => {
-    const present = isChildPresentToday(item.id);
-    return (
-      <TouchableOpacity
-        style={styles.studentCard}
-        onPress={() => rootStack?.navigate('Reports', { childId: item.id })}
-        activeOpacity={0.7}
-      >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(item.name)}</Text>
-        </View>
-        <View style={styles.studentCardContent}>
-          <Text style={styles.studentName}>{item.name}</Text>
-          <Text style={styles.studentAge}>{getAge(item.dateOfBirth)} old</Text>
-        </View>
-        <View style={[styles.presentBadge, !present && styles.presentBadgeAbsent]}>
-          <Text style={styles.presentBadgeText}>{present ? 'Present' : '-'}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.backgroundSecondary }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={brand.onHeader}
+            colors={[brand.headerBackground]}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topPad}>
-          <View style={styles.profileSummaryCard}>
-            {profile?.photoURL ? (
-              <Image source={{ uri: profile.photoURL }} style={styles.profileSummaryAvatarImg} />
-            ) : (
-              <View style={[styles.profileSummaryAvatar, { backgroundColor: colors.avatarBg }]}>
-                <Text style={[styles.profileSummaryAvatarText, { color: colors.avatarText }]}>
-                  {getInitials(teacherName)}
-                </Text>
-              </View>
-            )}
-            <View style={styles.profileSummaryTextCol}>
-              <Text style={[styles.profileSummaryName, { color: colors.text }]} numberOfLines={1}>
-                {teacherName}
-              </Text>
-              <Text style={[styles.profileSummaryMeta, { color: colors.textMuted }]} numberOfLines={1}>
-                {teacherMetaLine}
-              </Text>
-            </View>
-          </View>
+        {header}
 
+        {showDatePicker && (
+          <View style={styles.datePickerWrap}>
+            <DateTimePicker
+              value={new Date(selectedDate + 'T12:00:00')}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onDatePickerChange}
+              maximumDate={maxDate}
+            />
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.dateDone}
+                onPress={() => setShowDatePicker(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.dateDoneText}>Done</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        <View style={[styles.body, !showDatePicker && styles.bodyOverlap]}>
           {/* Add Daily Update CTA */}
           <TouchableOpacity
             style={styles.ctaCard}
             onPress={() => rootStack?.navigate('AddUpdate')}
-            activeOpacity={0.92}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Add Daily Update. Log attendance, meals, or photos"
           >
             <View style={styles.ctaIconCircle}>
-              <Ionicons name="add" size={28} color={colors.ctaPurple} />
+              <Ionicons name="add" size={28} color={category.activity} />
             </View>
             <View style={styles.ctaTextWrap}>
               <Text style={styles.ctaTitle}>Add Daily Update</Text>
               <Text style={styles.ctaSubtitle}>Log attendance, meals, or photos</Text>
             </View>
-            <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.95)" />
+            <Ionicons name="chevron-forward" size={22} color={category.onCategory} />
           </TouchableOpacity>
-        </View>
 
-        {/* Today's Overview */}
-        <View style={styles.sectionOverview}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.overviewHeading}>{"Today's Overview"}</Text>
-            <View style={styles.dateNav}>
-              <TouchableOpacity onPress={prevDay} hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}>
-                <Ionicons name="chevron-back" size={20} color={colors.textMuted} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.datePill}
-                onPress={() => setShowDatePicker(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.datePillText}>{overviewDateLabel}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={nextDay} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
-                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-          </View>
-          {showDatePicker && (
-            <>
-              <DateTimePicker
-                value={new Date(selectedDate + 'T12:00:00')}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onDatePickerChange}
-                maximumDate={maxDate}
-              />
-              {Platform.OS === 'ios' && (
-                <TouchableOpacity style={styles.dateDone} onPress={() => setShowDatePicker(false)}>
-                  <Text style={styles.dateDoneText}>Done</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-          <View style={styles.statsGrid}>
-            {overviewStats.map((s) => (
-              <View key={s.key} style={[styles.statCard, { borderTopColor: s.border }]}>
-                <View style={[styles.statIconCircle, { backgroundColor: s.soft }]}>
-                  <Ionicons name={s.icon} size={22} color={s.iconColor} />
-                </View>
-                <Text style={styles.statLabel}>{s.label}</Text>
-                <Text style={styles.statValue}>{s.value}</Text>
+          {/* Attendance: Present + Total students */}
+          <View
+            style={styles.attendanceTile}
+            accessible
+            accessibilityLabel={`Present: ${presentCount} of ${children.length}. Total students: ${children.length}`}
+          >
+            <View style={styles.attendanceRing} pointerEvents="none" />
+            <View style={styles.attendanceTop}>
+              <View style={{ gap: 2, flexShrink: 1 }}>
+                <Text style={styles.tileOverline}>Present</Text>
+                <Text style={styles.presentValue} numberOfLines={1} adjustsFontSizeToFit>
+                  {presentCount}
+                  <Text style={styles.presentSuffix}> /{children.length}</Text>
+                </Text>
               </View>
-            ))}
+              <View style={styles.totalChip}>
+                <Text style={styles.totalChipLabel}>Total students</Text>
+                <Text style={styles.totalChipValue}>{children.length}</Text>
+              </View>
+            </View>
+            {children.length > 0 ? (
+              <View style={styles.presenceDots}>
+                {children.map((c) =>
+                  isChildPresentToday(c.id) ? (
+                    <View key={c.id} style={styles.presenceDotPresent} />
+                  ) : (
+                    <View key={c.id} style={styles.presenceDotAbsent} />
+                  )
+                )}
+              </View>
+            ) : null}
           </View>
-        </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.row}>
+            <StatTile size="L" label="Meals logged" value={mealsToday} icon="restaurant-outline" color={category.meal} />
+            <StatTile size="L" label="Photos shared" value={photosToday} icon="image-outline" color={category.photo} />
+          </View>
+
+          {/* Quick Actions */}
+          <Text style={styles.sectionTitle} accessibilityRole="header">
+            Quick Actions
+          </Text>
           <View style={styles.quickGrid}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.quickActionBtn}
-                onPress={action.onPress}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.quickIconCircle, { backgroundColor: action.soft }]}>
-                  <Ionicons name={action.icon} size={24} color={action.iconColor} />
-                </View>
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
+            {quickActions.map((action) => {
+              const typeStyle = updateTypeStyle(action.typeKey);
+              return (
+                <TouchableOpacity
+                  key={action.id}
+                  style={styles.quickTile}
+                  onPress={action.onPress}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={action.label}
+                >
+                  <View style={[styles.quickIcon, { backgroundColor: category[typeStyle.category] }]}>
+                    <Ionicons name={typeStyle.icon} size={22} color={category.onCategory} />
+                  </View>
+                  <Text style={styles.quickLabel} numberOfLines={2}>
+                    {action.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </View>
 
-        <TouchableOpacity
-          style={styles.messageParentsBtn}
-          onPress={() => rootStack?.navigate('SelectChildToMessage')}
-          activeOpacity={0.75}
-        >
-          <View style={[styles.messageIconCircle, { backgroundColor: colors.accentPurpleSoft }]}>
-            <Ionicons name="chatbubbles" size={22} color={colors.accentPurple} />
-          </View>
-          <Text style={styles.messageParentsText}>Message Parents</Text>
-        </TouchableOpacity>
+          <OutlineButton
+            label="Message Parents"
+            icon="chatbubbles-outline"
+            style={styles.messageParentsBtn}
+            onPress={() => rootStack?.navigate('SelectChildToMessage')}
+          />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>My Students ({children.length})</Text>
+          <Text style={styles.sectionTitle} accessibilityRole="header">
+            My Students ({children.length})
+          </Text>
           {children.length === 0 ? (
             <Text style={styles.empty}>No children assigned yet.</Text>
           ) : (
-            children.map((item) => (
-              <View key={item.id}>{renderChild({ item })}</View>
-            ))
+            children.map((item, index) => {
+              const present = isChildPresentToday(item.id);
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.studentCard}
+                  onPress={() => rootStack?.navigate('Reports', { childId: item.id })}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name}, ${getAge(item.dateOfBirth)} old, ${
+                    present ? 'present' : 'not checked in'
+                  }`}
+                >
+                  <View style={[styles.studentAvatar, { backgroundColor: avatarCategoryColor(category, index) }]}>
+                    <Text style={styles.studentAvatarText}>{getInitials(item.name)}</Text>
+                  </View>
+                  <View style={styles.studentCardContent}>
+                    <Text style={styles.studentName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.studentAge}>{getAge(item.dateOfBirth)} old</Text>
+                  </View>
+                  <View style={[styles.presentBadge, !present && styles.presentBadgeAbsent]}>
+                    <Text style={[styles.presentBadgeText, !present && styles.presentBadgeTextAbsent]}>
+                      {present ? 'Present' : '-'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
         </View>
-
-        <View style={styles.bottomPad} />
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette) {
-  const f = (weight: 'regular' | 'medium' | 'semiBold' | 'bold') => ({ fontFamily: font[weight] });
-
+function createStyles(brand: BrandPalette, category: CategoryPalette, isDark: boolean, windowWidth: number) {
+  const ink = category.onCategory;
+  // Three quick-action tiles per row inside the page gutters, 10pt apart.
+  const quickTileWidth = Math.floor((windowWidth - spacing.screenX * 2 - 10 * 2) / 3);
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    scroll: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    scrollContent: { paddingBottom: 28, flexGrow: 1 },
-    bottomPad: { height: 20 },
-    topPad: {
-      paddingTop: 12,
-      paddingBottom: 8,
-      backgroundColor: colors.backgroundSecondary,
-    },
-
-    /** Matches parent Child profile `profileSummaryCard` */
-    profileSummaryCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      marginHorizontal: 16,
-      marginBottom: 0,
-      padding: 14,
+    container: { flex: 1, backgroundColor: brand.background },
+    scroll: { flex: 1 },
+    profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    profileAvatar: {
+      width: 48,
+      height: 48,
       borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
-    profileSummaryAvatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
+      backgroundColor: category.activity,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    profileSummaryAvatarImg: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+    profileAvatarText: { fontFamily: brandFont.display800, fontSize: 22, color: ink },
+    profileTextCol: { flex: 1, minWidth: 0, gap: 1 },
+    profileName: { fontFamily: brandFont.body800, fontSize: 17, color: brand.onHeader },
+    profileMeta: { fontFamily: brandFont.body500, fontSize: 13, color: brand.onHeaderMuted },
+    dateRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+    dateTextCol: { flex: 1, minWidth: 0, gap: 6 },
+    dateDisplay: { ...typeTokens.displayXL, color: brand.onHeader },
+    dateButtons: { flexDirection: 'row', gap: 8 },
+    datePickerWrap: { paddingHorizontal: spacing.screenX, paddingTop: 12 },
+    dateDone: { alignSelf: 'flex-end', minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
+    dateDoneText: { fontFamily: brandFont.body800, fontSize: 16, color: brand.textPrimary },
+    body: {
+      paddingHorizontal: spacing.screenX,
+      paddingTop: spacing.gapM,
+      paddingBottom: 24,
+      gap: spacing.gapM,
     },
-    profileSummaryAvatarText: { fontSize: 18, ...f('bold') },
-    profileSummaryTextCol: { flex: 1, marginLeft: 14, minWidth: 0 },
-    profileSummaryName: { fontSize: 17, ...f('bold') },
-    profileSummaryMeta: { fontSize: 14, marginTop: 4, ...f('regular') },
-
+    bodyOverlap: { marginTop: -44 - spacing.gapM },
+    row: { flexDirection: 'row', gap: spacing.gapM },
     ctaCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.ctaPurple,
-      borderRadius: 20,
-      paddingVertical: 18,
-      paddingHorizontal: 18,
       gap: 14,
-      marginHorizontal: 16,
-      marginTop: 16,
+      paddingVertical: 16,
+      paddingLeft: 16,
+      paddingRight: 18,
+      borderRadius: radius.cardL,
+      borderWidth: 3,
+      borderColor: brand.background,
+      backgroundColor: category.activity,
+      shadowColor: brand.shadow,
+      shadowOffset: { width: 0, height: 14 },
+      shadowOpacity: isDark ? 0.7 : 0.45,
+      shadowRadius: 14,
+      elevation: 8,
     },
     ctaIconCircle: {
       width: 52,
       height: 52,
       borderRadius: 26,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: ink,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    ctaTextWrap: { flex: 1 },
-    ctaTitle: { fontSize: 17, color: '#FFFFFF', ...f('bold') },
-    ctaSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginTop: 4, ...f('medium') },
-
-    section: { marginTop: 20, paddingHorizontal: 20 },
-    /** Same surface as page; no extra band above stats */
-    sectionOverview: { marginTop: 12, paddingHorizontal: 20 },
-    sectionTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-      flexWrap: 'wrap',
-      gap: 10,
+    ctaTextWrap: { flex: 1, minWidth: 0, gap: 2 },
+    ctaTitle: { ...typeTokens.cardTitle, color: ink },
+    ctaSubtitle: { fontFamily: brandFont.body600, fontSize: 14, color: '#4A3D00' },
+    attendanceTile: {
+      backgroundColor: category.attendance,
+      borderRadius: radius.cardL,
+      padding: 22,
+      gap: 18,
+      overflow: 'hidden',
     },
-    overviewHeading: { fontSize: 17, color: colors.text, ...f('bold') },
-    sectionTitle: { fontSize: 17, color: colors.text, marginBottom: 14, ...f('bold') },
-    dateNav: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    datePill: {
-      backgroundColor: colors.card,
+    attendanceRing: {
+      position: 'absolute',
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+      borderWidth: 22,
+      borderColor: 'rgba(255,255,255,0.3)',
+      right: -50,
+      bottom: -60,
+    },
+    attendanceTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+    tileOverline: { ...typeTokens.overline, color: ink },
+    presentValue: { ...typeTokens.statHero, color: ink },
+    presentSuffix: { fontFamily: brandFont.display800, fontSize: 36, letterSpacing: -0.72, color: category.onCategoryMuted },
+    totalChip: {
+      backgroundColor: 'rgba(255,255,255,0.5)',
+      borderRadius: 18,
+      paddingVertical: 10,
       paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      alignItems: 'flex-end',
     },
-    datePillText: { fontSize: 13, color: colors.textSecondary, ...f('semiBold') },
-    dateDone: {
-      marginTop: 8,
-      paddingVertical: 12,
-      alignItems: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: 14,
-    },
-    dateDoneText: { color: colors.primaryContrast, ...f('semiBold'), fontSize: 16 },
-
-    statsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 12,
-    },
-    statCard: {
-      width: '47%',
-      flexGrow: 1,
-      minWidth: '45%',
-      backgroundColor: colors.card,
-      borderRadius: 18,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      borderTopWidth: 3,
-      shadowColor: '#0f172a',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
-      elevation: 3,
-    },
-    statIconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 10,
-    },
-    statLabel: {
-      fontSize: 10,
-      color: colors.textMuted,
-      letterSpacing: 0.6,
-      ...f('semiBold'),
-    },
-    statValue: { fontSize: 28, color: colors.text, marginTop: 6, ...f('bold') },
-
-    quickGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 12,
-      marginTop: 0,
-    },
-    quickActionBtn: {
-      width: '30%',
-      flexGrow: 1,
-      minWidth: '28%',
-      backgroundColor: colors.card,
-      paddingVertical: 16,
-      paddingHorizontal: 8,
-      borderRadius: 18,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
-    quickIconCircle: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 10,
-    },
-    quickActionLabel: {
+    totalChipLabel: {
+      fontFamily: brandFont.body800,
       fontSize: 12,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      ...f('semiBold'),
+      letterSpacing: 0.72,
+      textTransform: 'uppercase',
+      color: category.onCategoryMuted,
     },
-
-    messageParentsBtn: {
-      flexDirection: 'row',
+    totalChipValue: { fontFamily: brandFont.display800, fontSize: 30, lineHeight: 33, color: ink },
+    presenceDots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    presenceDotAbsent: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 2.5,
+      borderStyle: 'dashed',
+      borderColor: ink,
+      opacity: 0.55,
+    },
+    presenceDotPresent: { width: 34, height: 34, borderRadius: 17, backgroundColor: ink },
+    sectionTitle: { ...typeTokens.section, color: brand.textPrimary, marginTop: 10, marginHorizontal: 4 },
+    quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    quickTile: {
+      width: quickTileWidth,
+      gap: 18,
+      padding: 14,
+      borderRadius: 24,
+      backgroundColor: brand.surface,
+    },
+    quickIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      marginHorizontal: 20,
-      marginTop: 20,
-      paddingVertical: 16,
-      paddingHorizontal: 20,
-      backgroundColor: colors.card,
-      borderRadius: 18,
-      gap: 12,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
     },
-    messageIconCircle: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    messageParentsText: {
-      fontSize: 16,
-      color: colors.text,
-      ...f('medium'),
-    },
-
+    quickLabel: { fontFamily: brandFont.body800, fontSize: 15, color: brand.textPrimary },
+    messageParentsBtn: { marginTop: 6 },
+    empty: { ...typeTokens.body, color: brand.textSecondary, marginHorizontal: 4 },
     studentCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.card,
+      gap: 14,
       padding: 14,
-      borderRadius: 16,
-      marginBottom: 10,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      borderRadius: radius.card,
+      backgroundColor: brand.surface,
     },
-    avatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.avatarBg,
+    studentAvatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
     },
-    avatarText: { fontSize: 16, color: colors.avatarText, ...f('bold') },
-    studentCardContent: { flex: 1 },
-    studentName: { fontSize: 16, color: colors.text, ...f('semiBold') },
-    studentAge: { fontSize: 13, color: colors.textMuted, marginTop: 2, ...f('medium') },
+    studentAvatarText: { fontFamily: brandFont.display800, fontSize: 20, color: ink },
+    studentCardContent: { flex: 1, minWidth: 0, gap: 2 },
+    studentName: { fontFamily: brandFont.display800, fontSize: 18, letterSpacing: -0.36, color: brand.textPrimary },
+    studentAge: { fontFamily: brandFont.body600, fontSize: 14, color: brand.textSecondary },
     presentBadge: {
-      backgroundColor: colors.success,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: radius.pill,
+      backgroundColor: brand.statusPresent,
     },
-    presentBadgeAbsent: { backgroundColor: colors.textMuted },
-    presentBadgeText: { fontSize: 12, color: '#FFFFFF', ...f('semiBold') },
-
-    empty: { color: colors.textMuted, textAlign: 'center', marginTop: 8, ...f('medium') },
+    presentBadgeAbsent: { backgroundColor: brand.surfaceRaised },
+    presentBadgeText: { fontFamily: brandFont.body800, fontSize: 13, color: '#FFFFFF' },
+    presentBadgeTextAbsent: { color: brand.textTertiary },
   });
 }

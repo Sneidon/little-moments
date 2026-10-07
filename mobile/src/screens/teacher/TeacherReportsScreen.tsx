@@ -7,10 +7,8 @@ import {
   ScrollView,
   Platform,
   RefreshControl,
-  ActivityIndicator,
   Alert,
   Image,
-  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -21,18 +19,27 @@ import { getOrCreateChat } from '../../api/chat';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
-import { EmptyState } from '../../components/EmptyState';
-import { font } from '../../theme/typography';
+import { Skeleton } from '../../components/Skeleton';
+import { brandFont } from '../../theme/typography';
 import { getAge, getInitials, formatTime } from '../../utils';
 import {
   type ReportWithExtras,
   getReportTitle,
-  reportIcon,
-  reportIconColor,
   parseTimeWithDate,
   getReportDateStr,
 } from '../../utils/childDailyReportDisplay';
+import { HeaderBlock, Overline } from '../../components/brand/HeaderBlock';
+import { RoundIconButton } from '../../components/brand/RoundIconButton';
+import { PrimaryButton, OutlineButton } from '../../components/brand/Buttons';
+import { StatTile } from '../../components/brand/StatTile';
+import {
+  radius,
+  spacing,
+  type as typeTokens,
+  updateTypeStyle,
+  type BrandPalette,
+  type CategoryPalette,
+} from '../../theme/tokens';
 
 import type { Child } from '../../../../shared/types';
 import type { ClassRoom } from '../../../../shared/types';
@@ -42,6 +49,7 @@ type Props = {
   route: { params: ReportsRouteParams };
   navigation: {
     navigate: (name: 'ReportDetail' | 'AddUpdate' | 'ChatThread', params?: object) => void;
+    goBack: () => void;
   };
 };
 
@@ -81,10 +89,8 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   const { childId } = route.params;
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
-  const { width } = useWindowDimensions();
-  const { colors, isDark } = useTheme();
-  const compact = width < 368;
-  const styles = useMemo(() => createStyles(colors, compact, isDark), [colors, compact, isDark]);
+  const { brand, category } = useTheme();
+  const styles = useMemo(() => createStyles(brand, category), [brand, category]);
   const [child, setChild] = useState<Child | null>(null);
   const [className, setClassName] = useState<string | null>(null);
   const [childLoading, setChildLoading] = useState(true);
@@ -259,6 +265,10 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   if (!schoolId) return null;
 
   const scrollBottom = 24 + Math.max(insets.bottom, 8);
+  const nameParts = child?.name.trim().split(/\s+/) ?? [];
+  const firstName = nameParts[0] ?? '';
+  const restName = nameParts.slice(1).join(' ');
+  const messageDisabled = childLoading || childMissing || messageLoading || !child?.parentIds?.length;
 
   return (
     <View style={styles.screen}>
@@ -269,72 +279,93 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={category.onCategory}
+            colors={[brand.headerBackground]}
           />
         }
         showsVerticalScrollIndicator={false}
       >
-        {childLoading ? (
-          <View style={styles.profileCard}>
-            <SkeletonCircle size={52} />
-            <View style={styles.profileTextCol}>
-              <Skeleton width="72%" height={20} borderRadius={8} style={{ marginBottom: 10 }} />
-              <Skeleton width="48%" height={14} borderRadius={6} />
-            </View>
-          </View>
-        ) : childMissing || !child ? (
-          <View style={styles.profileCard}>
-            <View style={[styles.profileAvatar, styles.profileAvatarMuted]}>
-              <Ionicons name="person-outline" size={26} color={colors.textMuted} />
-            </View>
-            <View style={styles.profileTextCol}>
-              <Text style={styles.profileName}>Child not found</Text>
-              <Text style={styles.profileMeta}>This student may have been removed.</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.profileCard}>
-            {child.photoURL ? (
-              <Image source={{ uri: child.photoURL }} style={styles.profileAvatarImg} />
-            ) : (
-              <View style={styles.profileAvatar}>
-                <Text style={styles.profileAvatarText}>{getInitials(child.name)}</Text>
-              </View>
-            )}
-            <View style={styles.profileTextCol}>
-              <Text style={styles.profileName} numberOfLines={1}>
-                {child.name}
-              </Text>
-              <Text style={styles.profileMeta} numberOfLines={1}>
-                {getAge(child.dateOfBirth)}
-                {className ? ` · ${className}` : ''}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.dateBar}>
-          <TouchableOpacity onPress={prevDay} style={styles.dateArrow}>
-            <Ionicons name="chevron-back" size={24} color={colors.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.dateCenter}
-            onPress={() => setShowDatePicker(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
-            <Text style={styles.dateText}>{displayDate}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={nextDay} style={styles.dateArrow} disabled={isToday}>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={colors.textMuted}
-              style={{ opacity: isToday ? 0.28 : 1 }}
+        <HeaderBlock variant="category" color={category.nap} paddingBottom={26} gap={22}>
+          <View style={styles.headerTopRow}>
+            <RoundIconButton
+              icon="chevron-back"
+              variant="onHeaderLight"
+              accessibilityLabel="Back"
+              onPress={() => navigation.goBack()}
             />
-          </TouchableOpacity>
-        </View>
+            <Overline color={category.onCategory}>Daily report</Overline>
+          </View>
+
+          {childLoading ? (
+            <View style={styles.profileRow}>
+              <Skeleton width={88} height={88} borderRadius={30} />
+              <View style={styles.profileTextCol}>
+                <Skeleton width="72%" height={30} borderRadius={8} style={{ marginBottom: 10 }} />
+                <Skeleton width="48%" height={14} borderRadius={6} />
+              </View>
+            </View>
+          ) : childMissing || !child ? (
+            <View style={styles.profileRow}>
+              <View style={styles.profileAvatar}>
+                <Ionicons name="person-outline" size={34} color={category.onCategory} />
+              </View>
+              <View style={styles.profileTextCol}>
+                <Text style={styles.profileName} accessibilityRole="header">
+                  Child not found
+                </Text>
+                <Text style={styles.profileMeta}>This student may have been removed.</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.profileRow}>
+              {child.photoURL ? (
+                <Image source={{ uri: child.photoURL }} style={styles.profileAvatar} />
+              ) : (
+                <View style={styles.profileAvatar}>
+                  <Text style={styles.profileAvatarText}>{getInitials(child.name)}</Text>
+                </View>
+              )}
+              <View style={styles.profileTextCol}>
+                <Text style={styles.profileName} accessibilityRole="header" accessibilityLabel={child.name}>
+                  {firstName}
+                  {restName ? `\n${restName}` : ''}
+                </Text>
+                <Text style={styles.profileMeta} numberOfLines={1}>
+                  {getAge(child.dateOfBirth)}
+                  {className ? ` · ${className}` : ''}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.datePill} accessibilityLabel="Choose day">
+            <RoundIconButton
+              icon="chevron-back"
+              variant="raised"
+              size={44}
+              accessibilityLabel="Previous day"
+              onPress={prevDay}
+            />
+            <TouchableOpacity
+              style={styles.dateCenter}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${displayDate}. Choose a date`}
+            >
+              <Ionicons name="calendar-outline" size={18} color={brand.textPrimary} />
+              <Text style={styles.dateText}>{displayDate}</Text>
+            </TouchableOpacity>
+            <RoundIconButton
+              icon="chevron-forward"
+              variant={isToday ? 'ghost' : 'raised'}
+              size={44}
+              accessibilityLabel="Next day"
+              onPress={nextDay}
+              disabled={isToday}
+            />
+          </View>
+        </HeaderBlock>
 
         {showDatePicker && (
           <>
@@ -349,6 +380,7 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 style={styles.datePickerDone}
                 onPress={() => setShowDatePicker(false)}
+                accessibilityRole="button"
               >
                 <Text style={styles.datePickerDoneText}>Done</Text>
               </TouchableOpacity>
@@ -356,129 +388,76 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
           </>
         )}
 
-        <View style={styles.overviewSection}>
+        <View style={styles.body}>
+          <View style={styles.actionRow}>
+            <PrimaryButton
+              label="Add update"
+              icon="add"
+              style={styles.actionBtn}
+              onPress={() => navigation.navigate('AddUpdate', { initialChildId: childId })}
+              disabled={childLoading || childMissing}
+            />
+            <OutlineButton
+              label="Message parents"
+              icon="chatbubble-outline"
+              style={styles.actionBtn}
+              onPress={onMessageParents}
+              disabled={messageDisabled}
+              loading={messageLoading}
+            />
+          </View>
+
           {childLoading ? (
-            <Skeleton width={160} height={20} borderRadius={8} style={{ marginBottom: 12 }} />
+            <Skeleton width={180} height={24} borderRadius={8} style={styles.sectionTitleSkeleton} />
           ) : (
-            <Text style={styles.overviewTitle}>{"Today's overview"}</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              {"Today's overview"}
+            </Text>
           )}
           {childLoading ? (
-            <View style={styles.summaryRow}>
-              {[0, 1, 2, 3].map((i) => (
-                <View key={i} style={[styles.summaryCard, styles.summarySkeletonCard]}>
-                  <Skeleton width={compact ? 24 : 30} height={compact ? 18 : 22} borderRadius={6} />
-                  <Skeleton width={compact ? 36 : 44} height={10} borderRadius={4} style={{ marginTop: 8 }} />
+            <View style={styles.grid}>
+              {[0, 1].map((row) => (
+                <View key={row} style={styles.gridRow}>
+                  <Skeleton height={130} borderRadius={radius.card} style={{ flex: 1 }} />
+                  <Skeleton height={130} borderRadius={radius.card} style={{ flex: 1 }} />
                 </View>
               ))}
             </View>
           ) : childMissing ? (
             <Text style={styles.unavailableHint}>Overview unavailable</Text>
           ) : (
-            <View style={styles.summaryRow}>
-              <View style={[styles.summaryCard, styles.summaryMeals]}>
-                <Text style={[styles.summaryValue, styles.summaryMealsValue]}>{meals}/3</Text>
-                <Text style={styles.summaryLabel}>Meals</Text>
+            <View style={styles.grid}>
+              <View style={styles.gridRow}>
+                <StatTile label="Meals" value={meals} suffix="/3" icon="restaurant-outline" color={category.meal} />
+                <StatTile label="Nap" value={napDuration} icon="moon-outline" color={category.napStat} />
               </View>
-              <View style={[styles.summaryCard, styles.summaryNap]}>
-                <Text style={[styles.summaryValue, styles.summaryNapValue]}>{napDuration}</Text>
-                <Text style={styles.summaryLabel}>Nap</Text>
-              </View>
-              <View style={[styles.summaryCard, styles.summaryNappy]}>
-                <Text style={[styles.summaryValue, styles.summaryNappyValue]}>{nappy}</Text>
-                <Text style={styles.summaryLabel}>Nappy</Text>
-              </View>
-              <View style={[styles.summaryCard, styles.summaryActivities]}>
-                <Text style={[styles.summaryValue, styles.summaryActivitiesValue]}>{activities}</Text>
-                <Text style={styles.summaryLabel}>Activities</Text>
+              <View style={styles.gridRow}>
+                <StatTile label="Nappy" value={nappy} icon="water-outline" color={category.attendance} />
+                <StatTile
+                  label="Activities"
+                  value={activities}
+                  icon="color-palette-outline"
+                  color={category.activity}
+                />
               </View>
             </View>
           )}
-        </View>
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[
-              styles.actionBtnOutline,
-              (childLoading ||
-                childMissing ||
-                !child?.parentIds?.length ||
-                messageLoading) &&
-                styles.actionBtnDisabled,
-            ]}
-            onPress={onMessageParents}
-            disabled={
-              childLoading || childMissing || messageLoading || !child?.parentIds?.length
-            }
-            activeOpacity={0.75}
-          >
-            {messageLoading ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <>
-                <Ionicons
-                  name="chatbubble-outline"
-                  size={20}
-                  color={
-                    childLoading || childMissing || !child?.parentIds?.length
-                      ? colors.textMuted
-                      : colors.primary
-                  }
-                />
-                <Text
-                  style={[
-                    styles.actionBtnOutlineText,
-                    (childLoading || childMissing || !child?.parentIds?.length) && {
-                      color: colors.textMuted,
-                    },
-                  ]}
-                  numberOfLines={2}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.85}
-                >
-                  Message parents
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              styles.actionBtnPrimary,
-              (childLoading || childMissing) && styles.actionBtnDisabledSolid,
-            ]}
-            onPress={() => navigation.navigate('AddUpdate', { initialChildId: childId })}
-            disabled={childLoading || childMissing}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add-circle" size={24} color={colors.primaryContrast} />
-            <Text
-              style={[styles.actionBtnText, styles.actionBtnPrimaryText]}
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
-            >
-              Add update
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
           {childLoading ? (
-            <Skeleton width={200} height={20} borderRadius={8} style={{ marginBottom: 14 }} />
+            <Skeleton width={200} height={24} borderRadius={8} style={styles.sectionTitleSkeleton} />
           ) : (
-            <Text style={styles.sectionTitle}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
               {isToday ? "Today's Updates" : `Updates · ${displayDate}`}
             </Text>
           )}
           {childLoading ? (
-            <View>
+            <View style={styles.timelineList}>
               {[0, 1, 2].map((i) => (
                 <View key={i} style={styles.timelineCard}>
-                  <Skeleton width={44} height={44} borderRadius={12} />
+                  <Skeleton width={48} height={48} borderRadius={16} />
                   <View style={styles.timelineSkeletonCol}>
-                    <Skeleton width={52} height={12} borderRadius={4} />
-                    <Skeleton width="85%" height={16} borderRadius={6} style={{ marginTop: 10 }} />
-                    <Skeleton width="70%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
+                    <Skeleton width="85%" height={16} borderRadius={6} />
+                    <Skeleton width="50%" height={13} borderRadius={6} style={{ marginTop: 8 }} />
                   </View>
                 </View>
               ))}
@@ -486,52 +465,56 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
           ) : childMissing ? (
             <Text style={styles.unavailableHint}>No updates to show.</Text>
           ) : sortedDayReports.length === 0 ? (
-            <EmptyState
-              icon="create-outline"
-              title="No updates for this day"
-              subtitle="Log meals, naps, nappy changes, or activities so parents stay in the loop."
-            />
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyShapes} importantForAccessibility="no-hide-descendants">
+                <View style={[styles.emptyShapeA, { backgroundColor: category.meal }]} />
+                <View style={[styles.emptyShapeB, { backgroundColor: category.nap }]}>
+                  <Ionicons name="create-outline" size={22} color={category.onCategory} />
+                </View>
+                <View style={[styles.emptyShapeC, { backgroundColor: category.attendance }]} />
+              </View>
+              <Text style={styles.emptyTitle}>No updates for this day</Text>
+              <Text style={styles.emptyBody}>
+                Log meals, naps, nappy changes, or activities so parents stay in the loop.
+              </Text>
+            </View>
           ) : (
-            sortedDayReports.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.timelineCard}
-                onPress={() =>
-                  schoolId &&
-                  navigation.navigate('ReportDetail', {
-                    schoolId,
-                    childId,
-                    reportId: item.id,
-                  })
-                }
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={`View details: ${getTimelineTitle(item)}`}
-              >
-                <View
-                  style={[
-                    styles.timelineIconWrap,
-                    { backgroundColor: reportIconColor(item.type) + (isDark ? '35' : '22') },
-                  ]}
-                >
-                  <Ionicons
-                    name={reportIcon(item.type)}
-                    size={20}
-                    color={reportIconColor(item.type)}
-                  />
-                </View>
-                <View style={styles.timelineContent}>
-                  <Ionicons style={styles.timelineChevron} name="chevron-forward" size={18} color={colors.textMuted} />
-                  <Text style={styles.timelineTitle}>{getTimelineTitle(item)}</Text>
-                  {item.notes ? (
-                    <Text style={styles.timelineNotes} numberOfLines={2}>
-                      {item.notes}
-                    </Text>
-                  ) : null}
-                  <Text style={styles.timelineTime}>{formatTime(item.timestamp || item.createdAt)}</Text>
-                </View>
-              </TouchableOpacity>
-            ))
+            <View style={styles.timelineList}>
+              {sortedDayReports.map((item) => {
+                const typeStyle = updateTypeStyle(item.type);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.timelineCard}
+                    onPress={() =>
+                      schoolId &&
+                      navigation.navigate('ReportDetail', {
+                        schoolId,
+                        childId,
+                        reportId: item.id,
+                      })
+                    }
+                    activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View details: ${getTimelineTitle(item)}`}
+                  >
+                    <View style={[styles.timelineIconWrap, { backgroundColor: category[typeStyle.category] }]}>
+                      <Ionicons name={typeStyle.icon} size={22} color={category.onCategory} />
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineTitle}>{getTimelineTitle(item)}</Text>
+                      {item.notes ? (
+                        <Text style={styles.timelineNotes} numberOfLines={2}>
+                          {item.notes}
+                        </Text>
+                      ) : null}
+                      <Text style={styles.timelineTime}>{formatTime(item.timestamp || item.createdAt)}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={brand.textTertiary} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -539,296 +522,123 @@ export function TeacherReportsScreen({ route, navigation }: Props) {
   );
 }
 
-function createStyles(
-  colors: import('../../theme/colors').ColorPalette,
-  compact: boolean,
-  isDark: boolean
-) {
+function createStyles(brand: BrandPalette, category: CategoryPalette) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-    profileCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      marginHorizontal: 16,
-      marginTop: 16,
-      padding: 14,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
+    screen: { flex: 1, backgroundColor: brand.background },
+    container: { flex: 1, backgroundColor: brand.background },
+    headerTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    profileRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
     profileAvatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor: colors.avatarBg,
+      width: 88,
+      height: 88,
+      borderRadius: 30,
+      backgroundColor: 'rgba(255,255,255,0.8)',
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    profileAvatarMuted: {
-      backgroundColor: colors.backgroundSecondary,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
-    profileAvatarImg: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      transform: [{ rotate: '-4deg' }],
     },
     profileAvatarText: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      fontWeight: '700',
-      color: colors.avatarText,
+      fontFamily: brandFont.display800,
+      fontSize: 34,
+      letterSpacing: -1,
+      color: category.onCategory,
     },
-    profileTextCol: { marginLeft: 14, flex: 1, minWidth: 0 },
-    profileName: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    profileMeta: {
-      fontSize: 14,
-      fontFamily: font.regular,
-      color: colors.textSecondary,
-      marginTop: 4,
-    },
-
-    dateBar: {
+    profileTextCol: { flex: 1, minWidth: 0, gap: 6 },
+    profileName: { ...typeTokens.nameL, color: category.onCategory },
+    profileMeta: { fontFamily: brandFont.body700, fontSize: 14, color: '#33295A' },
+    datePill: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.card,
-      marginHorizontal: 16,
-      marginTop: 16,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      backgroundColor: brand.surface,
+      borderRadius: radius.pill,
+      padding: 4,
     },
-    dateArrow: { padding: 4 },
-    dateCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    dateText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+    dateCenter: {
+      flex: 1,
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    dateText: { fontFamily: brandFont.body800, fontSize: 16, color: brand.textPrimary },
     datePickerDone: {
+      alignSelf: 'flex-end',
+      marginRight: spacing.screenX,
       marginTop: 8,
-      paddingVertical: 10,
-      alignItems: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-      marginHorizontal: 16,
-    },
-    datePickerDoneText: {
-      color: colors.primaryContrast,
-      fontWeight: '600',
-      fontSize: 16,
-      fontFamily: font.semiBold,
-    },
-
-    overviewSection: {
-      marginTop: 22,
+      minHeight: 44,
       paddingHorizontal: 16,
-    },
-    overviewTitle: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      fontWeight: '700',
-      color: colors.textSecondary,
-      marginBottom: 12,
-      letterSpacing: -0.2,
-    },
-    summaryRow: {
-      flexDirection: 'row',
-      gap: compact ? 6 : 10,
-      alignItems: 'stretch',
-    },
-    summaryCard: {
-      flex: 1,
-      minWidth: 0,
-      backgroundColor: colors.card,
-      paddingVertical: compact ? 10 : 14,
-      paddingHorizontal: compact ? 4 : 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      alignItems: 'center',
-      ...(isDark
-        ? {}
-        : {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.04,
-            shadowRadius: 3,
-            elevation: 1,
-          }),
-    },
-    summaryValue: {
-      fontSize: compact ? 18 : 22,
-      fontFamily: font.bold,
-      fontWeight: '800',
-      color: colors.textSecondary,
-    },
-    summaryLabel: {
-      fontSize: compact ? 10 : 11,
-      fontFamily: font.medium,
-      color: colors.textMuted,
-      marginTop: 4,
-      textAlign: 'center',
-    },
-    summaryMeals: {},
-    summaryMealsValue: { color: colors.warning },
-    summaryNap: {},
-    summaryNapValue: { color: '#7c3aed' },
-    summaryNappy: {},
-    summaryNappyValue: { color: '#0d9488' },
-    summaryActivities: {},
-    summaryActivitiesValue: { color: '#2563eb' },
-    summarySkeletonCard: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: compact ? 68 : 76,
-    },
-    unavailableHint: {
-      fontSize: 14,
-      fontFamily: font.regular,
-      color: colors.textMuted,
-      textAlign: 'center',
-      paddingVertical: 20,
-    },
-    timelineSkeletonCol: {
-      flex: 1,
-      marginLeft: 12,
-      minWidth: 0,
       justifyContent: 'center',
     },
-
-    actionRow: {
-      flexDirection: 'row',
-      gap: 12,
-      marginHorizontal: 16,
-      marginTop: 20,
-    },
-    actionBtnOutline: {
-      flex: 1,
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      minWidth: 0,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 14,
-      backgroundColor: colors.card,
-      borderWidth: 2,
-      borderColor: colors.primary,
-    },
-    actionBtnDisabled: {
-      borderColor: colors.border,
-      opacity: 0.85,
-    },
-    actionBtnOutlineText: {
-      fontSize: 14,
-      fontFamily: font.semiBold,
-      fontWeight: '600',
-      color: colors.primary,
-      textAlign: 'center',
-      width: '100%',
-    },
-    actionBtn: {
-      flex: 1,
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      minWidth: 0,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 14,
-      borderWidth: 2,
-      borderColor: colors.primary,
-    },
-    actionBtnPrimary: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-      ...(isDark
-        ? {}
-        : {
-            shadowColor: colors.primary,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.25,
-            shadowRadius: 8,
-            elevation: 4,
-          }),
-    },
-    actionBtnDisabledSolid: {
-      opacity: 0.45,
-    },
-    actionBtnText: {
-      fontSize: 14,
-      fontFamily: font.semiBold,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      textAlign: 'center',
-      width: '100%',
-    },
-    actionBtnPrimaryText: { color: colors.primaryContrast, fontFamily: font.semiBold },
-
-    section: { marginTop: 28, paddingHorizontal: 16, paddingBottom: 8 },
-    sectionTitle: {
-      fontSize: 18,
-      fontFamily: font.bold,
-      fontWeight: '700',
-      color: colors.textSecondary,
-      marginBottom: 14,
-      letterSpacing: -0.2,
-    },
+    datePickerDoneText: { fontFamily: brandFont.body800, fontSize: 16, color: brand.textPrimary },
+    body: { padding: spacing.screenX, gap: spacing.gapM },
+    actionRow: { flexDirection: 'row', gap: 10 },
+    actionBtn: { flex: 1 },
+    sectionTitle: { ...typeTokens.section, color: brand.textPrimary, marginTop: 10, marginHorizontal: 4 },
+    sectionTitleSkeleton: { marginTop: 10, marginHorizontal: 4 },
+    grid: { gap: 12 },
+    gridRow: { flexDirection: 'row', gap: 12 },
+    unavailableHint: { ...typeTokens.body, color: brand.textSecondary, marginHorizontal: 4 },
+    timelineList: { gap: 10 },
     timelineCard: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      backgroundColor: colors.card,
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: brand.surface,
+      borderRadius: radius.card,
       padding: 14,
-      borderRadius: 14,
-      marginBottom: 10,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
     },
     timelineIconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
+      width: 48,
+      height: 48,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
     },
-    timelineContent: { flex: 1, minWidth: 0, position: 'relative', paddingRight: 22 },
-    timelineChevron: {
+    timelineSkeletonCol: { flex: 1, minWidth: 0 },
+    timelineContent: { flex: 1, minWidth: 0, gap: 3 },
+    timelineTitle: { fontFamily: brandFont.body800, fontSize: 15, color: brand.textPrimary },
+    timelineNotes: { fontFamily: brandFont.body500, fontSize: 14, lineHeight: 20, color: brand.textSecondary },
+    timelineTime: { fontFamily: brandFont.body700, fontSize: 13, color: brand.textTertiary },
+    emptyCard: {
+      backgroundColor: brand.surface,
+      borderRadius: radius.card,
+      paddingVertical: 28,
+      paddingHorizontal: 24,
+      alignItems: 'center',
+      gap: 10,
+    },
+    emptyShapes: { width: 120, height: 64, marginBottom: 6 },
+    emptyShapeA: {
       position: 'absolute',
+      left: 0,
+      top: 8,
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      transform: [{ rotate: '-10deg' }],
+    },
+    emptyShapeB: {
+      position: 'absolute',
+      left: 36,
       top: 0,
-      right: 0,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    timelineTime: {
-      fontSize: 12,
-      fontFamily: font.medium,
-      color: colors.textMuted,
-      marginTop: 6,
+    emptyShapeC: {
+      position: 'absolute',
+      left: 72,
+      top: 14,
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      transform: [{ rotate: '12deg' }],
     },
-    timelineTitle: {
-      fontSize: 16,
-      fontFamily: font.semiBold,
-      fontWeight: '600',
-      color: colors.text,
-      marginTop: 0,
-    },
-    timelineNotes: {
-      fontSize: 14,
-      fontFamily: font.regular,
-      color: colors.textSecondary,
-      marginTop: 8,
-      lineHeight: 20,
-    },
+    emptyTitle: { fontFamily: brandFont.display800, fontSize: 22, letterSpacing: -0.44, color: brand.textPrimary, textAlign: 'center' },
+    emptyBody: { ...typeTokens.body, color: brand.textSecondary, textAlign: 'center', maxWidth: 280 },
   });
 }

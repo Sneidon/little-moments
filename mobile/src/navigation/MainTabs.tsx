@@ -42,6 +42,7 @@ import { AddUpdateScreen } from '../screens/teacher/AddUpdateScreen';
 import { ReportDetailScreen } from '../screens/shared/ReportDetailScreen';
 import { UserNotificationsScreen } from '../screens/shared/UserNotificationsScreen';
 import { NotificationBellButton } from '../components/NotificationBellButton';
+import { FloatingTabBar } from '../components/brand/FloatingTabBar';
 import { useUnreadMessageCount } from '../hooks/useUnreadMessageCount';
 import { formatTabBadgeCount } from '../utils/chatUnread';
 
@@ -130,6 +131,7 @@ function TeacherTabs() {
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={({ navigation }) => ({
         headerShown: false,
         headerStyle: {
@@ -159,7 +161,8 @@ function TeacherTabs() {
         name="Dashboard"
         component={TeacherHomeScreen}
         options={{
-          headerShown: true,
+          // Header is drawn in-screen (HeaderBlock).
+          headerShown: false,
           title: 'Dashboard',
           tabBarIcon: tabBarIconPair('grid-outline', 'grid'),
         }}
@@ -168,7 +171,7 @@ function TeacherTabs() {
         name="Students"
         component={TeacherStudentsScreen}
         options={{
-          headerShown: true,
+          headerShown: false,
           title: 'Students',
           tabBarIcon: tabBarIconPair('school-outline', 'school'),
         }}
@@ -291,7 +294,11 @@ export function MainTabs({ role }: { role: UserRole }) {
         component={role === 'teacher' ? TeacherTabs : shouldGateParent ? ParentPendingApprovalScreen : ParentTabs}
         options={{ headerShown: false }}
       />
-      <RootStack.Screen name="Reports" component={TeacherReportsScreen} options={{ title: 'Daily report' }} />
+      <RootStack.Screen
+        name="Reports"
+        component={TeacherReportsScreen}
+        options={{ title: 'Daily report', headerShown: false }}
+      />
       <RootStack.Screen
         name="ReportDetail"
         component={ReportDetailScreen}
@@ -300,7 +307,7 @@ export function MainTabs({ role }: { role: UserRole }) {
       <RootStack.Screen
         name="AddUpdate"
         component={AddUpdateScreen as React.ComponentType<Record<string, unknown>>}
-        options={{ title: 'Add Update' }}
+        options={{ title: 'Add Update', headerShown: false }}
       />
       <RootStack.Screen name="Announcements" component={AnnouncementsScreen} options={{ title: 'Announcements' }} />
       <RootStack.Screen name="Events" component={EventsScreen} options={{ title: 'Events' }} />

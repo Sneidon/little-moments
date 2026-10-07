@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,13 +10,18 @@ import { auth, db } from '../../config/firebase';
 import type { RootStackParamList } from '../../navigation/MainTabs';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { font } from '../../theme/typography';
+import { brandFont } from '../../theme/typography';
+import { themeSubtitle } from '../../components/SettingsSection';
+import { HeaderBlock, Overline } from '../../components/brand/HeaderBlock';
 import {
-  SettingsIconBox,
-  themeSubtitle,
-  themePickerLabel,
-  settingsCardShadow,
-} from '../../components/SettingsSection';
+  NATIVE_TAB_BAR_CLEARANCE_IOS,
+  radius,
+  spacing,
+  type as typeTokens,
+  type BrandPalette,
+  type CategoryPalette,
+} from '../../theme/tokens';
+import type { ThemeMode } from '../../context/ThemeContext';
 import { getInitials, formatSettingsVersionFooter } from '../../utils';
 import { getMobileEligibleRoles } from '../../utils/roles';
 import type { ClassRoom } from '../../../../shared/types';
@@ -26,9 +31,8 @@ export function TeacherSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { profile, setSessionPortalRole } = useAuth();
-  const { colors, isDark, themeMode, setThemeMode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const cardShadow = useMemo(() => settingsCardShadow(isDark), [isDark]);
+  const { brand, category, themeMode, setThemeMode } = useTheme();
+  const styles = useMemo(() => createStyles(brand, category), [brand, category]);
   const canSwitchPortal = getMobileEligibleRoles(profile).length > 1;
 
   const [className, setClassName] = useState<string | null>(null);
@@ -71,15 +75,6 @@ export function TeacherSettingsScreen() {
     };
   }, [profile?.schoolId, profile?.uid]);
 
-  const openThemePicker = useCallback(() => {
-    Alert.alert('Theme', 'Choose appearance', [
-      { text: 'Light', onPress: () => setThemeMode('light') },
-      { text: 'Dark', onPress: () => setThemeMode('dark') },
-      { text: 'System', onPress: () => setThemeMode('system') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }, [setThemeMode]);
-
   const handleSignOut = useCallback(() => {
     Alert.alert('Sign out?', 'You will need to sign in again.', [
       { text: 'Cancel', style: 'cancel' },
@@ -99,288 +94,266 @@ export function TeacherSettingsScreen() {
   const photoURL = profile?.photoURL;
   const initials = getInitials(displayName);
 
-  const bottomPad = Math.max(insets.bottom, 24);
+  const tabBarClearance = Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24;
+
+  const themeOptions: { mode: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+    { mode: 'light', label: 'Light', icon: 'sunny-outline' },
+    { mode: 'dark', label: 'Dark', icon: 'moon-outline' },
+    { mode: 'system', label: 'System', icon: 'phone-portrait-outline' },
+  ];
+
+  const row = (opts: {
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    tile: string;
+    title: string;
+    subtitle?: string;
+    onPress?: () => void;
+    chevron?: boolean;
+    danger?: boolean;
+  }) => {
+    const content = (
+      <>
+        <View style={[styles.iconTile, { backgroundColor: opts.tile }]}>
+          <Ionicons name={opts.icon} size={20} color={category.onCategory} />
+        </View>
+        <View style={styles.rowText}>
+          <Text style={styles.rowTitle} numberOfLines={2}>
+            {opts.title}
+          </Text>
+          {opts.subtitle ? <Text style={styles.rowSubtitle}>{opts.subtitle}</Text> : null}
+        </View>
+        {opts.chevron ? <Ionicons name="chevron-forward" size={20} color={brand.textTertiary} /> : null}
+      </>
+    );
+    return opts.onPress ? (
+      <TouchableOpacity
+        style={styles.row}
+        onPress={opts.onPress}
+        activeOpacity={0.75}
+        accessibilityRole="button"
+        accessibilityLabel={opts.title}
+      >
+        {content}
+      </TouchableOpacity>
+    ) : (
+      <View style={styles.row}>{content}</View>
+    );
+  };
 
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
+      contentContainerStyle={{ paddingBottom: tabBarClearance }}
       showsVerticalScrollIndicator={false}
     >
-      <TouchableOpacity
-        style={[styles.profileCard, cardShadow]}
-        onPress={onProfilePress}
-        activeOpacity={0.92}
-        accessibilityRole="button"
-        accessibilityLabel="Profile information"
-      >
-        <View style={styles.avatarWrap}>
+      <HeaderBlock paddingBottom={30} gap={18}>
+        <Overline>Profile</Overline>
+        <TouchableOpacity
+          style={styles.profileRow}
+          onPress={onProfilePress}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`${displayName}, ${email}. Profile information`}
+        >
           {photoURL ? (
-            <Image source={{ uri: photoURL }} style={styles.avatarImg} />
+            <Image source={{ uri: photoURL }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primaryMuted }]}>
-              <Text style={[styles.avatarInitials, { color: colors.primary }]}>{initials}</Text>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
           )}
-        </View>
-        <Text style={styles.profileName}>{displayName}</Text>
-        <Text style={styles.profileEmail}>{email}</Text>
-        {className ? (
-          <View style={[styles.classBadge, { backgroundColor: colors.primaryMuted }]}>
-            <Text style={[styles.classBadgeText, { color: colors.primary }]} numberOfLines={1}>
-              CLASS: {className.toUpperCase()}
+          <View style={styles.profileText}>
+            <Text style={styles.profileName} numberOfLines={2}>
+              {displayName}
             </Text>
-          </View>
-        ) : null}
-      </TouchableOpacity>
-
-      <Text style={styles.sectionLabel}>Appearance</Text>
-      <View style={[styles.groupCard, cardShadow]}>
-        <TouchableOpacity style={styles.row} onPress={openThemePicker} activeOpacity={0.75}>
-          <SettingsIconBox name="contrast-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Theme</Text>
-            <Text style={styles.rowSubtitle}>{themeSubtitle(themeMode)}</Text>
-          </View>
-          <View style={[styles.themePill, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}>
-            <Text style={[styles.themePillText, { color: colors.text }]}>{themePickerLabel(themeMode)}</Text>
-            <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.sectionLabel}>Notifications</Text>
-      <View style={[styles.groupCard, cardShadow]}>
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => navigation.navigate('TeacherNotificationSettings')}
-          activeOpacity={0.75}
-        >
-          <SettingsIconBox name="notifications-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
-          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Notification settings</Text>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.sectionLabel}>Support</Text>
-      <View style={[styles.groupCard, cardShadow]}>
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() =>
-            Alert.alert('FAQ', 'Not implemented yet.')
-          }
-          activeOpacity={0.75}
-        >
-          <SettingsIconBox name="help-circle-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
-          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>FAQ</Text>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-        <View style={[styles.hairline, { backgroundColor: colors.cardBorder }]} />
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() =>
-            Alert.alert('Contact support', 'Not implemented yet.')
-          }
-          activeOpacity={0.75}
-        >
-          <SettingsIconBox name="headset-outline" backgroundColor={colors.primaryMuted} iconColor={colors.primary} />
-          <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Contact support</Text>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      {profile?.schoolId ? (
-        <>
-          <Text style={styles.sectionLabel}>School</Text>
-          {schoolLoading ? (
-            <View style={[styles.groupCard, cardShadow]}>
-              <View style={styles.cardBody}>
-                <Text style={[styles.rowSubtitle, { color: colors.textMuted, marginTop: 0 }]}>Loading…</Text>
-              </View>
-            </View>
-          ) : school ? (
-            <View style={[styles.groupCard, cardShadow]}>
-              <View style={styles.row}>
-                <SettingsIconBox
-                  name="business-outline"
-                  backgroundColor={colors.accentTealSoft}
-                  iconColor={colors.accentTeal}
-                />
-                <Text style={[styles.rowTitle, styles.rowTitleFlex]} numberOfLines={2}>
-                  {school.name}
+            <Text style={styles.profileEmail} numberOfLines={1}>
+              {email}
+            </Text>
+            {className ? (
+              <View style={styles.classChip}>
+                <Ionicons name="school-outline" size={14} color={category.onCategory} />
+                <Text style={styles.classChipText} numberOfLines={1}>
+                  {className}
                 </Text>
               </View>
-            </View>
-          ) : (
-            <View style={[styles.groupCard, cardShadow]}>
-              <View style={styles.cardBody}>
-                <Text style={[styles.rowSubtitle, { color: colors.textMuted, marginTop: 0 }]}>
-                  Couldn&apos;t load school.
-                </Text>
-              </View>
-            </View>
-          )}
-        </>
-      ) : null}
-
-      <Text style={styles.sectionLabel}>Account</Text>
-      <View style={[styles.groupCard, cardShadow]}>
-        {canSwitchPortal ? (
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => setSessionPortalRole(null)}
-            activeOpacity={0.75}
-          >
-            <SettingsIconBox name="swap-horizontal-outline" backgroundColor={colors.accentTealSoft} iconColor={colors.accentTeal} />
-            <Text style={[styles.rowTitle, styles.rowTitleFlex]}>Switch portal</Text>
-          </TouchableOpacity>
-        ) : null}
-        <TouchableOpacity style={styles.row} onPress={handleSignOut} activeOpacity={0.75}>
-          <SettingsIconBox name="log-out-outline" backgroundColor={colors.dangerMuted} iconColor={colors.danger} />
-          <Text style={[styles.rowTitle, styles.rowTitleFlex, { color: colors.danger }]}>Sign out</Text>
+            ) : null}
+          </View>
         </TouchableOpacity>
-      </View>
+      </HeaderBlock>
 
-      <Text style={styles.versionText}>{formatSettingsVersionFooter()}</Text>
+      <View style={styles.body}>
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          Appearance
+        </Text>
+        <View style={styles.card}>
+          <View style={styles.themeHead}>
+            <View style={[styles.iconTile, { backgroundColor: category.nap }]}>
+              <Ionicons name="contrast-outline" size={20} color={category.onCategory} />
+            </View>
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle}>Theme</Text>
+              <Text style={styles.rowSubtitle}>{themeSubtitle(themeMode)}</Text>
+            </View>
+          </View>
+          <View style={styles.themeRow} accessibilityRole="radiogroup">
+            {themeOptions.map((opt) => {
+              const active = themeMode === opt.mode;
+              return (
+                <TouchableOpacity
+                  key={opt.mode}
+                  style={[styles.themeOption, active && styles.themeOptionActive]}
+                  onPress={() => setThemeMode(opt.mode)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
+                  accessibilityLabel={`${opt.label} theme`}
+                >
+                  <Ionicons name={opt.icon} size={18} color={active ? brand.onInverse : brand.textSecondary} />
+                  <Text style={[styles.themeOptionText, active && styles.themeOptionTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          Notifications
+        </Text>
+        <View style={styles.card}>
+          {row({
+            icon: 'notifications-outline',
+            tile: category.activity,
+            title: 'Notification settings',
+            chevron: true,
+            onPress: () => navigation.navigate('TeacherNotificationSettings'),
+          })}
+        </View>
+
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          Support
+        </Text>
+        <View style={styles.card}>
+          {row({
+            icon: 'help-circle-outline',
+            tile: category.checkOut,
+            title: 'FAQ',
+            chevron: true,
+            onPress: () => Alert.alert('FAQ', 'Not implemented yet.'),
+          })}
+          <View style={styles.divider} />
+          {row({
+            icon: 'headset-outline',
+            tile: category.nappy,
+            title: 'Contact support',
+            chevron: true,
+            onPress: () => Alert.alert('Contact support', 'Not implemented yet.'),
+          })}
+        </View>
+
+        {profile?.schoolId ? (
+          <>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              School
+            </Text>
+            <View style={styles.card}>
+              {schoolLoading ? (
+                <Text style={styles.cardNote}>Loading…</Text>
+              ) : school ? (
+                row({ icon: 'business-outline', tile: category.attendance, title: school.name })
+              ) : (
+                <Text style={styles.cardNote}>Couldn&apos;t load school.</Text>
+              )}
+            </View>
+          </>
+        ) : null}
+
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          Account
+        </Text>
+        <View style={styles.card}>
+          {canSwitchPortal ? (
+            <>
+              {row({
+                icon: 'swap-horizontal-outline',
+                tile: category.media,
+                title: 'Switch portal',
+                onPress: () => setSessionPortalRole(null),
+              })}
+              <View style={styles.divider} />
+            </>
+          ) : null}
+          {row({
+            icon: 'log-out-outline',
+            tile: category.photo,
+            title: 'Sign out',
+            onPress: handleSignOut,
+          })}
+        </View>
+
+        <Text style={styles.versionText}>{formatSettingsVersionFooter()}</Text>
+      </View>
     </ScrollView>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
+function createStyles(brand: BrandPalette, category: CategoryPalette) {
   return StyleSheet.create({
-    screen: {
-      flex: 1,
-      backgroundColor: colors.backgroundSecondary,
-    },
-    scrollContent: {
-      paddingHorizontal: 16,
-      paddingTop: 8,
-    },
-    sectionLabel: {
-      fontFamily: font.semiBold,
-      fontSize: 12,
-      letterSpacing: 0.6,
-      color: colors.textMuted,
-      marginTop: 22,
-      marginBottom: 10,
-      textTransform: 'uppercase',
-    },
-    profileCard: {
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      paddingVertical: 24,
-      paddingHorizontal: 20,
-      alignItems: 'center',
-      marginTop: 4,
-      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
-      borderColor: colors.cardBorder,
-    },
-    avatarWrap: {
-      position: 'relative',
-      marginBottom: 14,
-    },
-    avatarImg: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
-      borderWidth: 2,
-      borderColor: colors.cardBorder,
-    },
-    avatarPlaceholder: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
+    screen: { flex: 1, backgroundColor: brand.background },
+    profileRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    avatar: {
+      width: 88,
+      height: 88,
+      borderRadius: 30,
+      backgroundColor: category.activity,
       alignItems: 'center',
       justifyContent: 'center',
+      transform: [{ rotate: '-4deg' }],
     },
-    avatarInitials: {
-      fontFamily: font.bold,
-      fontSize: 32,
-    },
-    profileName: {
-      fontFamily: font.bold,
-      fontSize: 22,
-      color: colors.text,
-      textAlign: 'center',
-    },
-    profileEmail: {
-      fontFamily: font.regular,
-      fontSize: 15,
-      color: colors.textMuted,
-      textAlign: 'center',
-      marginTop: 6,
-    },
-    classBadge: {
-      marginTop: 14,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      maxWidth: '100%',
-    },
-    classBadgeText: {
-      fontFamily: font.semiBold,
-      fontSize: 12,
-      letterSpacing: 0.5,
-      textAlign: 'center',
-    },
-    groupCard: {
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      paddingVertical: 4,
-      borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
-      borderColor: colors.cardBorder,
-      overflow: 'hidden',
-    },
-    cardBody: {
-      paddingHorizontal: 16,
-      paddingVertical: 16,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      gap: 14,
-    },
-    rowText: {
-      flex: 1,
-      minWidth: 0,
-    },
-    rowTitle: {
-      fontFamily: font.semiBold,
-      fontSize: 16,
-      color: colors.text,
-    },
-    rowTitleFlex: {
-      flex: 1,
-    },
-    rowSubtitle: {
-      fontFamily: font.regular,
-      fontSize: 14,
-      color: colors.textMuted,
-      marginTop: 2,
-    },
-    themePill: {
+    avatarInitials: { fontFamily: brandFont.display800, fontSize: 34, letterSpacing: -1, color: category.onCategory },
+    profileText: { flex: 1, minWidth: 0, gap: 4 },
+    profileName: { fontFamily: brandFont.display800, fontSize: 30, lineHeight: 32, letterSpacing: -0.9, color: brand.onHeader },
+    profileEmail: { fontFamily: brandFont.body500, fontSize: 14, color: brand.onHeaderMuted },
+    classChip: {
+      alignSelf: 'flex-start',
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingVertical: 8,
+      marginTop: 6,
+      paddingVertical: 6,
       paddingHorizontal: 12,
-      borderRadius: 10,
-      borderWidth: 1,
+      borderRadius: radius.pill,
+      backgroundColor: category.activity,
+      maxWidth: '100%',
     },
-    themePillText: {
-      fontFamily: font.medium,
-      fontSize: 14,
+    classChipText: { fontFamily: brandFont.body800, fontSize: 13, color: category.onCategory, flexShrink: 1 },
+    body: { paddingHorizontal: spacing.screenX, paddingTop: 6 },
+    sectionTitle: { ...typeTokens.section, color: brand.textPrimary, marginTop: 24, marginBottom: 12, marginHorizontal: 4 },
+    card: { backgroundColor: brand.surface, borderRadius: radius.card, paddingVertical: 6 },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 64, paddingVertical: 10, paddingHorizontal: 16 },
+    iconTile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    rowText: { flex: 1, minWidth: 0, gap: 2 },
+    rowTitle: { fontFamily: brandFont.body800, fontSize: 16, color: brand.textPrimary },
+    rowSubtitle: { fontFamily: brandFont.body500, fontSize: 14, color: brand.textSecondary },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: brand.disabledBorder, marginLeft: 74 },
+    cardNote: { ...typeTokens.body, color: brand.textSecondary, paddingHorizontal: 16, paddingVertical: 14 },
+    themeHead: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingTop: 10 },
+    themeRow: { flexDirection: 'row', gap: 8, padding: 16, paddingTop: 14 },
+    themeOption: {
+      flex: 1,
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      borderRadius: radius.chip,
+      backgroundColor: brand.surfaceRaised,
     },
-    hairline: {
-      height: StyleSheet.hairlineWidth,
-      marginLeft: 74,
-    },
+    themeOptionActive: { backgroundColor: brand.inverseFill },
+    themeOptionText: { fontFamily: brandFont.body700, fontSize: 14, color: brand.textSecondary },
+    themeOptionTextActive: { fontFamily: brandFont.body800, color: brand.onInverse },
     versionText: {
-      fontFamily: font.regular,
-      fontSize: 11,
-      color: colors.textMuted,
+      fontFamily: brandFont.body500,
+      fontSize: 12,
+      color: brand.textTertiary,
       textAlign: 'center',
       marginTop: 28,
       letterSpacing: 0.3,

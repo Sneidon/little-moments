@@ -1,21 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { ThemeMode } from '../context/ThemeContext';
 
 type Ion = React.ComponentProps<typeof Ionicons>['name'];
-
-export function themeSubtitle(mode: ThemeMode): string {
-  if (mode === 'system') return 'System preference';
-  if (mode === 'light') return 'Always light';
-  return 'Always dark';
-}
-
-export function themePickerLabel(mode: ThemeMode): string {
-  if (mode === 'system') return 'System';
-  if (mode === 'light') return 'Light';
-  return 'Dark';
-}
 
 export function SettingsIconBox({
   name,

@@ -61,7 +61,8 @@ export function ParentTabs() {
         component={ParentSettingsScreen}
         options={{
           title: 'Settings',
-          ...tabHeader,
+          headerShown: false,
+          overrideScrollViewContentInsetAdjustmentBehavior: false,
           tabBarIcon: TAB_ICONS.settings,
         }}
       />

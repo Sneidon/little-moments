@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, onSnapshot, query, where, type Unsubscribe } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Child, ClassRoom } from '@shared/types';
+import { getCached, LIST_TTL_MS, setCached } from '../utils/cache';
 
 const MAX_IN_QUERY = 10;
 
@@ -57,4 +58,16 @@ export function parentChildPairs(children: Child[]): [parentId: string, childId:
     }
   }
   return Array.from(pairs.entries());
+}
+
+const parentChildrenCacheKey = (parentId: string) => `parent:children:${parentId}`;
+
+export function getCachedParentChildren(parentId: string): Promise<Child[] | null> {
+  return getCached<Child[]>(parentChildrenCacheKey(parentId));
+}
+
+export async function refreshParentChildren(parentId: string): Promise<Child[]> {
+  const list = await fetchParentChildren(parentId);
+  if (list.length > 0) await setCached(parentChildrenCacheKey(parentId), list, LIST_TTL_MS);
+  return list;
 }

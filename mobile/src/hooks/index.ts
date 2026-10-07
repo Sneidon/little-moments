@@ -6,3 +6,4 @@ export { usePresentChildIds } from './usePresentChildIds';
 export { useUnreadNotificationCount } from './useUnreadNotificationCount';
 export { useUnreadMessageCount } from './useUnreadMessageCount';
 export { useOpenChat, NO_PARENTS_ALERT, NO_TEACHER_ALERT } from './useOpenChat';
+export { useThemedStyles } from './useThemedStyles';

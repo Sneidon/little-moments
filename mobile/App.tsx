@@ -14,7 +14,7 @@ import {
   Figtree_700Bold,
   Figtree_800ExtraBold,
 } from '@expo-google-fonts/figtree';
-import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -106,7 +106,7 @@ function RootNavigator() {
 }
 
 function AppContent() {
-  const { isDark } = useTheme();
+  const { isDark, brand, colors } = useTheme();
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
   const [banner, setBanner] = useState<{ title: string; body?: string; data?: NotificationData } | null>(null);
@@ -139,14 +139,15 @@ function AppContent() {
     <NavigationContainer
       ref={navigationRef}
       theme={{
+        ...(isDark ? DarkTheme : DefaultTheme),
         dark: isDark,
         colors: {
-          primary: isDark ? '#3B82F6' : '#7B61FF',
-          background: isDark ? '#0B0B0B' : '#F0F2F5',
-          card: isDark ? '#1A1A1A' : '#fff',
-          text: isDark ? '#F7FAFC' : '#1A202C',
-          border: isDark ? '#2D2D2D' : '#EDF2F7',
-          notification: isDark ? '#3B82F6' : '#7B61FF',
+          primary: brand.primaryButton,
+          background: brand.background,
+          card: brand.surface,
+          text: brand.textPrimary,
+          border: brand.disabledBorder,
+          notification: colors.danger,
         },
       }}
     >

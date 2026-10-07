@@ -119,7 +119,7 @@ export async function takePhotoAsync(): Promise<PhotoResult> {
   if (!granted) return null;
 
   const result = await ImagePicker.launchCameraAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    mediaTypes: ['images'],
     allowsEditing: true,
     aspect: [4, 3],
     quality: 0.5,
@@ -137,7 +137,7 @@ export async function takeVideoAsync(): Promise<MediaResult> {
   if (!granted) return null;
 
   const result = await ImagePicker.launchCameraAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+    mediaTypes: ['videos'],
     videoMaxDuration: 60,
     videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
   });
@@ -166,7 +166,7 @@ export async function pickPhotoAsync(): Promise<PhotoResult> {
   if (!granted) return null;
 
   const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    mediaTypes: ['images'],
     allowsEditing: true,
     aspect: [4, 3],
     quality: 0.5,
@@ -183,7 +183,7 @@ export async function pickVideoAsync(): Promise<MediaResult> {
   const granted = await ensureMediaLibraryPermission();
   if (!granted) return null;
   const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+    mediaTypes: ['videos'],
     allowsEditing: false,
   });
   if (result.canceled || !result.assets?.[0]) return null;
@@ -197,7 +197,7 @@ export async function pickMediaAsync(): Promise<MediaResult> {
   const granted = await ensureMediaLibraryPermission();
   if (!granted) return null;
   const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.All,
+    mediaTypes: ['images', 'videos'],
     allowsEditing: false,
   });
   if (result.canceled || !result.assets?.[0]) return null;

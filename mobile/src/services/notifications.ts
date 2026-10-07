@@ -11,13 +11,12 @@ import { Platform } from 'react-native';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from '../config/firebase';
 
-type MessagingModule = typeof import('@react-native-firebase/messaging').default;
+/** RN Firebase modular messaging API (v22+); the namespaced API was removed. */
+type FcmModule = typeof import('@react-native-firebase/messaging');
 
-let messaging: MessagingModule | null = null;
-let messagingModule: { default: MessagingModule; AuthorizationStatus?: unknown } | null = null;
+let fcm: FcmModule | null = null;
 try {
-  messagingModule = require('@react-native-firebase/messaging');
-  messaging = messagingModule.default;
+  fcm = require('@react-native-firebase/messaging');
 } catch {
   // Expo Go or environment without native FCM
 }
@@ -34,9 +33,9 @@ let pushRegistrationPromise: Promise<void> | null = null;
 
 /** Call once at app startup, before any component mounts. */
 export function registerBackgroundMessageHandler(): void {
-  if (!messaging) return;
+  if (!fcm) return;
   try {
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+    fcm.setBackgroundMessageHandler(fcm.getMessaging(), async (remoteMessage) => {
       // Backend sends notification + data; system shows notification when in background/quit.
       // No UI updates here; optional: log or persist for later.
       console.log('FCM background:', remoteMessage?.data?.type, remoteMessage?.notification?.title);
@@ -114,7 +113,8 @@ function configureExpoNotificationHandler(): void {
   try {
     expoNotifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
       }),
@@ -145,11 +145,11 @@ export function configureNotifications(): void {
   configureExpoNotificationHandler();
   ensureAndroidChannel().catch(() => {});
 
-  if (!messaging) return;
+  if (!fcm) return;
   if (foregroundBridgeUnsubscribe) return;
 
   try {
-    foregroundBridgeUnsubscribe = messaging().onMessage(async (remoteMessage) => {
+    foregroundBridgeUnsubscribe = fcm.onMessage(fcm.getMessaging(), async (remoteMessage) => {
       await presentLocalNotificationFromRemoteMessage(remoteMessage as unknown as RemoteMessage);
     });
   } catch {
@@ -168,7 +168,7 @@ async function saveTokenToBackend(token: string): Promise<void> {
 }
 
 function isFirebaseMessagingAuthorized(status: number): boolean {
-  const Auth = messagingModule?.AuthorizationStatus as
+  const Auth = fcm?.AuthorizationStatus as
     | { AUTHORIZED: number; PROVISIONAL: number; DENIED: number; NOT_DETERMINED: number }
     | undefined;
   if (!Auth) return status === 1 || status === 2;
@@ -190,7 +190,6 @@ export async function requestNotificationPermissions(): Promise<boolean> {
             allowAlert: true,
             allowBadge: true,
             allowSound: true,
-            allowAnnouncements: false,
           },
         });
         status = requested.status;
@@ -220,9 +219,9 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     }
   }
 
-  if (Platform.OS === 'ios' && messaging) {
+  if (Platform.OS === 'ios' && fcm) {
     try {
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await fcm.requestPermission(fcm.getMessaging());
       if (!isFirebaseMessagingAuthorized(authStatus)) {
         console.warn('Firebase messaging permission not granted on iOS:', authStatus);
         return false;
@@ -237,11 +236,11 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 }
 
 async function ensureIosRegisteredForRemoteMessages(): Promise<void> {
-  if (Platform.OS !== 'ios' || !messaging) return;
+  if (Platform.OS !== 'ios' || !fcm) return;
   try {
-    const registered = messaging().isDeviceRegisteredForRemoteMessages;
-    if (!registered) {
-      await messaging().registerDeviceForRemoteMessages();
+    const instance = fcm.getMessaging();
+    if (!fcm.isDeviceRegisteredForRemoteMessages(instance)) {
+      await fcm.registerDeviceForRemoteMessages(instance);
     }
   } catch (e) {
     console.warn('registerDeviceForRemoteMessages failed:', e);
@@ -253,7 +252,8 @@ async function ensureIosRegisteredForRemoteMessages(): Promise<void> {
  * Call after user is signed in (native build only; no-op in Expo Go).
  */
 export async function registerForPushNotifications(): Promise<void> {
-  if (!messaging) {
+  const fcmModule = fcm;
+  if (!fcmModule) {
     console.warn('Push notifications unavailable (Expo Go or missing native FCM module).');
     return;
   }
@@ -266,7 +266,7 @@ export async function registerForPushNotifications(): Promise<void> {
 
       await ensureIosRegisteredForRemoteMessages();
 
-      const token = await messaging().getToken();
+      const token = await fcmModule.getToken(fcmModule.getMessaging());
       if (!token || !token.trim()) {
         console.warn('FCM getToken returned empty');
         return;
@@ -274,7 +274,7 @@ export async function registerForPushNotifications(): Promise<void> {
       await saveTokenToBackend(token);
 
       if (!tokenRefreshUnsubscribe) {
-        tokenRefreshUnsubscribe = messaging().onTokenRefresh((newToken) => {
+        tokenRefreshUnsubscribe = fcmModule.onTokenRefresh(fcmModule.getMessaging(), (newToken) => {
           saveTokenToBackend(newToken).catch(() => {});
         });
       }
@@ -293,9 +293,9 @@ export async function registerForPushNotifications(): Promise<void> {
  * use this to show in-app UI or a local notification.
  */
 export function onForegroundMessage(callback: (message: RemoteMessage) => void): (() => void) | undefined {
-  if (!messaging) return undefined;
+  if (!fcm) return undefined;
   try {
-    return messaging().onMessage(callback);
+    return fcm.onMessage(fcm.getMessaging(), (message) => callback(message as unknown as RemoteMessage));
   } catch {
     return undefined;
   }
@@ -305,9 +305,11 @@ export function onForegroundMessage(callback: (message: RemoteMessage) => void):
  * Subscribe to notification opened app (user tapped notification while app was in background).
  */
 export function onNotificationOpenedApp(callback: (message: RemoteMessage) => void): (() => void) | undefined {
-  if (!messaging) return undefined;
+  if (!fcm) return undefined;
   try {
-    return messaging().onNotificationOpenedApp(callback);
+    return fcm.onNotificationOpenedApp(fcm.getMessaging(), (message) =>
+      callback(message as unknown as RemoteMessage)
+    );
   } catch {
     return undefined;
   }
@@ -317,9 +319,9 @@ export function onNotificationOpenedApp(callback: (message: RemoteMessage) => vo
  * Get the notification that opened the app (cold start from quit). Resolve once.
  */
 export function getInitialNotification(): Promise<RemoteMessage | null> {
-  if (!messaging) return Promise.resolve(null);
+  if (!fcm) return Promise.resolve(null);
   try {
-    return messaging().getInitialNotification() as Promise<RemoteMessage | null>;
+    return fcm.getInitialNotification(fcm.getMessaging()) as Promise<RemoteMessage | null>;
   } catch {
     return Promise.resolve(null);
   }

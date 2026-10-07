@@ -3173,7 +3173,7 @@ function createStyles(
       flex: 1,
     },
     variationModalDimmer: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0,0,0,0.55)',
     },
     variationModalCard: {

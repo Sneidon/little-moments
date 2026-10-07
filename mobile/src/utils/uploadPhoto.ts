@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, storage } from '../config/firebase';
 
@@ -45,7 +45,8 @@ async function ensureReadableUri(uri: string, mimeType?: string): Promise<string
 }
 
 async function assertVideoSizeOk(uri: string): Promise<void> {
-  const info = await FileSystem.getInfoAsync(uri, { size: true });
+  // Size is included for existing files; the legacy `size` option was removed.
+  const info = await FileSystem.getInfoAsync(uri);
   if (!info.exists) throw new Error('Video file not found.');
   const size = 'size' in info && typeof info.size === 'number' ? info.size : 0;
   if (size > MAX_VIDEO_BYTES) {

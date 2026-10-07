@@ -1,20 +1,20 @@
-const app = require('./app.json');
-
-/** @type {import('expo/config').ExpoConfig} */
-module.exports = () => {
+/**
+ * Extends app.json (passed in as `config`) with build-profile-specific values.
+ * @param {{ config: import('expo/config').ExpoConfig }} ctx
+ * @returns {import('expo/config').ExpoConfig}
+ */
+module.exports = ({ config }) => {
   const profile = process.env.EAS_BUILD_PROFILE ?? '';
   const apsEnvironment =
     profile === 'development' || profile === 'preview' ? 'development' : 'production';
 
   return {
-    expo: {
-      ...app.expo,
-      ios: {
-        ...app.expo.ios,
-        entitlements: {
-          ...(app.expo.ios?.entitlements ?? {}),
-          'aps-environment': apsEnvironment,
-        },
+    ...config,
+    ios: {
+      ...config.ios,
+      entitlements: {
+        ...(config.ios?.entitlements ?? {}),
+        'aps-environment': apsEnvironment,
       },
     },
   };

@@ -8,9 +8,9 @@ import { useEvent } from '@/hooks/useEvent';
 import { useEventRSVPs } from '@/hooks/useEventRSVPs';
 import { useClasses } from '@/hooks/useClasses';
 import { useSchoolName } from '@/hooks/useSchoolName';
-import { downloadEventRsvpsCsv } from '@/lib/exportEventRsvpsCsv';
-import { exportEventRsvpsToExcel } from '@/lib/exportEventRsvpsExcel';
-import { exportEventRsvpsToPdf } from '@/lib/exportEventRsvpsPdf';
+import { downloadEventRsvpsCsv } from '@/lib/export/eventRsvps';
+import { exportEventRsvpsToExcel } from '@/lib/export/eventRsvps';
+import { exportEventRsvpsToPdf } from '@/lib/export/eventRsvpsPdf';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHero, SectionCard, SectionHeading, TableSkeleton } from '@/components/ui';
 

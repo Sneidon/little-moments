@@ -8,7 +8,7 @@ import { buildInviteAcceptDeepLink } from '@/config/inviteLinks';
 import { InviteQrCodeDialog } from '@/components/InviteQrCodeDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
-import { downloadPrincipalSchoolInviteHandoutPdf } from '@/lib/exportPrincipalSchoolInvitePdf';
+import { downloadPrincipalSchoolInviteHandoutPdf } from '@/lib/export/schoolInvitePdf';
 
 function principalInviteToken(row: { id: string; token?: string }): string {
   return row.token?.trim() || row.id;

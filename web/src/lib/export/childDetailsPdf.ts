@@ -13,7 +13,7 @@ import {
   PDF_TABLE_BODY_STYLES,
   PDF_TABLE_ALTERNATE_ROW,
   type DocWithAutoTable,
-} from '@/lib/pdfDesign';
+} from '@/lib/export/pdfDesign';
 import type { Child } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
 import type { DailyReport } from 'shared/types';
@@ -47,7 +47,7 @@ const DEFAULT_CHILD_INCLUDE: Required<ExportChildDetailsInclude> = {
 };
 
 export function exportChildDetailsToPdf(options: ExportChildDetailsOptions): void {
-  const { child, classes, parents, reports, classDisplay, schoolName } = options;
+  const { child, parents, reports, classDisplay, schoolName } = options;
   const inc = { ...DEFAULT_CHILD_INCLUDE, ...options.include };
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const margin = PDF_MARGIN.portrait;

@@ -36,11 +36,7 @@ export function useChildParents(child: Child | null): UseChildParentsResult {
       setParents([]);
       return;
     }
-    let cancelled = false;
-    fetchParents(ids).then(() => {});
-    return () => {
-      cancelled = true;
-    };
+    fetchParents(ids);
   }, [child?.parentIds, fetchParents]);
 
   const refetch = useCallback(async () => {

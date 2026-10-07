@@ -29,7 +29,6 @@ export interface EditFormState {
 export interface UseParentsManagementOptions {
   child: Child | null;
   schoolId: string | undefined;
-  parents: UserProfile[];
   refetchParents: () => Promise<void>;
   setChild: (c: Child | null) => void;
 }
@@ -74,7 +73,7 @@ const INITIAL_INVITE_FORM: InviteFormState = {
 };
 
 export function useParentsManagement(options: UseParentsManagementOptions): UseParentsManagementResult {
-  const { child, schoolId, parents, refetchParents, setChild } = options;
+  const { child, schoolId, refetchParents, setChild } = options;
   const [showInviteParent, setShowInviteParent] = useState(false);
   const [inviteForm, setInviteForm] = useState<InviteFormState>(INITIAL_INVITE_FORM);
   const [inviteStep, setInviteStep] = useState<InviteStep>('email');

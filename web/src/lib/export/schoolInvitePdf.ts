@@ -13,7 +13,7 @@ import {
   pdfAddHeader,
   pdfAddSectionTitle,
   pdfAddFooter,
-} from '@/lib/pdfDesign';
+} from '@/lib/export/pdfDesign';
 
 export type PrincipalSchoolInvitePdfRow = {
   id: string;

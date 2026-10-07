@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { downloadReportsCsv } from '@/lib/exportReportsCsv';
-import { exportReportsToExcel } from '@/lib/exportReportsExcel';
-import { exportReportsToPdf } from '@/lib/exportReportsPdf';
-import { formatReportsFiltersSummary } from '@/lib/exportReportsFilters';
+import { downloadReportsCsv } from '@/lib/export/reports';
+import { exportReportsToExcel } from '@/lib/export/reports';
+import { exportReportsToPdf } from '@/lib/export/reportsPdf';
+import { formatReportsFiltersSummary } from '@/lib/export/reportsFilters';
 import type { ReportRow, ReportsFiltersState } from '@/hooks/useReportsPage';
 import { PageHero } from '@/components/ui';
 

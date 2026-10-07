@@ -1,4 +1,3 @@
-import type { ClassRoom } from 'shared/types';
 import type { UserProfile } from 'shared/types';
 import type { ClassFormData } from '@/services/classes';
 import { userHasRole } from '@/lib/roles';

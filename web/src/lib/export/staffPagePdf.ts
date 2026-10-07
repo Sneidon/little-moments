@@ -12,7 +12,7 @@ import {
   PDF_TABLE_BODY_STYLES,
   PDF_TABLE_ALTERNATE_ROW,
   type DocWithAutoTable,
-} from '@/lib/pdfDesign';
+} from '@/lib/export/pdfDesign';
 import type { UserProfile } from 'shared/types';
 import type { Child } from 'shared/types';
 

@@ -11,12 +11,11 @@ import {
   PDF_TABLE_HEAD_STYLES_COMPACT,
   PDF_TABLE_BODY_STYLES_COMPACT,
   PDF_TABLE_ALTERNATE_ROW,
-} from '@/lib/pdfDesign';
+} from '@/lib/export/pdfDesign';
 import type { Child } from 'shared/types';
-import type { ClassRoom } from 'shared/types';
 import { formatGenderLabel } from '@/lib/formatGender';
 
-export type ClassDisplayFn = (classId: string) => string;
+import type { ClassDisplayFn } from './children';
 
 function safeStr(value: unknown): string {
   if (value == null) return '—';
@@ -39,7 +38,6 @@ function formatDob(dateOfBirth: string | undefined): string {
  */
 export function exportChildrenToPdf(
   children: Child[],
-  classes: ClassRoom[],
   classDisplay: ClassDisplayFn,
   options?: { onProgress?: (message: string) => void; schoolName?: string }
 ): void {

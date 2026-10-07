@@ -11,8 +11,7 @@ import {
   PDF_TABLE_BODY_STYLES_COMPACT,
   PDF_TABLE_ALTERNATE_ROW,
   pdfSafeText,
-  type DocWithAutoTable,
-} from '@/lib/pdfDesign';
+} from '@/lib/export/pdfDesign';
 import { getReportDetailsSummary, getReportNotesSummary, getReportTypeLabel } from '@/lib/reports';
 import { formatGenderLabel } from '@/lib/formatGender';
 import type { ReportRow } from '@/hooks/useReportsPage';
@@ -45,13 +44,6 @@ export function exportReportsToPdf(
     'Notes',
   ];
   const body = rows.map((r) => {
-    const date = r.timestamp
-      ? new Date(r.timestamp).toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        })
-      : '';
     const time = r.timestamp
       ? new Date(r.timestamp).toLocaleTimeString(undefined, {
           hour: '2-digit',

@@ -10,7 +10,7 @@ import {
   PDF_TABLE_HEAD_STYLES_COMPACT,
   PDF_TABLE_BODY_STYLES_COMPACT,
   PDF_TABLE_ALTERNATE_ROW,
-} from '@/lib/pdfDesign';
+} from '@/lib/export/pdfDesign';
 import type { RSVPEntry } from '@/hooks/useEventRSVPs';
 
 export function exportEventRsvpsToPdf(

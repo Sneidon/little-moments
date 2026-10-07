@@ -13,7 +13,7 @@ import {
   PDF_TABLE_BODY_STYLES,
   PDF_TABLE_ALTERNATE_ROW,
   type DocWithAutoTable,
-} from '@/lib/pdfDesign';
+} from '@/lib/export/pdfDesign';
 import type { ClassRoom } from 'shared/types';
 import type { Child } from 'shared/types';
 import type { DailyReport } from 'shared/types';
@@ -47,7 +47,6 @@ const DEFAULT_CLASS_INCLUDE: Required<ExportClassDetailInclude> = {
 
 export function exportClassDetailToPdf(options: ExportClassDetailOptions): void {
   const {
-    classRoom,
     assignedTeacherName,
     children,
     filterDay,

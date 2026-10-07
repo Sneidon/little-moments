@@ -9,7 +9,7 @@ import { app } from '@/config/firebase';
 import { InviteLinkShareControls } from '@/components/InviteLinkShareControls';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageHero, SectionCard, TableSkeleton } from '@/components/ui';
-import { downloadAdminInviteHandoutPdf } from '@/lib/exportAdminInvitePdf';
+import { downloadAdminInviteHandoutPdf } from '@/lib/export/adminInvitePdf';
 
 function inviteFirestoreToken(invite: { id: string; token?: string }): string {
   return invite.token?.trim() || invite.id;

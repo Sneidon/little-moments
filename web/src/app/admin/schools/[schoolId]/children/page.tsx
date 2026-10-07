@@ -5,9 +5,9 @@ import { useParams } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { useAdminSchoolDetail } from '@/hooks/useAdminSchoolDetail';
 import { formatClassDisplay } from '@/lib/formatClass';
-import { exportChildrenToPdf } from '@/lib/exportChildrenPdf';
-import { exportChildrenToCsv } from '@/lib/exportChildrenCsv';
-import { exportChildrenToExcel } from '@/lib/exportChildrenExcel';
+import { exportChildrenToPdf } from '@/lib/export/childrenPdf';
+import { exportChildrenToCsv } from '@/lib/export/children';
+import { exportChildrenToExcel } from '@/lib/export/children';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { PageHero, SectionCard } from '@/components/ui';
 
@@ -39,7 +39,7 @@ export default function AdminSchoolChildrenPage() {
     setExportOpen(false);
     setExportingPdf(true);
     try {
-      exportChildrenToPdf(filteredChildren, classes, classDisplay, {
+      exportChildrenToPdf(filteredChildren, classDisplay, {
         onProgress: (msg) => {
           if (!msg) setExportingPdf(false);
         },
@@ -52,11 +52,11 @@ export default function AdminSchoolChildrenPage() {
   };
   const handleExportCsv = () => {
     setExportOpen(false);
-    exportChildrenToCsv(filteredChildren, classes, classDisplay);
+    exportChildrenToCsv(filteredChildren, classDisplay);
   };
   const handleExportExcel = () => {
     setExportOpen(false);
-    exportChildrenToExcel(filteredChildren, classes, classDisplay);
+    exportChildrenToExcel(filteredChildren, classDisplay);
   };
 
   if (loading) {

@@ -13,8 +13,8 @@ import {
   pdfAddHeader,
   pdfAddSectionTitle,
   pdfAddFooter,
-} from '@/lib/pdfDesign';
-import { downloadPrincipalSchoolInviteHandoutPdf } from '@/lib/exportPrincipalSchoolInvitePdf';
+} from '@/lib/export/pdfDesign';
+import { downloadPrincipalSchoolInviteHandoutPdf } from '@/lib/export/schoolInvitePdf';
 
 export type AdminInvitePdfRow = {
   id: string;

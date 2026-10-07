@@ -6,9 +6,9 @@ import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firesto
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
-import { exportStaffPageToPdf, type StaffRowForPdf } from '@/lib/exportStaffPagePdf';
-import { exportStaffPageToCsv } from '@/lib/exportStaffPageCsv';
-import { exportStaffPageToExcel } from '@/lib/exportStaffPageExcel';
+import { exportStaffPageToPdf, type StaffRowForPdf } from '@/lib/export/staffPagePdf';
+import { exportStaffPageToCsv } from '@/lib/export/staffPage';
+import { exportStaffPageToExcel } from '@/lib/export/staffPage';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import type { UserProfile } from 'shared/types';
 import type { ClassRoom } from 'shared/types';

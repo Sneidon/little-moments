@@ -7,9 +7,9 @@ import { useSchoolName } from '@/hooks/useSchoolName';
 import { getTeacherDisplayName } from '@/lib/teachers';
 import { getReportsForDay, getDaysWithActivity, localDateIso } from '@/lib/reports';
 import { formatClassDisplay } from '@/lib/formatClass';
-import { exportClassDetailToPdf } from '@/lib/exportClassDetailPdf';
-import { exportClassDetailToCsv } from '@/lib/exportClassDetailCsv';
-import { exportClassDetailToExcel } from '@/lib/exportClassDetailExcel';
+import { exportClassDetailToPdf } from '@/lib/export/classDetailPdf';
+import { exportClassDetailToCsv } from '@/lib/export/classDetail';
+import { exportClassDetailToExcel } from '@/lib/export/classDetail';
 import { ExportPdfOptionsDialog } from '@/components/ExportPdfOptionsDialog';
 import {
   ClassDetailHeader,

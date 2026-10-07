@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { ParentWithChildren } from '@/lib/exportStaffPagePdf';
+import type { ParentWithChildren } from '@/lib/export/staffPagePdf';
 import type { UserProfile } from 'shared/types';
 import { SectionCard } from '@/components/ui';
 

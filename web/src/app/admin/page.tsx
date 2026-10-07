@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { IconSchool, IconUsers, IconChart } from '@/components/icons/AdminIcons';
+import { IconSchool, IconUsers } from '@/components/icons/AdminIcons';
 import { PageHero, StatCard, QuickActionLink, SectionHeading, StatCardSkeleton } from '@/components/ui';
 import { userHasRole } from '@/lib/roles';
 import type { UserProfile } from 'shared/types';

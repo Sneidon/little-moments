@@ -1,13 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { formatClassDisplay, ageFromDob } from '@/lib/formatClass';
 import { getReportsForDay, getDaysWithActivity, getActivitySummaryText, localDateIso } from '@/lib/reports';
-import { exportChildDetailsToPdf } from '@/lib/exportChildDetailsPdf';
-import { exportChildDetailsToCsv } from '@/lib/exportChildDetailsCsv';
-import { exportChildDetailsToExcel } from '@/lib/exportChildDetailsExcel';
+import { exportChildDetailsToPdf } from '@/lib/export/childDetailsPdf';
+import { exportChildDetailsToCsv } from '@/lib/export/childDetails';
+import { exportChildDetailsToExcel } from '@/lib/export/childDetails';
 import { useChildDetail } from '@/hooks/useChildDetail';
 import { useChildParents } from '@/hooks/useChildParents';
 import { useSchoolName } from '@/hooks/useSchoolName';

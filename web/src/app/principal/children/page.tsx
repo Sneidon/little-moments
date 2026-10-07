@@ -14,10 +14,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { formatClassDisplay } from '@/lib/formatClass';
-import { exportChildrenToPdf } from '@/lib/exportChildrenPdf';
+import { exportChildrenToPdf } from '@/lib/export/childrenPdf';
 import { useSchoolName } from '@/hooks/useSchoolName';
-import { exportChildrenToCsv } from '@/lib/exportChildrenCsv';
-import { exportChildrenToExcel } from '@/lib/exportChildrenExcel';
+import { exportChildrenToCsv } from '@/lib/export/children';
+import { exportChildrenToExcel } from '@/lib/export/children';
 import type { Child, ChildGender, ClassRoom } from 'shared/types';
 import { PageHero, SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 import { DateOfBirthField, isValidIsoDateString } from '@/components/DateOfBirthField';
@@ -279,7 +279,7 @@ export default function ChildrenPage() {
     setExportOpen(false);
     setExportingPdf(true);
     try {
-      exportChildrenToPdf(filteredChildren, classes, classDisplay, {
+      exportChildrenToPdf(filteredChildren, classDisplay, {
         onProgress: (msg) => {
           if (!msg) setExportingPdf(false);
         },
@@ -303,12 +303,12 @@ export default function ChildrenPage() {
 
   const handleExportCsv = () => {
     setExportOpen(false);
-    exportChildrenToCsv(filteredChildren, classes, classDisplay);
+    exportChildrenToCsv(filteredChildren, classDisplay);
   };
 
   const handleExportExcel = () => {
     setExportOpen(false);
-    exportChildrenToExcel(filteredChildren, classes, classDisplay);
+    exportChildrenToExcel(filteredChildren, classDisplay);
   };
 
   return (

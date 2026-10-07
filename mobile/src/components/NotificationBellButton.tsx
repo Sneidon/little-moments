@@ -8,16 +8,19 @@ import { font } from '../theme/typography';
 type NotificationBellButtonProps = {
   onPress: () => void;
   colors: ColorPalette;
+  /** 'header' = 48pt round translucent button for the redesign's coloured header block. */
+  variant?: 'default' | 'header';
 };
 
-export function NotificationBellButton({ onPress, colors }: NotificationBellButtonProps) {
+export function NotificationBellButton({ onPress, colors, variant = 'default' }: NotificationBellButtonProps) {
   const unreadCount = useUnreadNotificationCount();
   const badgeLabel = unreadCount > 99 ? '99+' : String(unreadCount);
+  const isHeader = variant === 'header';
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={styles.hitArea}
+      style={isHeader ? styles.headerButton : styles.hitArea}
       accessibilityRole="button"
       accessibilityLabel={
         unreadCount > 0
@@ -26,7 +29,7 @@ export function NotificationBellButton({ onPress, colors }: NotificationBellButt
       }
     >
       <View style={styles.iconWrap}>
-        <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+        <Ionicons name="notifications-outline" size={22} color={isHeader ? '#FFFFFF' : colors.primary} />
         {unreadCount > 0 ? (
           <View style={[styles.badge, { backgroundColor: colors.danger }]}>
             <Text style={styles.badgeText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
@@ -43,6 +46,14 @@ const styles = StyleSheet.create({
   hitArea: {
     paddingHorizontal: 6,
     paddingVertical: 4,
+  },
+  headerButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconWrap: {
     width: 28,

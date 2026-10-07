@@ -1,4 +1,4 @@
-import { SectionCard } from '@/components/ui';
+import { Notice, SectionCard } from '@/components/ui';
 import type { InviteStatus } from './inviteUtils';
 
 export function InviteTotals({ totals }: { totals: { total: number; pending: number; accepted: number; expired: number } }) {
@@ -29,17 +29,9 @@ export function InviteNotices({ error, banner, onDismiss }: { error: string | nu
         </SectionCard>
       )}
       {banner && (
-        <div
-          className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200"
-          role="status"
-        >
-          <span className="flex items-center justify-between gap-2">
-            {banner}
-            <button type="button" onClick={onDismiss} className="shrink-0 underline">
-              Dismiss
-            </button>
-          </span>
-        </div>
+        <Notice tone="success" className="mb-4" onDismiss={onDismiss}>
+          {banner}
+        </Notice>
       )}
     </>
   );

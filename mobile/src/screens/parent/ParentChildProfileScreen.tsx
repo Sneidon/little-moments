@@ -9,7 +9,7 @@ import {
   useRefreshPulse,
 } from '../../features/daily-report';
 import { resolveReportImageUrl } from '../../utils/childDailyReportDisplay';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChildProfile'>;
 

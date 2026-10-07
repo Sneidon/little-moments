@@ -7,7 +7,7 @@ import { PrimaryButton } from '../../components/brand/Buttons';
 import { spacing } from '../../theme/tokens';
 import { selectAllChildrenLabel } from '../../utils/childPresence';
 import type { ReportType } from '@shared/types';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import type { RootStackParamList } from '../../navigation/types';
 import { AddUpdateHeader } from './add-update/components/AddUpdateHeader';
 import { SavingOverlay, SelectionHintCard, TimesBanner } from './add-update/components/Banners';
 import { ChildSearchModal } from './add-update/components/ChildSearchModal';

@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useOpenChat, NO_PARENTS_ALERT } from '../../hooks';
 import { PrimaryButton, OutlineButton } from '../../components/brand/Buttons';
 import { DailyReportView, useChildDailyReport, useRefreshPulse } from '../../features/daily-report';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Reports'>;
 

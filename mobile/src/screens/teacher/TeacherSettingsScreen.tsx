@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import type { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { brandFont } from '../../theme/typography';

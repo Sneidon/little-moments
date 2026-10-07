@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getOrCreateChat } from '../api/chat';
-import type { RootStackParamList } from '../navigation/MainTabs';
+import type { RootStackParamList } from '../navigation/types';
 
 type OpenChatParams = {
   schoolId: string | null | undefined;

@@ -7,7 +7,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import type { RootStackParamList } from '../../navigation/types';
 import { navigateFromNotificationData } from '../../hooks/useNotificationNavigation';
 import {
   isInAppNotificationRead,

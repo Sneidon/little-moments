@@ -35,7 +35,7 @@ import { font } from '../../theme/typography';
 import { getInitials } from '../../utils';
 import { markChatRead } from '../../services/chatRead';
 import { getChatReadField } from '../../utils/chatUnread';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import type { RootStackParamList } from '../../navigation/types';
 import type { ChatMessage, Chat, UserProfile } from '@shared/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatThread'>;

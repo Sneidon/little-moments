@@ -20,7 +20,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthStack } from './src/navigation/AuthStack';
-import type { RootStackParamList } from './src/navigation/MainTabs';
+import type { RootStackParamList } from './src/navigation/types';
 import { MainTabs } from './src/navigation/MainTabs';
 import { AccessDeniedScreen } from './src/screens/auth/AccessDeniedScreen';
 import { RoleSelectScreen } from './src/screens/auth/RoleSelectScreen';

@@ -11,7 +11,7 @@ import { useDateNavigation, useTeacherClassChildren } from '../../hooks';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { brandFont } from '../../theme/typography';
 import { NATIVE_TAB_BAR_CLEARANCE_IOS, spacing, type as typeTokens, type BrandPalette } from '../../theme/tokens';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import type { RootStackParamList } from '../../navigation/types';
 import { DashboardHeader } from './dashboard/DashboardHeader';
 import { DashboardSkeleton } from './dashboard/DashboardSkeleton';
 import { AddUpdateCta, OverviewTiles } from './dashboard/OverviewTiles';

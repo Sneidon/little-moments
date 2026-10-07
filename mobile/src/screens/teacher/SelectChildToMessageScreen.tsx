@@ -23,7 +23,7 @@ import { getOrCreateChat } from '../../api/chat';
 import type { Child } from '@shared/types';
 import type { ClassRoom } from '@shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SelectChildToMessage'>;
 

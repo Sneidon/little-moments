@@ -13,7 +13,7 @@ import {
   NOTIFICATION_DATA_TYPES,
   type NotificationData,
 } from '../services/notifications';
-import type { RootStackParamList } from '../navigation/MainTabs';
+import type { RootStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

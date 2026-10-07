@@ -41,3 +41,20 @@ export async function resolveChildTeacherId(child: Child): Promise<string | null
   const snap = await getDoc(doc(db, 'schools', child.schoolId, 'classes', child.classId));
   return snap.exists() ? (snap.data() as ClassRoom).assignedTeacherId ?? null : null;
 }
+
+export async function fetchClassChildren(schoolId: string, classId: string): Promise<Child[]> {
+  const snap = await getDocs(
+    query(collection(db, 'schools', schoolId, 'children'), where('classId', '==', classId), where('isActive', '==', true))
+  );
+  return snap.docs.map((d) => ({ ...(d.data() as Child), id: d.id }));
+}
+
+export function parentChildPairs(children: Child[]): [parentId: string, childId: string][] {
+  const pairs = new Map<string, string>();
+  for (const child of children) {
+    for (const parentId of child.parentIds ?? []) {
+      if (!pairs.has(parentId)) pairs.set(parentId, child.id);
+    }
+  }
+  return Array.from(pairs.entries());
+}

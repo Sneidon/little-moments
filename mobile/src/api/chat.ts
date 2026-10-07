@@ -1,6 +1,7 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
 import app, { db } from '../config/firebase';
+import { getChatReadField } from '../utils/chatUnread';
 
 const functions = getFunctions(app);
 
@@ -29,4 +30,17 @@ export async function sendChatMessage(schoolId: string, chatId: string, senderId
     updatedAt: now,
     ...(readField ? { [readField]: now } : {}),
   });
+}
+
+export async function broadcastToParents(
+  schoolId: string,
+  senderId: string,
+  text: string,
+  pairs: [parentId: string, childId: string][],
+  onChatsReady?: () => void
+): Promise<number> {
+  const chats = await Promise.all(pairs.map(([parentId, childId]) => getOrCreateChat(schoolId, childId, parentId)));
+  onChatsReady?.();
+  await Promise.all(chats.map((c) => sendChatMessage(c.schoolId, c.chatId, senderId, text, getChatReadField('teacher'))));
+  return chats.length;
 }

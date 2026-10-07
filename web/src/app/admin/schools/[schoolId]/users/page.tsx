@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { InviteSchoolAdminForm } from '@/app/principal/staff/components/InviteSchoolAdminForm';
 import type { InviteSchoolAdminFormState } from '@/hooks/useStaffPage';
-import { userHoldsRole } from '@/lib/roles';
+import { userHasRole } from '@/lib/roles';
 import type { UserProfile } from 'shared/types';
 import { PageHero, SectionCard } from '@/components/ui';
 
@@ -231,8 +231,8 @@ export default function AdminSchoolUsersPage() {
             </thead>
             <tbody>
               {users.map((u) => {
-                const isPrincipal = userHoldsRole(u, 'principal');
-                const isTeacher = userHoldsRole(u, 'teacher');
+                const isPrincipal = userHasRole(u, 'principal');
+                const isTeacher = userHasRole(u, 'teacher');
                 const roleLabel = [
                   isPrincipal ? 'school admin' : null,
                   isTeacher ? 'teacher' : null,

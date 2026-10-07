@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, collectionGroup, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
-import type { Chat } from '../../../shared/types';
+import type { Chat } from '@shared/types';
 import { isChatUnreadForUser } from '../utils/chatUnread';
 
 /** Live count of chats with unread messages for the Messages tab badge. */

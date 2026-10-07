@@ -32,7 +32,7 @@ import {
   type CategoryPalette,
 } from '../../theme/tokens';
 import { brandFont } from '../../theme/typography';
-import type { Child } from '../../../../shared/types';
+import type { Child } from '@shared/types';
 
 const SKELETON_ROW_KEYS = ['s0', 's1', 's2', 's3'] as const;
 

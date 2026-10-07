@@ -1,7 +1,7 @@
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { getChatReadField } from '../utils/chatUnread';
-import type { UserRole } from '../../../shared/types';
+import type { UserRole } from '@shared/types';
 
 export async function markChatRead(
   schoolId: string,

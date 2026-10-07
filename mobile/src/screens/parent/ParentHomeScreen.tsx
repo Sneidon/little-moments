@@ -38,9 +38,9 @@ import { useNotificationNavigation } from '../../hooks/useNotificationNavigation
 import { useDateNavigation } from '../../hooks/useDateNavigation';
 import { font } from '../../theme/typography';
 
-import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
-import type { DailyReport, MealOption } from '../../../../shared/types';
+import type { Child } from '@shared/types';
+import type { ClassRoom } from '@shared/types';
+import type { DailyReport, MealOption } from '@shared/types';
 import {
   isParentVisibleReportType,
   buildMealOptionImageMap,

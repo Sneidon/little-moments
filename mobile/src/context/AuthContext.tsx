@@ -6,7 +6,7 @@ import app, { auth, db } from '../config/firebase';
 import { getCached, setCached, removeCached, PROFILE_TTL_MS } from '../utils/cache';
 import { registerForPushNotifications } from '../services/notifications';
 import { normalizeUserRoles } from '../utils/roles';
-import type { UserProfile, UserRole } from '../../../shared/types';
+import type { UserProfile, UserRole } from '@shared/types';
 
 interface AuthContextValue {
   user: User | null;

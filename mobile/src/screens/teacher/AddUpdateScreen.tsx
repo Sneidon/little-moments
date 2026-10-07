@@ -25,12 +25,13 @@ import { takePhotoAsync, pickPhotoAsync, takeVideoAsync, pickVideoAsync, showMed
 import { uploadPhotoAsync, uploadMediaAsync } from '../../utils/uploadPhoto';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
-import type { MealOption } from '../../../../shared/types';
-import type { ReportType } from '../../../../shared/types';
+import type { Child } from '@shared/types';
+import type { ClassRoom } from '@shared/types';
+import type { MealOption } from '@shared/types';
+import type { ReportType } from '@shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { brandFont } from '../../theme/typography';
+import { getAge, getInitials } from '../../utils';
 import { HeaderBlock, DisplayTitle } from '../../components/brand/HeaderBlock';
 import { RoundIconButton } from '../../components/brand/RoundIconButton';
 import { PrimaryButton, OutlineButton } from '../../components/brand/Buttons';
@@ -154,25 +155,6 @@ const PHOTO_CATEGORIES = [
   'With Friends',
   'Other',
 ];
-
-function getAge(dateOfBirth: string): string {
-  const dob = new Date(dateOfBirth);
-  const now = new Date();
-  const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
-  if (months < 12) return `${months} mo`;
-  const years = Math.floor(months / 12);
-  return years === 1 ? '1 year' : `${years} years`;
-}
-
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || '?';
-}
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });

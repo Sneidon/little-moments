@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { UserProfile } from 'shared/types';
-import { userHoldsRole } from '@/lib/roles';
+import { userHasRole } from '@/lib/roles';
 
 export interface UseSchoolTeachersResult {
   teachers: UserProfile[];
@@ -24,7 +24,7 @@ export function useSchoolTeachers(schoolId: string | undefined): UseSchoolTeache
     getDocs(query(collection(db, 'users'), where('schoolId', '==', schoolId)))
       .then((snap) => {
         const list = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile));
-        setTeachers(list.filter((u) => userHoldsRole(u, 'teacher') || userHoldsRole(u, 'principal')));
+        setTeachers(list.filter((u) => userHasRole(u, 'teacher') || userHasRole(u, 'principal')));
       })
       .finally(() => setLoading(false));
   }, [schoolId]);

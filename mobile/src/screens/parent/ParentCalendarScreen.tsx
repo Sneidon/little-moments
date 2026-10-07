@@ -19,7 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { SkeletonCard } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import type { Event } from '../../../../shared/types';
+import type { Event } from '@shared/types';
 import {
   toLocalYMD,
   indexEventsByDay,

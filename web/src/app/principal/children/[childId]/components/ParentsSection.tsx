@@ -7,18 +7,8 @@ import type {
 } from '@/hooks/useParentsManagement';
 import { SectionCard } from '@/components/ui';
 import { IconMail, IconPhone, IconUser } from '@/components/icons/AdminIcons';
+import { getInitials } from 'shared/format';
 
-function getInitials(p: UserProfile): string {
-  const name = (p.displayName ?? '').trim();
-  if (name.length >= 2) {
-    const parts = name.split(/\s+/);
-    if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-    return name.slice(0, 2).toUpperCase();
-  }
-  const email = (p.email ?? '').trim();
-  if (email.length >= 1) return email[0].toUpperCase();
-  return '?';
-}
 
 export interface ParentsSectionProps {
   childName?: string;
@@ -106,7 +96,7 @@ export function ParentsSection({
         {p.photoURL ? (
           <img src={p.photoURL} alt="" className="h-11 w-11 rounded-full object-cover" />
         ) : (
-          getInitials(p)
+          getInitials(p.displayName, p.email)
         )}
       </div>
       <div className="min-w-0 flex-1">

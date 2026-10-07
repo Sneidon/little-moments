@@ -24,8 +24,8 @@ import {
 import type { ThemeMode } from '../../context/ThemeContext';
 import { getInitials, formatSettingsVersionFooter } from '../../utils';
 import { getMobileEligibleRoles } from '../../utils/roles';
-import type { ClassRoom } from '../../../../shared/types';
-import type { School } from '../../../../shared/types';
+import type { ClassRoom } from '@shared/types';
+import type { School } from '@shared/types';
 
 export function TeacherSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();

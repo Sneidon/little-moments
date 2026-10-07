@@ -5,7 +5,7 @@ import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import type { Event } from '../../../../shared/types';
+import type { Event } from '@shared/types';
 
 export function EventsScreen() {
   const { profile } = useAuth();

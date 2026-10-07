@@ -11,7 +11,7 @@ import { brandFont } from '../../theme/typography';
 import { HeaderBlock, Overline, DisplayTitle } from '../../components/brand/HeaderBlock';
 import { OutlineButton } from '../../components/brand/Buttons';
 import { radius, spacing, type as typeTokens, type BrandPalette, type CategoryPalette } from '../../theme/tokens';
-import type { UserRole } from '../../../../shared/types';
+import type { UserRole } from '@shared/types';
 
 type Props = {
   onRoleSelected: (role: UserRole) => void;

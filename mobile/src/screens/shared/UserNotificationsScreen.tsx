@@ -63,7 +63,7 @@ export function UserNotificationsScreen({ navigation }: Props) {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as NotificationItem) })));
+        setItems(snap.docs.map((d) => ({ ...(d.data() as NotificationItem), id: d.id })));
         setLoadError(null);
         setLoading(false);
       },
@@ -88,7 +88,7 @@ export function UserNotificationsScreen({ navigation }: Props) {
       await markInAppNotificationRead(uid, item.id);
     }
     navigateFromNotificationData(
-      navigation,
+      navigation as unknown as Parameters<typeof navigateFromNotificationData>[0],
       {
         type: item.type,
         schoolId: item.schoolId,

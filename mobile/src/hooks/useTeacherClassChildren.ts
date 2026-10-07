@@ -3,8 +3,8 @@ import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'fire
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { getCached, setCached, LIST_TTL_MS } from '../utils/cache';
-import type { Child } from '../../../shared/types';
-import type { ClassRoom } from '../../../shared/types';
+import type { Child } from '@shared/types';
+import type { ClassRoom } from '@shared/types';
 
 const cacheKeyChildren = (schoolId: string, uid: string) =>
   `teacher:children:${schoolId}:${uid}`;

@@ -20,8 +20,8 @@ import { getCached, setCached, LIST_TTL_MS } from '../../utils/cache';
 import { getInitials } from '../../utils';
 import { isVideoMedia } from '../../utils/media';
 import { EmptyState } from '../../components/EmptyState';
-import type { Child } from '../../../../shared/types';
-import type { DailyReport } from '../../../../shared/types';
+import type { Child } from '@shared/types';
+import type { DailyReport } from '@shared/types';
 
 const H_PAD = 16;
 const POST_GAP = 20;

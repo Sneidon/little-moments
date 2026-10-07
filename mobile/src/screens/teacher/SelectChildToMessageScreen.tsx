@@ -20,8 +20,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getInitials } from '../../utils';
 import { getOrCreateChat } from '../../api/chat';
-import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
+import type { Child } from '@shared/types';
+import type { ClassRoom } from '@shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/MainTabs';
 

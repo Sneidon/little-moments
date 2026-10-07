@@ -19,7 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { markAnnouncementNotificationsRead } from '../../services/inAppNotifications';
 import { AnnouncementMedia } from '../../components/AnnouncementMedia';
 import { isVideoMedia } from '../../utils/media';
-import type { Announcement } from '../../../../shared/types';
+import type { Announcement } from '@shared/types';
 
 function announcementPreviewMeta(item: Announcement): { chips: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] } {
   const chips: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [];

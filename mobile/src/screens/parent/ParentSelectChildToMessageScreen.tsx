@@ -20,8 +20,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { getOrCreateChat } from '../../api/chat';
 import { font } from '../../theme/typography';
 import { getInitials } from '../../utils';
-import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
+import type { Child } from '@shared/types';
+import type { ClassRoom } from '@shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/MainTabs';
 
@@ -172,7 +172,7 @@ export function ParentSelectChildToMessageScreen({ navigation }: Props) {
             <EmptyState
               icon="people-outline"
               title="No children linked"
-              message="Ask your school to link your child to your parent account."
+              subtitle="Ask your school to link your child to your parent account."
             />
           </View>
         }

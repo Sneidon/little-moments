@@ -41,8 +41,8 @@ import {
   type CategoryPalette,
 } from '../../theme/tokens';
 
-import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
+import type { Child } from '@shared/types';
+import type { ClassRoom } from '@shared/types';
 
 type ReportsRouteParams = { childId: string };
 type Props = {

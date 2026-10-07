@@ -20,7 +20,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
-import type { Event } from '../../../../shared/types';
+import type { Event } from '@shared/types';
 import { isVideoMedia } from '../../utils/media';
 import { formatEventTimeRange, getEventHighlight } from './calendarUtils';
 
@@ -288,9 +288,7 @@ export function ParentEventDetailScreen({ route, navigation }: Props) {
   const relativeColors =
     ctx.relativeTone === 'success'
       ? { bg: colors.accentTealSoft, fg: colors.success }
-      : ctx.relativeTone === 'muted'
-        ? { bg: colors.backgroundSecondary, fg: colors.textMuted }
-        : { bg: colors.primaryMuted, fg: colors.primary };
+      : { bg: colors.primaryMuted, fg: colors.primary };
 
   const summaryCard = (
     <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>

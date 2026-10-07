@@ -39,9 +39,9 @@ import {
 } from '../../theme/tokens';
 import { getInitials } from '../../utils';
 import { isChatUnreadForUser } from '../../utils/chatUnread';
-import type { Chat } from '../../../../shared/types';
-import type { UserProfile } from '../../../../shared/types';
-import type { Child } from '../../../../shared/types';
+import type { Chat } from '@shared/types';
+import type { UserProfile } from '@shared/types';
+import type { Child } from '@shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type MessagesStackParamList = {

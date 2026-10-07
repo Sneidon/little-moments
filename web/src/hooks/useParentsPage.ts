@@ -11,7 +11,7 @@ import { exportStaffPageToExcel } from '@/lib/exportStaffPageExcel';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import type { UserProfile } from 'shared/types';
 import type { Child } from 'shared/types';
-import { userHoldsRole } from '@/lib/roles';
+import { userHasRole } from '@/lib/roles';
 
 export interface UseParentsPageResult {
   loading: boolean;
@@ -80,7 +80,7 @@ export function useParentsPage(): UseParentsPageResult {
   }, [profile?.schoolId, load]);
 
   const parents = useMemo(
-    () => users.filter((u) => userHoldsRole(u, 'parent')),
+    () => users.filter((u) => userHasRole(u, 'parent')),
     [users]
   );
 

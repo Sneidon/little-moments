@@ -26,9 +26,9 @@ import {
 } from '../../components/SettingsSection';
 import { getAge, getInitials, formatSettingsVersionFooter } from '../../utils';
 import { getMobileEligibleRoles } from '../../utils/roles';
-import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
-import type { School } from '../../../../shared/types';
+import type { Child } from '@shared/types';
+import type { ClassRoom } from '@shared/types';
+import type { School } from '@shared/types';
 
 export function ParentSettingsScreen() {
   const navigation = useNavigation();

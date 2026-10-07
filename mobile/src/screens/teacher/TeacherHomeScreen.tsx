@@ -41,7 +41,7 @@ import { useDateNavigation, useTeacherClassChildren } from '../../hooks';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { getAge, getInitials } from '../../utils';
 
-import type { Child } from '../../../../shared/types';
+import type { Child } from '@shared/types';
 
 export function TeacherHomeScreen({
   navigation,

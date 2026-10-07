@@ -7,7 +7,7 @@ import {
 } from '@react-navigation/bottom-tabs/unstable';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { UserRole } from '../../../shared/types';
+import type { UserRole } from '@shared/types';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { usePushNotificationRegistration } from '../hooks/usePushNotificationRegistration';

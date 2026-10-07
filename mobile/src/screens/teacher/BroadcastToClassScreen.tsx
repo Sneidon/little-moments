@@ -22,8 +22,8 @@ import { font } from '../../theme/typography';
 import { getOrCreateChat } from '../../api/chat';
 import { Skeleton } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import type { Child } from '../../../../shared/types';
-import type { ClassRoom } from '../../../../shared/types';
+import type { Child } from '@shared/types';
+import type { ClassRoom } from '@shared/types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/MainTabs';
 

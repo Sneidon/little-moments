@@ -19,7 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { formatTime } from '../../utils';
 import { getReportTitle, type ReportWithExtras } from '../../utils/childDailyReportDisplay';
-import { formatMealAmount } from '../../utils/reportLabels';
+import { formatMealAmount } from '@shared/reportLabels';
 import type { ColorPalette } from '../../theme/colors';
 
 function formatNappyType(v: unknown): string | undefined {
@@ -256,7 +256,7 @@ export function ReportDetailScreen({ route }: Props) {
     if (mt) rows.push({ label: 'Meal', value: mt.charAt(0).toUpperCase() + mt.slice(1) });
     const opt = str(data?.mealOptionName);
     if (opt) rows.push({ label: 'Option', value: opt });
-    const amt = formatMealAmount(data?.mealAmount);
+    const amt = formatMealAmount(str(data?.mealAmount));
     if (amt) rows.push({ label: 'Amount eaten', value: amt });
   }
   if (type === 'nappy_change') {

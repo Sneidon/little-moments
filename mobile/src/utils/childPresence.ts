@@ -1,6 +1,6 @@
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { ReportType } from '../../../shared/types';
+import type { ReportType } from '@shared/types';
 
 export function toReportIsoTimestamp(ts: unknown): string {
   if (typeof ts === 'string') return ts;

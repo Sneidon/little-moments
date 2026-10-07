@@ -17,7 +17,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonCard } from '../../components/Skeleton';
 import { AnnouncementMedia } from '../../components/AnnouncementMedia';
-import type { Announcement } from '../../../../shared/types';
+import type { Announcement } from '@shared/types';
 
 export function AnnouncementsScreen() {
   const { profile, loading: authLoading } = useAuth();

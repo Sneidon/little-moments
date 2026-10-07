@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, doc, getDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { RootStackParamList } from '../../navigation/MainTabs';
 import { db } from '../../config/firebase';
-import type { Child, ClassRoom, MealOption } from '../../../../shared/types';
+import type { Child, ClassRoom, MealOption } from '@shared/types';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import { getAge, getInitials, formatTime } from '../../utils';

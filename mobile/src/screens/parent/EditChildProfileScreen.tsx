@@ -12,7 +12,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import firebaseApp from '../../config/firebase';
 import { useTheme } from '../../context/ThemeContext';
-import type { Child } from '../../../../shared/types';
+import type { Child } from '@shared/types';
 
 export function EditChildProfileScreen({
   child,

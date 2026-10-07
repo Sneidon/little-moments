@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { formatMealCategoryLabel } from './reportLabels';
-import type { DailyReport, MealOption } from '../../../shared/types';
+import { formatMealCategoryLabel } from '@shared/reportLabels';
+import type { DailyReport, MealOption } from '@shared/types';
 
 type IonName = keyof typeof Ionicons.glyphMap;
 

@@ -14,7 +14,7 @@ import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import type { ClassRoom } from '../../../../shared/types';
+import type { ClassRoom } from '@shared/types';
 
 export function DailyCommunicationScreen({
   navigation,

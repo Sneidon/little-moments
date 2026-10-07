@@ -22,7 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { markAnnouncementNotificationsRead } from '../../services/inAppNotifications';
 import { font } from '../../theme/typography';
-import type { Announcement } from '../../../../shared/types';
+import type { Announcement } from '@shared/types';
 import { isVideoMedia } from '../../utils/media';
 
 type Params = { schoolId: string; announcementId: string };

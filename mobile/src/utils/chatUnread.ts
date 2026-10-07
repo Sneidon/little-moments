@@ -1,5 +1,5 @@
-import type { Chat } from '../../../shared/types';
-import type { UserRole } from '../../../shared/types';
+import type { Chat } from '@shared/types';
+import type { UserRole } from '@shared/types';
 
 export function getChatReadField(role: UserRole): 'teacherLastReadAt' | 'parentLastReadAt' {
   return role === 'teacher' ? 'teacherLastReadAt' : 'parentLastReadAt';

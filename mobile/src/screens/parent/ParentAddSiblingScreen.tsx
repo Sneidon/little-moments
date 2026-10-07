@@ -7,7 +7,7 @@ import app, { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
-import type { ClassRoom } from '../../../../shared/types';
+import type { ClassRoom } from '@shared/types';
 
 export function ParentAddSiblingScreen({ navigation }: { navigation: { goBack: () => void } }) {
   const { profile } = useAuth();

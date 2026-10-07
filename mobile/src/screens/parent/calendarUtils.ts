@@ -1,4 +1,4 @@
-import type { Event } from '../../../../shared/types';
+import type { Event } from '@shared/types';
 
 /** Human-readable local start (and optional end time) for an event. */
 export function formatEventTimeRange(ev: Event): string {

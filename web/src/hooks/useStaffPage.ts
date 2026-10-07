@@ -12,7 +12,7 @@ import { exportStaffPageToExcel } from '@/lib/exportStaffPageExcel';
 import { requestPasswordResetEmail } from '@/lib/auth';
 import type { UserProfile } from 'shared/types';
 import type { ClassRoom } from 'shared/types';
-import { userHoldsRole } from '@/lib/roles';
+import { userHasRole } from '@/lib/roles';
 
 export type StaffRoleFilter = 'all' | 'principal' | 'teacher';
 
@@ -195,7 +195,7 @@ export function useStaffPage(): UseStaffPageResult {
   }, [profile?.schoolId, load]);
 
   const staffMembers = useMemo(
-    () => users.filter((u) => userHoldsRole(u, 'teacher') || userHoldsRole(u, 'principal')),
+    () => users.filter((u) => userHasRole(u, 'teacher') || userHasRole(u, 'principal')),
     [users]
   );
 
@@ -206,8 +206,8 @@ export function useStaffPage(): UseStaffPageResult {
 
   const filteredStaff = useMemo(() => {
     let list = staffMembers;
-    if (staffRoleFilter === 'principal') list = list.filter((u) => userHoldsRole(u, 'principal'));
-    else if (staffRoleFilter === 'teacher') list = list.filter((u) => userHoldsRole(u, 'teacher'));
+    if (staffRoleFilter === 'principal') list = list.filter((u) => userHasRole(u, 'principal'));
+    else if (staffRoleFilter === 'teacher') list = list.filter((u) => userHasRole(u, 'teacher'));
     if (staffSearch.trim()) {
       const q = staffSearch.trim().toLowerCase();
       list = list.filter(
@@ -371,7 +371,7 @@ export function useStaffPage(): UseStaffPageResult {
   );
 
   const startEditTeacher = useCallback((u: UserProfile) => {
-    if (userHoldsRole(u, 'principal') && !userHoldsRole(u, 'teacher')) return;
+    if (userHasRole(u, 'principal') && !userHasRole(u, 'teacher')) return;
     setEditingUid(u.uid);
     setEditError('');
     setEditForm(getEditFormState(u));

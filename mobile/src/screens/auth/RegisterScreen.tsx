@@ -23,7 +23,7 @@ import { TextField } from '../../components/brand/TextField';
 import { radius, spacing, type BrandPalette } from '../../theme/tokens';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
-import type { UserRole } from '../../../../shared/types';
+import type { UserRole } from '@shared/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 

@@ -7,7 +7,7 @@ import { brandFont } from '../../theme/typography';
 import { type as typeTokens } from '../../theme/tokens';
 import { docIcon } from '../school-post/attachments';
 import type { Announcement } from '@shared/types';
-import { AnnouncementMediaBlock } from './AnnouncementMediaBlock';
+import { MediaBlock } from '../../components/brand/MediaBlock';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -49,7 +49,7 @@ export function AnnouncementExpanded({ item }: { item: Announcement }) {
           <Text style={styles.metaText}>{posted}</Text>
         </View>
       ) : null}
-      {item.imageUrl ? <AnnouncementMediaBlock url={item.imageUrl} mediaType={item.mediaType} /> : null}
+      {item.imageUrl ? <MediaBlock url={item.imageUrl} mediaType={item.mediaType} /> : null}
       {item.body?.trim() ? <Text style={styles.body}>{item.body.trim()}</Text> : null}
       {documents.length ? <Text style={styles.section}>Files</Text> : null}
       {documents.map((d, i) => (

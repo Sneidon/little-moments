@@ -9,7 +9,7 @@ import { isVideoMedia } from '../../utils/media';
 const MIN_RATIO = 0.6;
 const MAX_RATIO = 1.6;
 
-export function AnnouncementMediaBlock({ url, mediaType }: { url: string; mediaType?: string }) {
+export function MediaBlock({ url, mediaType }: { url: string; mediaType?: string }) {
   const { category } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [ratio, setRatio] = useState(4 / 3);

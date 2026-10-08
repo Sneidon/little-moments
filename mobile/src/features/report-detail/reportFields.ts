@@ -1,4 +1,3 @@
-import type { Ionicons } from '@expo/vector-icons';
 import { formatMealAmount } from '@shared/reportLabels';
 import { formatTime, toIso } from '../../utils';
 
@@ -26,21 +25,21 @@ const SLEEP_QUALITY: Record<string, string> = {
   poor: 'Poor — restless sleep',
 };
 
-const TYPE_META: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; color: string }> = {
-  meal: { label: 'Meal', icon: 'restaurant-outline', color: '#ea580c' },
-  nap_time: { label: 'Nap', icon: 'moon-outline', color: '#7c3aed' },
-  nappy_change: { label: 'Nappy change', icon: 'water-outline', color: '#0d9488' },
-  check_in: { label: 'Check in', icon: 'log-in-outline', color: '#16a34a' },
-  check_out: { label: 'Check out', icon: 'log-out-outline', color: '#b45309' },
-  activity: { label: 'Activity', icon: 'sparkles-outline', color: '#ea580c' },
-  class_change: { label: 'Class update', icon: 'school-outline', color: '#6A4BB1' },
-  child_joined_class: { label: 'Joined class', icon: 'person-add-outline', color: '#16a34a' },
-  medication: { label: 'Medication', icon: 'medical-outline', color: '#2563eb' },
-  incident: { label: 'Photo / moment', icon: 'camera-outline', color: '#db2777' },
+const TYPE_LABELS: Record<string, string> = {
+  meal: 'Meal',
+  nap_time: 'Nap',
+  nappy_change: 'Nappy change',
+  check_in: 'Check in',
+  check_out: 'Check out',
+  activity: 'Activity',
+  class_change: 'Class update',
+  child_joined_class: 'Joined class',
+  medication: 'Medication',
+  incident: 'Photo / moment',
 };
 
-export function reportTypeMeta(type: string) {
-  return TYPE_META[type] ?? { label: type.replace(/_/g, ' '), icon: 'document-text-outline' as const, color: undefined };
+export function reportTypeLabel(type: string): string {
+  return TYPE_LABELS[type] ?? capitalize(type.replace(/_/g, ' '));
 }
 
 function capitalize(s: string) {
@@ -97,20 +96,28 @@ function typeRows(type: string, d: ReportDoc): [string, string | null | undefine
   }
 }
 
-function formatLoggedAt(ts: string) {
-  const date = new Date(ts).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
-  return `${formatTime(ts)} · ${date}`;
+export type ReportDetail = {
+  time?: string;
+  date?: string;
+  people: DetailRow[];
+  details: DetailRow[];
+  notes?: string;
+};
+
+function rows(entries: [string, string | null | undefined][]): DetailRow[] {
+  return entries.filter((e): e is [string, string] => !!e[1]).map(([label, value]) => ({ label, value }));
 }
 
-export function buildDetailRows(data: ReportDoc, childName: string | null, reporterName: string | null): DetailRow[] {
-  const type = str(data.type) ?? 'update';
+export function buildReportDetail(data: ReportDoc, childName: string | null, reporterName: string | null): ReportDetail {
   const ts = toIso(data.timestamp) || toIso(data.createdAt);
-  const entries: [string, string | null | undefined][] = [
-    ['Time logged', ts ? formatLoggedAt(ts) : undefined],
-    ['Child', childName],
-    ['Logged by', reporterName],
-    ...typeRows(type, data),
-    ['Notes', str(data.notes)],
-  ];
-  return entries.filter((e): e is [string, string] => !!e[1]).map(([label, value]) => ({ label, value }));
+  return {
+    time: ts ? formatTime(ts) : undefined,
+    date: ts ? new Date(ts).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : undefined,
+    people: rows([
+      ['Child', childName],
+      ['Logged by', reporterName],
+    ]),
+    details: rows(typeRows(str(data.type) ?? 'update', data)),
+    notes: str(data.notes),
+  };
 }

@@ -87,7 +87,7 @@ export function DailyReportView({
           <DateTimePicker
             value={new Date(dates.selectedDate + 'T12:00:00')}
             mode="date"
-            display={Platform.OS === 'ios' ? 'calendar' : 'default'}
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
             onChange={dates.onDatePickerChange}
             maximumDate={dates.maxDate}
           />

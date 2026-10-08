@@ -1,60 +1,91 @@
 import React, { useMemo } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useThemedStyles, type Theme } from '../../hooks/useThemedStyles';
+import { EmptyCard } from '../../components/brand/EmptyCard';
+import { MediaBlock } from '../../components/brand/MediaBlock';
+import { Skeleton } from '../../components/Skeleton';
+import { radius, spacing } from '../../theme/tokens';
 import { getReportTitle, type ReportWithExtras } from '../../utils/childDailyReportDisplay';
 import {
-  ReportDetailsCard,
+  DetailCard,
+  NotesCard,
   ReportHero,
-  ReportMediaCard,
-  buildDetailRows,
+  SectionTitle,
+  buildReportDetail,
   str,
   useRecordFirstPhotoView,
   useReportDetail,
-  useReportDetailStyles,
 } from '../../features/report-detail';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportDetail'>;
 
 export function ReportDetailScreen({ route }: Props) {
-  const { colors } = useTheme();
-  const styles = useReportDetailStyles();
+  const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const { loading, missing, data, imageUrl, childName, reporterName } = useReportDetail(
     route.params.schoolId,
     route.params.childId,
     route.params.reportId
   );
   useRecordFirstPhotoView(route.params, data ? imageUrl : undefined);
-  const rows = useMemo(() => (data ? buildDetailRows(data, childName, reporterName) : []), [data, childName, reporterName]);
+  const detail = useMemo(() => (data ? buildReportDetail(data, childName, reporterName) : null), [data, childName, reporterName]);
+  const content = [styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 24 }];
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading update…</Text>
+      <View style={[styles.screen, ...content]} accessibilityState={{ busy: true }}>
+        <Skeleton height={190} borderRadius={radius.cardL} />
+        <Skeleton height={140} borderRadius={radius.card} />
+        <Skeleton height={110} borderRadius={radius.card} />
       </View>
     );
   }
 
-  if (missing || !data) {
+  if (missing || !data || !detail) {
     return (
-      <View style={styles.centered}>
-        <Ionicons name="alert-circle-outline" size={48} color={colors.textMuted} />
-        <Text style={styles.errorTitle}>Update not found</Text>
-        <Text style={styles.errorSub}>This entry may have been removed.</Text>
+      <View style={[styles.screen, ...content]}>
+        <EmptyCard icon="alert-circle-outline" title="Update not found" body="This entry may have been removed." />
       </View>
     );
   }
 
-  const isVideo = !!str(data.mediaType)?.toLowerCase().includes('video');
-
+  const mediaType = str(data.mediaType);
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <ReportHero type={str(data.type) ?? 'update'} title={getReportTitle(data as unknown as ReportWithExtras)} />
-      <ReportDetailsCard rows={rows} hasMedia={!!imageUrl} />
-      {imageUrl ? <ReportMediaCard uri={imageUrl} isVideo={isVideo} /> : null}
+    <ScrollView style={styles.screen} contentContainerStyle={content} showsVerticalScrollIndicator={false}>
+      <ReportHero
+        type={str(data.type) ?? 'update'}
+        title={getReportTitle(data as unknown as ReportWithExtras)}
+        time={detail.time}
+        date={detail.date}
+      />
+      {imageUrl ? <MediaBlock url={imageUrl} mediaType={mediaType} /> : null}
+      {detail.details.length ? (
+        <>
+          <SectionTitle>Details</SectionTitle>
+          <DetailCard rows={detail.details} />
+        </>
+      ) : null}
+      {detail.notes ? (
+        <>
+          <SectionTitle>Notes</SectionTitle>
+          <NotesCard notes={detail.notes} />
+        </>
+      ) : null}
+      {detail.people.length ? (
+        <>
+          <SectionTitle>Who</SectionTitle>
+          <DetailCard rows={detail.people} people />
+        </>
+      ) : null}
     </ScrollView>
   );
 }
+
+const createStyles = ({ brand }: Theme) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: brand.background },
+    content: { padding: spacing.screenX, gap: spacing.gapM },
+  });

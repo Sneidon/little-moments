@@ -1,358 +1,74 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import { uploadAnnouncementImage, uploadAnnouncementDocument, uploadAnnouncementVideo } from '@/utils/uploadImage';
-import { assertVideoFileSize } from '@/lib/media';
-import type { Announcement, EventDocumentLink } from 'shared/types';
+import { useCallback, useState } from 'react';
+import { savePost, targetFields } from '@/lib/postAttachments';
+import type { Announcement } from 'shared/types';
+import { usePostAttachments } from './usePostAttachments';
 
-export interface PendingDocument {
-  label: string;
-  file: File | null;
-  /** When editing, URL of a file already stored for this announcement. */
-  existingUrl?: string;
-}
+export type { PendingDocument, PendingLink } from './usePostAttachments';
 
-export interface PendingLink {
-  label: string;
-  url: string;
-}
+type Options = { schoolId: string | undefined; createdBy: string; onSuccess?: () => void };
 
-export interface UseAnnouncementFormOptions {
-  schoolId: string | undefined;
-  createdBy: string;
-  onSuccess?: () => void;
-}
-
-export interface UseAnnouncementFormResult {
-  title: string;
-  setTitle: (v: string) => void;
-  body: string;
-  setBody: (v: string) => void;
-  imageFile: File | null;
-  setImageFile: (f: File | null) => void;
-  videoFile: File | null;
-  setVideoFile: (f: File | null) => void;
-  existingImageUrl: string | null;
-  existingMediaType: string | undefined;
-  documents: PendingDocument[];
-  addDocument: () => void;
-  removeDocument: (i: number) => void;
-  setDocumentLabel: (i: number, label: string) => void;
-  setDocumentFile: (i: number, file: File | null) => void;
-  links: PendingLink[];
-  addLink: () => void;
-  removeLink: (i: number) => void;
-  setLinkLabel: (i: number, label: string) => void;
-  setLinkUrl: (i: number, url: string) => void;
-  targetType: 'everyone' | 'classes';
-  setTargetType: (v: 'everyone' | 'classes') => void;
-  targetClassIds: string[];
-  setTargetClassIds: (ids: string[]) => void;
-  toggleTargetClass: (classId: string) => void;
-  showForm: boolean;
-  editingId: string | null;
-  openFormForNew: () => void;
-  openFormForEdit: (announcement: Announcement) => void;
-  closeForm: () => void;
-  submitting: boolean;
-  submit: (e: React.FormEvent) => Promise<void>;
-  canSubmit: boolean;
-}
-
-export function useAnnouncementForm({
-  schoolId,
-  createdBy,
-  onSuccess,
-}: UseAnnouncementFormOptions): UseAnnouncementFormResult {
+export function useAnnouncementForm({ schoolId, createdBy, onSuccess }: Options) {
+  const attachments = usePostAttachments();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [imageFile, setImageFileState] = useState<File | null>(null);
-  const [videoFile, setVideoFileState] = useState<File | null>(null);
-  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
-  const [existingMediaType, setExistingMediaType] = useState<string | undefined>(undefined);
-
-  const setImageFile = useCallback((f: File | null) => {
-    setImageFileState(f);
-    if (f) {
-      setVideoFileState(null);
-      setExistingImageUrl(null);
-      setExistingMediaType(undefined);
-    }
-  }, []);
-
-  const setVideoFile = useCallback((f: File | null) => {
-    setVideoFileState(f);
-    if (f) {
-      setImageFileState(null);
-      setExistingImageUrl(null);
-      setExistingMediaType(undefined);
-    }
-  }, []);
-  const [documents, setDocuments] = useState<PendingDocument[]>([]);
-  const [links, setLinks] = useState<PendingLink[]>([]);
-  const [targetType, setTargetType] = useState<'everyone' | 'classes'>('everyone');
-  const [targetClassIds, setTargetClassIds] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { load } = attachments;
 
-  const closeForm = useCallback(() => {
-    setEditingId(null);
-    setTitle('');
-    setBody('');
-    setImageFileState(null);
-    setVideoFileState(null);
-    setExistingImageUrl(null);
-    setExistingMediaType(undefined);
-    setDocuments([]);
-    setLinks([]);
-    setTargetType('everyone');
-    setTargetClassIds([]);
-    setShowForm(false);
-    onSuccess?.();
-  }, [onSuccess]);
-
-  const openFormForNew = useCallback(() => {
-    setEditingId(null);
-    setTitle('');
-    setBody('');
-    setImageFileState(null);
-    setVideoFileState(null);
-    setExistingImageUrl(null);
-    setExistingMediaType(undefined);
-    setDocuments([]);
-    setLinks([]);
-    setTargetType('everyone');
-    setTargetClassIds([]);
-    setShowForm(true);
-  }, []);
-
-  const openFormForEdit = useCallback((announcement: Announcement) => {
-    setEditingId(announcement.id);
-    setTitle(announcement.title);
-    setBody(announcement.body || '');
-    setTargetType(announcement.targetType || 'everyone');
-    setTargetClassIds(announcement.targetClassIds || []);
-    setImageFileState(null);
-    setVideoFileState(null);
-    setExistingImageUrl(announcement.imageUrl ?? null);
-    setExistingMediaType(announcement.mediaType);
-    setDocuments(
-      (announcement.documents ?? []).map((d) => ({
-        label: (d.label || d.name || '').trim(),
-        file: null,
-        existingUrl: d.url,
-      }))
-    );
-    setLinks(
-      (announcement.links ?? []).map((d) => ({
-        label: (d.label || d.name || '').trim(),
-        url: d.url || '',
-      }))
-    );
-    setShowForm(true);
-  }, []);
-
-  const toggleTargetClass = useCallback((classId: string) => {
-    setTargetClassIds((prev) =>
-      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
-    );
-  }, []);
-
-  const addDocument = useCallback(() => {
-    setDocuments((d) => [...d, { label: '', file: null }]);
-  }, []);
-
-  const removeDocument = useCallback((i: number) => {
-    setDocuments((d) => d.filter((_, idx) => idx !== i));
-  }, []);
-
-  const setDocumentLabel = useCallback((i: number, label: string) => {
-    setDocuments((d) => d.map((row, idx) => (idx === i ? { ...row, label } : row)));
-  }, []);
-
-  const setDocumentFile = useCallback((i: number, file: File | null) => {
-    setDocuments((d) =>
-      d.map((row, idx) => {
-        if (idx !== i) return row;
-        if (file) return { ...row, file, existingUrl: undefined };
-        return { ...row, file: null };
-      })
-    );
-  }, []);
-
-  const addLink = useCallback(() => {
-    setLinks((prev) => [...prev, { label: '', url: '' }]);
-  }, []);
-
-  const removeLink = useCallback((i: number) => {
-    setLinks((prev) => prev.filter((_, idx) => idx !== i));
-  }, []);
-
-  const setLinkLabel = useCallback((i: number, label: string) => {
-    setLinks((prev) => prev.map((row, idx) => (idx === i ? { ...row, label } : row)));
-  }, []);
-
-  const setLinkUrl = useCallback((i: number, url: string) => {
-    setLinks((prev) => prev.map((row, idx) => (idx === i ? { ...row, url } : row)));
-  }, []);
-
-  const submit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!schoolId || !title.trim()) return;
-      setSubmitting(true);
-      try {
-        if (editingId) {
-          const updates: Partial<Announcement> = {
-            title: title.trim(),
-            body: body.trim(),
-            targetType,
-            targetClassIds: targetType === 'classes' ? targetClassIds : [],
-          };
-          if (imageFile) {
-            updates.imageUrl = await uploadAnnouncementImage(imageFile, schoolId, editingId);
-            updates.mediaType = 'image';
-          } else if (videoFile) {
-            assertVideoFileSize(videoFile);
-            updates.imageUrl = await uploadAnnouncementVideo(videoFile, schoolId, editingId);
-            updates.mediaType = 'video';
-          }
-
-          const finalDocs: EventDocumentLink[] = [];
-          for (let idx = 0; idx < documents.length; idx++) {
-            const d = documents[idx];
-            if (d.file) {
-              const url = await uploadAnnouncementDocument(
-                d.file,
-                schoolId,
-                editingId,
-                `doc-${idx}-${Date.now()}`
-              );
-              finalDocs.push({
-                label: d.label?.trim() || undefined,
-                name: d.label?.trim() || undefined,
-                url,
-              });
-            } else if (d.existingUrl) {
-              finalDocs.push({
-                label: d.label?.trim() || undefined,
-                name: d.label?.trim() || undefined,
-                url: d.existingUrl,
-              });
-            }
-          }
-          updates.documents = finalDocs;
-
-          const validLinks = links.filter((l) => l.url?.trim());
-          updates.links = validLinks.map((l) => ({
-            label: l.label?.trim() || undefined,
-            name: l.label?.trim() || undefined,
-            url: l.url.trim(),
-          }));
-
-          await updateDoc(doc(db, 'schools', schoolId, 'announcements', editingId), updates);
-          closeForm();
-          return;
-        }
-
-        const announcementData: Record<string, unknown> = {
-          schoolId,
-          title: title.trim(),
-          createdBy,
-          createdAt: new Date().toISOString(),
-        };
-        if (body.trim()) announcementData.body = body.trim();
-        announcementData.targetType = targetType;
-        if (targetType === 'classes' && targetClassIds.length > 0) {
-          announcementData.targetClassIds = targetClassIds;
-        }
-
-        const ref = await addDoc(
-          collection(db, 'schools', schoolId, 'announcements'),
-          announcementData
-        );
-
-        const updates: Partial<Announcement> = {};
-
-        if (imageFile) {
-          updates.imageUrl = await uploadAnnouncementImage(imageFile, schoolId, ref.id);
-          updates.mediaType = 'image';
-        } else if (videoFile) {
-          assertVideoFileSize(videoFile);
-          updates.imageUrl = await uploadAnnouncementVideo(videoFile, schoolId, ref.id);
-          updates.mediaType = 'video';
-        }
-
-        const docsWithFiles = documents.filter((d) => d.file);
-        if (docsWithFiles.length > 0) {
-          const uploadedDocs: EventDocumentLink[] = await Promise.all(
-            docsWithFiles.map(async (d, idx) => {
-              const url = await uploadAnnouncementDocument(
-                d.file!,
-                schoolId,
-                ref.id,
-                `doc-${idx}-${Date.now()}`
-              );
-              return {
-                label: d.label?.trim() || undefined,
-                name: d.label?.trim() || undefined,
-                url,
-              };
-            })
-          );
-          updates.documents = uploadedDocs;
-        }
-
-        const validLinks = links.filter((l) => l.url?.trim());
-        if (validLinks.length > 0) {
-          updates.links = validLinks.map((l) => ({
-            label: l.label?.trim() || undefined,
-            name: l.label?.trim() || undefined,
-            url: l.url.trim(),
-          }));
-        }
-
-        if (Object.keys(updates).length > 0) {
-          await updateDoc(doc(db, 'schools', schoolId, 'announcements', ref.id), updates);
-        }
-
-        closeForm();
-      } finally {
-        setSubmitting(false);
-      }
+  const fill = useCallback(
+    (announcement: Announcement | null) => {
+      setEditingId(announcement?.id ?? null);
+      setTitle(announcement?.title ?? '');
+      setBody(announcement?.body || '');
+      load(announcement);
     },
-    [schoolId, editingId, title, body, imageFile, videoFile, documents, links, targetType, targetClassIds, createdBy, closeForm]
+    [load]
   );
 
+  const closeForm = useCallback(() => {
+    fill(null);
+    setShowForm(false);
+    onSuccess?.();
+  }, [fill, onSuccess]);
+
+  const openFormForNew = useCallback(() => {
+    fill(null);
+    setShowForm(true);
+  }, [fill]);
+
+  const openFormForEdit = useCallback(
+    (announcement: Announcement) => {
+      fill(announcement);
+      setShowForm(true);
+    },
+    [fill]
+  );
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!schoolId || !title.trim()) return;
+    setSubmitting(true);
+    try {
+      const target = targetFields(attachments.targetType, attachments.targetClassIds, !!editingId);
+      const fields = editingId
+        ? { title: title.trim(), body: body.trim(), ...target }
+        : { schoolId, title: title.trim(), createdBy, createdAt: new Date().toISOString(), ...(body.trim() ? { body: body.trim() } : {}), ...target };
+      await savePost('announcements', schoolId, editingId, fields, attachments);
+      closeForm();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return {
+    ...attachments,
     title,
     setTitle,
     body,
     setBody,
-    imageFile,
-    setImageFile,
-    videoFile,
-    setVideoFile,
-    existingImageUrl,
-    existingMediaType,
-    documents,
-    addDocument,
-    removeDocument,
-    setDocumentLabel,
-    setDocumentFile,
-    links,
-    addLink,
-    removeLink,
-    setLinkLabel,
-    setLinkUrl,
-    targetType,
-    setTargetType,
-    targetClassIds,
-    setTargetClassIds,
-    toggleTargetClass,
     showForm,
     editingId,
     openFormForNew,
@@ -363,3 +79,5 @@ export function useAnnouncementForm({
     canSubmit: !!title.trim(),
   };
 }
+
+export type UseAnnouncementFormResult = ReturnType<typeof useAnnouncementForm>;

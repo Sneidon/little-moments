@@ -19,7 +19,7 @@ export function PasswordResetDialog<T extends Target>({ reset, lockWhileSending 
   );
 }
 
-export function PasswordResetNotice<T extends Target>({ reset }: { reset: PasswordResetState<T> }) {
+export function PasswordResetNotice<T extends Target>({ reset, who = 'user' }: { reset: PasswordResetState<T>; who?: string }) {
   if (reset.error) {
     return (
       <Notice tone="error" onDismiss={reset.dismissError}>
@@ -30,7 +30,7 @@ export function PasswordResetNotice<T extends Target>({ reset }: { reset: Passwo
   if (!reset.sentTo) return null;
   return (
     <Notice tone="success" onDismiss={reset.dismissSuccess}>
-      Password reset email sent. The user will receive a link to set a new password.
+      Password reset email sent. The {who} will receive a link to set a new password.
     </Notice>
   );
 }

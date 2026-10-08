@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +16,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import type { ColorPalette } from '../../theme/colors';
 import { SettingsIconBox, settingsCardShadow } from '../../components/SettingsSection';
+import { useFeedback } from '../../context/FeedbackContext';
 
 export function TeacherNotificationSettingsScreen() {
+  const { notify, withLoader } = useFeedback();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
@@ -42,21 +43,23 @@ export function TeacherNotificationSettingsScreen() {
   const saveTeacherNotifications = useCallback(async () => {
     setNotifSaving(true);
     try {
-      const fn = httpsCallable<
-        { notificationPreferences: Record<string, boolean> },
-        { ok: boolean }
-      >(getFunctions(firebaseApp), 'updateTeacherNotificationPreferences');
-      await fn({
-        notificationPreferences: {
-          messages: notifMessages,
-          announcements: notifAnnouncements,
-          checkIn: notifCheckIn,
-          checkOut: notifCheckOut,
-        },
-      });
-      Alert.alert('Saved', 'Notification preferences updated.');
+      await withLoader(async () => {
+        const fn = httpsCallable<
+          { notificationPreferences: Record<string, boolean> },
+          { ok: boolean }
+        >(getFunctions(firebaseApp), 'updateTeacherNotificationPreferences');
+        await fn({
+          notificationPreferences: {
+            messages: notifMessages,
+            announcements: notifAnnouncements,
+            checkIn: notifCheckIn,
+            checkOut: notifCheckOut,
+          },
+        });
+      }, 'Saving…');
+      void notify({ tone: 'success', title: 'Saved', message: 'Notification preferences updated.' });
     } catch {
-      Alert.alert('Error', 'Could not save. Please try again.');
+      void notify({ tone: 'error', title: 'Error', message: 'Could not save. Please try again.' });
     } finally {
       setNotifSaving(false);
     }

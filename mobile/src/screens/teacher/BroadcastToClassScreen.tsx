@@ -15,6 +15,7 @@ import { radius, spacing, type BrandPalette } from '../../theme/tokens';
 import type { RootStackParamList } from '../../navigation/types';
 import { BroadcastIntro, ClassChooser, RecipientBar } from './broadcast/BroadcastParts';
 import { recipientSummary, useBroadcastRecipients } from './broadcast/useBroadcastRecipients';
+import { useFeedback } from '../../context/FeedbackContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BroadcastToClass'>;
 
@@ -22,6 +23,7 @@ const MESSAGE_MAX = 2000;
 const CONFIRM_PARENT_THRESHOLD = 3;
 
 export function BroadcastToClassScreen({ navigation }: Props) {
+  const { notify, withLoader } = useFeedback();
   const { profile } = useAuth();
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
@@ -45,18 +47,19 @@ export function BroadcastToClassScreen({ navigation }: Props) {
     if (!text || !schoolId || !classId || !uid) return;
     setPhase('chats');
     try {
-      const pairs = parentChildPairs(await fetchClassChildren(schoolId, classId));
-      if (pairs.length === 0) {
-        Alert.alert('No parents', 'No parents are linked to children in this class.');
+      const sent = await withLoader(async () => {
+        const pairs = parentChildPairs(await fetchClassChildren(schoolId, classId));
+        return pairs.length ? broadcastToParents(schoolId, uid, text, pairs, () => setPhase('messages')) : null;
+      }, 'Sending…');
+      if (sent === null) {
+        void notify({ tone: 'warning', title: 'No parents', message: 'No parents are linked to children in this class.' });
         return;
       }
-      const sent = await broadcastToParents(schoolId, uid, text, pairs, () => setPhase('messages'));
       setMessage('');
-      Alert.alert('Sent', `Your message was sent to ${sent} parent${sent === 1 ? '' : 's'}.`, [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      await notify({ tone: 'success', title: 'Sent', message: `Your message was sent to ${sent} parent${sent === 1 ? '' : 's'}.` });
+      navigation.goBack();
     } catch {
-      Alert.alert('Error', 'Could not send message. Please try again.');
+      void notify({ tone: 'error', title: 'Error', message: 'Could not send message. Please try again.' });
     } finally {
       setPhase('idle');
     }

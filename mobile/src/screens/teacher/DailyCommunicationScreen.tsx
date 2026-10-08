@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +14,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { ClassRoom } from '@shared/types';
+import { useFeedback } from '../../context/FeedbackContext';
 
 export function DailyCommunicationScreen({
   navigation,
@@ -23,6 +23,7 @@ export function DailyCommunicationScreen({
   navigation: { goBack: () => void };
   route?: { params?: { classId?: string } };
 }) {
+  const { notify, withLoader } = useFeedback();
   const { profile } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -55,30 +56,31 @@ export function DailyCommunicationScreen({
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
     if (!schoolId || !uid || !message.trim()) {
-      Alert.alert('Missing info', 'Please enter the planned activity for the day.');
+      void notify({ tone: 'warning', title: 'Missing info', message: 'Please enter the planned activity for the day.' });
       return;
     }
     const classId = selectedClassId ?? classes[0]?.id;
     if (!classId) {
-      Alert.alert('No class', 'You need at least one class assigned.');
+      void notify({ tone: 'warning', title: 'No class', message: 'You need at least one class assigned.' });
       return;
     }
     setSaving(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      await addDoc(collection(db, 'schools', schoolId, 'dailyCommunications'), {
-        schoolId,
-        classId,
-        createdBy: uid,
-        message: message.trim(),
-        date: today,
-        createdAt: new Date().toISOString(),
-      });
-      Alert.alert('Sent', 'All parents have been notified.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      await withLoader(async () => {
+        const today = new Date().toISOString().slice(0, 10);
+        await addDoc(collection(db, 'schools', schoolId, 'dailyCommunications'), {
+          schoolId,
+          classId,
+          createdBy: uid,
+          message: message.trim(),
+          date: today,
+          createdAt: new Date().toISOString(),
+        });
+      }, 'Sending…');
+      await notify({ tone: 'success', title: 'Sent', message: 'All parents have been notified.' });
+      navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', 'Could not send. Please try again.');
+      void notify({ tone: 'error', title: 'Error', message: 'Could not send. Please try again.' });
     } finally {
       setSaving(false);
     }

@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
-import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getOrCreateChat } from '../api/chat';
 import type { RootStackParamList } from '../navigation/types';
+import { useFeedback } from '../context/FeedbackContext';
 
 type OpenChatParams = {
   schoolId: string | null | undefined;
@@ -14,13 +14,14 @@ type OpenChatParams = {
 };
 
 export function useOpenChat({ replace = false }: { replace?: boolean } = {}) {
+  const { notify } = useFeedback();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [openingChildId, setOpeningChildId] = useState<string | null>(null);
 
   const openChat = useCallback(
     async ({ schoolId, childId, otherParticipantId, missingTitle, missingMessage }: OpenChatParams) => {
       if (!schoolId || !otherParticipantId) {
-        Alert.alert(missingTitle, missingMessage);
+        void notify({ tone: 'warning', title: missingTitle, message: missingMessage });
         return;
       }
       setOpeningChildId(childId);
@@ -30,7 +31,7 @@ export function useOpenChat({ replace = false }: { replace?: boolean } = {}) {
         if (replace) navigation.replace('ChatThread', params);
         else navigation.navigate('ChatThread', params);
       } catch {
-        Alert.alert('Error', 'Could not open the conversation. Please try again.');
+        void notify({ tone: 'error', title: 'Error', message: 'Could not open the conversation. Please try again.' });
       } finally {
         setOpeningChildId(null);
       }

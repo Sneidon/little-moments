@@ -6,15 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import firebaseApp from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useFeedback } from '../../context/FeedbackContext';
 
 export function ParentProfileScreen() {
+  const { notify, withLoader } = useFeedback();
   const { profile } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -36,18 +37,20 @@ export function ParentProfileScreen() {
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      const update = httpsCallable<
-        { displayName?: string; lastName?: string; phone?: string },
-        { ok: boolean }
-      >(getFunctions(firebaseApp), 'updateParentProfile');
-      await update({
-        displayName: profileForm.displayName.trim(),
-        lastName: profileForm.lastName.trim() || undefined,
-        phone: profileForm.phone.trim() || undefined,
-      });
-      Alert.alert('Saved', 'Profile updated.');
+      await withLoader(async () => {
+        const update = httpsCallable<
+          { displayName?: string; lastName?: string; phone?: string },
+          { ok: boolean }
+        >(getFunctions(firebaseApp), 'updateParentProfile');
+        await update({
+          displayName: profileForm.displayName.trim(),
+          lastName: profileForm.lastName.trim() || undefined,
+          phone: profileForm.phone.trim() || undefined,
+        });
+      }, 'Saving…');
+      void notify({ tone: 'success', title: 'Saved', message: 'Profile updated.' });
     } catch {
-      Alert.alert('Error', 'Could not save. Please try again.');
+      void notify({ tone: 'error', title: 'Error', message: 'Could not save. Please try again.' });
     } finally {
       setSavingProfile(false);
     }

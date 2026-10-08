@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import firebaseApp from '../../config/firebase';
 import { useTheme } from '../../context/ThemeContext';
 import type { Child } from '@shared/types';
+import { useFeedback } from '../../context/FeedbackContext';
 
 export function EditChildProfileScreen({
   child,
@@ -25,6 +25,7 @@ export function EditChildProfileScreen({
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const { notify, withLoader } = useFeedback();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -37,33 +38,36 @@ export function EditChildProfileScreen({
 
   const save = async () => {
     if (!name.trim()) {
-      Alert.alert('Required', 'Name is required.');
+      void notify({ tone: 'warning', title: 'Required', message: 'Name is required.' });
       return;
     }
     if (!dateOfBirth.trim()) {
-      Alert.alert('Required', 'Date of birth is required.');
+      void notify({ tone: 'warning', title: 'Required', message: 'Date of birth is required.' });
       return;
     }
     setSaving(true);
     try {
-      const updateChild = httpsCallable<
-        { schoolId: string; childId: string; name?: string; dateOfBirth?: string; allergies?: string[] },
-        { ok: boolean }
-      >(getFunctions(firebaseApp), 'updateChildProfileByParent');
-      const allergies = allergiesText
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      await updateChild({
-        schoolId,
-        childId: child.id,
-        name: name.trim(),
-        dateOfBirth: dateOfBirth.trim(),
-        allergies: allergies.length > 0 ? allergies : undefined,
-      });
+      await withLoader(async () => {
+        const updateChild = httpsCallable<
+          { schoolId: string; childId: string; name?: string; dateOfBirth?: string; allergies?: string[] },
+          { ok: boolean }
+        >(getFunctions(firebaseApp), 'updateChildProfileByParent');
+        const allergies = allergiesText
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        await updateChild({
+          schoolId,
+          childId: child.id,
+          name: name.trim(),
+          dateOfBirth: dateOfBirth.trim(),
+          allergies: allergies.length > 0 ? allergies : undefined,
+        });
+      }, 'Saving…');
+      await notify({ tone: 'success', title: 'Saved', message: 'Child profile updated.' });
       onSaved();
     } catch (e) {
-      Alert.alert('Error', 'Could not save. Please try again.');
+      void notify({ tone: 'error', title: 'Error', message: 'Could not save. Please try again.' });
     } finally {
       setSaving(false);
     }

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { useAuth } from '../../../../context/AuthContext';
 import { usePresentChildIds, useTeacherClassChildren } from '../../../../hooks';
 import { ineligibleSelectionMessage, isChildEligibleForUpdateType } from '../../../../utils/childPresence';
 import type { ReportType } from '@shared/types';
+import { useFeedback } from '../../../../context/FeedbackContext';
 
 export function useRoster(type: ReportType, initialChildId: string | undefined, onDeselect: (childId: string) => void) {
+  const { notify } = useFeedback();
   const { profile } = useAuth();
   const { children, loading } = useTeacherClassChildren();
   const { presentChildIds, loadingPresence } = usePresentChildIds(profile?.schoolId, children);
@@ -42,7 +43,7 @@ export function useRoster(type: ReportType, initialChildId: string | undefined, 
   const toggle = useCallback(
     (childId: string) => {
       if (!isEligible(childId)) {
-        Alert.alert('Not available', ineligibleSelectionMessage(type));
+        void notify({ tone: 'warning', title: 'Not available', message: ineligibleSelectionMessage(type) });
         return;
       }
       setSelectedIds((prev) => {

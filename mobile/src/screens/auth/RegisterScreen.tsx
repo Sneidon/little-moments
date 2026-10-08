@@ -6,7 +6,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,12 +23,14 @@ import { radius, spacing, type BrandPalette } from '../../theme/tokens';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 import type { UserRole } from '@shared/types';
+import { useFeedback } from '../../context/FeedbackContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 const ROLES: UserRole[] = ['parent', 'teacher'];
 
 export function RegisterScreen({ navigation }: Props) {
+  const { notify, withLoader } = useFeedback();
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(brand), [brand]);
@@ -41,29 +42,31 @@ export function RegisterScreen({ navigation }: Props) {
 
   const handleRegister = async () => {
     if (!email.trim() || !password || !displayName.trim()) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      void notify({ tone: 'error', title: 'Error', message: 'Please fill in all fields.' });
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters.');
+      void notify({ tone: 'error', title: 'Error', message: 'Password must be at least 6 characters.' });
       return;
     }
     setLoading(true);
     try {
-      const { user: u } = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      await updateProfile(u, { displayName: displayName.trim() });
-      const now = new Date().toISOString();
-      await setDoc(doc(db, 'users', u.uid), {
-        email: u.email,
-        displayName: displayName.trim(),
-        role,
-        roles: [role],
-        createdAt: now,
-        updatedAt: now,
-      });
+      await withLoader(async () => {
+        const { user: u } = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await updateProfile(u, { displayName: displayName.trim() });
+        const now = new Date().toISOString();
+        await setDoc(doc(db, 'users', u.uid), {
+          email: u.email,
+          displayName: displayName.trim(),
+          role,
+          roles: [role],
+          createdAt: now,
+          updatedAt: now,
+        });
+      }, 'Creating account…');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Registration failed';
-      Alert.alert('Registration failed', message);
+      void notify({ tone: 'error', title: 'Registration failed', message: message });
     } finally {
       setLoading(false);
     }

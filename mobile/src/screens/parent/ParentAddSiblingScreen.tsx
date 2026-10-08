@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { collection, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -8,8 +8,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
 import type { ClassRoom } from '@shared/types';
+import { useFeedback } from '../../context/FeedbackContext';
 
 export function ParentAddSiblingScreen({ navigation }: { navigation: { goBack: () => void } }) {
+  const { notify, withLoader } = useFeedback();
   const { profile } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -32,31 +34,32 @@ export function ParentAddSiblingScreen({ navigation }: { navigation: { goBack: (
 
   const submit = async () => {
     if (!form.firstName.trim() || !form.surname.trim() || !form.dob || !form.classId) {
-      Alert.alert('Missing details', 'Please complete all fields.');
+      void notify({ tone: 'warning', title: 'Missing details', message: 'Please complete all fields.' });
       return;
     }
     if (!form.popiaConsent) {
-      Alert.alert('Consent required', 'POPIA consent is required.');
+      void notify({ tone: 'warning', title: 'Consent required', message: 'POPIA consent is required.' });
       return;
     }
     setSubmitting(true);
     try {
-      const fn = httpsCallable<
-        { childFirstName: string; childSurname: string; dob: string; classId: string; popiaConsent: boolean },
-        { ok: boolean }
-      >(getFunctions(app), 'addSiblingChild');
-      await fn({
-        childFirstName: form.firstName.trim(),
-        childSurname: form.surname.trim(),
-        dob: form.dob,
-        classId: form.classId,
-        popiaConsent: true,
-      });
-      Alert.alert('Submitted', 'Your request was sent to the class teacher for approval.', [
-        { text: 'Done', onPress: () => navigation.goBack() },
-      ]);
+      await withLoader(async () => {
+        const fn = httpsCallable<
+          { childFirstName: string; childSurname: string; dob: string; classId: string; popiaConsent: boolean },
+          { ok: boolean }
+        >(getFunctions(app), 'addSiblingChild');
+        await fn({
+          childFirstName: form.firstName.trim(),
+          childSurname: form.surname.trim(),
+          dob: form.dob,
+          classId: form.classId,
+          popiaConsent: true,
+        });
+      }, 'Submitting…');
+      await notify({ tone: 'success', title: 'Submitted', message: 'Your request was sent to the class teacher for approval.', actionLabel: 'Done' });
+      navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to submit');
+      void notify({ tone: 'error', title: 'Error', message: e instanceof Error ? e.message : 'Failed to submit' });
     } finally {
       setSubmitting(false);
     }

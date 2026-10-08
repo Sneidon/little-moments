@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import firebaseApp from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useFeedback } from '../../context/FeedbackContext';
 
 const NOTIF_KEYS = [
   'nappyChange',
@@ -37,6 +38,7 @@ const NOTIF_LABELS: Record<(typeof NOTIF_KEYS)[number], string> = {
 };
 
 export function ParentNotificationsScreen() {
+  const { notify, withLoader } = useFeedback();
   const { profile } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -77,14 +79,16 @@ export function ParentNotificationsScreen() {
   const save = async () => {
     setSaving(true);
     try {
-      const update = httpsCallable<
-        { notificationPreferences?: Record<string, boolean> },
-        { ok: boolean }
-      >(getFunctions(firebaseApp), 'updateParentProfile');
-      await update({ notificationPreferences: notifPrefs });
-      Alert.alert('Saved', 'Notification preferences updated.');
+      await withLoader(async () => {
+        const update = httpsCallable<
+          { notificationPreferences?: Record<string, boolean> },
+          { ok: boolean }
+        >(getFunctions(firebaseApp), 'updateParentProfile');
+        await update({ notificationPreferences: notifPrefs });
+      }, 'Saving…');
+      void notify({ tone: 'success', title: 'Saved', message: 'Notification preferences updated.' });
     } catch {
-      Alert.alert('Error', 'Could not save. Please try again.');
+      void notify({ tone: 'error', title: 'Error', message: 'Could not save. Please try again.' });
     } finally {
       setSaving(false);
     }

@@ -5,6 +5,7 @@ import { NavigationContainer, createNavigationContainerRef, DarkTheme, DefaultTh
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { FeedbackProvider } from './src/context/FeedbackContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { ForegroundNotificationBanner } from './src/components/ForegroundNotificationBanner';
 import { navigateFromNotificationData } from './src/hooks/useNotificationNavigation';
@@ -62,9 +63,11 @@ function AppBoot() {
     );
   }
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <FeedbackProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </FeedbackProvider>
   );
 }
 

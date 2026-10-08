@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react';
-import { Alert } from 'react-native';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../../../../config/firebase';
 import { useAuth } from '../../../../context/AuthContext';
@@ -8,6 +7,7 @@ import { uploadMediaAsync, uploadPhotoAsync } from '../../../../utils/uploadPhot
 import type { Child, MealOption, ReportType } from '@shared/types';
 import type { UpdateFields } from '../types';
 import { buildReport, validateValues } from './buildReport';
+import { useFeedback } from '../../../../context/FeedbackContext';
 
 type Args = {
   type: ReportType;
@@ -30,6 +30,7 @@ async function uploadAttachment(uri: string, mimeType: string | undefined, schoo
 }
 
 export function useSubmitUpdate(args: Args) {
+  const { notify, withLoader } = useFeedback();
   const { profile } = useAuth();
   const [saving, setSaving] = useState(false);
 
@@ -38,57 +39,59 @@ export function useSubmitUpdate(args: Args) {
     const schoolId = profile?.schoolId;
     const wholeClass = type === 'incident' && media.forWholeClass;
     if (!schoolId || !profile?.uid || (!wholeClass && selectedIds.length === 0)) {
-      Alert.alert('Select children', 'Choose at least one child.');
+      void notify({ tone: 'warning', title: 'Select children', message: 'Choose at least one child.' });
       return;
     }
     if (type === 'incident' && !media.uri) {
-      Alert.alert('Add media', 'Take or choose a photo/video to log.');
+      void notify({ tone: 'warning', title: 'Add media', message: 'Take or choose a photo/video to log.' });
       return;
     }
     if (loadingPresence) return;
     if (selectedIds.some((id) => !isEligible(id))) {
-      Alert.alert('Select children', ineligibleSelectionMessage(type));
+      void notify({ tone: 'warning', title: 'Select children', message: ineligibleSelectionMessage(type) });
       return;
     }
     for (const childId of selectedIds) {
       const name = children.find((c) => c.id === childId)?.name ?? 'Child';
       const problem = validateValues(type, valuesFor(childId), name);
       if (problem) {
-        Alert.alert(problem[0], problem[1]);
+        void notify({ tone: 'warning', title: problem[0], message: problem[1] });
         return;
       }
     }
 
     const targets = wholeClass ? children.filter((c) => isEligible(c.id)).map((c) => c.id) : selectedIds;
     if (targets.length === 0) {
-      Alert.alert('Select children', wholeClass ? 'No checked-in children in your class.' : 'Choose at least one child.');
+      void notify({ tone: 'warning', title: 'Select children', message: wholeClass ? 'No checked-in children in your class.' : 'Choose at least one child.' });
       return;
     }
 
     setSaving(true);
     try {
-      const uploaded =
-        type === 'incident' && media.uri
-          ? await uploadAttachment(media.uri, media.mimeType, schoolId, targets[0])
-          : { url: null, mediaType: undefined };
-      const now = new Date().toISOString();
-      for (const childId of targets) {
-        const report = buildReport({
-          type,
-          childId,
-          schoolId,
-          reportedBy: profile.uid,
-          now,
-          values: valuesFor(childId),
-          mealOptions,
-          media: { ...uploaded, forWholeClass: wholeClass },
-        });
-        await addDoc(collection(db, 'schools', schoolId, 'children', childId, 'reports'), report);
-      }
-      Alert.alert('Done', selectedIds.length > 1 ? `Update saved for ${selectedIds.length} children.` : 'Update saved.');
+      await withLoader(async () => {
+        const uploaded =
+          type === 'incident' && media.uri
+            ? await uploadAttachment(media.uri, media.mimeType, schoolId, targets[0])
+            : { url: null, mediaType: undefined };
+        const now = new Date().toISOString();
+        for (const childId of targets) {
+          const report = buildReport({
+            type,
+            childId,
+            schoolId,
+            reportedBy: profile.uid,
+            now,
+            values: valuesFor(childId),
+            mealOptions,
+            media: { ...uploaded, forWholeClass: wholeClass },
+          });
+          await addDoc(collection(db, 'schools', schoolId, 'children', childId, 'reports'), report);
+        }
+      }, type === 'incident' && media.uri ? 'Uploading…' : 'Saving…');
+      void notify({ tone: 'success', title: 'Done', message: selectedIds.length > 1 ? `Update saved for ${selectedIds.length} children.` : 'Update saved.' });
       onDone();
     } catch (e: unknown) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save');
+      void notify({ tone: 'error', title: 'Error', message: e instanceof Error ? e.message : 'Failed to save' });
     } finally {
       setSaving(false);
     }

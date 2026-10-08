@@ -5,7 +5,6 @@ export function getChatReadField(role: UserRole): 'teacherLastReadAt' | 'parentL
   return role === 'teacher' ? 'teacherLastReadAt' : 'parentLastReadAt';
 }
 
-/** True when the other participant sent messages after this user last read the thread. */
 export function isChatUnreadForUser(chat: Chat, uid: string, role: UserRole): boolean {
   if (!chat.lastMessageAt) return false;
 

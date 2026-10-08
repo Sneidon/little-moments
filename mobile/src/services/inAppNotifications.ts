@@ -22,7 +22,6 @@ export async function markInAppNotificationRead(uid: string, notificationId: str
   }
 }
 
-/** Mark in-app notifications tied to an announcement (including reminders). */
 export async function markAnnouncementNotificationsRead(
   uid: string,
   announcementId: string

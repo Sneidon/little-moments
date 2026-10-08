@@ -26,7 +26,6 @@ export type ColorPalette = {
   avatarText: string;
   skeleton: string;
   skeletonHighlight: string;
-  /** Dashboard accents (Little Angels design) */
   accentPurple: string;
   accentTeal: string;
   accentOrange: string;

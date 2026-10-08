@@ -15,7 +15,6 @@ interface AuthContextValue {
   selectedChildId: string | null;
   setSelectedChildId: React.Dispatch<React.SetStateAction<string | null>>;
   refreshProfile: () => Promise<void>;
-  /** Session portal after multi-role pick (null = show picker when multiple). */
   sessionPortalRole: UserRole | null;
   setSessionPortalRole: (role: UserRole | null) => void;
 }
@@ -51,7 +50,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await setCached(cacheKey, profileData, PROFILE_TTL_MS);
       }
     } catch {
-      // ignore
     }
   }, []);
 
@@ -89,7 +87,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const record = httpsCallable(getFunctions(app), 'recordParentFirstLogin');
               record({}).catch(() => {});
             } catch {
-              // ignore
             }
           }
         } else {

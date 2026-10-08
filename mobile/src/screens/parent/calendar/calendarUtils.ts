@@ -1,6 +1,5 @@
 import type { Event } from '@shared/types';
 
-/** Human-readable local start (and optional end time) for an event. */
 export function formatEventTimeRange(ev: Event): string {
   const start = new Date(ev.startAt);
   const s = start.toLocaleString(undefined, {
@@ -15,7 +14,6 @@ export function formatEventTimeRange(ev: Event): string {
   return `${s} – ${e}`;
 }
 
-/** Whether an event is still in the future, in progress, or finished. */
 export type EventHighlight = 'upcoming' | 'ongoing' | 'past';
 
 export function getEventHighlight(ev: Event, nowMs: number = Date.now()): EventHighlight {
@@ -101,7 +99,6 @@ export function indexEventsByDay(events: Event[]): Map<string, Event[]> {
   return map;
 }
 
-/** Rows of week-aligned cells; null = empty pad before/after month. */
 export function getMonthGrid(year: number, monthIndex: number): (number | null)[][] {
   const first = new Date(year, monthIndex, 1);
   const last = new Date(year, monthIndex + 1, 0);
@@ -118,7 +115,6 @@ export function getMonthGrid(year: number, monthIndex: number): (number | null)[
   return rows;
 }
 
-/** Week starting Sunday, date at local midnight. */
 export function startOfWeekSunday(d: Date): Date {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   x.setDate(x.getDate() - x.getDay());
@@ -148,7 +144,6 @@ export function eventsInWeek(events: Event[], weekStart: Date): Event[] {
   );
 }
 
-/** Group ordered events by local YMD for week list UI. */
 export function groupEventsByDayKeys(
   weekEvents: Event[],
   weekStart: Date

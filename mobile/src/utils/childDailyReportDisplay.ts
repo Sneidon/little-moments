@@ -2,7 +2,6 @@ import { formatMealCategoryLabel } from '@shared/reportLabels';
 import type { DailyReport, MealOption } from '@shared/types';
 
 
-/** Report fields sometimes stored in Firestore beyond DailyReport. */
 /** Reports generated for teachers only — hidden from parent activity feeds. */
 const TEACHER_ONLY_REPORT_TYPES = new Set(['child_joined_class']);
 
@@ -10,7 +9,6 @@ export function isParentVisibleReportType(type: string): boolean {
   return !TEACHER_ONLY_REPORT_TYPES.has(type);
 }
 
-/** Map meal option id → image URL for resolving meal photos on parent feeds. */
 export function buildMealOptionImageMap(options: MealOption[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const opt of options) {
@@ -20,7 +18,6 @@ export function buildMealOptionImageMap(options: MealOption[]): Map<string, stri
   return map;
 }
 
-/** Report image: direct `imageUrl`, or meal menu item photo via `mealOptionId`. */
 export function resolveReportImageUrl(
   report: { type?: string; imageUrl?: string; mealOptionId?: string | null },
   mealOptionImages?: Map<string, string>
@@ -66,7 +63,6 @@ export function getReportTitle(item: ReportWithExtras): string {
   return String(item.type).replace('_', ' ');
 }
 
-/** Parse time-only string (e.g. "13:00") with a date string to get ms. */
 export function parseTimeWithDate(timeStr: string | undefined, dateStr: string): number {
   if (!timeStr || typeof timeStr !== 'string') return NaN;
   const parts = timeStr.trim().split(':').map((p) => parseInt(p, 10));

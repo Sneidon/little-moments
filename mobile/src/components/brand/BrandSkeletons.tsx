@@ -4,7 +4,6 @@ import { useTheme } from '../../context/ThemeContext';
 import { Skeleton } from '../Skeleton';
 import { radius } from '../../theme/tokens';
 
-/** Student card placeholder in the redesign style (64 rounded-square avatar, lines, round button). */
 export function BrandSkeletonStudentCard({ style, compact }: { style?: ViewStyle; compact?: boolean }) {
   const { brand } = useTheme();
   const avatar = compact ? 52 : 64;
@@ -32,7 +31,6 @@ export function BrandSkeletonStudentCard({ style, compact }: { style?: ViewStyle
   );
 }
 
-/** Coloured tile placeholder. */
 export function BrandSkeletonTile({ height = 150, style }: { height?: number; style?: ViewStyle }) {
   return <Skeleton height={height} borderRadius={radius.cardL} style={{ flex: 1, ...style }} />;
 }

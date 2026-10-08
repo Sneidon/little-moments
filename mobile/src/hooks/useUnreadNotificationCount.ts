@@ -4,7 +4,6 @@ import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { isInAppNotificationRead } from '../services/inAppNotifications';
 
-/** Live count of unread in-app notifications for the header bell badge. */
 export function useUnreadNotificationCount(): number {
   const { profile } = useAuth();
   const [count, setCount] = useState(0);

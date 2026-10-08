@@ -15,10 +15,6 @@ type Props = {
 
 const RING = 3;
 
-/**
- * 64pt category tile with label (Add update "What" grid). Selected = double
- * ring (surface, then textPrimary), −6° tilt and a check badge.
- */
 export function CategoryIconTile({ label, icon, color, selected, onPress }: Props) {
   const { brand, category } = useTheme();
   return (
@@ -53,7 +49,6 @@ export function CategoryIconTile({ label, icon, color, selected, onPress }: Prop
   );
 }
 
-/** Small check badge used on selected tiles. */
 export function CheckBadge({ style }: { style?: object }) {
   const { brand } = useTheme();
   return (

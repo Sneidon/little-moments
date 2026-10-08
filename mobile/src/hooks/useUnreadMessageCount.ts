@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import type { Chat } from '@shared/types';
 import { isChatUnreadForUser } from '../utils/chatUnread';
 
-/** Live count of chats with unread messages for the Messages tab badge. */
 export function useUnreadMessageCount(): number {
   const { profile } = useAuth();
   const [count, setCount] = useState(0);

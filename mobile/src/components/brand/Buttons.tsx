@@ -13,13 +13,11 @@ type ButtonProps = {
   icon?: IoniconName;
   disabled?: boolean;
   loading?: boolean;
-  /** 'm' = 58 tall / radius 22, 's' = 54 tall / radius 20. */
   size?: 'm' | 's';
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 };
 
-/** Primary button: purple in light mode, sunflower in dark mode. */
 export function PrimaryButton({ label, onPress, icon, disabled, loading, size = 'm', style, accessibilityLabel }: ButtonProps) {
   const { brand } = useTheme();
   const dims = size === 'm' ? styles.sizeM : styles.sizeS;
@@ -51,7 +49,6 @@ export function PrimaryButton({ label, onPress, icon, disabled, loading, size = 
   );
 }
 
-/** Outline button: transparent with a 2.5pt textPrimary border. */
 export function OutlineButton({ label, onPress, icon, disabled, loading, size = 'm', style, accessibilityLabel }: ButtonProps) {
   const { brand } = useTheme();
   const dims = size === 'm' ? styles.sizeM : styles.sizeS;

@@ -35,7 +35,6 @@ export async function setCached<T>(
     };
     await AsyncStorage.setItem(PREFIX + key, JSON.stringify(entry));
   } catch {
-    // ignore write errors
   }
 }
 
@@ -43,12 +42,9 @@ export async function removeCached(key: string): Promise<void> {
   try {
     await AsyncStorage.removeItem(PREFIX + key);
   } catch {
-    // ignore
   }
 }
 
-/** TTL for user profile (longer, profile changes rarely). */
 export const PROFILE_TTL_MS = 15 * 60 * 1000; // 15 min
 
-/** TTL for list data (children, classes). */
 export const LIST_TTL_MS = 5 * 60 * 1000; // 5 min

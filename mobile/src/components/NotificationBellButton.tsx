@@ -8,7 +8,6 @@ import { font } from '../theme/typography';
 type NotificationBellButtonProps = {
   onPress: () => void;
   colors: ColorPalette;
-  /** 'header' = 48pt round translucent button for the redesign's coloured header block. */
   variant?: 'default' | 'header';
 };
 

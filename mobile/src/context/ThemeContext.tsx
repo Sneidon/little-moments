@@ -19,9 +19,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 type ThemeContextValue = {
   colors: ColorPalette;
-  /** Teacher redesign palette (tokens.ts). */
   brand: BrandPalette;
-  /** Update-type category fills (tokens.ts). */
   category: CategoryPalette;
   isDark: boolean;
   themeMode: ThemeMode;
@@ -52,7 +50,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark';
   const brand = isDark ? brandDark : brandLight;
   const category = isDark ? categoryDark : categoryLight;
-  // Every screen styled with `colors.*` follows the redesign palette.
   const colors = useMemo(
     () => legacyPaletteFromBrand(isDark ? darkColors : lightColors, brand, category),
     [isDark, brand, category]

@@ -19,7 +19,6 @@ type Props = {
   children?: React.ReactNode;
 };
 
-/** 48pt round icon button (handoff "round icon button"). */
 export function RoundIconButton({
   icon,
   accessibilityLabel,

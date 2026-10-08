@@ -33,7 +33,6 @@ export function getAppVersionInfo(): { marketingVersion: string; buildNumber: st
   };
 }
 
-/** Single-line footer for Settings screens. */
 export function formatSettingsVersionFooter(): string {
   const { marketingVersion, buildNumber } = getAppVersionInfo();
   if (buildNumber) {

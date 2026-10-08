@@ -6,7 +6,6 @@ import { getInitials } from 'shared/format';
 
 export interface ChildrenInClassListProps {
   children: Child[];
-  /** Link href for each child. Default: /principal/children/{id} */
   childLinkHref?: (child: Child) => string;
 }
 

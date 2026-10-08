@@ -36,7 +36,6 @@ export default function AdminDashboard() {
           parents: users.filter((u) => userHasRole(u, 'parent')).length,
         });
       } catch {
-        // ignore
       } finally {
         setLoading(false);
       }

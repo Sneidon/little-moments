@@ -11,7 +11,6 @@ export interface UseSchoolTeachersResult {
   loading: boolean;
 }
 
-/** Teachers and principals for a school (holds teacher or principal role). */
 export function useSchoolTeachers(schoolId: string | undefined): UseSchoolTeachersResult {
   const [teachers, setTeachers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);

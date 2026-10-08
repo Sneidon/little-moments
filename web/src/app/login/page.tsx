@@ -16,7 +16,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
-  /** Cleared after profile resolves following a successful credential check. */
   const awaitingProfileAfterSignIn = useRef(false);
   const routingRef = useRef(false);
 

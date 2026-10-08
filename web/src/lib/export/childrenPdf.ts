@@ -1,7 +1,3 @@
-/**
- * Export children list to a multi-page PDF. Handles hundreds of records by
- * using jspdf-autotable's built-in page breaks and compact styling.
- */
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {

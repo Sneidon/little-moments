@@ -1,11 +1,6 @@
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 
-/**
- * Send a password reset email to the given address on behalf of the user.
- * Principals can use this to trigger a reset for teachers or parents.
- * The recipient will receive an email with a link to set a new password.
- */
 export async function requestPasswordResetEmail(email: string): Promise<void> {
   if (!email?.trim()) {
     throw new Error('Email is required.');

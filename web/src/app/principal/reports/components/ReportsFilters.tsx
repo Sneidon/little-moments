@@ -73,7 +73,6 @@ export function ReportsFilters({
         )}
       </div>
 
-      {/* Basic filters – always visible */}
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4">
         <div className="min-w-0 flex-1 sm:max-w-[180px]">
           <label className={labelClass}>Day</label>
@@ -143,7 +142,6 @@ export function ReportsFilters({
         </div>
       </div>
 
-      {/* Advanced filters – separate, collapsible */}
       {showAdvanced && (
         <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-600">
           <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">

@@ -16,11 +16,8 @@ export interface ChildDetailHeaderProps {
   onExportPdf: () => void;
   onExportCsv?: () => void;
   onExportExcel?: () => void;
-  /** Back link href. Default: /principal/children */
   backHref?: string;
-  /** Back link label. Default: Back to children */
   backLabel?: string;
-  /** Show "Edit details" link. Default: true */
   showEditLink?: boolean;
   enrollmentUpdating?: boolean;
   onSetEnrollmentActive?: (active: boolean) => void | Promise<void>;

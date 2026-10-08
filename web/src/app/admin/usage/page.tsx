@@ -50,7 +50,6 @@ export default function UsagePage() {
         }
         setStats(list);
       } catch {
-        // ignore
       } finally {
         setLoading(false);
       }

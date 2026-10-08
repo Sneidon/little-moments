@@ -18,13 +18,9 @@ export interface UseChildDetailResult {
 }
 
 export interface UseChildDetailOptions {
-  /** When child is not found, redirect here. Default: /principal/children */
   redirectPathIfNotFound?: string;
 }
 
-/**
- * Load child, classes, and reports for a school/child. Redirects if child not found.
- */
 export function useChildDetail(
   schoolId: string | undefined,
   childId: string | undefined,

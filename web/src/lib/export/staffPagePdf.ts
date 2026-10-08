@@ -1,6 +1,3 @@
-/**
- * Export staff and/or parents list to PDF.
- */
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {

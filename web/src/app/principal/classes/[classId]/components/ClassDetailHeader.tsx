@@ -12,11 +12,8 @@ export interface ClassDetailHeaderProps {
   onExportPdf?: () => void;
   onExportCsv?: () => void;
   onExportExcel?: () => void;
-  /** Back link href. Default: /principal/classes */
   backHref?: string;
-  /** Back link label. Default: Back to classes */
   backLabel?: string;
-  /** Show "Edit details" link. Default: true */
   showEditLink?: boolean;
 }
 

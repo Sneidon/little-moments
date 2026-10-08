@@ -3,17 +3,11 @@
 import Link from 'next/link';
 
 export interface PageHeroProps {
-  /** Main title. Use gradient for dashboard-style pages. */
   title: React.ReactNode;
-  /** Optional subtitle or description. */
   subtitle?: React.ReactNode;
-  /** Optional actions (e.g. "Add school" button) rendered on the right. */
   actions?: React.ReactNode;
-  /** If true, uses the full dashboard-style hero (gradient bg, dots, orbs). Default true. */
   variant?: 'full' | 'compact';
-  /** Optional back link (e.g. for subpages). */
   backHref?: string;
-  /** Label for back link. Default "Back". */
   backLabel?: string;
   className?: string;
 }

@@ -13,9 +13,7 @@ export interface ParentsSectionProps {
   childName?: string;
   maxParents: number;
   parents: UserProfile[];
-  /** When true, only show the list of parents (no invite/edit). Used for admin read-only view. */
   readOnly?: boolean;
-  /** When provided, each parent card shows a "View profile" link to this URL (e.g. principal parent detail). */
   getParentProfileHref?: (parent: UserProfile) => string;
   canInviteMore?: boolean;
   showInviteParent?: boolean;
@@ -39,7 +37,6 @@ export interface ParentsSectionProps {
   editParentError?: string;
   onUpdateParentSubmit?: (e: React.FormEvent) => Promise<void>;
   onCancelEdit?: () => void;
-  /** Open confirm on child page — removes parent from this child only. */
   onRequestRemoveParentFromChild?: (p: UserProfile) => void;
   removingParentUid?: string | null;
 }

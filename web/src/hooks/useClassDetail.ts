@@ -30,14 +30,9 @@ export interface UseClassDetailResult {
 }
 
 export interface UseClassDetailOptions {
-  /** When class is not found, redirect here. Default: /principal/classes */
   redirectPathIfNotFound?: string;
 }
 
-/**
- * Load class, children in class, school teachers, and all reports for those children.
- * Redirects if class not found.
- */
 export function useClassDetail(
   schoolId: string | undefined,
   classId: string | undefined,

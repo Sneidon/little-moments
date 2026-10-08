@@ -6,7 +6,6 @@ import { PageHero } from '@/components/ui';
 type FAQItem = { category: string; q: string; a: string };
 
 const FAQ_ITEMS: FAQItem[] = [
-  // Getting started
   {
     category: 'Getting started',
     q: 'What can I do as a principal?',
@@ -18,7 +17,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'Add staff under People → Staff and parents under People → Parents (or link them when adding a child). They sign in with the email you used. You can share the app download link (App Store / Play Store) and they log in with that email; invite emails are sent when you add them.',
   },
 
-  // Children
   {
     category: 'Children',
     q: 'How do I add a child?',
@@ -40,7 +38,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'Yes. When adding or editing a child, you can assign one primary class and link multiple parents (e.g. both guardians). All linked parents will see that child\'s updates in the app.',
   },
 
-  // Classes
   {
     category: 'Classes',
     q: 'How do I create and manage classes?',
@@ -57,7 +54,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'The child will appear in the new class for teachers. Past updates stay tied to the child. Make sure the new class has the right teachers so they can continue logging updates.',
   },
 
-  // Staff & parents
   {
     category: 'Staff & parents',
     q: 'How do I add staff (teachers)?',
@@ -74,7 +70,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'No. Each parent only sees their own profile and the children linked to them. They cannot see other parents or other families\' children.',
   },
 
-  // Content & communication
   {
     category: 'Content & communication',
     q: 'How do I create an announcement?',
@@ -91,7 +86,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'Under Content & communication → Meal options you can define the meals and options your school offers (e.g. breakfast, lunch, snacks). Teachers can then select from these when logging meals in the app, so parents see consistent labels.',
   },
 
-  // Teacher logging (meals, activities, etc.)
   {
     category: 'Teacher logging (meals, activities, photos)',
     q: 'How do teachers log meals and activities?',
@@ -113,7 +107,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'If your school has medication and incident logging enabled (in Configure school), teachers will see those options in the app. They can record time, details, and any follow-up. Principals and admins can review incidents in reports.',
   },
 
-  // Parents viewing updates
   {
     category: 'Parents viewing updates',
     q: 'How do parents view updates?',
@@ -125,7 +118,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'This depends on your app version and settings. If messaging or comments are enabled, parents may be able to reply; otherwise they view updates only. Check School settings or Contact support for your setup.',
   },
 
-  // Reports & settings
   {
     category: 'Reports & settings',
     q: 'What reports are available?',
@@ -142,7 +134,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'Super admins do this in Admin → Schools → [School] → Configure school, where they enable or disable nappy, nap, meal, medication, incident, and media logging. As a principal you use whatever is enabled for your school; contact your admin if you need a feature turned on or off.',
   },
 
-  // Troubleshooting & support
   {
     category: 'Troubleshooting & support',
     q: 'A teacher or parent can\'t log in. What should I check?',

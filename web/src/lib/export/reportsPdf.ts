@@ -1,6 +1,3 @@
-/**
- * Export reports table to PDF.
- */
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -21,7 +18,6 @@ export interface ExportReportsPdfOptions {
   classDisplay?: (classId: string) => string;
   title?: string;
   filtersApplied?: string;
-  /** School name for header/footer when applicable */
   schoolName?: string;
 }
 

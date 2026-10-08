@@ -1,4 +1,3 @@
-/** Display labels for daily report types (Firestore `type` field). */
 export const REPORT_TYPE_LABELS: Record<string, string> = {
   nappy_change: 'Nappy change',
   meal: 'Meal',
@@ -16,7 +15,6 @@ export const PHOTO_REPORT_LABEL = 'Photo';
 /** Label shown for teacher video posts (stored as type `incident` with media). */
 export const VIDEO_REPORT_LABEL = 'Video';
 
-/** Options for report type filter (value + label). */
 export const REPORT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'All types' },
   { value: 'nappy_change', label: 'Nappy change' },
@@ -31,7 +29,6 @@ export const REPORT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'incident', label: 'Incident' },
 ];
 
-/** Tailwind class names for report type badges. */
 export const REPORT_TYPE_STYLES: Record<string, string> = {
   nappy_change: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',
   meal: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200',

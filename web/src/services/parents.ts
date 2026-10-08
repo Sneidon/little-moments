@@ -1,7 +1,3 @@
-/**
- * Parent management: invite parent to child, update parent profile.
- * Calls Firebase Cloud Functions.
- */
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getDoc, doc } from 'firebase/firestore';
 import { app } from '@/config/firebase';
@@ -27,7 +23,6 @@ export interface UpdateParentParams {
 
 export { callableErrorMessage as getCallableErrorMessage } from '@/lib/errors';
 
-/** Check if a parent account with this email exists and can be linked. Principal only. */
 export async function checkParentEmail(email: string): Promise<CheckParentEmailResult> {
   const functions = getFunctions(app);
   const check = httpsCallable<{ email: string }, CheckParentEmailResult>(functions, 'checkParentEmail');
@@ -35,7 +30,6 @@ export async function checkParentEmail(email: string): Promise<CheckParentEmailR
   return result.data;
 }
 
-/** Invite a new parent to a child. Returns updated child if you refetched from Firestore. */
 export async function principalInviteParent(params: {
   childId: string;
   parentEmail: string;
@@ -77,7 +71,6 @@ export async function inviteParentToChild(params: InviteParentParams): Promise<v
   });
 }
 
-/** Update a parent's profile (display name, phone, isActive). */
 /** Remove parent from one child at this school. Deletes their account if they have no other children here. */
 export async function principalRemoveParentFromChild(params: {
   childId: string;
@@ -116,7 +109,6 @@ export async function updateParent(params: UpdateParentParams): Promise<void> {
   });
 }
 
-/** Refetch a child document from Firestore (e.g. after inviting a parent to get new parentIds). */
 export async function refetchChild(schoolId: string, childId: string): Promise<Child | null> {
   const childSnap = await getDoc(doc(db, 'schools', schoolId, 'children', childId));
   if (!childSnap.exists()) return null;

@@ -5,10 +5,6 @@ export interface FormatReportsFiltersOptions {
   getClassName?: (classId: string) => string;
 }
 
-/**
- * Build a short human-readable summary of the reports filters used.
- * Used in CSV, Excel, and PDF exports.
- */
 export function formatReportsFiltersSummary(
   filters: ReportsFiltersState,
   options: FormatReportsFiltersOptions = {}

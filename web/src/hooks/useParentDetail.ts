@@ -15,10 +15,6 @@ export interface UseParentDetailResult {
   loading: boolean;
 }
 
-/**
- * Load parent (user with role=parent), their linked children at this school, and classes.
- * Redirects to /principal/parents if parent not found or not in this school.
- */
 export function useParentDetail(
   schoolId: string | undefined,
   parentId: string | undefined

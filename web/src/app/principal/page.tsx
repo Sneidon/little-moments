@@ -55,7 +55,6 @@ export default function PrincipalDashboard() {
           upcomingEvents: upcomingEvents.length,
         });
       } catch {
-        // ignore
       } finally {
         setLoading(false);
       }

@@ -1,6 +1,3 @@
-/**
- * Export class detail (children roster + activities for a day) to PDF.
- */
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -19,7 +16,6 @@ import type { Child } from 'shared/types';
 import type { DailyReport } from 'shared/types';
 import { getReportDetailsSummary, getReportTypeLabel } from '@/lib/reports';
 
-/** Report with child info for class-level export. */
 export type ClassReportRow = DailyReport & { childId: string; childName: string };
 
 export interface ExportClassDetailInclude {
@@ -34,9 +30,7 @@ export interface ExportClassDetailOptions {
   filterDay: string;
   reportsForDay: ClassReportRow[];
   classDisplayName: string;
-  /** School name for header/footer when applicable */
   schoolName?: string;
-  /** Which sections to include. Defaults to all true. */
   include?: ExportClassDetailInclude;
 }
 

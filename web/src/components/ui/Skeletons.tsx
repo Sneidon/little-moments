@@ -13,7 +13,6 @@ export function FilterSkeleton({ className = '' }: { className?: string } = {}) 
   );
 }
 
-/** Table area placeholder. Use inside SectionCard or standalone. Optional rows/cols render a table-like grid. */
 export function TableSkeleton({
   className = '',
   rows,
@@ -56,7 +55,6 @@ export function TableSkeleton({
   );
 }
 
-/** Single card placeholder (e.g. list item, content block). */
 export function CardSkeleton({ className = '' }: { className?: string } = {}) {
   return (
     <div className={`rounded-card border border-slate-200 dark:border-slate-600 p-5 ${className}`} role="status" aria-label="Loading">
@@ -67,14 +65,12 @@ export function CardSkeleton({ className = '' }: { className?: string } = {}) {
   );
 }
 
-/** Dashboard stat card placeholder. */
 export function StatCardSkeleton({ className = '' }: { className?: string } = {}) {
   return (
     <div className={`rounded-card border border-slate-200 dark:border-slate-600 p-5 ${pulse} h-[180px] ${className}`} role="status" aria-label="Loading" />
   );
 }
 
-/** School settings placeholder: single block, same card size and border radius. */
 export function SchoolSettingsSkeleton({ className = '' }: { className?: string } = {}) {
   return (
     <div

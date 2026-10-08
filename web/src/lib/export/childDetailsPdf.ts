@@ -1,6 +1,3 @@
-/**
- * Export a single child's details (profile, parents, activity summary) to PDF.
- */
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -34,9 +31,7 @@ export interface ExportChildDetailsOptions {
   parents: UserProfile[];
   reports: DailyReport[];
   classDisplay: ClassDisplayFn;
-  /** School name for header/footer when applicable */
   schoolName?: string;
-  /** Which sections to include. Defaults to all true. */
   include?: ExportChildDetailsInclude;
 }
 

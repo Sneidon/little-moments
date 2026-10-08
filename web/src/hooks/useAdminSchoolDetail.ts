@@ -16,7 +16,6 @@ export interface UseAdminSchoolDetailResult {
   refetch: () => Promise<void>;
 }
 
-/** Load school document and its teachers, classes, and children for super admin view. */
 export function useAdminSchoolDetail(schoolId: string | undefined): UseAdminSchoolDetailResult {
   const [school, setSchool] = useState<School | null>(null);
   const [teachers, setTeachers] = useState<UserProfile[]>([]);

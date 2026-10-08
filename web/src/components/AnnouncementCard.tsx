@@ -5,7 +5,6 @@ import { isVideoMedia } from '@/lib/media';
 
 export interface AnnouncementCardProps {
   announcement: Announcement;
-  /** Optional map of class id -> name for target audience display */
   classNamesMap?: Record<string, string>;
   onEdit?: () => void;
 }

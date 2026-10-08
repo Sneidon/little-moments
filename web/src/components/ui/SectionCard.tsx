@@ -10,13 +10,9 @@ const topBarClass: Record<TopBarVariant, string> = {
 
 export interface SectionCardProps {
   children: React.ReactNode;
-  /** Colored gradient bar at the top. Omit for plain card. */
   topBar?: TopBarVariant;
-  /** Extra class for the wrapper. */
   className?: string;
-  /** If true, card lifts on hover (for clickable cards). */
   hover?: boolean;
-  /** Padding. Default 'default' (p-6). Use 'none' for tables that need full bleed. */
   padding?: 'default' | 'none' | 'sm';
 }
 

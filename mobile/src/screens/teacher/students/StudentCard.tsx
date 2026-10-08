@@ -77,14 +77,6 @@ export const StudentCard = memo(function StudentCard({ item, index, messageLoadi
             )}
           </TouchableOpacity>
         </View>
-        {allergies.length ? (
-          <View style={styles.allergyBand}>
-            <Ionicons name="warning-outline" size={18} color={category.onCategory} />
-            <Text style={styles.allergyBandText} numberOfLines={2}>
-              {allergies.length === 1 ? 'Allergy' : 'Allergies'}: {allergies.join(', ')}
-            </Text>
-          </View>
-        ) : null}
       </TouchableOpacity>
 );
 });
@@ -140,14 +132,5 @@ function createStyles(brand: BrandPalette, category: CategoryPalette) {
       justifyContent: 'center',
     },
     messageDisabled: { opacity: 0.35 },
-    allergyBand: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 10,
-      paddingHorizontal: 18,
-      backgroundColor: category.meal,
-    },
-    allergyBandText: { flex: 1, ...typeTokens.label, color: category.onCategory },
   });
 }

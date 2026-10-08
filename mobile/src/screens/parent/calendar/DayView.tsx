@@ -1,6 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
-import { EmptyState } from '../../../components/EmptyState';
+import { Text, View } from 'react-native';
 import { useThemedStyles } from '../../../hooks/useThemedStyles';
 import type { Event } from '@shared/types';
 import { addDays } from './calendarUtils';
@@ -28,7 +27,7 @@ export function DayView({ cursor, events, nowMs, onCursorChange, onOpen }: Props
         onNext={() => onCursorChange(addDays(cursor, 1))}
       />
       {events.length === 0 ? (
-        <EmptyState icon="calendar-outline" title="Nothing scheduled" subtitle="No events on this day." />
+        <Text style={shared.mutedCenter}>Nothing scheduled on this day.</Text>
       ) : (
         events.map((ev) => <EventRow key={ev.id} event={ev} nowMs={nowMs} large onPress={() => onOpen(ev)} />)
       )}

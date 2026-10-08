@@ -15,7 +15,8 @@ const Tab = createNativeBottomTabNavigator();
 export function ParentTabs() {
   const unreadMessageCount = useUnreadMessageCount();
   const screenOptions = useTabScreenOptions();
-  const tabHeader = { headerShown: true as const };
+  // Headers are drawn in-screen; screens pad for the tab bar themselves (useTabBarClearance).
+  const inScreenHeader = { headerShown: false, overrideScrollViewContentInsetAdjustmentBehavior: false } as const;
   return (
     <Tab.Navigator screenOptions={screenOptions}>
       <Tab.Screen
@@ -23,7 +24,7 @@ export function ParentTabs() {
         component={ParentHomeScreen}
         options={{
           title: 'Home',
-          headerShown: true,
+          ...inScreenHeader,
           tabBarIcon: TAB_ICONS.home,
         }}
       />
@@ -32,7 +33,7 @@ export function ParentTabs() {
         component={ParentPhotosScreen}
         options={{
           title: 'Media',
-          ...tabHeader,
+          ...inScreenHeader,
           tabBarIcon: TAB_ICONS.media,
         }}
       />
@@ -41,7 +42,7 @@ export function ParentTabs() {
         component={ParentCalendarScreen}
         options={{
           title: 'Calendar',
-          ...tabHeader,
+          ...inScreenHeader,
           tabBarIcon: TAB_ICONS.calendar,
         }}
       />
@@ -60,10 +61,10 @@ export function ParentTabs() {
         name="Settings"
         component={ParentSettingsScreen}
         options={{
-          title: 'Settings',
-          headerShown: false,
-          overrideScrollViewContentInsetAdjustmentBehavior: false,
-          tabBarIcon: TAB_ICONS.settings,
+          title: 'Profile',
+          tabBarLabel: 'Profile',
+          ...inScreenHeader,
+          tabBarIcon: TAB_ICONS.profile,
         }}
       />
     </Tab.Navigator>

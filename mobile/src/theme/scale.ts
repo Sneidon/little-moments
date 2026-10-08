@@ -104,8 +104,9 @@ export const type = {
 } satisfies Record<string, TextStyle>;
 
 /**
- * Extra bottom padding for scrollable tab screens that draw edge-to-edge headers
- * and so opt out of the native tabs' automatic inset adjustment: on iOS the
- * (Liquid Glass) tab bar floats over content; Android's Material bar does not.
+ * Height of the native tab bars, used by useTabBarClearance. Both float over the screen content:
+ * iOS's Liquid Glass bar, and Android's Material 3 bar, which react-native-screens lays on top of a
+ * full-height content view. The system navigation / home indicator inset comes on top of these.
  */
 export const NATIVE_TAB_BAR_CLEARANCE_IOS = 72;
+export const NATIVE_TAB_BAR_HEIGHT_ANDROID = 80;

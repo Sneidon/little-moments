@@ -1,82 +1,135 @@
-import React from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../../context/ThemeContext';
+import { useThemedStyles, type Theme } from '../../hooks/useThemedStyles';
+import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useDateNavigation } from '../../hooks/useDateNavigation';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { NO_TEACHER_ALERT, useOpenChat } from '../../hooks/useOpenChat';
-import { useMealOptionImages } from '../../features/daily-report/useMealOptionImages';
+import { OutlineButton } from '../../components/brand/Buttons';
+import { CtaCard } from '../../components/brand/CtaCard';
+import { DashboardHeader } from '../../components/brand/DashboardHeader';
+import { DayOverview, ReportTimeline, summarizeDay, useMealOptionImages } from '../../features/daily-report';
+import { brandFont } from '../../theme/typography';
+import { spacing, type as typeTokens } from '../../theme/tokens';
+import { getAge } from '../../utils';
+import { resolveReportImageUrl } from '../../utils/childDailyReportDisplay';
 import type { RootStackParamList } from '../../navigation/types';
-import { ChildChips, ChildSummaryCard } from './home/ChildSummary';
-import { AnnouncementsCta, MessageTeacherButton } from './home/HomeActions';
-import { HomeOverview } from './home/HomeOverview';
-import { HomeUpdates } from './home/HomeUpdates';
+import { ChildChips } from './home/ChildChips';
 import { useOnboardingTour } from './home/useOnboardingTour';
 import { useParentHomeData } from './home/useParentHomeData';
 
+function metaLine(dateOfBirth: string | undefined, className: string | null): string {
+  return [dateOfBirth ? getAge(dateOfBirth) : null, className?.trim()].filter(Boolean).join(' · ') || 'Your child';
+}
+
 export function ParentHomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
-  const { colors } = useTheme();
-  const dateNav = useDateNavigation();
+  const { brand } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const tabBarClearance = useTabBarClearance();
+  const dates = useDateNavigation();
   const { children, selectedChild, selectedChildId, setSelectedChildId, className, reports, refreshing, onRefresh } =
-    useParentHomeData(dateNav.selectedDate);
+    useParentHomeData(dates.selectedDate);
   const mealImages = useMealOptionImages(selectedChild?.schoolId);
   const { openChat, openingChildId } = useOpenChat();
   useNotificationNavigation(true);
   useOnboardingTour();
 
-  const topPadding = headerHeight > 0 ? 8 : Math.max(insets.top + 8, 12);
+  const summary = useMemo(() => summarizeDay(reports, dates.selectedDate, 'parent'), [reports, dates.selectedDate]);
   const childRef = selectedChild ? { childId: selectedChild.id, schoolId: selectedChild.schoolId } : null;
+  const loading = !selectedChild;
+  const dateLabel = new Date(dates.selectedDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
 
   return (
     <ScrollView
-      style={[styles.scroll, { backgroundColor: colors.backgroundSecondary }]}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      style={styles.screen}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand.onHeader} colors={[brand.headerBackground]} />}
       showsVerticalScrollIndicator={false}
     >
-      <View style={{ paddingTop: topPadding, paddingBottom: 8 }}>
-        <ChildSummaryCard
-          child={selectedChild}
-          className={className}
-          onPress={() => childRef && navigation.navigate('ChildProfile', childRef)}
-        />
-        <ChildChips children={children} selectedId={selectedChildId} onSelect={setSelectedChildId} />
-        <AnnouncementsCta onPress={() => navigation.navigate('ParentAnnouncements')} />
-      </View>
+      <DashboardHeader
+        name={selectedChild?.name ?? ' '}
+        meta={selectedChild ? metaLine(selectedChild.dateOfBirth, className) : ' '}
+        photoURL={selectedChild?.photoURL}
+        dateLabel={dateLabel}
+        onPrevDay={dates.prevDay}
+        onNextDay={dates.nextDay}
+        onPickDate={() => dates.setShowDatePicker(true)}
+        onNotifications={() => navigation.navigate('UserNotifications')}
+        onPressProfile={childRef ? () => navigation.navigate('ChildProfile', childRef) : undefined}
+      />
 
-      <HomeOverview reports={reports} dateNav={dateNav} />
-
-      {selectedChild?.assignedTeacherId ? (
-        <MessageTeacherButton
-          loading={openingChildId === selectedChild.id}
-          onPress={() =>
-            openChat({
-              schoolId: selectedChild.schoolId,
-              childId: selectedChild.id,
-              otherParticipantId: selectedChild.assignedTeacherId,
-              ...NO_TEACHER_ALERT,
-            })
-          }
-        />
+      {dates.showDatePicker ? (
+        <View style={styles.picker}>
+          <DateTimePicker
+            value={new Date(dates.selectedDate + 'T12:00:00')}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={dates.onDatePickerChange}
+            maximumDate={dates.maxDate}
+          />
+          {Platform.OS === 'ios' ? (
+            <TouchableOpacity style={styles.done} onPress={() => dates.setShowDatePicker(false)} accessibilityRole="button">
+              <Text style={styles.doneText}>Done</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       ) : null}
 
-      <HomeUpdates
-        title={dateNav.isToday ? "Today's updates" : 'Updates'}
-        reports={reports}
-        mealImages={mealImages}
-        onOpen={childRef ? (reportId) => navigation.navigate('ReportDetail', { ...childRef, reportId }) : undefined}
-      />
+      <View style={[styles.body, !dates.showDatePicker && styles.overlap, { paddingBottom: tabBarClearance }]}>
+        <CtaCard
+          icon="megaphone"
+          title="Announcements"
+          subtitle="News and reminders from school"
+          onPress={() => navigation.navigate('ParentAnnouncements')}
+        />
+        <ChildChips children={children} selectedId={selectedChildId} onSelect={setSelectedChildId} />
+
+        <DayOverview loading={loading} {...summary} />
+
+        {selectedChild?.assignedTeacherId ? (
+          <OutlineButton
+            label="Message teacher"
+            icon="chatbubbles-outline"
+            style={styles.message}
+            loading={openingChildId === selectedChild.id}
+            onPress={() =>
+              openChat({
+                schoolId: selectedChild.schoolId,
+                childId: selectedChild.id,
+                otherParticipantId: selectedChild.assignedTeacherId,
+                ...NO_TEACHER_ALERT,
+              })
+            }
+          />
+        ) : null}
+
+        <Text style={styles.section} accessibilityRole="header">
+          {dates.isToday ? "Today's updates" : `Updates · ${dateLabel}`}
+        </Text>
+        <ReportTimeline
+          items={summary.items}
+          loading={loading}
+          emptySubtitle="Updates from your child's teacher will appear here."
+          imageFor={(item) => resolveReportImageUrl(item, mealImages)}
+          onPressItem={(item) => childRef && navigation.navigate('ReportDetail', { ...childRef, reportId: item.id })}
+        />
+      </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1 },
-  content: { paddingBottom: 48, flexGrow: 1 },
-});
+const createStyles = ({ brand }: Theme) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: brand.background },
+    picker: { paddingHorizontal: spacing.screenX, paddingTop: 12 },
+    done: { alignSelf: 'flex-end', minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
+    doneText: { fontFamily: brandFont.body800, fontSize: 16, color: brand.textPrimary },
+    body: { paddingHorizontal: spacing.screenX, paddingTop: spacing.gapM, gap: spacing.gapM },
+    overlap: { marginTop: -44 - spacing.gapM },
+    section: { ...typeTokens.section, color: brand.textPrimary, marginTop: 10, marginHorizontal: 4 },
+    message: { marginTop: 6 },
+  });

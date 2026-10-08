@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
-import { font } from '../../../theme/typography';
+import { brandFont } from '../../../theme/typography';
+import { radius } from '../../../theme/tokens';
 
 export type ViewMode = 'month' | 'week' | 'day';
 
@@ -21,6 +22,8 @@ export function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange:
           style={[styles.pill, value === m.value && styles.pillActive]}
           onPress={() => onChange(m.value)}
           activeOpacity={0.85}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: value === m.value }}
         >
           <Text style={[styles.text, value === m.value && styles.textActive]}>{m.label}</Text>
         </TouchableOpacity>
@@ -29,19 +32,11 @@ export function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange:
   );
 }
 
-const createStyles = ({ colors }: Theme) =>
+const createStyles = ({ brand }: Theme) =>
   StyleSheet.create({
-    row: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-    pill: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 12,
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
-    pillActive: { backgroundColor: colors.primaryMuted, borderColor: colors.primary },
-    text: { fontSize: 14, color: colors.textSecondary, fontFamily: font.semiBold },
-    textActive: { color: colors.primary },
+    row: { flexDirection: 'row', gap: 4, padding: 4, marginBottom: 14, borderRadius: radius.chip + 4, backgroundColor: brand.surface },
+    pill: { flex: 1, paddingVertical: 10, borderRadius: radius.chip, alignItems: 'center' },
+    pillActive: { backgroundColor: brand.inverseFill },
+    text: { fontSize: 14, color: brand.textSecondary, fontFamily: brandFont.body700 },
+    textActive: { color: brand.onInverse },
   });

@@ -29,7 +29,7 @@ export function ParentSettingsScreen() {
       showsVerticalScrollIndicator={false}
     >
       <ProfileHeader
-        overline="Settings"
+        overline="Profile"
         name={profile?.displayName?.trim() || 'Parent'}
         email={profile?.email ?? '-'}
         photoURL={profile?.photoURL}

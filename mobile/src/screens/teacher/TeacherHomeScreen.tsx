@@ -6,14 +6,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { OutlineButton } from '../../components/brand/Buttons';
+import { CtaCard } from '../../components/brand/CtaCard';
+import { DashboardHeader } from '../../components/brand/DashboardHeader';
 import { useDateNavigation, useTeacherClassChildren, useTabBarClearance } from '../../hooks';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { brandFont } from '../../theme/typography';
 import { spacing, type as typeTokens, type BrandPalette } from '../../theme/tokens';
 import type { RootStackParamList } from '../../navigation/types';
-import { DashboardHeader } from './dashboard/DashboardHeader';
 import { DashboardSkeleton } from './dashboard/DashboardSkeleton';
-import { AddUpdateCta, OverviewTiles } from './dashboard/OverviewTiles';
+import { OverviewTiles } from './dashboard/OverviewTiles';
 import { QuickActions, type QuickAction } from './dashboard/QuickActions';
 import { StudentPresenceList } from './dashboard/StudentPresenceList';
 import { useDashboardStats } from './dashboard/useDashboardStats';
@@ -95,7 +96,7 @@ export function TeacherHomeScreen() {
           <DashboardSkeleton />
         ) : (
           <>
-            <AddUpdateCta onPress={() => navigation.navigate('AddUpdate')} />
+            <CtaCard icon="add" title="Add Daily Update" subtitle="Log attendance, meals, or photos" onPress={() => navigation.navigate('AddUpdate')} />
             <OverviewTiles children={children} presentIds={stats.presentIds} meals={stats.meals} photos={stats.photos} />
             <Text style={styles.section} accessibilityRole="header">
               Quick Actions

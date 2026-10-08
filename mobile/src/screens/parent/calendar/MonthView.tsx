@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useTheme } from '../../../context/ThemeContext';
 import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
-import { font } from '../../../theme/typography';
+import { brandFont } from '../../../theme/typography';
 import type { Event } from '@shared/types';
 import { getDayHighlightLevel, getEventHighlight, getMonthGrid, toLocalYMD } from './calendarUtils';
 import { CalendarNav } from './CalendarNav';
@@ -19,11 +19,12 @@ type Props = {
 };
 
 export function MonthView({ cursor, byDay, nowMs, onMonthChange, onDayPress }: Props) {
-  const { colors } = useTheme();
+  const { brand, category } = useTheme();
   const styles = useThemedStyles(createStyles);
   const shared = useThemedStyles(createCalendarStyles);
   const { width } = useWindowDimensions();
-  const cellW = (width - 32) / 7;
+  // Screen gutter (20 each side) plus the card's own padding (16 each side).
+  const cellW = (width - 72) / 7;
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
   const grid = useMemo(() => getMonthGrid(year, month), [year, month]);
@@ -55,27 +56,28 @@ export function MonthView({ cursor, byDay, nowMs, onMonthChange, onDayPress }: P
             const isSelected = ymd === selectedYmd;
             const level = getDayHighlightLevel(evs, nowMs);
             const lit = level === 'ongoing' || level === 'upcoming';
-            const tone = lit ? highlightColors(colors, level) : null;
+            const tone = lit ? highlightColors({ brand, category }, level) : null;
             return (
               <TouchableOpacity
                 key={ymd}
                 style={[
                   styles.dayCell,
                   { width: cellW },
-                  tone && [styles.dayCellHighlight, { borderColor: tone.border, backgroundColor: tone.background }],
+                  tone && { backgroundColor: tone.background },
                   level === 'past_only' && evs.length > 0 && styles.dayCellPastOnly,
                   isToday && !lit && styles.dayCellToday,
                   isSelected && styles.dayCellSelected,
                 ]}
                 onPress={() => onDayPress(date, evs)}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`${date.toDateString()}${evs.length ? `, ${evs.length} event${evs.length === 1 ? '' : 's'}` : ''}`}
               >
                 <Text
                   style={[
                     styles.dayNum,
                     (isToday || isSelected) && styles.dayNumStrong,
-                    level === 'ongoing' && { color: colors.success, fontFamily: font.bold },
-                    level === 'upcoming' && !isSelected && { color: colors.primary, fontFamily: font.semiBold },
+                    tone && { color: tone.text, fontFamily: brandFont.body800 },
                   ]}
                 >
                   {day}
@@ -86,7 +88,7 @@ export function MonthView({ cursor, byDay, nowMs, onMonthChange, onDayPress }: P
                     return (
                       <View
                         key={ev.id}
-                        style={[styles.dot, h !== 'past' && styles.dotBright, { backgroundColor: highlightColors(colors, h).accent }]}
+                        style={[styles.dot, h !== 'past' && styles.dotBright, { backgroundColor: lit ? tone!.text : highlightColors({ brand, category }, h).accent }]}
                       />
                     );
                   })}
@@ -100,19 +102,18 @@ export function MonthView({ cursor, byDay, nowMs, onMonthChange, onDayPress }: P
   );
 }
 
-const createStyles = ({ colors, isDark }: Theme) =>
+const createStyles = ({ brand }: Theme) =>
   StyleSheet.create({
     weekdayRow: { flexDirection: 'row', marginBottom: 4 },
     weekdayCell: { alignItems: 'center', paddingVertical: 6 },
-    weekdayText: { fontSize: 11, color: colors.textMuted, fontFamily: font.semiBold },
+    weekdayText: { fontSize: 12, color: brand.textTertiary, fontFamily: brandFont.body800, textTransform: 'uppercase' },
     gridRow: { flexDirection: 'row', justifyContent: 'flex-start' },
-    dayCell: { minHeight: 52, paddingVertical: 6, alignItems: 'center', borderRadius: 8 },
-    dayCellToday: { backgroundColor: colors.primaryMuted },
-    dayCellSelected: { borderWidth: 1.5, borderColor: colors.primary },
-    dayCellHighlight: { borderWidth: 2 },
-    dayCellPastOnly: { backgroundColor: isDark ? 'rgba(148,163,184,0.08)' : 'rgba(15,23,42,0.04)' },
-    dayNum: { fontSize: 14, color: colors.text, fontFamily: font.medium },
-    dayNumStrong: { fontFamily: font.bold, color: colors.primary },
+    dayCell: { minHeight: 50, paddingVertical: 6, alignItems: 'center', borderRadius: 14 },
+    dayCellToday: { backgroundColor: brand.surfaceRaised },
+    dayCellSelected: { borderWidth: 2, borderColor: brand.textPrimary },
+    dayCellPastOnly: { backgroundColor: brand.surfaceRaised },
+    dayNum: { fontSize: 15, color: brand.textPrimary, fontFamily: brandFont.body600 },
+    dayNumStrong: { fontFamily: brandFont.body800 },
     dotRow: { flexDirection: 'row', gap: 3, marginTop: 4, minHeight: 6, justifyContent: 'center' },
     dot: { width: 5, height: 5, borderRadius: 2.5 },
     dotBright: { width: 6, height: 6, borderRadius: 3 },

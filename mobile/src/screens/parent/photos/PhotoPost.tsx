@@ -1,9 +1,10 @@
 import React from 'react';
-import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../context/ThemeContext';
 import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
-import { font } from '../../../theme/typography';
+import { brandFont } from '../../../theme/typography';
+import { radius } from '../../../theme/tokens';
 import { getInitials } from '../../../utils';
 import { isVideoMedia } from '../../../utils/media';
 import { formatRelativeTime, type PhotoFeedItem } from './photoFeed';
@@ -11,7 +12,7 @@ import { formatRelativeTime, type PhotoFeedItem } from './photoFeed';
 type Props = { item: PhotoFeedItem; onOpen: (item: PhotoFeedItem) => void };
 
 function PostHeader({ item, onPress }: { item: PhotoFeedItem; onPress: () => void }) {
-  const { colors } = useTheme();
+  const { brand } = useTheme();
   const styles = useThemedStyles(createStyles);
   const when = formatRelativeTime(item.timestamp);
   return (
@@ -38,13 +39,13 @@ function PostHeader({ item, onPress }: { item: PhotoFeedItem; onPress: () => voi
           {item.photoCategory ?? 'Moment from school'}
         </Text>
       </View>
-      <Ionicons name="ellipsis-horizontal" size={22} color={colors.textMuted} />
+      <Ionicons name="chevron-forward" size={18} color={brand.textTertiary} />
     </TouchableOpacity>
   );
 }
 
 export function PhotoPost({ item, onOpen }: Props) {
-  const { colors } = useTheme();
+  const { brand, category } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isVideo = isVideoMedia(item.mediaType, item.imageUrl);
   const open = () => onOpen(item);
@@ -61,10 +62,10 @@ export function PhotoPost({ item, onOpen }: Props) {
         <View style={styles.mediaFrame}>
           {isVideo ? (
             <View style={[styles.mediaFill, styles.videoPlaceholder]}>
-              <View style={styles.playCircle}>
-                <Ionicons name="play" size={36} color="#FFFFFF" style={{ marginLeft: 4 }} />
+              <View style={[styles.playCircle, { backgroundColor: category.activity }]}>
+                <Ionicons name="play" size={32} color={category.onCategory} style={{ marginLeft: 4 }} />
               </View>
-              <Text style={styles.videoLabel}>Video</Text>
+              <Text style={styles.videoLabel}>Tap to view video</Text>
             </View>
           ) : (
             <Image source={{ uri: item.imageUrl }} style={styles.mediaFill} resizeMode="cover" />
@@ -82,7 +83,7 @@ export function PhotoPost({ item, onOpen }: Props) {
         )}
         {item.forWholeClass ? (
           <View style={styles.tagPill}>
-            <Ionicons name="people" size={14} color={colors.primary} style={{ marginRight: 6 }} />
+            <Ionicons name="people-outline" size={15} color={brand.textSecondary} style={{ marginRight: 6 }} />
             <Text style={styles.tagPillText}>Shared with the whole class</Text>
           </View>
         ) : null}
@@ -91,60 +92,35 @@ export function PhotoPost({ item, onOpen }: Props) {
   );
 }
 
-const createStyles = ({ colors, isDark }: Theme) =>
+const createStyles = ({ brand, category }: Theme) =>
   StyleSheet.create({
-    card: {
-      marginBottom: 20,
-      borderRadius: 16,
-      overflow: 'hidden',
-      backgroundColor: colors.card,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.cardBorder,
-      ...(!isDark && Platform.OS === 'ios'
-        ? { shadowColor: '#0f172a', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 10 }
-        : {}),
-      ...(!isDark && Platform.OS === 'android' ? { elevation: 3 } : {}),
-    },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 12 },
-    avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.avatarBg },
-    avatarImg: { width: 40, height: 40, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.cardBorder },
-    avatarInitials: { fontSize: 15, fontFamily: font.bold, color: colors.avatarText },
-    headerText: { flex: 1, minWidth: 0 },
-    headerName: { fontSize: 15, color: colors.text, fontFamily: font.semiBold },
-    headerMeta: { fontSize: 13, color: colors.textMuted, marginTop: 2, fontFamily: font.regular },
-    mediaFrame: { width: '100%', backgroundColor: isDark ? '#111' : '#000' },
-    mediaFill: { width: '100%', aspectRatio: 1, backgroundColor: isDark ? '#1a1a1c' : colors.skeletonHighlight },
-    videoPlaceholder: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
-    playCircle: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(0,0,0,0.45)',
-    },
-    videoLabel: {
-      position: 'absolute',
-      bottom: 12,
-      left: 12,
-      fontSize: 12,
-      color: 'rgba(255,255,255,0.9)',
-      fontFamily: font.semiBold,
-    },
-    captionBlock: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 },
-    caption: { fontSize: 14, lineHeight: 20, color: colors.text, fontFamily: font.regular },
-    captionName: { fontFamily: font.semiBold, color: colors.text },
-    captionBody: { fontFamily: font.regular, color: colors.textSecondary },
-    captionMuted: { fontSize: 14, color: colors.textMuted, fontFamily: font.medium, lineHeight: 20 },
+    card: { marginBottom: 14, borderRadius: radius.card, overflow: 'hidden', backgroundColor: brand.surface },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+    avatar: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: category.photo },
+    avatarImg: { width: 44, height: 44, borderRadius: 14 },
+    avatarInitials: { fontSize: 17, fontFamily: brandFont.display800, color: category.onCategory },
+    headerText: { flex: 1, minWidth: 0, gap: 2 },
+    headerName: { fontSize: 15, color: brand.textPrimary, fontFamily: brandFont.body800 },
+    headerMeta: { fontSize: 13, color: brand.textTertiary, fontFamily: brandFont.body700 },
+    mediaFrame: { width: '100%', backgroundColor: brand.surfaceRaised },
+    mediaFill: { width: '100%', aspectRatio: 1, backgroundColor: brand.surfaceRaised },
+    videoPlaceholder: { alignItems: 'center', justifyContent: 'center', gap: 10 },
+    playCircle: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+    videoLabel: { fontSize: 14, color: brand.textSecondary, fontFamily: brandFont.body700 },
+    captionBlock: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 },
+    caption: { fontSize: 15, lineHeight: 22, color: brand.textPrimary, fontFamily: brandFont.body500 },
+    captionName: { fontFamily: brandFont.body800, color: brand.textPrimary },
+    captionBody: { fontFamily: brandFont.body500, color: brand.textSecondary },
+    captionMuted: { fontSize: 14, color: brand.textTertiary, fontFamily: brandFont.body600, lineHeight: 20 },
     tagPill: {
       flexDirection: 'row',
       alignItems: 'center',
       alignSelf: 'flex-start',
-      marginTop: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 20,
-      backgroundColor: colors.primaryMuted,
+      marginTop: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: radius.chip,
+      backgroundColor: brand.surfaceRaised,
     },
-    tagPillText: { fontSize: 12, fontFamily: font.semiBold, color: colors.primary },
+    tagPillText: { fontSize: 13, fontFamily: brandFont.body700, color: brand.textSecondary },
   });

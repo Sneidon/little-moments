@@ -1,30 +1,24 @@
 import { StyleSheet } from 'react-native';
-import { softShadow } from '../../../theme/shadow';
 import type { Theme } from '../../../hooks/useThemedStyles';
-import type { ColorPalette } from '../../../theme/colors';
-import { font } from '../../../theme/typography';
+import { brandFont } from '../../../theme/typography';
+import { radius } from '../../../theme/tokens';
 import type { EventHighlight } from './calendarUtils';
 
-export function highlightColors(colors: ColorPalette, h: EventHighlight) {
-  if (h === 'upcoming') return { accent: colors.primary, background: colors.primaryMuted, border: colors.primary };
-  if (h === 'ongoing') return { accent: colors.success, background: colors.accentTealSoft, border: colors.success };
-  return { accent: colors.textMuted, background: colors.backgroundSecondary, border: colors.cardBorder };
+type Tone = { accent: string; background: string; text: string };
+
+/** Upcoming events use the nap lilac, happening-now the attendance mint, past ones stay neutral. */
+export function highlightColors({ brand, category }: Pick<Theme, 'brand' | 'category'>, h: EventHighlight): Tone {
+  if (h === 'upcoming') return { accent: category.nap, background: category.nap, text: category.onCategory };
+  if (h === 'ongoing') return { accent: category.attendance, background: category.attendance, text: category.onCategory };
+  return { accent: brand.textTertiary, background: brand.surfaceRaised, text: brand.textSecondary };
 }
 
-export const createCalendarStyles = ({ colors, isDark }: Theme) =>
+export const createCalendarStyles = ({ brand }: Theme) =>
   StyleSheet.create({
-    card: {
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      padding: 14,
-      marginBottom: 16,
-      ...softShadow(isDark, { shadowColor: '#0f172a', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 }, 2),
-    },
-    navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-    navBtn: { padding: 4 },
-    navTitle: { flex: 1, textAlign: 'center', fontSize: 17, color: colors.text, fontFamily: font.bold },
-    navTitleShrink: { fontSize: 15 },
-    mutedCenter: { textAlign: 'center', color: colors.textMuted, marginTop: 8, fontFamily: font.medium },
+    card: { backgroundColor: brand.surface, borderRadius: radius.card, padding: 16, marginBottom: 14 },
+    navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 },
+    navBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: brand.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
+    navTitle: { flex: 1, textAlign: 'center', fontSize: 19, color: brand.textPrimary, fontFamily: brandFont.display800 },
+    navTitleShrink: { fontSize: 16 },
+    mutedCenter: { textAlign: 'center', color: brand.textTertiary, marginVertical: 12, fontFamily: brandFont.body600, fontSize: 14 },
   });

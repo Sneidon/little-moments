@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../context/ThemeContext';
 import { StatTile } from '../../../components/brand/StatTile';
 import { brandFont } from '../../../theme/typography';
@@ -8,29 +7,6 @@ import { radius, spacing, type as typeTokens, type BrandPalette, type CategoryPa
 import type { Child } from '@shared/types';
 
 const firstLetter = (name: string) => name.trim().charAt(0).toUpperCase();
-
-export function AddUpdateCta({ onPress }: { onPress: () => void }) {
-  const { brand, category, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(brand, category, isDark), [brand, category, isDark]);
-  return (
-    <TouchableOpacity
-      style={styles.cta}
-      onPress={onPress}
-      activeOpacity={0.9}
-      accessibilityRole="button"
-      accessibilityLabel="Add Daily Update. Log attendance, meals, or photos"
-    >
-      <View style={styles.ctaIcon}>
-        <Ionicons name="add" size={28} color={category.activity} />
-      </View>
-      <View style={styles.ctaText}>
-        <Text style={styles.ctaTitle}>Add Daily Update</Text>
-        <Text style={styles.ctaSubtitle}>Log attendance, meals, or photos</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={22} color={category.onCategory} />
-    </TouchableOpacity>
-  );
-}
 
 type AttendanceProps = { children: Child[]; presentIds: Set<string>; meals: number; photos: number };
 
@@ -83,27 +59,6 @@ export function OverviewTiles({ children, presentIds, meals, photos }: Attendanc
 function createStyles(brand: BrandPalette, category: CategoryPalette, isDark: boolean) {
   const ink = category.onCategory;
   return StyleSheet.create({
-    cta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-      paddingVertical: 16,
-      paddingLeft: 16,
-      paddingRight: 18,
-      borderRadius: radius.cardL,
-      borderWidth: 3,
-      borderColor: brand.background,
-      backgroundColor: category.activity,
-      shadowColor: brand.shadow,
-      shadowOffset: { width: 0, height: 14 },
-      shadowOpacity: isDark ? 0.7 : 0.45,
-      shadowRadius: 14,
-      elevation: 8,
-    },
-    ctaIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: ink, alignItems: 'center', justifyContent: 'center' },
-    ctaText: { flex: 1, minWidth: 0, gap: 2 },
-    ctaTitle: { ...typeTokens.cardTitle, color: ink },
-    ctaSubtitle: { fontFamily: brandFont.body600, fontSize: 14, color: '#4A3D00' },
     attendance: { backgroundColor: category.attendance, borderRadius: radius.cardL, padding: 22, gap: 18, overflow: 'hidden' },
     ring: {
       position: 'absolute',

@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
-import { SkeletonCard } from '../../components/Skeleton';
+import { useThemedStyles, type Theme } from '../../hooks/useThemedStyles';
+import { useTabBarClearance } from '../../hooks/useTabBarClearance';
+import { Skeleton } from '../../components/Skeleton';
+import { TabHeader } from '../../components/brand/TabHeader';
+import { radius, spacing } from '../../theme/tokens';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Event } from '@shared/types';
 import { indexEventsByDay, toLocalYMD } from './calendar/calendarUtils';
@@ -21,14 +24,14 @@ function today() {
 }
 
 export function ParentCalendarScreen() {
-  const insets = useSafeAreaInsets();
+  const tabBarClearance = useTabBarClearance();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors } = useTheme();
+  const { brand } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { schoolId, events, nowMs, refreshing, onRefresh } = useParentEvents();
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [cursor, setCursor] = useState(today);
   const byDay = useMemo(() => indexEventsByDay(events), [events]);
-  const background = { backgroundColor: colors.backgroundSecondary };
 
   const openEvent = (ev: Event) => {
     if (schoolId) navigation.navigate('ParentEventDetail', { schoolId, eventId: ev.id });
@@ -40,21 +43,25 @@ export function ParentCalendarScreen() {
 
   if (!schoolId) {
     return (
-      <ScrollView style={[styles.screen, background]} contentContainerStyle={styles.loader}>
-        {[1, 2, 3].map((i) => (
-          <SkeletonCard key={i} />
-        ))}
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content} accessibilityState={{ busy: true }}>
+        <TabHeader overline="School" title="Calendar" style={styles.header} />
+        <View style={styles.skeletons}>
+          <Skeleton height={52} borderRadius={radius.chip} />
+          <Skeleton height={150} borderRadius={radius.card} />
+          <Skeleton height={340} borderRadius={radius.card} />
+        </View>
       </ScrollView>
     );
   }
 
   return (
     <ScrollView
-      style={[styles.screen, background]}
-      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      style={styles.screen}
+      contentContainerStyle={[styles.content, { paddingBottom: tabBarClearance }]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand.onHeader} colors={[brand.headerBackground]} />}
       showsVerticalScrollIndicator={false}
     >
+      <TabHeader overline="School" title="Calendar" style={styles.header} />
       <ViewModeToggle value={viewMode} onChange={setViewMode} />
       <UpcomingCard events={events} nowMs={nowMs} onOpen={openEvent} />
       {viewMode === 'month' ? (
@@ -89,8 +96,10 @@ export function ParentCalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  content: { paddingHorizontal: 16, paddingTop: 12 },
-  loader: { flex: 1, padding: 16 },
-});
+const createStyles = ({ brand }: Theme) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: brand.background },
+    header: { marginBottom: spacing.gapL },
+    content: { paddingHorizontal: spacing.screenX },
+    skeletons: { gap: 14 },
+  });

@@ -1,11 +1,14 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Linking } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { SettingsDivider, SettingsRow } from './SettingsSection';
 
+const SUPPORT_URL = 'https://mylittlemoments.co.za';
+const FAQ_URL = 'https://mylittlemoments.co.za/faq';
+
 export function FaqRow() {
   const { category } = useTheme();
-  return <SettingsRow icon="help-circle-outline" tile={category.checkOut} title="FAQ" chevron onPress={() => Alert.alert('FAQ', 'Not implemented yet.')} />;
+  return <SettingsRow icon="help-circle-outline" tile={category.checkOut} title="FAQ" chevron onPress={() => void Linking.openURL(FAQ_URL)} />;
 }
 
 export function ContactSupportRow() {
@@ -16,7 +19,7 @@ export function ContactSupportRow() {
       tile={category.nappy}
       title="Contact support"
       chevron
-      onPress={() => Alert.alert('Contact support', 'Not implemented yet.')}
+      onPress={() => void Linking.openURL(SUPPORT_URL)}
     />
   );
 }

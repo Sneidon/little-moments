@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../context/ThemeContext';
 import { useThemedStyles, type Theme } from '../../../hooks/useThemedStyles';
-import { font } from '../../../theme/typography';
+import { brandFont } from '../../../theme/typography';
+import { radius, type as typeTokens } from '../../../theme/tokens';
 import type { Event } from '@shared/types';
 import { addDays, eventsInWeek, getDayHighlightLevel, groupEventsByDayKeys, startOfWeekSunday, toLocalYMD } from './calendarUtils';
 import { CalendarNav } from './CalendarNav';
@@ -26,7 +27,7 @@ function weekTitle(start: Date) {
 }
 
 export function WeekView({ cursor, events, byDay, nowMs, onCursorChange, onDayPress, onOpen }: Props) {
-  const { colors } = useTheme();
+  const { brand, category } = useTheme();
   const styles = useThemedStyles(createStyles);
   const shared = useThemedStyles(createCalendarStyles);
   const weekStart = useMemo(() => startOfWeekSunday(cursor), [cursor]);
@@ -45,23 +46,24 @@ export function WeekView({ cursor, events, byDay, nowMs, onCursorChange, onDayPr
           const evs = byDay.get(ymd) ?? [];
           const level = getDayHighlightLevel(evs, nowMs);
           const lit = level === 'ongoing' || level === 'upcoming';
-          const tone = lit ? highlightColors(colors, level) : null;
+          const tone = lit ? highlightColors({ brand, category }, level) : null;
           const isSelected = ymd === selectedYmd;
-          const dotColor = tone?.accent ?? (evs.length > 0 ? colors.textMuted : 'transparent');
+          const dotColor = tone?.text ?? (evs.length > 0 ? brand.textTertiary : 'transparent');
           return (
             <TouchableOpacity
               key={ymd}
               style={[
                 styles.chip,
-                tone && { borderColor: tone.border, borderWidth: 2, backgroundColor: tone.background },
+                tone && { backgroundColor: tone.background },
                 isSelected && styles.chipSelected,
               ]}
               onPress={() => onDayPress(d)}
+              accessibilityRole="button"
             >
-              <Text style={[styles.dayName, ymd === todayYmd && { color: colors.primary }, tone && { color: tone.accent }]}>
+              <Text style={[styles.dayName, ymd === todayYmd && styles.todayText, tone && { color: tone.text }]}>
                 {d.toLocaleDateString(undefined, { weekday: 'short' })}
               </Text>
-              <Text style={[styles.dayNum, isSelected && { color: colors.primary }, tone && { color: tone.accent }]}>{d.getDate()}</Text>
+              <Text style={[styles.dayNum, tone && { color: tone.text }]}>{d.getDate()}</Text>
               {evs.length > 0 ? (
                 <View style={styles.dotWrap}>
                   <View style={[styles.dot, { backgroundColor: dotColor }]} />
@@ -87,32 +89,17 @@ export function WeekView({ cursor, events, byDay, nowMs, onCursorChange, onDayPr
   );
 }
 
-const createStyles = ({ colors }: Theme) =>
+const createStyles = ({ brand }: Theme) =>
   StyleSheet.create({
-    strip: { flexDirection: 'row', gap: 8, paddingVertical: 8, marginBottom: 8 },
-    chip: {
-      width: 52,
-      alignItems: 'center',
-      paddingVertical: 10,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.backgroundSecondary,
-    },
-    chipSelected: { backgroundColor: colors.primaryMuted, borderColor: colors.primary },
-    dayName: { fontSize: 11, color: colors.textMuted, fontFamily: font.semiBold },
-    dayNum: { fontSize: 18, color: colors.text, marginTop: 4, fontFamily: font.bold },
+    strip: { flexDirection: 'row', gap: 8, paddingVertical: 4, marginBottom: 8 },
+    chip: { width: 52, alignItems: 'center', paddingVertical: 10, borderRadius: radius.chip, backgroundColor: brand.surfaceRaised },
+    chipSelected: { borderWidth: 2, borderColor: brand.textPrimary },
+    dayName: { fontSize: 12, color: brand.textTertiary, fontFamily: brandFont.body800 },
+    todayText: { color: brand.textPrimary },
+    dayNum: { fontSize: 19, color: brand.textPrimary, marginTop: 4, fontFamily: brandFont.display800 },
     dotWrap: { minHeight: 10, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
     dot: { width: 6, height: 6, borderRadius: 3 },
-    sectionLabel: {
-      fontSize: 12,
-      letterSpacing: 0.5,
-      color: colors.textMuted,
-      fontFamily: font.semiBold,
-      marginTop: 8,
-      marginBottom: 8,
-      textTransform: 'uppercase',
-    },
+    sectionLabel: { ...typeTokens.overline, color: brand.textTertiary, marginTop: 8, marginBottom: 10 },
     section: { marginBottom: 12 },
-    sectionTitle: { fontSize: 14, color: colors.textSecondary, fontFamily: font.semiBold, marginBottom: 8 },
+    sectionTitle: { fontSize: 14, color: brand.textSecondary, fontFamily: brandFont.body800, marginBottom: 8 },
   });

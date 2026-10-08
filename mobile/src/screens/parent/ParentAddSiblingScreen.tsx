@@ -26,7 +26,7 @@ export function ParentAddSiblingScreen({ navigation }: { navigation: { goBack: (
       return;
     }
     getDocs(collection(db, 'schools', schoolId, 'classes'))
-      .then((snap) => setClasses(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as ClassRoom))))
+      .then((snap) => setClasses(snap.docs.map((d) => ({ ...(d.data() as ClassRoom), id: d.id }))))
       .finally(() => setLoading(false));
   }, [profile?.schoolId]);
 
@@ -75,15 +75,24 @@ export function ParentAddSiblingScreen({ navigation }: { navigation: { goBack: (
         <Text style={styles.label}>Date of birth</Text>
         <TextInput style={styles.input} value={form.dob} onChangeText={(t) => setForm((f) => ({ ...f, dob: t }))} placeholder="YYYY-MM-DD" />
         <Text style={styles.label}>Class</Text>
-        <TextInput
-          style={styles.input}
-          value={form.classId}
-          onChangeText={(t) => setForm((f) => ({ ...f, classId: t }))}
-          placeholder={loading ? 'Loading classes… (enter classId)' : 'Enter classId (or pick from list in future)'}
-        />
-        <Text style={styles.help}>
-          For now this expects a class ID. If you prefer, we can swap this for a dropdown (same as the join web flow).
-        </Text>
+        <View style={styles.chips}>
+          {loading ? <Text style={styles.help}>Loading classes…</Text> : null}
+          {!loading && classes.length === 0 ? <Text style={styles.help}>No classes found for your school.</Text> : null}
+          {classes.map((c) => {
+            const selected = form.classId === c.id;
+            return (
+              <TouchableOpacity
+                key={c.id}
+                style={[styles.chip, selected && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={() => setForm((f) => ({ ...f, classId: c.id }))}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.chipText, selected && { color: colors.primaryContrast }]}>{c.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         <TouchableOpacity
           style={styles.checkboxRow}
@@ -127,6 +136,9 @@ function createStyles(colors: import('../../theme/colors').ColorPalette) {
       color: colors.text,
       ...f('regular'),
     },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder },
+    chipText: { fontSize: 13, color: colors.text, ...f('semiBold') },
     help: { marginTop: 8, fontSize: 12, color: colors.textMuted, ...f('regular') },
     checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
     checkbox: { width: 18, height: 18, borderRadius: 5, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: 'transparent' },

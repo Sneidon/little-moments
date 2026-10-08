@@ -8,7 +8,6 @@ export interface StaffPageHeaderProps {
   onExportExcel: () => void;
   onInviteTeacher: () => void;
   onInviteSchoolAdmin: () => void;
-  onAddTeacher: () => void;
 }
 
 export function StaffPageHeader({
@@ -17,7 +16,6 @@ export function StaffPageHeader({
   onExportExcel,
   onInviteTeacher,
   onInviteSchoolAdmin,
-  onAddTeacher,
 }: StaffPageHeaderProps) {
 
   return (
@@ -33,9 +31,6 @@ export function StaffPageHeader({
         </button>
         <button type="button" onClick={onInviteTeacher} className="btn-primary">
           Invite teacher
-        </button>
-        <button type="button" onClick={onAddTeacher} className="btn-secondary hidden" aria-hidden>
-          Add teacher
         </button>
       </div>
       }

@@ -1,6 +1,6 @@
 'use client';
 
-import type { EditTeacherFormState } from '@/hooks/useStaffPage';
+import type { EditTeacherFormState } from '../types';
 
 export interface EditTeacherFormProps {
   form: EditTeacherFormState;

@@ -1,9 +1,6 @@
 'use client';
 
-export interface InviteSchoolAdminFormState {
-  principalEmail: string;
-  principalName: string;
-}
+import type { InviteSchoolAdminFormState } from '@/services/staffInvites';
 
 export interface InviteSchoolAdminFormProps {
   form: InviteSchoolAdminFormState;

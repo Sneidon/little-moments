@@ -1,191 +1,104 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useStaffPage } from '@/hooks/useStaffPage';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PasswordResetDialog, PasswordResetNotice } from '@/components/PasswordReset';
+import { FilterSkeleton, SectionCard, TableSkeleton } from '@/components/ui';
+import { useInviteForm } from '@/hooks/useInviteForm';
+import { usePasswordReset } from '@/hooks/usePasswordReset';
 import {
-  StaffPageHeader,
-  StaffFilters,
-  StaffTable,
-  AddTeacherForm,
-  InviteTeacherForm,
-  InviteSchoolAdminForm,
-  EditTeacherForm,
-} from './components';
+  EMPTY_SCHOOL_ADMIN_INVITE,
+  EMPTY_TEACHER_INVITE,
+  inviteSchoolAdmin,
+  inviteTeacher,
+  type InviteSchoolAdminFormState,
+  type InviteTeacherFormState,
+} from '@/services/staffInvites';
 import type { UserProfile } from 'shared/types';
-import { SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
+import { EditTeacherForm, InviteSchoolAdminForm, InviteTeacherForm, StaffFilters, StaffPageHeader, StaffTable } from './components';
+import { useStaffRoster } from './useStaffRoster';
+import { useTeacherEditor } from './useTeacherEditor';
 
 export default function StaffPage() {
-  const [pendingPasswordResetUser, setPendingPasswordResetUser] = useState<UserProfile | null>(null);
-  const [pendingDeleteTeacher, setPendingDeleteTeacher] = useState<UserProfile | null>(null);
-  const [deleteTeacherDialogBusy, setDeleteTeacherDialogBusy] = useState(false);
-  const {
-    loading,
-    filteredStaff,
-    staffMembers,
-    classForTeacher,
-    formatDate,
-    staffRoleFilter,
-    setStaffRoleFilter,
-    staffSearch,
-    setStaffSearch,
-    showAddForm,
-    setShowAddForm,
-    showInviteTeacherForm,
-    inviteTeacherForm,
-    setInviteTeacherForm,
-    inviteTeacherError,
-    inviteTeacherSubmitting,
-    inviteTeacherResult,
-    handleInviteTeacherByEmail,
-    openInviteTeacherForm,
-    resetInviteTeacherForm,
-    showInviteSchoolAdminForm,
-    inviteSchoolAdminForm,
-    setInviteSchoolAdminForm,
-    inviteSchoolAdminError,
-    inviteSchoolAdminSubmitting,
-    inviteSchoolAdminResult,
-    handleInviteSchoolAdmin,
-    openInviteSchoolAdminForm,
-    resetInviteSchoolAdminForm,
-    addForm,
-    setAddForm,
-    addTeacherError,
-    addTeacherSubmitting,
-    handleAddTeacher,
-    openAddForm,
-    editingUid,
-    editForm,
-    setEditForm,
-    editError,
-    editSubmitting,
-    startEditTeacher,
-    handleUpdateTeacher,
-    cancelEditTeacher,
-    handleExportPdf,
-    handleExportCsv,
-    handleExportExcel,
-    passwordResetLoadingUid,
-    passwordResetError,
-    passwordResetSuccess,
-    handleRequestPasswordReset,
-    clearPasswordResetFeedback,
-    deletingTeacherUid,
-    deleteTeacherError,
-    handleDeleteTeacher,
-  } = useStaffPage();
-
-  const handleConfirmPasswordReset = () => {
-    if (pendingPasswordResetUser) {
-      handleRequestPasswordReset(pendingPasswordResetUser);
-      setPendingPasswordResetUser(null);
-    }
-  };
-
-  useEffect(() => {
-    if (!pendingDeleteTeacher) setDeleteTeacherDialogBusy(false);
-  }, [pendingDeleteTeacher]);
-
-  const handleConfirmDeleteTeacher = async () => {
-    if (!pendingDeleteTeacher || deleteTeacherDialogBusy) return;
-    const uid = pendingDeleteTeacher.uid;
-    setDeleteTeacherDialogBusy(true);
-    try {
-      const ok = await handleDeleteTeacher(uid);
-      if (ok) setPendingDeleteTeacher(null);
-    } finally {
-      setDeleteTeacherDialogBusy(false);
-    }
-  };
+  const roster = useStaffRoster();
+  const editor = useTeacherEditor(roster.reload);
+  const reset = usePasswordReset<UserProfile>();
+  const teacherInvite = useInviteForm<InviteTeacherFormState>({
+    initial: EMPTY_TEACHER_INVITE,
+    validate: (f) => (f.teacherEmail.trim() ? null : 'Email is required.'),
+    send: inviteTeacher,
+  });
+  const adminInvite = useInviteForm<InviteSchoolAdminFormState>({
+    initial: EMPTY_SCHOOL_ADMIN_INVITE,
+    validate: (f) => (!f.principalEmail.trim() ? 'Email is required.' : !roster.schoolId ? 'No school on your profile.' : null),
+    send: (f) => inviteSchoolAdmin(roster.schoolId as string, f),
+  });
+  const { pendingDelete } = editor;
 
   return (
     <div className="animate-fade-in">
       <ConfirmDialog
-        open={!!pendingDeleteTeacher}
-        onClose={() => setPendingDeleteTeacher(null)}
+        open={!!pendingDelete}
+        onClose={() => editor.setPendingDelete(null)}
         title="Remove this teacher?"
         message={
-          pendingDeleteTeacher
-            ? `Remove ${pendingDeleteTeacher.displayName || pendingDeleteTeacher.email || 'this teacher'} from your school? They will be unassigned from every class and any child they were directly assigned to, their sign-in will stop working, and their profile will be deleted. This cannot be undone.`
+          pendingDelete
+            ? `Remove ${pendingDelete.displayName || pendingDelete.email || 'this teacher'} from your school? They will be unassigned from every class and any child they were directly assigned to, their sign-in will stop working, and their profile will be deleted. This cannot be undone.`
             : ''
         }
         confirmLabel="Remove teacher"
         cancelLabel="Cancel"
-        onConfirm={handleConfirmDeleteTeacher}
-        confirmDisabled={
-          deleteTeacherDialogBusy ||
-          Boolean(pendingDeleteTeacher && deletingTeacherUid === pendingDeleteTeacher.uid)
-        }
+        onConfirm={editor.confirmDelete}
+        confirmDisabled={!!editor.deletingUid}
       />
-      <ConfirmDialog
-        open={!!pendingPasswordResetUser}
-        onClose={() => setPendingPasswordResetUser(null)}
-        title="Send password reset email?"
-        message={
-          pendingPasswordResetUser
-            ? `Send a password reset link to ${pendingPasswordResetUser.email}? They will receive an email to set a new password.`
-            : ''
-        }
-        confirmLabel="Send reset email"
-        onConfirm={handleConfirmPasswordReset}
-      />
+      <PasswordResetDialog reset={reset} />
       <StaffPageHeader
-        onExportPdf={handleExportPdf}
-        onExportCsv={handleExportCsv}
-        onExportExcel={handleExportExcel}
-        onInviteTeacher={openInviteTeacherForm}
-        onInviteSchoolAdmin={openInviteSchoolAdminForm}
-        onAddTeacher={openAddForm}
+        onExportPdf={roster.exportPdf}
+        onExportCsv={roster.exportCsv}
+        onExportExcel={roster.exportExcel}
+        onInviteTeacher={() => {
+          adminInvite.close();
+          teacherInvite.show();
+        }}
+        onInviteSchoolAdmin={() => {
+          teacherInvite.close();
+          adminInvite.show();
+        }}
       />
 
-      {showInviteSchoolAdminForm && (
+      {adminInvite.open && (
         <InviteSchoolAdminForm
-          form={inviteSchoolAdminForm}
-          setForm={setInviteSchoolAdminForm}
-          error={inviteSchoolAdminError}
-          submitting={inviteSchoolAdminSubmitting}
-          inviteResult={inviteSchoolAdminResult}
-          onSubmit={handleInviteSchoolAdmin}
-          onCancel={resetInviteSchoolAdminForm}
+          form={adminInvite.form}
+          setForm={adminInvite.setForm}
+          error={adminInvite.error}
+          submitting={adminInvite.submitting}
+          inviteResult={adminInvite.result}
+          onSubmit={adminInvite.submit}
+          onCancel={adminInvite.close}
         />
       )}
-
-      {showInviteTeacherForm && (
+      {teacherInvite.open && (
         <InviteTeacherForm
-          form={inviteTeacherForm}
-          setForm={setInviteTeacherForm}
-          error={inviteTeacherError}
-          submitting={inviteTeacherSubmitting}
-          inviteResult={inviteTeacherResult}
-          onSubmit={handleInviteTeacherByEmail}
-          onCancel={resetInviteTeacherForm}
+          form={teacherInvite.form}
+          setForm={teacherInvite.setForm}
+          error={teacherInvite.error}
+          submitting={teacherInvite.submitting}
+          inviteResult={teacherInvite.result}
+          onSubmit={teacherInvite.submit}
+          onCancel={teacherInvite.close}
         />
       )}
-
-      {showAddForm && (
-        <AddTeacherForm
-          form={addForm}
-          setForm={setAddForm}
-          error={addTeacherError}
-          submitting={addTeacherSubmitting}
-          onSubmit={handleAddTeacher}
-          onCancel={() => setShowAddForm(false)}
-        />
-      )}
-
-      {editingUid && (
+      {editor.editingUid && (
         <EditTeacherForm
-          form={editForm}
-          setForm={setEditForm}
-          error={editError}
-          submitting={editSubmitting}
-          onSubmit={handleUpdateTeacher}
-          onCancel={cancelEditTeacher}
+          form={editor.form}
+          setForm={editor.setForm}
+          error={editor.error}
+          submitting={editor.submitting}
+          onSubmit={editor.save}
+          onCancel={editor.cancel}
         />
       )}
 
-      {loading ? (
+      {roster.loading ? (
         <>
           <SectionCard topBar="warm" padding="default" className="mb-6">
             <FilterSkeleton />
@@ -197,52 +110,28 @@ export default function StaffPage() {
       ) : (
         <>
           <StaffFilters
-            roleFilter={staffRoleFilter}
-            onRoleFilterChange={setStaffRoleFilter}
-            search={staffSearch}
-            onSearchChange={setStaffSearch}
-            filteredCount={filteredStaff.length}
-            totalCount={staffMembers.length}
+            roleFilter={roster.roleFilter}
+            onRoleFilterChange={roster.setRoleFilter}
+            search={roster.search}
+            onSearchChange={roster.setSearch}
+            filteredCount={roster.filtered.length}
+            totalCount={roster.staff.length}
           />
-          {deleteTeacherError && (
+          {editor.deleteError && (
             <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
-              {deleteTeacherError}
+              {editor.deleteError}
             </div>
           )}
-          {(passwordResetError || passwordResetSuccess) && (
-            <div
-              className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
-                passwordResetError
-                  ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200'
-                  : 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200'
-              }`}
-            >
-              {passwordResetError ? (
-                <span className="flex items-center justify-between gap-2">
-                  {passwordResetError}
-                  <button
-                    type="button"
-                    onClick={clearPasswordResetFeedback}
-                    className="shrink-0 underline"
-                  >
-                    Dismiss
-                  </button>
-                </span>
-              ) : (
-                <span>Password reset email sent. The user will receive a link to set a new password.</span>
-              )}
-            </div>
-          )}
+          <PasswordResetNotice reset={reset} />
           <StaffTable
-            staff={filteredStaff}
-            totalCount={staffMembers.length}
-            classForTeacher={classForTeacher}
-            formatDate={formatDate}
-            onEditTeacher={startEditTeacher}
-            onDeleteTeacher={(u) => setPendingDeleteTeacher(u)}
-            deletingTeacherUid={deletingTeacherUid}
-            onRequestPasswordReset={(u) => setPendingPasswordResetUser(u)}
-            passwordResetLoadingUid={passwordResetLoadingUid}
+            staff={roster.filtered}
+            totalCount={roster.staff.length}
+            classForTeacher={roster.classForTeacher}
+            onEditTeacher={editor.start}
+            onDeleteTeacher={editor.setPendingDelete}
+            deletingTeacherUid={editor.deletingUid}
+            onRequestPasswordReset={reset.setPending}
+            passwordResetLoadingUid={reset.loadingUid}
           />
         </>
       )}

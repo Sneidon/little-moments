@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../context/ThemeContext';
 import { StatTile } from '../../../components/brand/StatTile';
 import { brandFont } from '../../../theme/typography';
 import { radius, spacing, type as typeTokens, type BrandPalette, type CategoryPalette } from '../../../theme/tokens';
 import type { Child } from '@shared/types';
+
+const firstLetter = (name: string) => name.trim().charAt(0).toUpperCase();
 
 export function AddUpdateCta({ onPress }: { onPress: () => void }) {
   const { brand, category, isDark } = useTheme();
@@ -55,9 +57,18 @@ export function OverviewTiles({ children, presentIds, meals, photos }: Attendanc
         </View>
         {total > 0 ? (
           <View style={styles.dots}>
-            {children.map((c) => (
-              <View key={c.id} style={presentIds.has(c.id) ? styles.dotPresent : styles.dotAbsent} />
-            ))}
+            {children.map((c) => {
+              const present = presentIds.has(c.id);
+              return (
+                <View key={c.id} style={present ? styles.dotPresent : styles.dotAbsent}>
+                  {c.photoURL ? (
+                    <Image source={{ uri: c.photoURL }} style={styles.dotPhoto} />
+                  ) : (
+                    <Text style={present ? styles.dotLetterPresent : styles.dotLetter}>{firstLetter(c.name)}</Text>
+                  )}
+                </View>
+              );
+            })}
           </View>
         ) : null}
       </View>
@@ -113,8 +124,22 @@ function createStyles(brand: BrandPalette, category: CategoryPalette, isDark: bo
     chipLabel: { fontFamily: brandFont.body800, fontSize: 12, letterSpacing: 0.72, textTransform: 'uppercase', color: category.onCategoryMuted },
     chipValue: { fontFamily: brandFont.display800, fontSize: 30, lineHeight: 33, color: ink },
     dots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    dotAbsent: { width: 34, height: 34, borderRadius: 17, borderWidth: 2.5, borderStyle: 'dashed', borderColor: ink, opacity: 0.55 },
-    dotPresent: { width: 34, height: 34, borderRadius: 17, backgroundColor: ink },
+    dotAbsent: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 2.5,
+      borderStyle: 'dashed',
+      borderColor: ink,
+      opacity: 0.55,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    dotPresent: { width: 34, height: 34, borderRadius: 17, backgroundColor: ink, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    dotPhoto: { width: '100%', height: '100%' },
+    dotLetter: { fontFamily: brandFont.display800, fontSize: 15, color: ink },
+    dotLetterPresent: { fontFamily: brandFont.display800, fontSize: 15, color: category.attendance },
     row: { flexDirection: 'row', gap: spacing.gapM },
   });
 }

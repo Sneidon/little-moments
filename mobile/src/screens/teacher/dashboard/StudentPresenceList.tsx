@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../../context/ThemeContext';
 import { brandFont } from '../../../theme/typography';
 import { avatarCategoryColor, radius, type as typeTokens, type BrandPalette, type CategoryPalette } from '../../../theme/tokens';
-import { getAge, getInitials } from '../../../utils';
+import { getAge } from '../../../utils';
 import type { Child } from '@shared/types';
 
 type Props = { children: Child[]; presentIds: Set<string>; onPress: (child: Child) => void };
@@ -27,7 +27,11 @@ export function StudentPresenceList({ children, presentIds, onPress }: Props) {
             accessibilityLabel={`${child.name}, ${age} old, ${present ? 'present' : 'not checked in'}`}
           >
             <View style={[styles.avatar, { backgroundColor: avatarCategoryColor(category, index) }]}>
-              <Text style={styles.avatarText}>{getInitials(child.name)}</Text>
+              {child.photoURL ? (
+                <Image source={{ uri: child.photoURL }} style={styles.avatarPhoto} />
+              ) : (
+                <Text style={styles.avatarText}>{child.name.trim().charAt(0).toUpperCase()}</Text>
+              )}
             </View>
             <View style={styles.text}>
               <Text style={styles.name} numberOfLines={1}>
@@ -49,7 +53,8 @@ function createStyles(brand: BrandPalette, category: CategoryPalette) {
   return StyleSheet.create({
     empty: { ...typeTokens.body, color: brand.textSecondary, marginHorizontal: 4 },
     card: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: radius.card, backgroundColor: brand.surface },
-    avatar: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    avatar: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    avatarPhoto: { width: '100%', height: '100%' },
     avatarText: { fontFamily: brandFont.display800, fontSize: 20, color: category.onCategory },
     text: { flex: 1, minWidth: 0, gap: 2 },
     name: { fontFamily: brandFont.display800, fontSize: 18, letterSpacing: -0.36, color: brand.textPrimary },

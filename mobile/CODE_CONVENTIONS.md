@@ -1,25 +1,38 @@
-# Mobile code conventions (TypeScript)
+# Code conventions (mobile, web, functions)
 
-## Imports
+## Size and structure
 
-Keep a consistent order:
+- Keep files at or under **250 lines**. Run `scripts/check-max-lines.sh` from the repo root to check.
+- A screen or page composes; it should not hold data loading, formatting and large JSX at once.
+  Split a big screen into a folder next to it: a data hook (`useXxx.ts`), pure helpers (`xxx.ts`) and small components.
+- Code shared by several screens lives in a feature folder (`mobile/src/features/<name>/`, `web/src/components/<name>/`).
+- Code shared by web, mobile and functions lives in `shared/` (import as `@shared/...` on mobile, `shared/...` on web).
 
-1. **React** - `React`, hooks (`useState`, `useEffect`, etc.)
-2. **React Native** - `View`, `Text`, `StyleSheet`, etc.
-3. **Third-party** - `@expo/vector-icons`, `firebase/firestore`, etc.
-4. **Internal** - `config`, `context`, `components`, `hooks`, `utils` (blank line before if needed)
-5. **Types** - `type { X } from '...'` (prefer type-only imports)
+## Mobile
 
-Use path aliases or relative paths consistently (e.g. `../../hooks`, `../../utils`).
+- Firestore access goes in `src/api/` or a hook, not inline in a screen.
+- Reuse hooks from `src/hooks/` (`useTeacherClassChildren`, `useDateNavigation`, `useOpenChat`, `useNow`, `useThemedStyles`).
+- Styles: `useThemedStyles(createStyles)` with a module-level `createStyles = (theme) => StyleSheet.create({...})`.
+- New UI uses the brand components in `src/components/brand/` and tokens from `src/theme/tokens.ts`.
 
-## Components and hooks
+## Web
 
-- Reuse **components** from `src/components/` (e.g. `DateBar`, `Skeleton`).
-- Reuse **hooks** from `src/hooks/` (e.g. `useDateNavigation`, `useTeacherClassChildren`).
-- Reuse **utils** from `src/utils/` (e.g. `getAge`, `getInitials`, `formatTime`) instead of duplicating helpers in screens.
+- Firestore and callable access goes in `src/services/`, `src/lib/` or a hook.
+- Reuse `src/components/ui` (`PageHero`, `SectionCard`, `ExportMenu`, `Notice`) and `src/lib/errors.ts` for callable errors.
+- CSV and Excel exports share `src/lib/export/common.ts`.
 
-## TypeScript
+## Functions
 
-- Prefer `type` for object shapes and props.
-- Use shared types from `shared/types` where they match the domain.
-- Type navigation and route params explicitly where it helps.
+- `src/index.ts` only re-exports. Callables go in `src/callables/`, Firestore triggers in `src/triggers/`,
+  scheduled jobs in `src/schedulers/`, public HTTP endpoints in `src/http/`, and helpers in `src/lib/`.
+- Never rename an exported function: the export name is the deployed function name.
+
+## Comments
+
+- Only write comments that explain **why** (a workaround, a platform quirk, a non-obvious rule).
+  Don't restate what the code does, and don't leave commented-out code.
+
+## Imports and types
+
+- Order: React, React Native / Next, third-party, internal, then type-only imports.
+- Prefer `type` for object shapes and props, and shared types from `shared/types` where they match the domain.

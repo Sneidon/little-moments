@@ -1,23 +1,23 @@
 import React from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarClearance } from '../../hooks';
 import { AccountSection } from '../../features/settings/AccountSection';
 import { ProfileHeader } from '../../features/settings/ProfileHeader';
 import { SettingsRow, SettingsSection } from '../../features/settings/SettingsSection';
 import { ContactSupportRow, FaqRow, SettingsDivider } from '../../features/settings/SupportRows';
 import { ThemeSelector } from '../../features/settings/ThemeSelector';
-import { NATIVE_TAB_BAR_CLEARANCE_IOS, spacing } from '../../theme/tokens';
+import { spacing } from '../../theme/tokens';
 import type { RootStackParamList } from '../../navigation/types';
 import { ChildCard, DaycareCard } from './settings/FamilyCards';
 import { useParentFamily } from './settings/useParentFamily';
 
 export function ParentSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
+  const tabBarClearance = useTabBarClearance();
   const { profile } = useAuth();
   const { brand, category } = useTheme();
   const { selectedChild, school, className } = useParentFamily();
@@ -25,7 +25,7 @@ export function ParentSettingsScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: brand.background }}
-      contentContainerStyle={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24 }}
+      contentContainerStyle={{ paddingBottom: tabBarClearance }}
       showsVerticalScrollIndicator={false}
     >
       <ProfileHeader

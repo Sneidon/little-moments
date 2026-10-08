@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -65,11 +66,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: brand.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <KeyboardAvoider style={{ backgroundColor: brand.background }}>
       <FlatList
         ref={listRef}
         data={items}
@@ -78,8 +75,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
         contentContainerStyle={[{ paddingHorizontal: 12, paddingVertical: 8, flexGrow: 1 }, items.length === 0 && { justifyContent: 'center' }]}
         ListEmptyComponent={<ChatEmpty loading={loadingInitial} />}
         ListHeaderComponent={loadingOlder ? <View style={{ paddingVertical: 12 }}><ActivityIndicator size="small" color={brand.textPrimary} /></View> : null}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        {...keyboardScrollProps}
         onStartReached={() => void loadOlder()}
         onStartReachedThreshold={0.15}
         maintainVisibleContentPosition={items.length > 0 ? { minIndexForVisible: 0, autoscrollToTopThreshold: 24 } : undefined}
@@ -91,6 +87,6 @@ export function ChatThreadScreen({ route, navigation }: Props) {
         showsVerticalScrollIndicator={false}
       />
       <ChatComposer value={input} onChange={setInput} onSend={send} sending={sending} />
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }

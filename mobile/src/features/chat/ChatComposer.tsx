@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, StyleSheet, TextInput, TouchableOpacity, V
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import { useKeyboardVisible } from '../../hooks';
 import { brandFont } from '../../theme/typography';
 import type { BrandPalette } from '../../theme/tokens';
 
@@ -11,10 +12,11 @@ type Props = { value: string; onChange: (text: string) => void; onSend: () => vo
 export function ChatComposer({ value, onChange, onSend, sending }: Props) {
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardVisible();
   const styles = useMemo(() => createStyles(brand), [brand]);
   const disabled = !value.trim() || sending;
   return (
-    <View style={[styles.row, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View style={[styles.row, { paddingBottom: keyboardVisible ? 10 : Math.max(insets.bottom, 10) }]}>
       <TextInput
         style={styles.input}
         placeholder="Message"

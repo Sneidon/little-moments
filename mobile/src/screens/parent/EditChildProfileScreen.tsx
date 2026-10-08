@@ -11,6 +11,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import firebaseApp from '../../config/firebase';
 import { useTheme } from '../../context/ThemeContext';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 import type { Child } from '@shared/types';
 import { useFeedback } from '../../context/FeedbackContext';
 
@@ -74,54 +75,56 @@ export function EditChildProfileScreen({
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.label}>Name</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="Child's name"
-          placeholderTextColor={colors.textMuted}
-          editable={!saving}
-        />
-        <Text style={styles.label}>Date of birth</Text>
-        <TextInput
-          style={styles.input}
-          value={dateOfBirth}
-          onChangeText={setDateOfBirth}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.textMuted}
-          editable={!saving}
-        />
-        <Text style={styles.label}>Allergies (comma-separated)</Text>
-        <TextInput
-          style={[styles.input, styles.inputMultiline]}
-          value={allergiesText}
-          onChangeText={setAllergiesText}
-          placeholder="e.g. Nuts, Dairy"
-          placeholderTextColor={colors.textMuted}
-          multiline
-          editable={!saving}
-        />
-      </View>
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={saving}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-          onPress={save}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.primaryContrast} />
-          ) : (
-            <Text style={styles.saveText}>Save</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <KeyboardAvoider style={styles.container} scroll>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} {...keyboardScrollProps}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="Child's name"
+            placeholderTextColor={colors.textMuted}
+            editable={!saving}
+          />
+          <Text style={styles.label}>Date of birth</Text>
+          <TextInput
+            style={styles.input}
+            value={dateOfBirth}
+            onChangeText={setDateOfBirth}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.textMuted}
+            editable={!saving}
+          />
+          <Text style={styles.label}>Allergies (comma-separated)</Text>
+          <TextInput
+            style={[styles.input, styles.inputMultiline]}
+            value={allergiesText}
+            onChangeText={setAllergiesText}
+            placeholder="e.g. Nuts, Dairy"
+            placeholderTextColor={colors.textMuted}
+            multiline
+            editable={!saving}
+          />
+        </View>
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={saving}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+            onPress={save}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={colors.primaryContrast} />
+            ) : (
+              <Text style={styles.saveText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoider>
   );
 }
 

@@ -3,14 +3,13 @@ import { Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacit
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { OutlineButton } from '../../components/brand/Buttons';
-import { useDateNavigation, useTeacherClassChildren } from '../../hooks';
+import { useDateNavigation, useTeacherClassChildren, useTabBarClearance } from '../../hooks';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { brandFont } from '../../theme/typography';
-import { NATIVE_TAB_BAR_CLEARANCE_IOS, spacing, type as typeTokens, type BrandPalette } from '../../theme/tokens';
+import { spacing, type as typeTokens, type BrandPalette } from '../../theme/tokens';
 import type { RootStackParamList } from '../../navigation/types';
 import { DashboardHeader } from './dashboard/DashboardHeader';
 import { DashboardSkeleton } from './dashboard/DashboardSkeleton';
@@ -27,7 +26,6 @@ export function TeacherHomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { profile } = useAuth();
   const { brand } = useTheme();
-  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(brand), [brand]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -55,7 +53,7 @@ export function TeacherHomeScreen() {
 
   const dateLabel = new Date(dates.selectedDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
   const showSkeleton = loading && children.length === 0 && !!profile?.schoolId;
-  const bottom = Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24;
+  const bottom = useTabBarClearance();
 
   return (
     <ScrollView
@@ -92,7 +90,7 @@ export function TeacherHomeScreen() {
         </View>
       ) : null}
 
-      <View style={[styles.body, !dates.showDatePicker && styles.overlap, { paddingBottom: bottom }]}>
+      <View style={[styles.body, !dates.showDatePicker && !showSkeleton && styles.overlap, { paddingBottom: bottom }]}>
         {showSkeleton ? (
           <DashboardSkeleton />
         ) : (

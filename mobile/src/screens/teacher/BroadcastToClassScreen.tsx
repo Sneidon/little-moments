@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -100,11 +101,10 @@ export function BroadcastToClassScreen({ navigation }: Props) {
   const canSend = !!classId && !!message.trim() && !sending && !recipients.loading && !recipients.error && (recipients.parentCount ?? 0) > 0;
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
+    <KeyboardAvoider style={styles.screen} scroll>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) }]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        {...keyboardScrollProps}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => setRefreshTrigger((t) => t + 1)} tintColor={brand.textPrimary} />}
       >
         <BroadcastIntro />
@@ -144,7 +144,7 @@ export function BroadcastToClassScreen({ navigation }: Props) {
           accessibilityLabel={className ? `Send message to ${recipients.parentCount ?? 0} parents in ${className}` : 'Send message to class'}
         />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 

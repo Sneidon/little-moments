@@ -1,17 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Platform, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarClearance } from '../../hooks';
 import { PrimaryButton, OutlineButton } from '../../components/brand/Buttons';
 import { BrandSkeletonStudentCard } from '../../components/brand/BrandSkeletons';
 import { EmptyCard } from '../../components/brand/EmptyCard';
 import { TabHeader } from '../../components/brand/TabHeader';
 import { ChatListRow } from '../../features/chat/ChatListRow';
 import { useChatList, type ChatWithNames } from '../../features/chat/useChatList';
-import { NATIVE_TAB_BAR_CLEARANCE_IOS, spacing, type as typeTokens, type BrandPalette } from '../../theme/tokens';
+import { spacing, type as typeTokens, type BrandPalette } from '../../theme/tokens';
 import { isChatUnreadForUser } from '../../utils/chatUnread';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -19,7 +19,7 @@ export function MessagesListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { profile } = useAuth();
   const { brand } = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabBarClearance = useTabBarClearance();
   const styles = useMemo(() => createStyles(brand), [brand]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,7 +123,7 @@ export function MessagesListScreen() {
             colors={[brand.headerBackground]}
           />
         }
-        contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: tabBarClearance }]}
         showsVerticalScrollIndicator={false}
       />
     </View>

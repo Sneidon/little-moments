@@ -13,6 +13,7 @@ import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 import type { ClassRoom } from '@shared/types';
 import { useFeedback } from '../../context/FeedbackContext';
 
@@ -95,59 +96,61 @@ export function DailyCommunicationScreen({
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.label}>Class</Text>
-        <View style={styles.classRow}>
-          {classes.map((c) => (
-            <TouchableOpacity
-              key={c.id}
-              style={[
-                styles.classChip,
-                selectedClassId === c.id && styles.classChipSelected,
-              ]}
-              onPress={() => setSelectedClassId(c.id)}
-            >
-              <Text
+    <KeyboardAvoider style={styles.container} scroll>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} {...keyboardScrollProps}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Class</Text>
+          <View style={styles.classRow}>
+            {classes.map((c) => (
+              <TouchableOpacity
+                key={c.id}
                 style={[
-                  styles.classChipText,
-                  selectedClassId === c.id && styles.classChipTextSelected,
+                  styles.classChip,
+                  selectedClassId === c.id && styles.classChipSelected,
                 ]}
+                onPress={() => setSelectedClassId(c.id)}
               >
-                {c.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.classChipText,
+                    selectedClassId === c.id && styles.classChipTextSelected,
+                  ]}
+                >
+                  {c.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.label}>Planned activity for the day</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Outdoor play, arts & crafts, story time..."
-          placeholderTextColor={colors.textMuted}
-          value={message}
-          onChangeText={setMessage}
-          multiline
-          numberOfLines={4}
-        />
-        <Text style={styles.hint}>All parents in this class will receive a notification.</Text>
-      </View>
-      <TouchableOpacity
-        style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-        onPress={save}
-        disabled={saving || !message.trim()}
-      >
-        {saving ? (
-          <ActivityIndicator size="small" color={colors.primaryContrast} />
-        ) : (
-          <>
-            <Ionicons name="send" size={20} color={colors.primaryContrast} />
-            <Text style={styles.saveBtnText}>Send to all parents</Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={styles.card}>
+          <Text style={styles.label}>Planned activity for the day</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Outdoor play, arts & crafts, story time..."
+            placeholderTextColor={colors.textMuted}
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            numberOfLines={4}
+          />
+          <Text style={styles.hint}>All parents in this class will receive a notification.</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+          onPress={save}
+          disabled={saving || !message.trim()}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color={colors.primaryContrast} />
+          ) : (
+            <>
+              <Ionicons name="send" size={20} color={colors.primaryContrast} />
+              <Text style={styles.saveBtnText}>Send to all parents</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoider>
   );
 }
 

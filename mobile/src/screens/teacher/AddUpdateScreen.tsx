@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -55,79 +56,81 @@ export function AddUpdateScreen({ navigation, route }: Props) {
   const editingChild = roster.selectedChildren.find((c) => c.id === variations.editingChildId);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: brand.background }} contentContainerStyle={styles.content}>
-      <AddUpdateHeader whoStepActive={!hasSelection} onBack={() => navigation.goBack()} />
+    <KeyboardAvoider style={{ backgroundColor: brand.background }} scroll>
+      <ScrollView style={{ flex: 1, backgroundColor: brand.background }} contentContainerStyle={styles.content} {...keyboardScrollProps}>
+        <AddUpdateHeader whoStepActive={!hasSelection} onBack={() => navigation.goBack()} />
 
-      <WhoCard
-        type={type}
-        children={roster.children}
-        rosterLoaded={roster.rosterLoaded}
-        selectedIds={roster.selectedIds}
-        selectedChildren={roster.selectedChildren}
-        isEligible={roster.isEligible}
-        hasOverride={(id) => !!variations.overrides[id]}
-        onToggle={roster.toggle}
-        onSelectAll={roster.selectAll}
-        onClear={roster.clear}
-        onSearch={() => setSearchOpen(true)}
-        onEditVariation={variations.open}
-      />
+        <WhoCard
+          type={type}
+          children={roster.children}
+          rosterLoaded={roster.rosterLoaded}
+          selectedIds={roster.selectedIds}
+          selectedChildren={roster.selectedChildren}
+          isEligible={roster.isEligible}
+          hasOverride={(id) => !!variations.overrides[id]}
+          onToggle={roster.toggle}
+          onSelectAll={roster.selectAll}
+          onClear={roster.clear}
+          onSearch={() => setSearchOpen(true)}
+          onEditVariation={variations.open}
+        />
 
-      <WhatCard type={type} onChange={setType} />
+        <WhatCard type={type} onChange={setType} />
 
-      {roster.rosterLoaded && roster.children.length > 0 && !hasSelection ? (
-        <SelectionHintCard selectAllLabel={selectAllChildrenLabel(type)} />
-      ) : null}
+        {roster.rosterLoaded && roster.children.length > 0 && !hasSelection ? (
+          <SelectionHintCard selectAllLabel={selectAllChildrenLabel(type)} />
+        ) : null}
 
-      {hasSelection ? (
-        <>
-          <TimesBanner />
-          <UpdateFormCard
-            type={type}
-            values={fields}
-            onChange={patch}
-            editable={!saving}
-            clock={clock}
-            mealOptions={mealOptions}
-            media={media}
-            rosterLoaded={roster.rosterLoaded}
-            childCount={roster.children.length}
-          />
-          <View style={styles.post}>
-            <PrimaryButton
-              label={saving ? 'Posting…' : roster.loadingPresence ? 'Loading…' : 'Post update'}
-              icon="send"
-              onPress={submit}
-              disabled={saving || roster.loadingPresence}
+        {hasSelection ? (
+          <>
+            <TimesBanner />
+            <UpdateFormCard
+              type={type}
+              values={fields}
+              onChange={patch}
+              editable={!saving}
+              clock={clock}
+              mealOptions={mealOptions}
+              media={media}
+              rosterLoaded={roster.rosterLoaded}
+              childCount={roster.children.length}
             />
-          </View>
-        </>
-      ) : null}
+            <View style={styles.post}>
+              <PrimaryButton
+                label={saving ? 'Posting…' : roster.loadingPresence ? 'Loading…' : 'Post update'}
+                icon="send"
+                onPress={submit}
+                disabled={saving || roster.loadingPresence}
+              />
+            </View>
+          </>
+        ) : null}
 
-      <VariationModal
-        type={type}
-        childName={editingChild?.name ?? null}
-        draft={variations.draft}
-        onChange={variations.patchDraft}
-        hasOverride={!!(variations.editingChildId && variations.overrides[variations.editingChildId])}
-        mealOptions={mealOptions}
-        clock={clock}
-        onSave={variations.save}
-        onCancel={variations.close}
-        onReset={variations.resetEditing}
-      />
-      <ChildSearchModal
-        visible={searchOpen}
-        children={roster.children}
-        selectedIds={roster.selectedIds}
-        isEligible={roster.isEligible}
-        onToggle={roster.toggle}
-        onSelectAll={roster.selectAll}
-        onClear={roster.clear}
-        onClose={() => setSearchOpen(false)}
-      />
-      <SavingOverlay visible={saving} />
-    </ScrollView>
+        <VariationModal
+          type={type}
+          childName={editingChild?.name ?? null}
+          draft={variations.draft}
+          onChange={variations.patchDraft}
+          hasOverride={!!(variations.editingChildId && variations.overrides[variations.editingChildId])}
+          mealOptions={mealOptions}
+          clock={clock}
+          onSave={variations.save}
+          onCancel={variations.close}
+          onReset={variations.resetEditing}
+        />
+        <ChildSearchModal
+          visible={searchOpen}
+          children={roster.children}
+          selectedIds={roster.selectedIds}
+          isEligible={roster.isEligible}
+          onToggle={roster.toggle}
+          onSelectAll={roster.selectAll}
+          onClear={roster.clear}
+          onClose={() => setSearchOpen(false)}
+        />
+        <SavingOverlay visible={saving} />
+      </ScrollView>
+    </KeyboardAvoider>
   );
 }
 

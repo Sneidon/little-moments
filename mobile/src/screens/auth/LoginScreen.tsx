@@ -3,8 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Image,
   type TextInput,
@@ -19,6 +17,7 @@ import { PrimaryButton } from '../../components/brand/Buttons';
 import { TextField } from '../../components/brand/TextField';
 import { radius, spacing, type BrandPalette } from '../../theme/tokens';
 import { useFeedback } from '../../context/FeedbackContext';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 
 function mapAuthError(e: unknown): string {
   const code =
@@ -67,10 +66,10 @@ export function LoginScreen() {
   }, [email, password]);
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoider style={styles.root} scroll>
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}
-        keyboardShouldPersistTaps="handled"
+        {...keyboardScrollProps}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
@@ -125,7 +124,7 @@ export function LoginScreen() {
           />
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 

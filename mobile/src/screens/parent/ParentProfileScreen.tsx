@@ -13,6 +13,7 @@ import firebaseApp from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useFeedback } from '../../context/FeedbackContext';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 
 export function ParentProfileScreen() {
   const { notify, withLoader } = useFeedback();
@@ -57,39 +58,41 @@ export function ParentProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.label}>Name</Text>
-        <TextInput
-          style={styles.input}
-          value={profileForm.displayName}
-          onChangeText={(t) => setProfileForm((p) => ({ ...p, displayName: t }))}
-          placeholder="First name"
-          placeholderTextColor={colors.textMuted}
-        /> 
-        <Text style={styles.label}>Email (read-only)</Text>
-        <Text style={styles.row}>{profile?.email ?? '-'}</Text>
-        <Text style={styles.label}>Phone</Text>
-        <TextInput
-          style={styles.input}
-          value={profileForm.phone}
-          onChangeText={(t) => setProfileForm((p) => ({ ...p, phone: t }))}
-          placeholder="Phone number"
-          placeholderTextColor={colors.textMuted}
-        />
-        <TouchableOpacity
-          style={[styles.saveProfileBtn, savingProfile && styles.saveProfileBtnDisabled]}
-          onPress={saveProfile}
-          disabled={savingProfile}
-        >
-          {savingProfile ? (
-            <ActivityIndicator size="small" color={colors.primaryContrast} />
-          ) : (
-            <Text style={styles.saveProfileText}>Save profile</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <KeyboardAvoider style={{ backgroundColor: colors.background }} scroll>
+      <ScrollView style={styles.container} {...keyboardScrollProps}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            value={profileForm.displayName}
+            onChangeText={(t) => setProfileForm((p) => ({ ...p, displayName: t }))}
+            placeholder="First name"
+            placeholderTextColor={colors.textMuted}
+          /> 
+          <Text style={styles.label}>Email (read-only)</Text>
+          <Text style={styles.row}>{profile?.email ?? '-'}</Text>
+          <Text style={styles.label}>Phone</Text>
+          <TextInput
+            style={styles.input}
+            value={profileForm.phone}
+            onChangeText={(t) => setProfileForm((p) => ({ ...p, phone: t }))}
+            placeholder="Phone number"
+            placeholderTextColor={colors.textMuted}
+          />
+          <TouchableOpacity
+            style={[styles.saveProfileBtn, savingProfile && styles.saveProfileBtnDisabled]}
+            onPress={saveProfile}
+            disabled={savingProfile}
+          >
+            {savingProfile ? (
+              <ActivityIndicator size="small" color={colors.primaryContrast} />
+            ) : (
+              <Text style={styles.saveProfileText}>Save profile</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoider>
   );
 }
 

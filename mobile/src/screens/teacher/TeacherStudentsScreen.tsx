@@ -1,15 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { FlatList, Platform, RefreshControl, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useOpenChat, NO_PARENTS_ALERT, useTeacherClassChildren } from '../../hooks';
+import { useOpenChat, NO_PARENTS_ALERT, useTeacherClassChildren, useTabBarClearance } from '../../hooks';
 import { TabHeader } from '../../components/brand/TabHeader';
 import { StudentCard } from './students/StudentCard';
 import { EmptyCard } from '../../components/brand/EmptyCard';
 import { BrandSkeletonStudentCard } from '../../components/brand/BrandSkeletons';
 import {
-  NATIVE_TAB_BAR_CLEARANCE_IOS,
   radius,
   spacing,
   type as typeTokens,
@@ -28,9 +26,8 @@ export function TeacherStudentsScreen({
 }) {
   const { profile } = useAuth();
   const { brand, category } = useTheme();
-  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(brand, category), [brand, category]);
-  const tabBarClearance = Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24;
+  const tabBarClearance = useTabBarClearance();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { children, classes, loading } = useTeacherClassChildren(refreshTrigger);
   const { openChat, openingChildId } = useOpenChat();

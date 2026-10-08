@@ -1,22 +1,21 @@
 import React from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useTeacherClassChildren } from '../../hooks';
+import { useTeacherClassChildren, useTabBarClearance } from '../../hooks';
 import { AccountSection } from '../../features/settings/AccountSection';
 import { ProfileHeader } from '../../features/settings/ProfileHeader';
 import { SettingsNote, SettingsRow, SettingsSection } from '../../features/settings/SettingsSection';
 import { ContactSupportRow, FaqRow, SettingsDivider } from '../../features/settings/SupportRows';
 import { ThemeSelector } from '../../features/settings/ThemeSelector';
-import { NATIVE_TAB_BAR_CLEARANCE_IOS, spacing } from '../../theme/tokens';
+import { spacing } from '../../theme/tokens';
 import type { RootStackParamList } from '../../navigation/types';
 
 export function TeacherSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
+  const tabBarClearance = useTabBarClearance();
   const { profile } = useAuth();
   const { brand, category } = useTheme();
   const { className, schoolName, loading } = useTeacherClassChildren();
@@ -25,7 +24,7 @@ export function TeacherSettingsScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: brand.background }}
-      contentContainerStyle={{ paddingBottom: Platform.OS === 'ios' ? insets.bottom + NATIVE_TAB_BAR_CLEARANCE_IOS : 24 }}
+      contentContainerStyle={{ paddingBottom: tabBarClearance }}
       showsVerticalScrollIndicator={false}
     >
       <ProfileHeader

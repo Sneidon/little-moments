@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { collection, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -7,6 +7,7 @@ import app, { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { font } from '../../theme/typography';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 import type { ClassRoom } from '@shared/types';
 import { useFeedback } from '../../context/FeedbackContext';
 
@@ -66,58 +67,61 @@ export function ParentAddSiblingScreen({ navigation }: { navigation: { goBack: (
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Add another child</Text>
-      <Text style={styles.subtitle}>Enter your child’s details. The teacher will approve access.</Text>
+    <KeyboardAvoider style={styles.screen} scroll>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.container} {...keyboardScrollProps}>
+        <Text style={styles.title}>Add another child</Text>
+        <Text style={styles.subtitle}>Enter your child’s details. The teacher will approve access.</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>First name</Text>
-        <TextInput style={styles.input} value={form.firstName} onChangeText={(t) => setForm((f) => ({ ...f, firstName: t }))} />
-        <Text style={styles.label}>Surname</Text>
-        <TextInput style={styles.input} value={form.surname} onChangeText={(t) => setForm((f) => ({ ...f, surname: t }))} />
-        <Text style={styles.label}>Date of birth</Text>
-        <TextInput style={styles.input} value={form.dob} onChangeText={(t) => setForm((f) => ({ ...f, dob: t }))} placeholder="YYYY-MM-DD" />
-        <Text style={styles.label}>Class</Text>
-        <View style={styles.chips}>
-          {loading ? <Text style={styles.help}>Loading classes…</Text> : null}
-          {!loading && classes.length === 0 ? <Text style={styles.help}>No classes found for your school.</Text> : null}
-          {classes.map((c) => {
-            const selected = form.classId === c.id;
-            return (
-              <TouchableOpacity
-                key={c.id}
-                style={[styles.chip, selected && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                onPress={() => setForm((f) => ({ ...f, classId: c.id }))}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-              >
-                <Text style={[styles.chipText, selected && { color: colors.primaryContrast }]}>{c.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
+        <View style={styles.card}>
+          <Text style={styles.label}>First name</Text>
+          <TextInput style={styles.input} value={form.firstName} onChangeText={(t) => setForm((f) => ({ ...f, firstName: t }))} />
+          <Text style={styles.label}>Surname</Text>
+          <TextInput style={styles.input} value={form.surname} onChangeText={(t) => setForm((f) => ({ ...f, surname: t }))} />
+          <Text style={styles.label}>Date of birth</Text>
+          <TextInput style={styles.input} value={form.dob} onChangeText={(t) => setForm((f) => ({ ...f, dob: t }))} placeholder="YYYY-MM-DD" />
+          <Text style={styles.label}>Class</Text>
+          <View style={styles.chips}>
+            {loading ? <Text style={styles.help}>Loading classes…</Text> : null}
+            {!loading && classes.length === 0 ? <Text style={styles.help}>No classes found for your school.</Text> : null}
+            {classes.map((c) => {
+              const selected = form.classId === c.id;
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.chip, selected && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  onPress={() => setForm((f) => ({ ...f, classId: c.id }))}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                >
+                  <Text style={[styles.chipText, selected && { color: colors.primaryContrast }]}>{c.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setForm((f) => ({ ...f, popiaConsent: !f.popiaConsent }))}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.checkbox, form.popiaConsent && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
+            <Text style={styles.checkboxText}>I consent to POPIA data processing</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.primaryBtn} onPress={submit} disabled={submitting} activeOpacity={0.85}>
+            <Text style={styles.primaryBtnText}>{submitting ? 'Submitting…' : 'Submit'}</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          style={styles.checkboxRow}
-          onPress={() => setForm((f) => ({ ...f, popiaConsent: !f.popiaConsent }))}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.checkbox, form.popiaConsent && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
-          <Text style={styles.checkboxText}>I consent to POPIA data processing</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.primaryBtn} onPress={submit} disabled={submitting} activeOpacity={0.85}>
-          <Text style={styles.primaryBtnText}>{submitting ? 'Submitting…' : 'Submit'}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoider>
   );
 }
 
 function createStyles(colors: import('../../theme/colors').ColorPalette) {
   const f = (w: 'regular' | 'medium' | 'semiBold' | 'bold') => ({ fontFamily: font[w] });
   return StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: colors.backgroundSecondary },
+    screen: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    container: { flexGrow: 1, padding: 16 },
     title: { fontSize: 20, color: colors.text, ...f('bold') },
     subtitle: { marginTop: 6, fontSize: 13, color: colors.textMuted, ...f('medium') },
     card: {

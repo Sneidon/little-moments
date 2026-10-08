@@ -33,6 +33,8 @@ export function useTabScreenOptions() {
     tabBarActiveIndicatorColor: category.activity,
     tabBarStyle: { backgroundColor: brand.surface },
     tabBarLabelStyle: { fontFamily: brandFont.body700, fontSize: 12 },
+    // Material hides inactive labels by default once there are more than three tabs.
+    tabBarLabelVisibilityMode: 'labeled',
     tabBarBadgeStyle: { backgroundColor: colors.danger, color: '#FFFFFF' },
   });
 }

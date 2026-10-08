@@ -4,8 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +18,7 @@ import { RoundIconButton } from '../../components/brand/RoundIconButton';
 import { PrimaryButton } from '../../components/brand/Buttons';
 import { TextField } from '../../components/brand/TextField';
 import { radius, spacing, type BrandPalette } from '../../theme/tokens';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 import type { UserRole } from '@shared/types';
@@ -73,10 +72,10 @@ export function RegisterScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoider style={styles.root} scroll>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: Math.max(insets.bottom, 20) + 12 }}
-        keyboardShouldPersistTaps="handled"
+        {...keyboardScrollProps}
         showsVerticalScrollIndicator={false}
       >
         <HeaderBlock paddingBottom={28} gap={20}>
@@ -160,7 +159,7 @@ export function RegisterScreen({ navigation }: Props) {
           />
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 

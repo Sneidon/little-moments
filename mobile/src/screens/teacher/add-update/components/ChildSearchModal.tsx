@@ -6,6 +6,7 @@ import { PrimaryButton } from '../../../../components/brand/Buttons';
 import { brandFont } from '../../../../theme/typography';
 import { radius, type as typeTokens, type BrandPalette, type CategoryPalette } from '../../../../theme/tokens';
 import { getAge, getInitials } from '../../../../utils';
+import { KeyboardAvoider, keyboardScrollProps } from '../../../../components/KeyboardAvoider';
 import type { Child } from '@shared/types';
 
 type Props = {
@@ -42,69 +43,71 @@ export function ChildSearchModal({ visible, children, selectedIds, isEligible, o
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Dismiss" accessibilityRole="button" />
-        <View style={styles.content}>
-          <Text style={styles.title} accessibilityRole="header">
-            Class list
-          </Text>
-          <Text style={styles.subtitle}>Tap a row to toggle selection (same as the photos above).</Text>
-          <View style={styles.search}>
-            <Ionicons name="search" size={20} color={brand.textTertiary} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by name…"
-              placeholderTextColor={brand.textTertiary}
-              value={search}
-              onChangeText={setSearch}
-              autoCorrect={false}
-              autoCapitalize="words"
-              accessibilityLabel="Search by name"
-            />
-            {search ? (
-              <TouchableOpacity onPress={() => setSearch('')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Clear search">
-                <Ionicons name="close-circle" size={22} color={brand.textTertiary} />
-              </TouchableOpacity>
-            ) : null}
+      <KeyboardAvoider>
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Dismiss" accessibilityRole="button" />
+          <View style={styles.content}>
+            <Text style={styles.title} accessibilityRole="header">
+              Class list
+            </Text>
+            <Text style={styles.subtitle}>Tap a row to toggle selection (same as the photos above).</Text>
+            <View style={styles.search}>
+              <Ionicons name="search" size={20} color={brand.textTertiary} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search by name…"
+                placeholderTextColor={brand.textTertiary}
+                value={search}
+                onChangeText={setSearch}
+                autoCorrect={false}
+                autoCapitalize="words"
+                accessibilityLabel="Search by name"
+              />
+              {search ? (
+                <TouchableOpacity onPress={() => setSearch('')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Clear search">
+                  <Ionicons name="close-circle" size={22} color={brand.textTertiary} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <View style={styles.quickRow}>
+              {quick('All', 'checkmark-done-outline', onSelectAll)}
+              {quick('None', 'close-circle-outline', onClear)}
+            </View>
+            <ScrollView style={styles.list} {...keyboardScrollProps}>
+              {filtered.length === 0 ? (
+                <Text style={styles.empty}>No names match “{search.trim()}”</Text>
+              ) : (
+                filtered.map((c) => {
+                  const selected = selectedIds.includes(c.id);
+                  const eligible = isEligible(c.id);
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.row, selected && styles.rowSelected, !eligible && styles.rowDisabled]}
+                      onPress={() => onToggle(c.id)}
+                      disabled={!eligible}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected, disabled: !eligible }}
+                    >
+                      <View style={styles.avatar}>
+                        <Text style={styles.initials}>{getInitials(c.name)}</Text>
+                      </View>
+                      <View style={styles.rowText}>
+                        <Text style={styles.name}>{c.name}</Text>
+                        <Text style={styles.age}>{getAge(c.dateOfBirth)} old</Text>
+                      </View>
+                      <View style={[styles.checkbox, selected && styles.checkboxOn]}>
+                        {selected ? <Ionicons name="checkmark" size={16} color={brand.onInverse} /> : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+            <PrimaryButton label={`Done (${selectedIds.length} selected)`} size="s" style={styles.done} onPress={onClose} />
           </View>
-          <View style={styles.quickRow}>
-            {quick('All', 'checkmark-done-outline', onSelectAll)}
-            {quick('None', 'close-circle-outline', onClear)}
-          </View>
-          <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
-            {filtered.length === 0 ? (
-              <Text style={styles.empty}>No names match “{search.trim()}”</Text>
-            ) : (
-              filtered.map((c) => {
-                const selected = selectedIds.includes(c.id);
-                const eligible = isEligible(c.id);
-                return (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[styles.row, selected && styles.rowSelected, !eligible && styles.rowDisabled]}
-                    onPress={() => onToggle(c.id)}
-                    disabled={!eligible}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: selected, disabled: !eligible }}
-                  >
-                    <View style={styles.avatar}>
-                      <Text style={styles.initials}>{getInitials(c.name)}</Text>
-                    </View>
-                    <View style={styles.rowText}>
-                      <Text style={styles.name}>{c.name}</Text>
-                      <Text style={styles.age}>{getAge(c.dateOfBirth)} old</Text>
-                    </View>
-                    <View style={[styles.checkbox, selected && styles.checkboxOn]}>
-                      {selected ? <Ionicons name="checkmark" size={16} color={brand.onInverse} /> : null}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </ScrollView>
-          <PrimaryButton label={`Done (${selectedIds.length} selected)`} size="s" style={styles.done} onPress={onClose} />
         </View>
-      </View>
+      </KeyboardAvoider>
     </Modal>
   );
 }

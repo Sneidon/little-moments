@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../../context/ThemeContext';
 import { PrimaryButton, OutlineButton } from '../../../../components/brand/Buttons';
 import { brandFont } from '../../../../theme/typography';
 import { radius, type as typeTokens, type BrandPalette } from '../../../../theme/tokens';
+import { KeyboardAvoider, keyboardScrollProps } from '../../../../components/KeyboardAvoider';
 import type { MealOption, ReportType } from '@shared/types';
 import { TextField } from '../fields';
 import { UpdateFormFields } from '../UpdateFormFields';
@@ -31,7 +32,7 @@ export function VariationModal({ type, childName, draft, onChange, hasOverride, 
 
   return (
     <Modal visible={childName != null} transparent animationType="fade" onRequestClose={onCancel}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 48 : 0}>
+      <KeyboardAvoider>
         <View style={styles.root}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Dismiss" accessibilityRole="button" />
           <View style={styles.card}>
@@ -48,7 +49,7 @@ export function VariationModal({ type, childName, draft, onChange, hasOverride, 
             </View>
             <Text style={styles.hint}>Only fields you change here differ from the main form. Same as main = no variation.</Text>
             {draft ? (
-              <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <ScrollView style={styles.scroll} {...keyboardScrollProps} showsVerticalScrollIndicator={false}>
                 {NOTES_TYPES.has(type) ? (
                   <TextField
                     label="Notes (optional)"
@@ -75,7 +76,7 @@ export function VariationModal({ type, childName, draft, onChange, hasOverride, 
             </View>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </Modal>
   );
 }

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
-import { isInAppNotificationRead } from '../services/inAppNotifications';
 
 export function useUnreadNotificationCount(): number {
   const { profile } = useAuth();
@@ -16,9 +15,9 @@ export function useUnreadNotificationCount(): number {
     }
 
     const unsub = onSnapshot(
-      query(collection(db, 'users', uid, 'notifications')),
+      query(collection(db, 'users', uid, 'notifications'), where('read', '==', false)),
       (snap) => {
-        setCount(snap.docs.filter((d) => !isInAppNotificationRead(d.data() as { read?: boolean })).length);
+        setCount(snap.size);
       },
       () => setCount(0)
     );

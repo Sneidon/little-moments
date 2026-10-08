@@ -5,6 +5,7 @@ import {
   query,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -39,4 +40,16 @@ export async function markAnnouncementNotificationsRead(
   } catch (error) {
     console.warn('Failed to mark announcement notifications read:', error);
   }
+}
+
+const BATCH_LIMIT = 450;
+
+export async function markAllInAppNotificationsRead(uid: string): Promise<number> {
+  const snap = await getDocs(query(collection(db, 'users', uid, 'notifications'), where('read', '==', false)));
+  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    snap.docs.slice(i, i + BATCH_LIMIT).forEach((d) => batch.update(d.ref, { read: true }));
+    await batch.commit();
+  }
+  return snap.docs.length;
 }

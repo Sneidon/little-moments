@@ -1,6 +1,5 @@
 import React, { memo, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { brandFont } from '../../theme/typography';
 import { avatarCategoryColor, radius, type BrandPalette, type CategoryPalette } from '../../theme/tokens';
@@ -34,12 +33,9 @@ export const ChatListRow = memo(function ChatListRow({ chat, index, unread, onPr
           </Text>
           {time ? <Text style={[styles.time, unread && styles.timeUnread]}>{time}</Text> : null}
         </View>
-        <View style={styles.childRow}>
-          <Ionicons name="happy-outline" size={14} color={brand.textSecondary} />
-          <Text style={styles.child} numberOfLines={1}>
-            {chat.childName}
-          </Text>
-        </View>
+        <Text style={styles.child} numberOfLines={1}>
+          {chat.childName}
+        </Text>
         <Text style={preview ? [styles.preview, unread && styles.previewUnread] : styles.previewEmpty} numberOfLines={2}>
           {preview || 'No messages yet'}
         </Text>
@@ -79,8 +75,7 @@ function createStyles(brand: BrandPalette, category: CategoryPalette) {
     name: { flex: 1, fontFamily: brandFont.display800, fontSize: 18, letterSpacing: -0.36, color: brand.textPrimary },
     time: { fontFamily: brandFont.body600, fontSize: 12, color: brand.textTertiary },
     timeUnread: { fontFamily: brandFont.body800, color: brand.textPrimary },
-    childRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    child: { flex: 1, fontFamily: brandFont.body700, fontSize: 13, color: brand.textSecondary },
+    child: { fontFamily: brandFont.body700, fontSize: 13, color: brand.textSecondary },
     preview: { fontFamily: brandFont.body500, fontSize: 14, lineHeight: 20, color: brand.textSecondary },
     previewUnread: { fontFamily: brandFont.body700, color: brand.textPrimary },
     previewEmpty: { fontFamily: brandFont.body500, fontSize: 14, lineHeight: 20, fontStyle: 'italic', color: brand.textTertiary },

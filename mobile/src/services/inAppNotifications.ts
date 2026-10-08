@@ -53,3 +53,13 @@ export async function markAllInAppNotificationsRead(uid: string): Promise<number
   }
   return snap.docs.length;
 }
+
+export async function markAllAnnouncementNotificationsRead(uid: string): Promise<void> {
+  const snap = await getDocs(query(collection(db, 'users', uid, 'notifications'), where('read', '==', false)));
+  const targets = snap.docs.filter((d) => !!d.data().announcementId);
+  for (let i = 0; i < targets.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    targets.slice(i, i + BATCH_LIMIT).forEach((d) => batch.update(d.ref, { read: true }));
+    await batch.commit();
+  }
+}

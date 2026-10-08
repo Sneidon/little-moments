@@ -7,7 +7,7 @@ import type {
 import { SectionCard } from '@/components/ui';
 import { EditParentForm } from './EditParentForm';
 import { ParentCard } from './ParentCard';
-import { ParentInviteSteps } from './ParentInviteSteps';
+import { ParentInviteSteps } from '@/components/parents/ParentInviteSteps';
 
 export interface ParentsSectionProps {
   childName?: string;

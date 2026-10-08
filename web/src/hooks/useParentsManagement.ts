@@ -35,44 +35,13 @@ export interface UseParentsManagementOptions {
 
 export type InviteStep = 'email' | 'link' | 'invite';
 
-export interface UseParentsManagementResult {
-  showInviteParent: boolean;
-  setShowInviteParent: (show: boolean) => void;
-  inviteForm: InviteFormState;
-  setInviteForm: React.Dispatch<React.SetStateAction<InviteFormState>>;
-  inviteStep: InviteStep;
-  inviteCheckLoading: boolean;
-  inviteCheckError: string;
-  handleCheckEmail: (e: React.FormEvent) => Promise<void>;
-  resetInviteToStep1: () => void;
-  inviteSubmitting: boolean;
-  inviteError: string;
-  setInviteError: React.Dispatch<React.SetStateAction<string>>;
-  handleInviteParent: (e: React.FormEvent) => Promise<void>;
-  editingParentUid: string | null;
-  editParentForm: EditFormState;
-  setEditParentForm: React.Dispatch<React.SetStateAction<EditFormState>>;
-  editParentSubmitting: boolean;
-  editParentError: string;
-  startEditParent: (p: UserProfile) => void;
-  handleUpdateParent: (e: React.FormEvent) => Promise<void>;
-  cancelEditParent: () => void;
-  canInviteMore: boolean;
-  maxParents: number;
-  removingParentUid: string | null;
-  removeParentError: string;
-  handleRemoveParentFromChild: (
-    parentUid: string
-  ) => Promise<{ success: boolean; deletedAccount: boolean }>;
-}
-
 const INITIAL_INVITE_FORM: InviteFormState = {
   parentEmail: '',
   parentDisplayName: '',
   parentPhone: '',
 };
 
-export function useParentsManagement(options: UseParentsManagementOptions): UseParentsManagementResult {
+export function useParentsManagement(options: UseParentsManagementOptions) {
   const { child, schoolId, refetchParents, setChild } = options;
   const [showInviteParent, setShowInviteParent] = useState(false);
   const [inviteForm, setInviteForm] = useState<InviteFormState>(INITIAL_INVITE_FORM);
@@ -274,3 +243,5 @@ export function useParentsManagement(options: UseParentsManagementOptions): UseP
     handleRemoveParentFromChild,
   };
 }
+
+export type UseParentsManagementResult = ReturnType<typeof useParentsManagement>;

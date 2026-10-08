@@ -1,5 +1,5 @@
 import type { EditFormState } from '@/hooks/useParentsManagement';
-import { FORM_BOX, FormError, LabeledInput } from './parentFormParts';
+import { FORM_BOX, FormError, LabeledInput } from '@/components/parents/parentFormParts';
 
 type Props = {
   form: EditFormState;

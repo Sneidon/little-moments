@@ -6,13 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import firebaseApp from '../../config/firebase';
 import { useTheme } from '../../context/ThemeContext';
-import type { Child } from '../../../../shared/types';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
+import type { Child } from '@shared/types';
+import { useFeedback } from '../../context/FeedbackContext';
 
 export function EditChildProfileTeacherScreen({
   child,
@@ -25,6 +26,7 @@ export function EditChildProfileTeacherScreen({
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const { notify, withLoader } = useFeedback();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -37,57 +39,62 @@ export function EditChildProfileTeacherScreen({
 
   const save = async () => {
     if (!name.trim()) {
-      Alert.alert('Required', 'Name is required.');
+      void notify({ tone: 'warning', title: 'Required', message: 'Name is required.' });
       return;
     }
     if (!dateOfBirth.trim()) {
-      Alert.alert('Required', 'Date of birth is required.');
+      void notify({ tone: 'warning', title: 'Required', message: 'Date of birth is required.' });
       return;
     }
     setSaving(true);
     try {
-      const updateChild = httpsCallable<
-        { schoolId: string; childId: string; name?: string; dateOfBirth?: string; allergies?: string[] },
-        { ok: boolean }
-      >(getFunctions(firebaseApp), 'updateChildProfileByTeacher');
-      const allergies = allergiesText
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      await updateChild({
-        schoolId,
-        childId: child.id,
-        name: name.trim(),
-        dateOfBirth: dateOfBirth.trim(),
-        allergies: allergies.length > 0 ? allergies : undefined,
-      });
+      await withLoader(async () => {
+        const updateChild = httpsCallable<
+          { schoolId: string; childId: string; name?: string; dateOfBirth?: string; allergies?: string[] },
+          { ok: boolean }
+        >(getFunctions(firebaseApp), 'updateChildProfileByTeacher');
+        const allergies = allergiesText
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        await updateChild({
+          schoolId,
+          childId: child.id,
+          name: name.trim(),
+          dateOfBirth: dateOfBirth.trim(),
+          allergies: allergies.length > 0 ? allergies : undefined,
+        });
+      }, 'Saving…');
+      await notify({ tone: 'success', title: 'Saved', message: 'Child profile updated.' });
       onSaved();
     } catch {
-      Alert.alert('Error', 'Could not save. Please try again.');
+      void notify({ tone: 'error', title: 'Error', message: 'Could not save. Please try again.' });
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.label}>Name</Text>
-        <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Child's name" placeholderTextColor={colors.textMuted} editable={!saving} />
-        <Text style={styles.label}>Date of birth</Text>
-        <TextInput style={styles.input} value={dateOfBirth} onChangeText={setDateOfBirth} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} editable={!saving} />
-        <Text style={styles.label}>Allergies (comma-separated)</Text>
-        <TextInput style={[styles.input, styles.inputMultiline]} value={allergiesText} onChangeText={setAllergiesText} placeholder="e.g. Nuts, Dairy" placeholderTextColor={colors.textMuted} multiline editable={!saving} />
-      </View>
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={saving}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={save} disabled={saving}>
-          {saving ? <ActivityIndicator size="small" color={colors.primaryContrast} /> : <Text style={styles.saveText}>Save</Text>}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <KeyboardAvoider style={styles.container} scroll>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} {...keyboardScrollProps}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Name</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Child's name" placeholderTextColor={colors.textMuted} editable={!saving} />
+          <Text style={styles.label}>Date of birth</Text>
+          <TextInput style={styles.input} value={dateOfBirth} onChangeText={setDateOfBirth} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} editable={!saving} />
+          <Text style={styles.label}>Allergies (comma-separated)</Text>
+          <TextInput style={[styles.input, styles.inputMultiline]} value={allergiesText} onChangeText={setAllergiesText} placeholder="e.g. Nuts, Dairy" placeholderTextColor={colors.textMuted} multiline editable={!saving} />
+        </View>
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={saving}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={save} disabled={saving}>
+            {saving ? <ActivityIndicator size="small" color={colors.primaryContrast} /> : <Text style={styles.saveText}>Save</Text>}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoider>
   );
 }
 

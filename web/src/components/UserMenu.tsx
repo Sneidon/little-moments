@@ -4,21 +4,12 @@ import Link from 'next/link';
 import { useRef, useEffect, useState } from 'react';
 import type { UserProfile } from 'shared/types';
 import { getWebEligibleRoles } from '@/lib/roles';
+import { getInitials } from 'shared/format';
 
 export interface UserMenuProps {
   profile: UserProfile;
   profileHref: string;
   onSignOut: () => void;
-}
-
-function getInitials(profile: UserProfile): string {
-  const name = (profile.displayName || profile.email || '').trim();
-  if (!name) return '?';
-  const parts = name.split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase().slice(0, 2);
-  }
-  return name.slice(0, 2).toUpperCase();
 }
 
 export function UserMenu({ profile, profileHref, onSignOut }: UserMenuProps) {
@@ -68,7 +59,7 @@ export function UserMenu({ profile, profileHref, onSignOut }: UserMenuProps) {
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-100 to-accent-100 text-sm font-semibold text-primary-700 dark:from-primary-800/60 dark:to-accent-800/40 dark:text-primary-200"
             aria-hidden
           >
-            {getInitials(profile)}
+            {getInitials(profile.displayName, profile.email)}
           </span>
         )}
         <span className="hidden max-w-[140px] truncate text-sm font-medium text-slate-700 dark:text-slate-200 sm:block">
@@ -105,7 +96,7 @@ export function UserMenu({ profile, profileHref, onSignOut }: UserMenuProps) {
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-100 to-accent-100 text-sm font-semibold text-primary-700 dark:from-primary-800/60 dark:to-accent-800/40 dark:text-primary-200"
                   aria-hidden
                 >
-                  {getInitials(profile)}
+                  {getInitials(profile.displayName, profile.email)}
                 </span>
               )}
               <div className="min-w-0 flex-1">

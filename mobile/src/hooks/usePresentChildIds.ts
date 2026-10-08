@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import type { Child } from '../../../shared/types';
+import type { Child } from '@shared/types';
 import { loadPresentChildIdsForDate } from '../utils/childPresence';
 
 function todayDateStr(): string {

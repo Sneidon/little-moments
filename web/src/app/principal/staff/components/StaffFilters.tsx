@@ -1,6 +1,6 @@
 'use client';
 
-import type { StaffRoleFilter } from '@/hooks/useStaffPage';
+import type { StaffRoleFilter } from '../types';
 import { SectionCard } from '@/components/ui';
 
 export interface StaffFiltersProps {

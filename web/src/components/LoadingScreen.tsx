@@ -2,7 +2,6 @@
 
 interface LoadingScreenProps {
   message?: string;
-  /** Use 'primary' for principal area, 'slate' for admin */
   variant?: 'primary' | 'slate';
 }
 

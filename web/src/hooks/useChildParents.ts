@@ -11,9 +11,6 @@ export interface UseChildParentsResult {
   refetch: () => Promise<void>;
 }
 
-/**
- * Load parent profiles for a child's parentIds. Refetch when child changes or when refetch() is called.
- */
 export function useChildParents(child: Child | null): UseChildParentsResult {
   const [parents, setParents] = useState<UserProfile[]>([]);
 
@@ -36,11 +33,7 @@ export function useChildParents(child: Child | null): UseChildParentsResult {
       setParents([]);
       return;
     }
-    let cancelled = false;
-    fetchParents(ids).then(() => {});
-    return () => {
-      cancelled = true;
-    };
+    fetchParents(ids);
   }, [child?.parentIds, fetchParents]);
 
   const refetch = useCallback(async () => {

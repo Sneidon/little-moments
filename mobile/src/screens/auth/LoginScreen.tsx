@@ -3,9 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
   ScrollView,
   Image,
   type TextInput,
@@ -19,6 +16,8 @@ import { HeaderBlock, DisplayTitle } from '../../components/brand/HeaderBlock';
 import { PrimaryButton } from '../../components/brand/Buttons';
 import { TextField } from '../../components/brand/TextField';
 import { radius, spacing, type BrandPalette } from '../../theme/tokens';
+import { useFeedback } from '../../context/FeedbackContext';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 
 function mapAuthError(e: unknown): string {
   const code =
@@ -42,6 +41,7 @@ function mapAuthError(e: unknown): string {
 }
 
 export function LoginScreen() {
+  const { notify } = useFeedback();
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(brand), [brand]);
@@ -52,24 +52,24 @@ export function LoginScreen() {
 
   const handleLogin = useCallback(async () => {
     if (!email.trim() || !password) {
-      Alert.alert('Sign in', 'Enter email and password.');
+      void notify({ tone: 'warning', title: 'Sign in', message: 'Enter email and password.' });
       return;
     }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (e: unknown) {
-      Alert.alert("Couldn't sign in", mapAuthError(e));
+      void notify({ tone: 'error', title: "Couldn't sign in", message: mapAuthError(e) });
     } finally {
       setLoading(false);
     }
   }, [email, password]);
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoider style={styles.root} scroll>
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}
-        keyboardShouldPersistTaps="handled"
+        {...keyboardScrollProps}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
@@ -124,7 +124,7 @@ export function LoginScreen() {
           />
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 

@@ -4,9 +4,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { IconSchool, IconUsers, IconChart } from '@/components/icons/AdminIcons';
+import { IconSchool, IconUsers } from '@/components/icons/AdminIcons';
 import { PageHero, StatCard, QuickActionLink, SectionHeading, StatCardSkeleton } from '@/components/ui';
-import { userHoldsRole } from '@/lib/roles';
+import { userHasRole } from '@/lib/roles';
 import type { UserProfile } from 'shared/types';
 
 export default function AdminDashboard() {
@@ -31,12 +31,11 @@ export default function AdminDashboard() {
         setStats({
           schools: schoolsSnap.size,
           users: usersSnap.size,
-          teachers: users.filter((u) => userHoldsRole(u, 'teacher')).length,
-          principals: users.filter((u) => userHoldsRole(u, 'principal')).length,
-          parents: users.filter((u) => userHoldsRole(u, 'parent')).length,
+          teachers: users.filter((u) => userHasRole(u, 'teacher')).length,
+          principals: users.filter((u) => userHasRole(u, 'principal')).length,
+          parents: users.filter((u) => userHasRole(u, 'parent')).length,
         });
       } catch {
-        // ignore
       } finally {
         setLoading(false);
       }

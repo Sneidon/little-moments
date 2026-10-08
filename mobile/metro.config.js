@@ -1,7 +1,9 @@
-// Learn more https://docs.expo.io/guides/customizing-metro
+const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
+
+config.watchFolders = [...(config.watchFolders ?? []), path.resolve(__dirname, '../shared')];
 
 // The Firebase JS SDK ships separate ESM and CJS builds. With package `exports`
 // resolution (on by default since SDK 53), `firebase/auth`'s React Native build

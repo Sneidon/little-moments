@@ -6,9 +6,7 @@ import { SectionCard } from '@/components/ui';
 export interface ClassesTableProps {
   classes: ClassRoom[];
   teacherDisplayName: (uid: string) => string;
-  /** If provided, class name links here. Default: /principal/classes/{id} */
   classLinkHref?: (c: ClassRoom) => string;
-  /** If provided, show Edit button. Omit for read-only (e.g. admin). */
   onEdit?: (c: ClassRoom) => void;
 }
 

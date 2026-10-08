@@ -8,16 +8,13 @@ import { radius, type as typeTokens } from '../../theme/tokens';
 type Props = {
   label: string;
   value: string | number;
-  /** Muted suffix after the value, e.g. "/3". */
   suffix?: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
-  /** 'L' = dashboard (icon top, 64pt number, label below). 'M' = report (label + icon row, 54pt number). */
   size?: 'L' | 'M';
   style?: StyleProp<ViewStyle>;
 };
 
-/** Category-coloured stat tile. Text and icons are always onCategory ink. */
 export function StatTile({ label, value, suffix, icon, color, size = 'M', style }: Props) {
   const { category } = useTheme();
   const ink = category.onCategory;

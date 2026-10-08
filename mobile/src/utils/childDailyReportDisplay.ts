@@ -1,18 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
-import { formatMealCategoryLabel } from './reportLabels';
-import type { DailyReport, MealOption } from '../../../shared/types';
+import { formatMealCategoryLabel } from '@shared/reportLabels';
+import type { DailyReport, MealOption } from '@shared/types';
 
-type IonName = keyof typeof Ionicons.glyphMap;
 
-/** Report fields sometimes stored in Firestore beyond DailyReport. */
 /** Reports generated for teachers only — hidden from parent activity feeds. */
-export const TEACHER_ONLY_REPORT_TYPES = new Set(['child_joined_class']);
+const TEACHER_ONLY_REPORT_TYPES = new Set(['child_joined_class']);
 
 export function isParentVisibleReportType(type: string): boolean {
   return !TEACHER_ONLY_REPORT_TYPES.has(type);
 }
 
-/** Map meal option id → image URL for resolving meal photos on parent feeds. */
 export function buildMealOptionImageMap(options: MealOption[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const opt of options) {
@@ -22,7 +18,6 @@ export function buildMealOptionImageMap(options: MealOption[]): Map<string, stri
   return map;
 }
 
-/** Report image: direct `imageUrl`, or meal menu item photo via `mealOptionId`. */
 export function resolveReportImageUrl(
   report: { type?: string; imageUrl?: string; mealOptionId?: string | null },
   mealOptionImages?: Map<string, string>
@@ -68,35 +63,6 @@ export function getReportTitle(item: ReportWithExtras): string {
   return String(item.type).replace('_', ' ');
 }
 
-export function reportIcon(type: string): IonName {
-  if (type === 'meal') return 'restaurant-outline';
-  if (type === 'nap_time') return 'moon-outline';
-  if (type === 'nappy_change') return 'water-outline';
-  if (type === 'check_in') return 'log-in-outline';
-  if (type === 'check_out') return 'log-out-outline';
-  if (type === 'activity') return 'sparkles-outline';
-  if (type === 'class_change') return 'school-outline';
-  if (type === 'child_joined_class') return 'person-add-outline';
-  if (type === 'medication') return 'medical-outline';
-  if (type === 'incident') return 'camera-outline';
-  return 'ellipse-outline';
-}
-
-export function reportIconColor(type: string): string {
-  if (type === 'meal') return '#ea580c';
-  if (type === 'nap_time') return '#7c3aed';
-  if (type === 'nappy_change') return '#0d9488';
-  if (type === 'check_in') return '#16a34a';
-  if (type === 'check_out') return '#b45309';
-  if (type === 'activity') return '#ea580c';
-  if (type === 'class_change') return '#6A4BB1';
-  if (type === 'child_joined_class') return '#16a34a';
-  if (type === 'medication') return '#2563eb';
-  if (type === 'incident') return '#db2777';
-  return '#64748b';
-}
-
-/** Parse time-only string (e.g. "13:00") with a date string to get ms. */
 export function parseTimeWithDate(timeStr: string | undefined, dateStr: string): number {
   if (!timeStr || typeof timeStr !== 'string') return NaN;
   const parts = timeStr.trim().split(':').map((p) => parseInt(p, 10));

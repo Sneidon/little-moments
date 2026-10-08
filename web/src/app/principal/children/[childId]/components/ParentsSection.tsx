@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { UserProfile } from 'shared/types';
 import type {
   InviteFormState,
@@ -6,27 +5,15 @@ import type {
   InviteStep,
 } from '@/hooks/useParentsManagement';
 import { SectionCard } from '@/components/ui';
-import { IconMail, IconPhone, IconUser } from '@/components/icons/AdminIcons';
-
-function getInitials(p: UserProfile): string {
-  const name = (p.displayName ?? '').trim();
-  if (name.length >= 2) {
-    const parts = name.split(/\s+/);
-    if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-    return name.slice(0, 2).toUpperCase();
-  }
-  const email = (p.email ?? '').trim();
-  if (email.length >= 1) return email[0].toUpperCase();
-  return '?';
-}
+import { EditParentForm } from './EditParentForm';
+import { ParentCard } from './ParentCard';
+import { ParentInviteSteps } from '@/components/parents/ParentInviteSteps';
 
 export interface ParentsSectionProps {
   childName?: string;
   maxParents: number;
   parents: UserProfile[];
-  /** When true, only show the list of parents (no invite/edit). Used for admin read-only view. */
   readOnly?: boolean;
-  /** When provided, each parent card shows a "View profile" link to this URL (e.g. principal parent detail). */
   getParentProfileHref?: (parent: UserProfile) => string;
   canInviteMore?: boolean;
   showInviteParent?: boolean;
@@ -50,7 +37,6 @@ export interface ParentsSectionProps {
   editParentError?: string;
   onUpdateParentSubmit?: (e: React.FormEvent) => Promise<void>;
   onCancelEdit?: () => void;
-  /** Open confirm on child page — removes parent from this child only. */
   onRequestRemoveParentFromChild?: (p: UserProfile) => void;
   removingParentUid?: string | null;
 }
@@ -100,110 +86,35 @@ export function ParentsSection({
 
   const removing = Boolean(removingParentUid);
 
-  const parentCardContent = (p: UserProfile, isReadOnly: boolean) => (
-    <>
-      <div className="flex shrink-0 items-center justify-center h-11 w-11 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 text-sm font-semibold">
-        {p.photoURL ? (
-          <img src={p.photoURL} alt="" className="h-11 w-11 rounded-full object-cover" />
-        ) : (
-          getInitials(p)
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold text-slate-800 dark:text-slate-100">{p.displayName ?? '—'}</span>
-          <span
-            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              p.isActive !== false
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
-            }`}
-          >
-            {p.isActive !== false ? 'Active' : 'Inactive'}
-          </span>
-        </div>
-        <div className="mt-1.5 flex flex-col gap-0.5 text-sm text-slate-600 dark:text-slate-300">
-          <span className="flex items-center gap-2">
-            <IconMail className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
-            <a href={`mailto:${p.email}`} className="text-primary-600 dark:text-primary-400 hover:underline truncate">
-              {p.email}
-            </a>
-          </span>
-          {p.phone ? (
-            <span className="flex items-center gap-2">
-              <IconPhone className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
-              <a href={`tel:${p.phone}`} className="text-primary-600 dark:text-primary-400 hover:underline">
-                {p.phone}
-              </a>
-            </span>
-          ) : (
-            <span className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
-              <IconPhone className="h-4 w-4 shrink-0" />
-              No phone
-            </span>
-          )}
-        </div>
-      </div>
-      {!isReadOnly && (onStartEditParent || getParentProfileHref) && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {getParentProfileHref?.(p) && (
-            <Link
-              href={getParentProfileHref(p)}
-              className="btn-secondary text-sm py-1.5 px-3 inline-flex items-center gap-1.5"
-            >
-              <IconUser className="h-4 w-4" />
-              View profile
-            </Link>
-          )}
-          {onStartEditParent && (
-            <button
-              type="button"
-              onClick={() => onStartEditParent(p)}
-              disabled={removing}
-              className="btn-secondary text-sm py-1.5 px-3 disabled:opacity-50"
-            >
-              Edit
-            </button>
-          )}
-          {onRequestRemoveParentFromChild && (
-            <button
-              type="button"
-              onClick={() => onRequestRemoveParentFromChild(p)}
-              disabled={removing}
-              className="inline-flex items-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/70 dark:bg-slate-800 dark:text-red-300 dark:hover:bg-red-950/40"
-            >
-              {removingParentUid === p.uid ? 'Removing…' : 'Remove from child'}
-            </button>
-          )}
-        </div>
-      )}
-    </>
-  );
+  const cards = (isReadOnly: boolean) =>
+    parents.map((p) => (
+      <ParentCard
+        key={p.uid}
+        parent={p}
+        readOnly={isReadOnly}
+        profileHref={getParentProfileHref?.(p)}
+        removing={removing}
+        isRemovingThis={removingParentUid === p.uid}
+        onEdit={onStartEditParent}
+        onRemove={onRequestRemoveParentFromChild}
+      />
+    ));
 
   if (readOnly) {
     return (
       <SectionCard topBar="warm" padding="default" className="mb-8">
         <h2 className="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">Parents</h2>
-        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          Up to {maxParents} parents per child.
-        </p>
-        {parents.length === 0 ? (
-          <p className="text-slate-500 dark:text-slate-400">No parents linked.</p>
-        ) : (
-          <ul className="space-y-4">
-            {parents.map((p) => (
-              <li
-                key={p.uid}
-                className="flex flex-wrap items-start gap-4 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
-              >
-                {parentCardContent(p, true)}
-              </li>
-            ))}
-          </ul>
-        )}
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">Up to {maxParents} parents per child.</p>
+        {parents.length === 0 ? <p className="text-slate-500 dark:text-slate-400">No parents linked.</p> : <ul className="space-y-4">{cards(true)}</ul>}
       </SectionCard>
     );
   }
+
+  const addButton = (
+    <button type="button" onClick={() => setShowInviteParent?.(true)} className="btn-primary">
+      Add / link parent now
+    </button>
+  );
 
   return (
     <SectionCard topBar="warm" padding="default" className="mb-8">
@@ -216,238 +127,44 @@ export function ParentsSection({
         <div className="mb-6 rounded-card border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/30 py-8 px-4 text-center">
           <p className="text-slate-600 dark:text-slate-300">No parents linked yet.</p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Search by email first. Link existing parents immediately, or send an invite if they don&apos;t have an
-            account yet.
+            Search by email first. Link existing parents immediately, or send an invite if they don&apos;t have an account yet.
           </p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowInviteParent?.(true)}
-              className="btn-primary"
-            >
-              Add / link parent now
-            </button>
-          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">{addButton}</div>
         </div>
       )}
 
-      {parents.length > 0 && (
-        <ul className="mb-6 space-y-4">
-          {parents.map((p) => (
-            <li
-              key={p.uid}
-              className="flex flex-wrap items-start gap-4 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
-            >
-              {parentCardContent(p, false)}
-            </li>
-          ))}
-        </ul>
-      )}
+      {parents.length > 0 && <ul className="mb-6 space-y-4">{cards(false)}</ul>}
 
-      {editingParentUid ? (
-        <form
+      {editingParentUid && editParentForm && setEditParentForm ? (
+        <EditParentForm
+          form={editParentForm}
+          setForm={setEditParentForm}
+          submitting={editParentSubmitting}
+          error={editParentError}
           onSubmit={(e) => onUpdateParentSubmit?.(e)}
-          className="mb-6 max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
-        >
-          <h3 className="font-medium text-slate-800 dark:text-slate-100">Edit parent</h3>
-          {editParentError ? (
-            <p className="text-sm text-red-600 dark:text-red-400">{editParentError}</p>
-          ) : null}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Display name
-            </label>
-            <input
-              type="text"
-              value={editParentForm?.displayName ?? ''}
-              onChange={(e) => setEditParentForm?.((f) => ({ ...f, displayName: e.target.value }))}
-              className="input-base"
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
-            <input
-              type="tel"
-              value={editParentForm?.phone ?? ''}
-              onChange={(e) => setEditParentForm?.((f) => ({ ...f, phone: e.target.value }))}
-              className="input-base"
-              placeholder="Optional"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="editParentIsActive"
-              checked={editParentForm?.isActive ?? false}
-              onChange={(e) => setEditParentForm?.((f) => ({ ...f, isActive: e.target.checked }))}
-              className="rounded border-slate-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500"
-            />
-            <label
-              htmlFor="editParentIsActive"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Active
-            </label>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={editParentSubmitting} className="btn-primary">
-              {editParentSubmitting ? 'Saving…' : 'Save'}
-            </button>
-            <button type="button" onClick={() => onCancelEdit?.()} className="btn-secondary">
-              Cancel
-            </button>
-          </div>
-        </form>
+          onCancel={() => onCancelEdit?.()}
+        />
       ) : null}
 
-      {canInviteMore && (parents.length > 0 || showInviteParent) ? (
-        <>
-          {!showInviteParent ? (
-            <div className="mb-6 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setShowInviteParent?.(true)}
-                className="btn-primary"
-              >
-                Add / link parent now
-              </button>
-            </div>
-          ) : inviteStep === 'email' ? (
-            <form
-              onSubmit={(e) => onCheckEmail?.(e)}
-              className="max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
-            >
-              <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Step 1</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Enter the parent&apos;s email. We&apos;ll check if they already have an account.
-              </p>
-              {inviteCheckError ? (
-                <p className="text-sm text-red-600 dark:text-red-400">{inviteCheckError}</p>
-              ) : null}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
-                <input
-                  type="email"
-                  value={inviteForm?.parentEmail ?? ''}
-                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentEmail: e.target.value }))}
-                  className="input-base"
-                  placeholder="parent@example.com"
-                  required
-                />
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" disabled={inviteCheckLoading} className="btn-primary">
-                  {inviteCheckLoading ? 'Checking…' : 'Check for account'}
-                </button>
-                <button type="button" onClick={resetInviteForm} className="btn-secondary">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : inviteStep === 'link' ? (
-            <form
-              onSubmit={(e) => onInviteSubmit?.(e)}
-              className="max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
-            >
-              <h3 className="font-medium text-slate-800 dark:text-slate-100">Invite parent — Link existing account</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                <strong>{inviteForm?.parentEmail}</strong> already has an account. Link them{childLabel}?
-              </p>
-              {inviteError ? (
-                <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
-              ) : null}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Display name
-                </label>
-                <input
-                  type="text"
-                  value={inviteForm?.parentDisplayName ?? ''}
-                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentDisplayName: e.target.value }))}
-                  className="input-base"
-                  placeholder="Optional — update how they appear"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
-                <input
-                  type="tel"
-                  value={inviteForm?.parentPhone ?? ''}
-                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentPhone: e.target.value }))}
-                  className="input-base"
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" disabled={inviteSubmitting} className="btn-primary">
-                  {inviteSubmitting ? 'Linking…' : 'Link parent'}
-                </button>
-                <button type="button" onClick={() => resetInviteToStep1?.()} className="btn-secondary">
-                  Back
-                </button>
-                <button type="button" onClick={resetInviteForm} className="btn-secondary">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form
-              onSubmit={(e) => onInviteSubmit?.(e)}
-              className="max-w-md space-y-3 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-700/30 p-4"
-            >
-              <h3 className="font-medium text-slate-800 dark:text-slate-100">Add parent — Send invite</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                No account found for this email. Send an invite so they can create their account and join{childLabel}.
-              </p>
-              {inviteError ? (
-                <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
-              ) : null}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
-                <input
-                  type="email"
-                  value={inviteForm?.parentEmail ?? ''}
-                  readOnly
-                  className="input-base cursor-not-allowed bg-slate-100 dark:bg-slate-700"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Display name
-                </label>
-                <input
-                  type="text"
-                  value={inviteForm?.parentDisplayName ?? ''}
-                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentDisplayName: e.target.value }))}
-                  className="input-base"
-                  placeholder="Optional"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
-                <input
-                  type="tel"
-                  value={inviteForm?.parentPhone ?? ''}
-                  onChange={(e) => setInviteForm?.((f) => ({ ...f, parentPhone: e.target.value }))}
-                  className="input-base"
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" disabled={inviteSubmitting} className="btn-primary">
-                  {inviteSubmitting ? 'Sending…' : 'Send invite email'}
-                </button>
-                <button type="button" onClick={() => resetInviteToStep1?.()} className="btn-secondary">
-                  Back
-                </button>
-                <button type="button" onClick={resetInviteForm} className="btn-secondary">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </>
+      {canInviteMore && (parents.length > 0 || showInviteParent) && inviteForm && setInviteForm ? (
+        showInviteParent ? (
+          <ParentInviteSteps
+            step={inviteStep}
+            childLabel={childLabel}
+            form={inviteForm}
+            setForm={setInviteForm}
+            checkLoading={inviteCheckLoading}
+            checkError={inviteCheckError}
+            submitting={inviteSubmitting}
+            error={inviteError}
+            onCheckEmail={(e) => onCheckEmail?.(e)}
+            onSubmit={(e) => onInviteSubmit?.(e)}
+            onBack={() => resetInviteToStep1?.()}
+            onCancel={resetInviteForm}
+          />
+        ) : (
+          <div className="mb-6 flex flex-wrap gap-2">{addButton}</div>
+        )
       ) : null}
 
       {!canInviteMore && parents.length >= maxParents ? (

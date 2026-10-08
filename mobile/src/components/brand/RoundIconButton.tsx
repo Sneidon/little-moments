@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { size as sizeTokens } from '../../theme/tokens';
 
-export type RoundIconButtonVariant = 'onHeader' | 'onHeaderLight' | 'inverse' | 'raised' | 'ghost';
+type RoundIconButtonVariant = 'onHeader' | 'onHeaderLight' | 'inverse' | 'raised' | 'ghost';
 
 type Props = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -19,7 +19,6 @@ type Props = {
   children?: React.ReactNode;
 };
 
-/** 48pt round icon button (handoff "round icon button"). */
 export function RoundIconButton({
   icon,
   accessibilityLabel,

@@ -7,11 +7,9 @@ import { radius, size as sizeTokens } from '../../theme/tokens';
 
 type Props = Omit<TextInputProps, 'style' | 'secureTextEntry'> & {
   label: string;
-  /** Password field with a show/hide toggle. */
   secure?: boolean;
 };
 
-/** Labelled input in the redesign style: surfaceRaised fill, 2pt textPrimary ring on focus. */
 export const TextField = forwardRef<TextInput, Props>(function TextField(
   { label, secure, onFocus, onBlur, ...inputProps },
   ref

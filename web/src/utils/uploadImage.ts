@@ -12,9 +12,6 @@ async function uploadSchoolMediaFile(
   return getDownloadURL(storageRef);
 }
 
-/**
- * Upload user avatar. Path: users/{uid}/avatar.{ext}
- */
 export async function uploadUserAvatar(file: File, uid: string): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
   const path = `users/${uid}/avatar.${ext}`;
@@ -23,10 +20,6 @@ export async function uploadUserAvatar(file: File, uid: string): Promise<string>
   return getDownloadURL(storageRef);
 }
 
-/**
- * Upload a file to Firebase Storage and return the download URL.
- * Path: schools/{schoolId}/mealOptions/{optionId}.jpg
- */
 export async function uploadMealOptionImage(
   file: File,
   schoolId: string,
@@ -39,10 +32,6 @@ export async function uploadMealOptionImage(
   return getDownloadURL(storageRef);
 }
 
-/**
- * Upload an event image to Firebase Storage and return the download URL.
- * Path: schools/{schoolId}/events/{eventId}.{ext}
- */
 export async function uploadEventImage(
   file: File,
   schoolId: string,
@@ -53,10 +42,6 @@ export async function uploadEventImage(
   return uploadSchoolMediaFile(file, path, 'image/jpeg');
 }
 
-/**
- * Upload an event video to Firebase Storage and return the download URL.
- * Path: schools/{schoolId}/events/{eventId}/video.{ext}
- */
 export async function uploadEventVideo(
   file: File,
   schoolId: string,
@@ -68,10 +53,6 @@ export async function uploadEventVideo(
   return uploadSchoolMediaFile(file, path, 'video/mp4');
 }
 
-/**
- * Upload an event document (PDF, etc.) to Firebase Storage and return the download URL.
- * Path: schools/{schoolId}/events/{eventId}/documents/{docId}.{ext}
- */
 export async function uploadEventDocument(
   file: File,
   schoolId: string,
@@ -85,10 +66,6 @@ export async function uploadEventDocument(
   return getDownloadURL(storageRef);
 }
 
-/**
- * Upload an announcement image to Firebase Storage and return the download URL.
- * Path: schools/{schoolId}/announcements/{announcementId}.{ext}
- */
 export async function uploadAnnouncementImage(
   file: File,
   schoolId: string,
@@ -99,10 +76,6 @@ export async function uploadAnnouncementImage(
   return uploadSchoolMediaFile(file, path, 'image/jpeg');
 }
 
-/**
- * Upload an announcement video to Firebase Storage and return the download URL.
- * Path: schools/{schoolId}/announcements/{announcementId}/video.{ext}
- */
 export async function uploadAnnouncementVideo(
   file: File,
   schoolId: string,
@@ -114,10 +87,6 @@ export async function uploadAnnouncementVideo(
   return uploadSchoolMediaFile(file, path, 'video/mp4');
 }
 
-/**
- * Upload an announcement document (PDF, etc.) to Firebase Storage and return the download URL.
- * Path: schools/{schoolId}/announcements/{announcementId}/documents/{docId}.{ext}
- */
 export async function uploadAnnouncementDocument(
   file: File,
   schoolId: string,

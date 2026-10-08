@@ -7,7 +7,6 @@ import {
   VIDEO_REPORT_LABEL,
 } from '@/constants/reports';
 
-/** Normalize Firestore Timestamp / Date / ISO string to ISO string. */
 export function toIsoTimestamp(value: unknown): string {
   if (!value) return '';
   if (typeof value === 'string') return value;
@@ -162,10 +161,8 @@ export function reportHasNotesContent(
   return report.type === 'meal' && !!formatMealAmount(report.mealAmount);
 }
 
-/** Max dates offered as “jump to day with activity” shortcuts (see `getDaysWithActivity`). */
 export const DAYS_WITH_ACTIVITY_JUMP_LIMIT = 3;
 
-/** Filter reports to a single local calendar day (YYYY-MM-DD) and sort by timestamp descending. */
 export function getReportsForDay(reports: DailyReport[], filterDay: string): DailyReport[] {
   return reports
     .filter((r) => {
@@ -180,7 +177,6 @@ export function getReportsForDay(reports: DailyReport[], filterDay: string): Dai
     });
 }
 
-/** Unique local dates (YYYY-MM-DD) that have at least one report, sorted descending, capped (for “jump to” shortcuts). */
 export function getDaysWithActivity(
   reports: DailyReport[],
   limit = DAYS_WITH_ACTIVITY_JUMP_LIMIT
@@ -195,7 +191,6 @@ export function getDaysWithActivity(
   return days.slice(0, limit);
 }
 
-/** Human-readable summary of report counts by type for a list of reports. */
 export function getActivitySummaryText(reports: DailyReport[]): string {
   const byType = reports.reduce<Record<string, number>>((acc, r) => {
     const label = getReportTypeLabel(r);

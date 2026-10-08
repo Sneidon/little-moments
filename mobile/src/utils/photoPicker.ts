@@ -2,9 +2,9 @@ import * as ImagePicker from 'expo-image-picker';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Alert, Linking } from 'react-native';
 
-export type PhotoResult = { uri: string } | null;
+type PhotoResult = { uri: string } | null;
 
-export type MediaResult = { uri: string; mimeType?: string } | null;
+type MediaResult = { uri: string; mimeType?: string } | null;
 
 /** Expo Go cannot load native crop UI; use expo-image-picker editing fallback. */
 function useNativeCropPicker(): boolean {
@@ -61,9 +61,6 @@ async function pickPhotoWithNativeCrop(): Promise<PhotoResult> {
   }
 }
 
-/**
- * Request camera permission and show alert if denied. Returns true if granted.
- */
 async function ensureCameraPermission(): Promise<boolean> {
   const { status } = await ImagePicker.requestCameraPermissionsAsync();
   if (status === 'granted') return true;
@@ -80,9 +77,6 @@ async function ensureCameraPermission(): Promise<boolean> {
   return false;
 }
 
-/**
- * Request media library permission and show alert if denied. Returns true if granted.
- */
 async function ensureMediaLibraryPermission(): Promise<boolean> {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status === 'granted') return true;
@@ -99,11 +93,6 @@ async function ensureMediaLibraryPermission(): Promise<boolean> {
   return false;
 }
 
-/**
- * Launch camera to take a photo. Handles permission request and denial.
- * Returns { uri } if user took a photo, null if cancelled or permission denied.
- * On dev/production builds, opens a crop step after capture.
- */
 export async function takePhotoAsync(): Promise<PhotoResult> {
   if (useNativeCropPicker()) {
     const granted = await ensureCameraPermission();
@@ -129,9 +118,6 @@ export async function takePhotoAsync(): Promise<PhotoResult> {
   return { uri: result.assets[0].uri };
 }
 
-/**
- * Record a video with the device camera.
- */
 export async function takeVideoAsync(): Promise<MediaResult> {
   const granted = await ensureCameraPermission();
   if (!granted) return null;
@@ -146,11 +132,6 @@ export async function takeVideoAsync(): Promise<MediaResult> {
   return assetToMediaResult(result.assets[0]);
 }
 
-/**
- * Open photo library to pick an image. Handles permission request and denial.
- * Returns { uri } if user picked a photo, null if cancelled or permission denied.
- * On dev/production builds, opens a crop step after selection.
- */
 export async function pickPhotoAsync(): Promise<PhotoResult> {
   if (useNativeCropPicker()) {
     const granted = await ensureMediaLibraryPermission();
@@ -176,9 +157,6 @@ export async function pickPhotoAsync(): Promise<PhotoResult> {
   return { uri: result.assets[0].uri };
 }
 
-/**
- * Open media library to pick a video.
- */
 export async function pickVideoAsync(): Promise<MediaResult> {
   const granted = await ensureMediaLibraryPermission();
   if (!granted) return null;
@@ -190,23 +168,6 @@ export async function pickVideoAsync(): Promise<MediaResult> {
   return assetToMediaResult(result.assets[0]);
 }
 
-/**
- * Open media library to pick a photo or video.
- */
-export async function pickMediaAsync(): Promise<MediaResult> {
-  const granted = await ensureMediaLibraryPermission();
-  if (!granted) return null;
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images', 'videos'],
-    allowsEditing: false,
-  });
-  if (result.canceled || !result.assets?.[0]) return null;
-  return assetToMediaResult(result.assets[0]);
-}
-
-/**
- * Let the teacher choose how to add media: photo or video, camera or library.
- */
 export function showMediaSourceAlert(
   onTakePhoto: () => void,
   onRecordVideo: () => void,
@@ -222,17 +183,3 @@ export function showMediaSourceAlert(
   ]);
 }
 
-/**
- * Show an action sheet / alert to choose Take Photo or Choose from Library.
- * Returns the result of the chosen action, or null if cancelled.
- */
-export function showPhotoSourceAlert(
-  onTakePhoto: () => void,
-  onChooseFromLibrary: () => void
-): void {
-  Alert.alert('Add Photo', 'Take a new photo or choose from your library.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Take Photo', onPress: onTakePhoto },
-    { text: 'Choose from Library', onPress: onChooseFromLibrary },
-  ]);
-}

@@ -5,9 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { formatClassDisplay, ageFromDob } from '@/lib/formatClass';
 import { getReportsForDay, getDaysWithActivity, getActivitySummaryText, localDateIso } from '@/lib/reports';
-import { exportChildDetailsToPdf } from '@/lib/exportChildDetailsPdf';
-import { exportChildDetailsToCsv } from '@/lib/exportChildDetailsCsv';
-import { exportChildDetailsToExcel } from '@/lib/exportChildDetailsExcel';
+import { exportChildDetailsToPdf } from '@/lib/export/childDetailsPdf';
+import { exportChildDetailsToCsv } from '@/lib/export/childDetails';
+import { exportChildDetailsToExcel } from '@/lib/export/childDetails';
 import { useChildDetail } from '@/hooks/useChildDetail';
 import { useChildParents } from '@/hooks/useChildParents';
 import { useParentsManagement } from '@/hooks/useParentsManagement';
@@ -49,7 +49,6 @@ export default function ChildDetailPage() {
   const parentManagement = useParentsManagement({
     child,
     schoolId: profile?.schoolId,
-    parents,
     refetchParents,
     setChild,
   });

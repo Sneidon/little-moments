@@ -27,11 +27,8 @@ function useIsFocusedSafe(): boolean {
 }
 
 type Props = {
-  /** 'accent' = headerBackground + white text; 'category' = given fill + dark ink. */
   variant?: 'accent' | 'category';
-  /** Fill for the category variant. */
   color?: string;
-  /** Show decorative circles (optional decoration per handoff). */
   decorated?: boolean;
   paddingBottom?: number;
   gap?: number;
@@ -39,7 +36,6 @@ type Props = {
   children: React.ReactNode;
 };
 
-/** Full-width coloured header block with 40pt bottom corners. */
 export function HeaderBlock({
   variant = 'accent',
   color,

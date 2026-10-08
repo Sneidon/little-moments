@@ -1,6 +1,3 @@
-/**
- * Class/room CRUD for a school. Firestore: schools/{schoolId}/classes
- */
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { ClassRoom } from 'shared/types';

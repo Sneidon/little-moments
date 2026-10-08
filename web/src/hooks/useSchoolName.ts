@@ -4,9 +4,6 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
-/**
- * Returns the school name for a given schoolId. Used for PDF exports and labels.
- */
 export function useSchoolName(schoolId: string | undefined): string | null {
   const [schoolName, setSchoolName] = useState<string | null>(null);
 

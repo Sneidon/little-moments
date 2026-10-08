@@ -4,13 +4,11 @@ import Link from 'next/link';
 import type { Event, EventDocumentLink } from 'shared/types';
 import { isVideoMedia } from '@/lib/media';
 
-/** Event image: square aspect, no stretch. */
 const EVENT_IMAGE_CLASS = 'mt-2 aspect-square w-64 rounded-lg object-cover';
 
 export interface EventCardProps {
   event: Event;
   variant?: 'upcoming' | 'past';
-  /** Optional map of class id -> name for target audience display */
   classNamesMap?: Record<string, string>;
   onEdit?: () => void;
 }

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +13,9 @@ import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import type { ClassRoom } from '../../../../shared/types';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
+import type { ClassRoom } from '@shared/types';
+import { useFeedback } from '../../context/FeedbackContext';
 
 export function DailyCommunicationScreen({
   navigation,
@@ -23,6 +24,7 @@ export function DailyCommunicationScreen({
   navigation: { goBack: () => void };
   route?: { params?: { classId?: string } };
 }) {
+  const { notify, withLoader } = useFeedback();
   const { profile } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -55,30 +57,31 @@ export function DailyCommunicationScreen({
     const schoolId = profile?.schoolId;
     const uid = profile?.uid;
     if (!schoolId || !uid || !message.trim()) {
-      Alert.alert('Missing info', 'Please enter the planned activity for the day.');
+      void notify({ tone: 'warning', title: 'Missing info', message: 'Please enter the planned activity for the day.' });
       return;
     }
     const classId = selectedClassId ?? classes[0]?.id;
     if (!classId) {
-      Alert.alert('No class', 'You need at least one class assigned.');
+      void notify({ tone: 'warning', title: 'No class', message: 'You need at least one class assigned.' });
       return;
     }
     setSaving(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      await addDoc(collection(db, 'schools', schoolId, 'dailyCommunications'), {
-        schoolId,
-        classId,
-        createdBy: uid,
-        message: message.trim(),
-        date: today,
-        createdAt: new Date().toISOString(),
-      });
-      Alert.alert('Sent', 'All parents have been notified.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      await withLoader(async () => {
+        const today = new Date().toISOString().slice(0, 10);
+        await addDoc(collection(db, 'schools', schoolId, 'dailyCommunications'), {
+          schoolId,
+          classId,
+          createdBy: uid,
+          message: message.trim(),
+          date: today,
+          createdAt: new Date().toISOString(),
+        });
+      }, 'Sending…');
+      await notify({ tone: 'success', title: 'Sent', message: 'All parents have been notified.' });
+      navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', 'Could not send. Please try again.');
+      void notify({ tone: 'error', title: 'Error', message: 'Could not send. Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -93,59 +96,61 @@ export function DailyCommunicationScreen({
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.label}>Class</Text>
-        <View style={styles.classRow}>
-          {classes.map((c) => (
-            <TouchableOpacity
-              key={c.id}
-              style={[
-                styles.classChip,
-                selectedClassId === c.id && styles.classChipSelected,
-              ]}
-              onPress={() => setSelectedClassId(c.id)}
-            >
-              <Text
+    <KeyboardAvoider style={styles.container} scroll>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} {...keyboardScrollProps}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Class</Text>
+          <View style={styles.classRow}>
+            {classes.map((c) => (
+              <TouchableOpacity
+                key={c.id}
                 style={[
-                  styles.classChipText,
-                  selectedClassId === c.id && styles.classChipTextSelected,
+                  styles.classChip,
+                  selectedClassId === c.id && styles.classChipSelected,
                 ]}
+                onPress={() => setSelectedClassId(c.id)}
               >
-                {c.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.classChipText,
+                    selectedClassId === c.id && styles.classChipTextSelected,
+                  ]}
+                >
+                  {c.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.label}>Planned activity for the day</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Outdoor play, arts & crafts, story time..."
-          placeholderTextColor={colors.textMuted}
-          value={message}
-          onChangeText={setMessage}
-          multiline
-          numberOfLines={4}
-        />
-        <Text style={styles.hint}>All parents in this class will receive a notification.</Text>
-      </View>
-      <TouchableOpacity
-        style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-        onPress={save}
-        disabled={saving || !message.trim()}
-      >
-        {saving ? (
-          <ActivityIndicator size="small" color={colors.primaryContrast} />
-        ) : (
-          <>
-            <Ionicons name="send" size={20} color={colors.primaryContrast} />
-            <Text style={styles.saveBtnText}>Send to all parents</Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={styles.card}>
+          <Text style={styles.label}>Planned activity for the day</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Outdoor play, arts & crafts, story time..."
+            placeholderTextColor={colors.textMuted}
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            numberOfLines={4}
+          />
+          <Text style={styles.hint}>All parents in this class will receive a notification.</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+          onPress={save}
+          disabled={saving || !message.trim()}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color={colors.primaryContrast} />
+          ) : (
+            <>
+              <Ionicons name="send" size={20} color={colors.primaryContrast} />
+              <Text style={styles.saveBtnText}>Send to all parents</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoider>
   );
 }
 

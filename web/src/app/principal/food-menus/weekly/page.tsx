@@ -21,7 +21,7 @@ function getWeekStart(d: Date): string {
 export default function FoodMenuWeeklyPage() {
   const { profile } = useAuth();
   const schoolId = profile?.schoolId;
-  const { options, optionsByCategory, loading } = useMealOptions(schoolId);
+  const { optionsByCategory, loading } = useMealOptions(schoolId);
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [menu, setMenu] = useState<Record<string, Record<string, string[]>>>({});
   const [saving, setSaving] = useState(false);

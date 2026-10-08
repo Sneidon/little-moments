@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { collection, getDoc, getDocs, doc, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { School, ClassRoom, Child, UserProfile } from 'shared/types';
-import { userHoldsRole } from '@/lib/roles';
+import { userHasRole } from '@/lib/roles';
 
 export interface UseAdminSchoolDetailResult {
   school: School | null;
@@ -16,7 +16,6 @@ export interface UseAdminSchoolDetailResult {
   refetch: () => Promise<void>;
 }
 
-/** Load school document and its teachers, classes, and children for super admin view. */
 export function useAdminSchoolDetail(schoolId: string | undefined): UseAdminSchoolDetailResult {
   const [school, setSchool] = useState<School | null>(null);
   const [teachers, setTeachers] = useState<UserProfile[]>([]);
@@ -56,7 +55,7 @@ export function useAdminSchoolDetail(schoolId: string | undefined): UseAdminScho
 
       setSchool({ id: schoolSnap.id, ...schoolSnap.data() } as School);
       const staffList = usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile));
-      setTeachers(staffList.filter((u) => userHoldsRole(u, 'teacher') || userHoldsRole(u, 'principal')));
+      setTeachers(staffList.filter((u) => userHasRole(u, 'teacher') || userHasRole(u, 'principal')));
       setClasses(classesSnap.docs.map((d) => ({ id: d.id, schoolId, ...d.data() } as ClassRoom)));
       setChildren(
         childrenSnap.docs.map((d) => ({ id: d.id, schoolId, ...d.data() } as Child))

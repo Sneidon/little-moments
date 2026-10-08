@@ -8,10 +8,8 @@ export interface InviteLinkShareControlsProps {
   /** Firestore invite doc id (= bearer token used in `?token=`). */
   inviteToken: string;
   disabled?: boolean;
-  /** Hide the copy-link button (e.g. admin invites: QR + PDF only). */
   hideCopyLink?: boolean;
   onCopySuccess?: () => void;
-  /** Clipboard blocked or unavailable — parent can show URL. */
   onCopyFail?: (inviteUrl: string) => void;
 }
 

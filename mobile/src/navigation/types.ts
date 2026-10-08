@@ -1,0 +1,24 @@
+export type RootStackParamList = {
+  MainTabs: undefined;
+  AddUpdate: { initialType?: string; initialChildId?: string } | undefined;
+  Reports: { childId: string };
+  ReportDetail: { schoolId: string; childId: string; reportId: string };
+  Announcements: undefined;
+  Events: undefined;
+  ChildProfile: { childId: string; schoolId: string };
+  ParentAnnouncements: undefined;
+  ParentAnnouncementDetail: { schoolId: string; announcementId: string };
+  SelectChildToMessage: undefined;
+  ParentSelectChildToMessage: undefined;
+  BroadcastToClass: undefined;
+  ChatThread: { chatId: string; schoolId: string; otherDisplayName?: string };
+  DailyCommunication: undefined;
+  EditChildProfile: { childId: string; schoolId: string };
+  EditChildProfileTeacher: { childId: string; schoolId: string };
+  ParentProfile: undefined;
+  ParentNotifications: undefined;
+  TeacherNotificationSettings: undefined;
+  ParentEventDetail: { schoolId: string; eventId: string };
+  UserNotifications: undefined;
+  ParentAddSibling: undefined;
+};

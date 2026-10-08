@@ -68,7 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await syncClaims({});
             await u.getIdToken(true);
           } catch {
-            // ignore
           }
         })();
       }
@@ -86,7 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(profileData);
       }
     } catch {
-      // ignore
     }
   }, []);
 

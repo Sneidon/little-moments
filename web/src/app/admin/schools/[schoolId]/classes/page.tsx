@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAdminSchoolDetail } from '@/hooks/useAdminSchoolDetail';
-import { formatClassDisplay } from '@/lib/formatClass';
 import { getTeacherDisplayName } from '@/lib/teachers';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { ClassesTable } from '@/app/principal/classes/components';

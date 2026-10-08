@@ -5,13 +5,12 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { principalDeleteParent, getCallableErrorMessage } from '@/services/parents';
-import { exportStaffPageToPdf, type ParentWithChildren } from '@/lib/exportStaffPagePdf';
-import { exportStaffPageToCsv } from '@/lib/exportStaffPageCsv';
-import { exportStaffPageToExcel } from '@/lib/exportStaffPageExcel';
-import { requestPasswordResetEmail } from '@/lib/auth';
+import { exportStaffPageToPdf, type ParentWithChildren } from '@/lib/export/staffPagePdf';
+import { exportStaffPageToCsv } from '@/lib/export/staffPage';
+import { exportStaffPageToExcel } from '@/lib/export/staffPage';
 import type { UserProfile } from 'shared/types';
 import type { Child } from 'shared/types';
-import { userHoldsRole } from '@/lib/roles';
+import { userHasRole } from '@/lib/roles';
 
 export interface UseParentsPageResult {
   loading: boolean;
@@ -29,11 +28,6 @@ export interface UseParentsPageResult {
   handleExportCsv: () => void;
   handleExportExcel: () => void;
   refetch: () => Promise<void>;
-  passwordResetLoadingUid: string | null;
-  passwordResetError: string;
-  passwordResetSuccess: string | null;
-  handleRequestPasswordReset: (user: UserProfile) => Promise<void>;
-  clearPasswordResetFeedback: () => void;
   deletingParentUid: string | null;
   deleteParentError: string;
   handleDeleteParent: (parentUid: string) => Promise<boolean>;
@@ -48,9 +42,6 @@ export function useParentsPage(): UseParentsPageResult {
   const [parentSearch, setParentSearch] = useState('');
   const [parentChildFilter, setParentChildFilter] = useState('');
   const [exportingPdf, setExportingPdf] = useState(false);
-  const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
-  const [passwordResetError, setPasswordResetError] = useState('');
-  const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null);
   const [deletingParentUid, setDeletingParentUid] = useState<string | null>(null);
   const [deleteParentError, setDeleteParentError] = useState('');
 
@@ -80,7 +71,7 @@ export function useParentsPage(): UseParentsPageResult {
   }, [profile?.schoolId, load]);
 
   const parents = useMemo(
-    () => users.filter((u) => userHoldsRole(u, 'parent')),
+    () => users.filter((u) => userHasRole(u, 'parent')),
     [users]
   );
 
@@ -140,29 +131,6 @@ export function useParentsPage(): UseParentsPageResult {
     });
   }, [schoolName, filteredParents]);
 
-  const handleRequestPasswordReset = useCallback(async (user: UserProfile) => {
-    const email = user.email?.trim();
-    if (!email) return;
-    setPasswordResetError('');
-    setPasswordResetSuccess(null);
-    setPasswordResetLoadingUid(user.uid);
-    try {
-      await requestPasswordResetEmail(email);
-      setPasswordResetSuccess(email);
-      setPasswordResetError('');
-      setTimeout(() => setPasswordResetSuccess(null), 5000);
-    } catch (err: unknown) {
-      setPasswordResetError(err instanceof Error ? err.message : 'Failed to send reset email.');
-    } finally {
-      setPasswordResetLoadingUid(null);
-    }
-  }, []);
-
-  const clearPasswordResetFeedback = useCallback(() => {
-    setPasswordResetError('');
-    setPasswordResetSuccess(null);
-  }, []);
-
   const handleDeleteParent = useCallback(
     async (parentUid: string): Promise<boolean> => {
       setDeleteParentError('');
@@ -197,11 +165,6 @@ export function useParentsPage(): UseParentsPageResult {
     handleExportCsv,
     handleExportExcel,
     refetch,
-    passwordResetLoadingUid,
-    passwordResetError,
-    passwordResetSuccess,
-    handleRequestPasswordReset,
-    clearPasswordResetFeedback,
     deletingParentUid,
     deleteParentError,
     handleDeleteParent,

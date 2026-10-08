@@ -1,8 +1,3 @@
-/**
- * Subscribes to notification opened (tap) and navigates to the relevant screen.
- * Backend sends data.type: daily_communication | daily_report | announcement | announcement_reminder |
- * event_reminder | chat_message | class_assigned. Foreground FCM uses Expo local notifications; taps use Expo response listener.
- */
 
 import { useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
@@ -13,7 +8,7 @@ import {
   NOTIFICATION_DATA_TYPES,
   type NotificationData,
 } from '../services/notifications';
-import type { RootStackParamList } from '../navigation/MainTabs';
+import type { RootStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

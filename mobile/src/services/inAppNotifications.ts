@@ -5,6 +5,7 @@ import {
   query,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -22,7 +23,6 @@ export async function markInAppNotificationRead(uid: string, notificationId: str
   }
 }
 
-/** Mark in-app notifications tied to an announcement (including reminders). */
 export async function markAnnouncementNotificationsRead(
   uid: string,
   announcementId: string
@@ -39,5 +39,27 @@ export async function markAnnouncementNotificationsRead(
     await Promise.all(unread.map((d) => updateDoc(d.ref, { read: true })));
   } catch (error) {
     console.warn('Failed to mark announcement notifications read:', error);
+  }
+}
+
+const BATCH_LIMIT = 450;
+
+export async function markAllInAppNotificationsRead(uid: string): Promise<number> {
+  const snap = await getDocs(query(collection(db, 'users', uid, 'notifications'), where('read', '==', false)));
+  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    snap.docs.slice(i, i + BATCH_LIMIT).forEach((d) => batch.update(d.ref, { read: true }));
+    await batch.commit();
+  }
+  return snap.docs.length;
+}
+
+export async function markAllAnnouncementNotificationsRead(uid: string): Promise<void> {
+  const snap = await getDocs(query(collection(db, 'users', uid, 'notifications'), where('read', '==', false)));
+  const targets = snap.docs.filter((d) => !!d.data().announcementId);
+  for (let i = 0; i < targets.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    targets.slice(i, i + BATCH_LIMIT).forEach((d) => batch.update(d.ref, { read: true }));
+    await batch.commit();
   }
 }

@@ -3,11 +3,14 @@
 import type { UserProfile } from 'shared/types';
 import { SectionCard } from '@/components/ui';
 
+function formatDate(s: string | undefined) {
+  return s ? new Date(s).toLocaleDateString(undefined, { dateStyle: 'short' }) : '—';
+}
+
 export interface StaffTableProps {
   staff: UserProfile[];
   totalCount: number;
   classForTeacher: (uid: string) => string | undefined;
-  formatDate: (s: string | undefined) => string;
   onEditTeacher: (u: UserProfile) => void;
   onDeleteTeacher?: (u: UserProfile) => void;
   onRequestPasswordReset?: (u: UserProfile) => void;
@@ -19,7 +22,6 @@ export function StaffTable({
   staff,
   totalCount,
   classForTeacher,
-  formatDate,
   onEditTeacher,
   onDeleteTeacher,
   onRequestPasswordReset,

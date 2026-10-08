@@ -1,6 +1,6 @@
 'use client';
 
-import type { InviteTeacherFormState } from '@/hooks/useStaffPage';
+import type { InviteTeacherFormState } from '@/services/staffInvites';
 
 export interface InviteTeacherFormProps {
   form: InviteTeacherFormState;

@@ -4,9 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,15 +18,18 @@ import { RoundIconButton } from '../../components/brand/RoundIconButton';
 import { PrimaryButton } from '../../components/brand/Buttons';
 import { TextField } from '../../components/brand/TextField';
 import { radius, spacing, type BrandPalette } from '../../theme/tokens';
+import { KeyboardAvoider, keyboardScrollProps } from '../../components/KeyboardAvoider';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
-import type { UserRole } from '../../../../shared/types';
+import type { UserRole } from '@shared/types';
+import { useFeedback } from '../../context/FeedbackContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 const ROLES: UserRole[] = ['parent', 'teacher'];
 
 export function RegisterScreen({ navigation }: Props) {
+  const { notify, withLoader } = useFeedback();
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(brand), [brand]);
@@ -41,39 +41,41 @@ export function RegisterScreen({ navigation }: Props) {
 
   const handleRegister = async () => {
     if (!email.trim() || !password || !displayName.trim()) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      void notify({ tone: 'error', title: 'Error', message: 'Please fill in all fields.' });
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters.');
+      void notify({ tone: 'error', title: 'Error', message: 'Password must be at least 6 characters.' });
       return;
     }
     setLoading(true);
     try {
-      const { user: u } = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      await updateProfile(u, { displayName: displayName.trim() });
-      const now = new Date().toISOString();
-      await setDoc(doc(db, 'users', u.uid), {
-        email: u.email,
-        displayName: displayName.trim(),
-        role,
-        roles: [role],
-        createdAt: now,
-        updatedAt: now,
-      });
+      await withLoader(async () => {
+        const { user: u } = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await updateProfile(u, { displayName: displayName.trim() });
+        const now = new Date().toISOString();
+        await setDoc(doc(db, 'users', u.uid), {
+          email: u.email,
+          displayName: displayName.trim(),
+          role,
+          roles: [role],
+          createdAt: now,
+          updatedAt: now,
+        });
+      }, 'Creating account…');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Registration failed';
-      Alert.alert('Registration failed', message);
+      void notify({ tone: 'error', title: 'Registration failed', message: message });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoider style={styles.root} scroll>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: Math.max(insets.bottom, 20) + 12 }}
-        keyboardShouldPersistTaps="handled"
+        {...keyboardScrollProps}
         showsVerticalScrollIndicator={false}
       >
         <HeaderBlock paddingBottom={28} gap={20}>
@@ -157,7 +159,7 @@ export function RegisterScreen({ navigation }: Props) {
           />
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 

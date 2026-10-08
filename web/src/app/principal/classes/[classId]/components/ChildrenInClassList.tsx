@@ -2,21 +2,10 @@ import Link from 'next/link';
 import type { Child } from 'shared/types';
 import { SectionCard } from '@/components/ui';
 import { IconChild, IconCalendar } from '@/components/icons/AdminIcons';
-
-function getInitials(child: Child): string {
-  const name = (child.name ?? '').trim();
-  if (name.length >= 2) {
-    const parts = name.split(/\s+/);
-    if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-    return name.slice(0, 2).toUpperCase();
-  }
-  if (child.preferredName?.trim()) return child.preferredName.trim().slice(0, 2).toUpperCase();
-  return name ? name[0].toUpperCase() : '?';
-}
+import { getInitials } from 'shared/format';
 
 export interface ChildrenInClassListProps {
   children: Child[];
-  /** Link href for each child. Default: /principal/children/{id} */
   childLinkHref?: (child: Child) => string;
 }
 
@@ -39,7 +28,7 @@ export function ChildrenInClassList({ children, childLinkHref = (child) => `/pri
               className="flex flex-wrap items-start gap-4 rounded-card border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30 px-4 py-4"
             >
               <div className="flex shrink-0 items-center justify-center h-11 w-11 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 text-sm font-semibold">
-                {getInitials(child)}
+                {getInitials(child.name, child.preferredName)}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

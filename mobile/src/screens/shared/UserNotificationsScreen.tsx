@@ -1,233 +1,95 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import React, { useCallback, useMemo } from 'react';
+import { ActivityIndicator, SectionList, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { db } from '../../config/firebase';
+import { EmptyCard } from '../../components/brand/EmptyCard';
+import { Skeleton } from '../../components/Skeleton';
 import { useAuth } from '../../context/AuthContext';
+import { useFeedback } from '../../context/FeedbackContext';
 import { useTheme } from '../../context/ThemeContext';
-import { font } from '../../theme/typography';
-import type { RootStackParamList } from '../../navigation/MainTabs';
+import { NotificationFilters } from '../../features/notifications/NotificationFilters';
+import { NotificationRow } from '../../features/notifications/NotificationRow';
+import { groupByDay, type NotificationItem } from '../../features/notifications/notificationDisplay';
+import { useUserNotifications } from '../../features/notifications/useUserNotifications';
 import { navigateFromNotificationData } from '../../hooks/useNotificationNavigation';
-import {
-  isInAppNotificationRead,
-  markInAppNotificationRead,
-} from '../../services/inAppNotifications';
+import { useThemedStyles, type Theme } from '../../hooks/useThemedStyles';
+import type { RootStackParamList } from '../../navigation/types';
+import { radius, type as typeTokens } from '../../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserNotifications'>;
 
-type NotificationItem = {
-  id: string;
-  title?: string;
-  body?: string;
-  type?: string;
-  schoolId?: string;
-  childId?: string;
-  reportId?: string;
-  announcementId?: string;
-  eventId?: string;
-  reportType?: string;
-  chatId?: string;
-  classId?: string;
-  createdAt?: string;
-  read?: boolean;
-};
-
-function formatWhen(iso: string | undefined): string {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  } catch {
-    return '';
-  }
-}
-
-export function UserNotificationsScreen({ navigation }: Props) {
-  const { profile } = useAuth();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const [items, setItems] = useState<NotificationItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const uid = profile?.uid;
-    if (!uid) {
-      setLoading(false);
-      setItems([]);
-      return;
-    }
-    setLoading(true);
-    const q = query(collection(db, 'users', uid, 'notifications'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as NotificationItem) })));
-        setLoadError(null);
-        setLoading(false);
-      },
-      (error) => {
-        console.warn('Failed to load user notifications:', error);
-        setItems([]);
-        setLoadError('Notifications are not available yet.');
-        setLoading(false);
-      }
-    );
-    return unsub;
-  }, [profile?.uid]);
-
-  const openItem = async (item: NotificationItem) => {
-    const uid = profile?.uid;
-    if (!uid) return;
-    const alreadyRead = isInAppNotificationRead(item);
-    if (!alreadyRead) {
-      setItems((prev) =>
-        prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
-      );
-      await markInAppNotificationRead(uid, item.id);
-    }
-    navigateFromNotificationData(
-      navigation,
-      {
-        type: item.type,
-        schoolId: item.schoolId,
-        childId: item.childId,
-        reportId: item.reportId,
-        announcementId: item.announcementId,
-        eventId: item.eventId,
-        reportType: item.reportType,
-        chatId: item.chatId,
-        classId: item.classId,
-      },
-      profile?.role === 'parent'
-    );
-  };
-
+function LoadingRows() {
   return (
-    <View style={styles.container}>
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={items.length === 0 ? styles.emptyWrap : styles.listContent}
-        renderItem={({ item }) => {
-          const unread = !isInAppNotificationRead(item);
-          return (
-          <TouchableOpacity style={[styles.row, unread && styles.rowUnread]} onPress={() => openItem(item)}>
-            <View style={styles.iconWrap}>
-              <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={18} color={colors.primary} />
-            </View>
-            <View style={styles.rowBody}>
-              <Text style={styles.title} numberOfLines={1}>
-                {item.title || 'Notification'}
-              </Text>
-              {!!item.body && (
-                <Text style={styles.body} numberOfLines={2}>
-                  {item.body}
-                </Text>
-              )}
-              <Text style={styles.when}>{formatWhen(item.createdAt)}</Text>
-            </View>
-          </TouchableOpacity>
-          );
-        }}
-        ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Ionicons name="notifications-off-outline" size={30} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>{loadError ? 'Notifications unavailable' : 'No notifications yet'}</Text>
-            <Text style={styles.emptyText}>
-              {loadError ? loadError : 'New alerts will appear here.'}
-            </Text>
-          </View>
-        }
-      />
-      )}
+    <View style={{ gap: 10 }}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} height={84} borderRadius={radius.card} />
+      ))}
     </View>
   );
 }
 
-function createStyles(colors: import('../../theme/colors').ColorPalette, isDark: boolean) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.backgroundSecondary,
+export function UserNotificationsScreen({ navigation }: Props) {
+  const { profile } = useAuth();
+  const { brand } = useTheme();
+  const { withLoader, notify } = useFeedback();
+  const styles = useThemedStyles(createStyles);
+  const n = useUserNotifications();
+  const sections = useMemo(() => groupByDay(n.items), [n.items]);
+
+  const open = useCallback(
+    (item: NotificationItem) => {
+      void n.markRead(item);
+      const { id: _id, title: _t, body: _b, createdAt: _c, read: _r, ...data } = item;
+      navigateFromNotificationData(
+        navigation as unknown as Parameters<typeof navigateFromNotificationData>[0],
+        data,
+        profile?.role === 'parent'
+      );
     },
-    loadingWrap: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-    },
-    listContent: {
-      padding: 12,
-      gap: 8,
-    },
-    row: {
-      flexDirection: 'row',
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: isDark ? StyleSheet.hairlineWidth : 1,
-      borderColor: colors.cardBorder,
-      padding: 12,
-      gap: 10,
-    },
-    rowUnread: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primaryMuted,
-    },
-    iconWrap: {
-      width: 28,
-      alignItems: 'center',
-      paddingTop: 2,
-    },
-    rowBody: {
-      flex: 1,
-      minWidth: 0,
-    },
-    title: {
-      color: colors.text,
-      fontFamily: font.semiBold,
-      fontSize: 15,
-    },
-    body: {
-      color: colors.textSecondary,
-      fontFamily: font.regular,
-      fontSize: 13,
-      marginTop: 2,
-    },
-    when: {
-      color: colors.textMuted,
-      fontFamily: font.regular,
-      fontSize: 12,
-      marginTop: 6,
-    },
-    emptyWrap: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      padding: 16,
-    },
-    emptyCard: {
-      alignItems: 'center',
-      borderRadius: 14,
-      paddingVertical: 22,
-      paddingHorizontal: 14,
-    },
-    emptyTitle: {
-      marginTop: 8,
-      color: colors.text,
-      fontFamily: font.semiBold,
-      fontSize: 16,
-    },
-    emptyText: {
-      marginTop: 4,
-      color: colors.textMuted,
-      fontFamily: font.regular,
-      fontSize: 13,
-    },
-  });
+    [n, navigation, profile?.role]
+  );
+
+  const markAll = async () => {
+    try {
+      await withLoader(n.markAllRead(), 'Marking as read…');
+    } catch {
+      void notify({ tone: 'error', title: 'Error', message: 'Could not mark notifications as read. Please try again.' });
+    }
+  };
+
+  const empty = n.error ? (
+    <EmptyCard icon="notifications-off-outline" title="Notifications unavailable" body={n.error} />
+  ) : n.filter === 'unread' ? (
+    <EmptyCard icon="checkmark-done-outline" title="You're all caught up" body="No unread notifications." />
+  ) : (
+    <EmptyCard icon="notifications-outline" title="No notifications yet" body="New alerts will appear here." />
+  );
+
+  return (
+    <SectionList
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      sections={n.loading ? [] : sections}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <NotificationRow item={item} onPress={open} />}
+      renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
+      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      stickySectionHeadersEnabled={false}
+      ListHeaderComponent={
+        <NotificationFilters filter={n.filter} onChange={n.setFilter} unreadCount={n.unreadCount} onMarkAllRead={() => void markAll()} />
+      }
+      ListEmptyComponent={n.loading ? <LoadingRows /> : empty}
+      ListFooterComponent={n.hasMore ? <ActivityIndicator style={styles.footer} color={brand.textTertiary} /> : null}
+      onEndReached={n.loadMore}
+      onEndReachedThreshold={0.4}
+      showsVerticalScrollIndicator={false}
+    />
+  );
 }
+
+const createStyles = ({ brand }: Theme) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: brand.background },
+    content: { padding: 16, paddingBottom: 40, flexGrow: 1 },
+    sectionTitle: { ...typeTokens.overline, color: brand.textTertiary, marginTop: 18, marginBottom: 10 },
+    footer: { paddingVertical: 16 },
+  });

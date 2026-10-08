@@ -102,9 +102,6 @@ async function uploadVideoFromUriAsync(
   return getDownloadURL(ref(storage, storagePath));
 }
 
-/**
- * Upload a local photo (file URI) to Firebase Storage.
- */
 export async function uploadPhotoAsync(
   localUri: string,
   schoolId: string,
@@ -119,10 +116,6 @@ export async function uploadPhotoAsync(
   return getDownloadURL(storageRef);
 }
 
-/**
- * Upload a local media file (photo or video) to Firebase Storage.
- * Returns { url, mediaType }.
- */
 export async function uploadMediaAsync(
   localUri: string,
   schoolId: string,

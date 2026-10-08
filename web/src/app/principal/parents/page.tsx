@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useParentsPage } from '@/hooks/useParentsPage';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PasswordResetDialog, PasswordResetNotice } from '@/components/PasswordReset';
+import { usePasswordReset } from '@/hooks/usePasswordReset';
 import { ParentsPageHeader, ParentsFilters, ParentsTable } from './components';
 import { SectionCard, TableSkeleton, FilterSkeleton } from '@/components/ui';
 import type { UserProfile } from 'shared/types';
 
 export default function ParentsPage() {
-  const [pendingPasswordResetUser, setPendingPasswordResetUser] = useState<UserProfile | null>(null);
   const [pendingDeleteParent, setPendingDeleteParent] = useState<UserProfile | null>(null);
   const [deleteParentDialogBusy, setDeleteParentDialogBusy] = useState(false);
   const {
@@ -24,26 +25,15 @@ export default function ParentsPage() {
     handleExportPdf,
     handleExportCsv,
     handleExportExcel,
-    passwordResetLoadingUid,
-    passwordResetError,
-    passwordResetSuccess,
-    handleRequestPasswordReset,
-    clearPasswordResetFeedback,
     deletingParentUid,
     deleteParentError,
     handleDeleteParent,
   } = useParentsPage();
+  const reset = usePasswordReset<UserProfile>();
 
   useEffect(() => {
     if (!pendingDeleteParent) setDeleteParentDialogBusy(false);
   }, [pendingDeleteParent]);
-
-  const handleConfirmPasswordReset = () => {
-    if (pendingPasswordResetUser) {
-      handleRequestPasswordReset(pendingPasswordResetUser);
-      setPendingPasswordResetUser(null);
-    }
-  };
 
   const handleConfirmDeleteParent = async () => {
     if (!pendingDeleteParent || deleteParentDialogBusy) return;
@@ -75,18 +65,7 @@ export default function ParentsPage() {
         }
         onConfirm={handleConfirmDeleteParent}
       />
-      <ConfirmDialog
-        open={!!pendingPasswordResetUser}
-        onClose={() => setPendingPasswordResetUser(null)}
-        title="Send password reset email?"
-        message={
-          pendingPasswordResetUser
-            ? `Send a password reset link to ${pendingPasswordResetUser.email}? They will receive an email to set a new password.`
-            : ''
-        }
-        confirmLabel="Send reset email"
-        onConfirm={handleConfirmPasswordReset}
-      />
+      <PasswordResetDialog reset={reset} />
       <ParentsPageHeader
         onExportPdf={handleExportPdf}
         onExportCsv={handleExportCsv}
@@ -120,35 +99,12 @@ export default function ParentsPage() {
               {deleteParentError}
             </div>
           )}
-          {(passwordResetError || passwordResetSuccess) && (
-            <div
-              className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
-                passwordResetError
-                  ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200'
-                  : 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200'
-              }`}
-            >
-              {passwordResetError ? (
-                <span className="flex items-center justify-between gap-2">
-                  {passwordResetError}
-                  <button
-                    type="button"
-                    onClick={clearPasswordResetFeedback}
-                    className="shrink-0 underline"
-                  >
-                    Dismiss
-                  </button>
-                </span>
-              ) : (
-                <span>Password reset email sent. The parent will receive a link to set a new password.</span>
-              )}
-            </div>
-          )}
+          <PasswordResetNotice reset={reset} who="parent" />
           <ParentsTable
             parents={filteredParents}
             totalCount={parents.length}
-            onRequestPasswordReset={(u) => setPendingPasswordResetUser(u)}
-            passwordResetLoadingUid={passwordResetLoadingUid}
+            onRequestPasswordReset={reset.setPending}
+            passwordResetLoadingUid={reset.loadingUid}
             onDeleteParent={(u) => setPendingDeleteParent(u)}
             deletingParentUid={deletingParentUid}
           />

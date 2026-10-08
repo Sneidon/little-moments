@@ -6,16 +6,13 @@ import { SectionCard } from './SectionCard';
 import type { TopBarVariant } from './SectionCard';
 
 export interface StatCardProps {
-  /** If set, the card is a link. */
   to?: string;
   label: string;
   value: number | string;
   desc?: string;
   icon: ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
   bar: TopBarVariant;
-  /** If true, the number uses gradient text (e.g. first card on dashboard). */
   gradientValue?: boolean;
-  /** Stagger animation delay in ms. */
   animationDelay?: number;
 }
 

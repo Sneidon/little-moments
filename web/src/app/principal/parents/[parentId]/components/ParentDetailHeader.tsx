@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import type { UserProfile } from 'shared/types';
 import { PageHero } from '@/components/ui';
 

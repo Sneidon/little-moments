@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRoute } from '@react-navigation/native';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import type { Child } from '../../../../shared/types';
+import type { Child } from '@shared/types';
 
 type EditChildParams = { childId?: string; schoolId?: string };
 

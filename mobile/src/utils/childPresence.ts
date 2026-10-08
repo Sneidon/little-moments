@@ -1,8 +1,8 @@
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { ReportType } from '../../../shared/types';
+import type { ReportType } from '@shared/types';
 
-export function toReportIsoTimestamp(ts: unknown): string {
+function toReportIsoTimestamp(ts: unknown): string {
   if (typeof ts === 'string') return ts;
   if (ts && typeof (ts as { toDate?: () => Date }).toDate === 'function') {
     return (ts as { toDate: () => Date }).toDate().toISOString();
@@ -10,9 +10,7 @@ export function toReportIsoTimestamp(ts: unknown): string {
   return '';
 }
 
-export function isChildPresentFromDayReports(
-  reports: Array<{ type?: string; ts: string }>
-): boolean {
+export function isChildPresentFromDayReports(reports: Array<{ type?: string; ts: string }>): boolean {
   let isPresent = false;
   for (const report of reports) {
     if (report.type === 'check_in') isPresent = true;
@@ -21,38 +19,33 @@ export function isChildPresentFromDayReports(
   return isPresent;
 }
 
+type DayReportEntry = { type?: string; ts: string };
+
+export async function loadDayReports(schoolId: string, childId: string, dateStr: string): Promise<DayReportEntry[]> {
+  const dayStart = `${dateStr}T00:00:00.000Z`;
+  const dayEnd = `${dateStr}T23:59:59.999Z`;
+  const snap = await getDocs(collection(db, 'schools', schoolId, 'children', childId, 'reports'));
+  return snap.docs
+    .map((d) => {
+      const data = d.data() as { timestamp?: unknown; createdAt?: unknown; type?: string };
+      return { type: data.type, ts: toReportIsoTimestamp(data.timestamp) || toReportIsoTimestamp(data.createdAt) };
+    })
+    .filter((r) => r.ts && r.ts >= dayStart && r.ts <= dayEnd)
+    .sort((a, b) => a.ts.localeCompare(b.ts));
+}
+
 export async function loadPresentChildIdsForDate(
   schoolId: string,
   childIds: string[],
   dateStr: string
 ): Promise<Set<string>> {
-  if (childIds.length === 0) return new Set();
-
-  const dayStart = `${dateStr}T00:00:00.000Z`;
-  const dayEnd = `${dateStr}T23:59:59.999Z`;
-  const presentIds = new Set<string>();
-
-  await Promise.all(
-    childIds.map(async (childId) => {
-      const snap = await getDocs(
-        collection(db, 'schools', schoolId, 'children', childId, 'reports')
-      );
-      const dayReports = snap.docs
-        .map((d) => {
-          const data = d.data() as { timestamp?: unknown; createdAt?: unknown; type?: string };
-          const ts = toReportIsoTimestamp(data.timestamp) || toReportIsoTimestamp(data.createdAt);
-          return { type: data.type, ts };
-        })
-        .filter((r) => r.ts && r.ts >= dayStart && r.ts <= dayEnd)
-        .sort((a, b) => a.ts.localeCompare(b.ts));
-
-      if (isChildPresentFromDayReports(dayReports)) {
-        presentIds.add(childId);
-      }
-    })
+  const results = await Promise.all(
+    childIds.map(async (childId) => ({
+      childId,
+      present: isChildPresentFromDayReports(await loadDayReports(schoolId, childId, dateStr)),
+    }))
   );
-
-  return presentIds;
+  return new Set(results.filter((r) => r.present).map((r) => r.childId));
 }
 
 export function isChildEligibleForUpdateType(

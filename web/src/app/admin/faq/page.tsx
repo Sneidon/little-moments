@@ -6,7 +6,6 @@ import { PageHero } from '@/components/ui';
 type FAQItem = { category: string; q: string; a: string };
 
 const FAQ_ITEMS: FAQItem[] = [
-  // Schools
   {
     category: 'Schools',
     q: 'How do I add a school?',
@@ -23,7 +22,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'Open the school in Schools, then Edit. Set the principal by email. That user must have a principal (or equivalent) role. They will see the school in their dashboard and can manage it; the previous principal will lose access when replaced.',
   },
 
-  // Configuring schools
   {
     category: 'Configuring schools',
     q: 'How do I configure school features?',
@@ -40,7 +38,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'Yes. Configuration is per school. One school might have medication and incidents on, another might have only meals and naps. Each principal sees and uses only the features enabled for their school.',
   },
 
-  // Usage & analytics
   {
     category: 'Usage & analytics',
     q: 'How do I view usage and analytics?',
@@ -57,7 +54,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'If export is available, it will be in the Reports or Usage & analytics area (e.g. CSV or PDF). Otherwise, principals can run reports from their dashboard. For bulk data export or compliance, contact support.',
   },
 
-  // Principals and access
   {
     category: 'Principals and access',
     q: 'How does a principal get access to their school?',
@@ -74,7 +70,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'Super admins can add and remove schools, configure school-level feature toggles, view platform-wide usage and analytics, and manage global settings. Principals can only manage their assigned school(s): people, content, reports, and school settings within what’s configured.',
   },
 
-  // Data and security
   {
     category: 'Data and security',
     q: 'Where is data stored and is it secure?',
@@ -86,7 +81,6 @@ const FAQ_ITEMS: FAQItem[] = [
     a: 'Principals can unlink a parent from a child or remove/archive a child as needed. For full account deletion or data export requests, follow your organisation’s process and use the support channel; we can assist with bulk or sensitive requests.',
   },
 
-  // Troubleshooting & support
   {
     category: 'Troubleshooting & support',
     q: 'A principal says they can’t see their school.',

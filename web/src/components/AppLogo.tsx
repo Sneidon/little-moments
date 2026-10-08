@@ -1,7 +1,6 @@
 import Image from 'next/image';
 
 export interface AppLogoProps {
-  /** Pass-through for next/image `sizes` (width hint when using fill). */
   sizes?: string;
   className?: string;
   priority?: boolean;

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/config/firebase';
+import { callableErrorMessage } from '@/lib/errors';
 import { SectionCard } from '@/components/ui';
-import { callableMessage, Field } from './fields';
+import { Field } from './fields';
 
 const EMPTY = { schoolName: '', principalName: '', principalEmail: '' };
 type InviteResult = { token: string; expiresAt: string; schoolName: string };
@@ -36,7 +37,7 @@ export function InvitePrincipalForm({ onClose }: { onClose: () => void }) {
       setResult(res.data);
       setForm(EMPTY);
     } catch (err) {
-      setError(callableMessage(err, 'Failed to send invite'));
+      setError(callableErrorMessage(err, 'Failed to send invite'));
     } finally {
       setSubmitting(false);
     }

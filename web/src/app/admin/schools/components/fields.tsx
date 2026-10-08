@@ -19,9 +19,3 @@ export function Field({ label, value, onChange, type = 'text', placeholder, requ
     </div>
   );
 }
-
-export function callableMessage(err: unknown, fallback: string): string {
-  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: string }).message);
-  if (err && typeof err === 'object' && 'details' in err) return String((err as { details: unknown }).details);
-  return fallback;
-}

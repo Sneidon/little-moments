@@ -4,6 +4,7 @@ import { FirebaseError } from 'firebase/app';
 import { signInWithCustomToken } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app, auth } from '@/config/firebase';
+import { callableErrorMessage } from '@/lib/errors';
 
 type PeekInviteResponse =
   | { status: 'not_found' }
@@ -32,12 +33,6 @@ export type InvitePrecheck =
 function isAlreadyAccepted(err: unknown): boolean {
   const msg = (err instanceof FirebaseError || err instanceof Error ? err.message : '').toLowerCase();
   return msg.includes('already been accepted') || msg.includes('invite token already used');
-}
-
-function errorMessage(err: unknown): string {
-  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: string }).message);
-  if (err && typeof err === 'object' && 'details' in err) return String((err as { details: unknown }).details);
-  return 'Failed to accept invite';
 }
 
 function precheckFrom(d: PeekInviteResponse): InvitePrecheck {
@@ -105,7 +100,7 @@ export function useAcceptInvite(token: string) {
         setPrecheck((prev) => ({ kind: 'already_used', role: prev.kind === 'ok' ? prev.role : undefined }));
         return;
       }
-      setError(errorMessage(err));
+      setError(callableErrorMessage(err, 'Failed to accept invite'));
     } finally {
       setSubmitting(false);
     }

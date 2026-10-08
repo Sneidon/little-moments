@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { callableErrorMessage } from '@/lib/errors';
 import { SectionCard } from '@/components/ui';
 import type { School, SubscriptionStatus } from 'shared/types';
-import { callableMessage, Field, INPUT } from './fields';
+import { Field, INPUT } from './fields';
 
 type Props = { school: School; onSaved: (updates: Partial<School>) => void; onCancel: () => void };
 
@@ -41,7 +42,7 @@ export function EditSchoolForm({ school, onSaved, onCancel }: Props) {
       await updateDoc(doc(db, 'schools', school.id), updates);
       onSaved(updates);
     } catch (err) {
-      setError(callableMessage(err, 'Failed to save'));
+      setError(callableErrorMessage(err, 'Failed to save'));
     } finally {
       setSubmitting(false);
     }

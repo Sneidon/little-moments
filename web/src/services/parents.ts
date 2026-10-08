@@ -25,16 +25,7 @@ export interface UpdateParentParams {
   isActive?: boolean;
 }
 
-/** Extract a user-friendly error message from a callable error. */
-export function getCallableErrorMessage(err: unknown): string {
-  if (err && typeof err === 'object' && 'message' in err) {
-    return String((err as { message: string }).message);
-  }
-  if (err && typeof err === 'object' && 'details' in err) {
-    return String((err as { details: unknown }).details);
-  }
-  return 'Something went wrong';
-}
+export { callableErrorMessage as getCallableErrorMessage } from '@/lib/errors';
 
 /** Check if a parent account with this email exists and can be linked. Principal only. */
 export async function checkParentEmail(email: string): Promise<CheckParentEmailResult> {

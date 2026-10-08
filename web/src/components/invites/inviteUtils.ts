@@ -20,10 +20,6 @@ export function inviteToken(invite: { id: string; token?: string }): string {
   return invite.token?.trim() || invite.id;
 }
 
-export function errorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : fallback;
-}
-
 export type InviteFilterState = { status: 'all' | InviteStatus; role: string; search: string };
 
 export const EMPTY_INVITE_FILTERS: InviteFilterState = { status: 'all', role: 'all', search: '' };

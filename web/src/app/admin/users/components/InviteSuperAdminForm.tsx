@@ -4,7 +4,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/config/firebase';
 import { InviteLinkShareControls } from '@/components/InviteLinkShareControls';
 import { SectionCard } from '@/components/ui';
-import { callableErrorMessage } from '../callableError';
+import { callableErrorMessage } from '@/lib/errors';
 
 const EMPTY_FORM = { email: '', displayName: '' };
 const INPUT =

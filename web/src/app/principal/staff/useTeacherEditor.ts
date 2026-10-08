@@ -4,12 +4,7 @@ import { app } from '@/config/firebase';
 import { userHasRole } from '@/lib/roles';
 import type { UserProfile } from 'shared/types';
 import type { EditTeacherFormState } from './types';
-
-function callableError(err: unknown): string {
-  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: string }).message);
-  if (err && typeof err === 'object' && 'details' in err) return String((err as { details: unknown }).details);
-  return 'Something went wrong';
-}
+import { callableErrorMessage } from '@/lib/errors';
 
 export function useTeacherEditor(reload: () => Promise<void>) {
   const [editingUid, setEditingUid] = useState<string | null>(null);
@@ -50,7 +45,7 @@ export function useTeacherEditor(reload: () => Promise<void>) {
       await reload();
       setEditingUid(null);
     } catch (err) {
-      setError(callableError(err));
+      setError(callableErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -67,7 +62,7 @@ export function useTeacherEditor(reload: () => Promise<void>) {
       setEditingUid((prev) => (prev === uid ? null : prev));
       setPendingDelete(null);
     } catch (err) {
-      setDeleteError(callableError(err));
+      setDeleteError(callableErrorMessage(err));
     } finally {
       setDeletingUid(null);
     }

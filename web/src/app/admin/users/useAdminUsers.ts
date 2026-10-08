@@ -3,7 +3,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app, db } from '@/config/firebase';
 import { userHasRole } from '@/lib/roles';
-import { callableErrorMessage } from './callableError';
+import { callableErrorMessage } from '@/lib/errors';
 
 export type SchoolUserCount = { id: string; name: string; userCount: number };
 export type SuperAdminUser = { uid: string; email: string; displayName?: string };

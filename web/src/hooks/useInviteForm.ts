@@ -1,16 +1,11 @@
 import { useCallback, useState } from 'react';
+import { callableErrorMessage } from '@/lib/errors';
 
 type Options<F> = {
   initial: F;
   validate: (form: F) => string | null;
   send: (form: F) => Promise<{ expiresAt?: string }>;
 };
-
-function callableError(err: unknown): string {
-  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: string }).message);
-  if (err && typeof err === 'object' && 'details' in err) return String((err as { details: unknown }).details);
-  return 'Something went wrong';
-}
 
 export function useInviteForm<F>({ initial, validate, send }: Options<F>) {
   const [open, setOpen] = useState(false);
@@ -49,7 +44,7 @@ export function useInviteForm<F>({ initial, validate, send }: Options<F>) {
       setResult({ expiresAt: res.expiresAt || '' });
       setForm(initial);
     } catch (err) {
-      setError(callableError(err));
+      setError(callableErrorMessage(err));
     } finally {
       setSubmitting(false);
     }

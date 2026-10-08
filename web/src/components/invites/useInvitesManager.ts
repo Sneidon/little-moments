@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/config/firebase';
-import { errorMessage, type InviteBase } from './inviteUtils';
+import { callableErrorMessage as errorMessage } from '@/lib/errors';
+import type { InviteBase } from './inviteUtils';
 import { useTimedBanner } from './useTimedBanner';
 
 type Options<T> = {

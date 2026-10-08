@@ -32,7 +32,6 @@ export interface UserProfile {
   lastName?: string;
   /** Contact phone (especially for parents). */
   phone?: string;
-  /** Profile picture URL. */
   photoURL?: string;
   /** All roles this account holds. Missing on legacy docs — treat as [role]. */
   roles?: UserRole[];
@@ -61,7 +60,6 @@ export interface Child {
   dateOfBirth: string; // ISO date
   gender?: ChildGender;
   allergies?: string[];
-  /** Profile picture URL. */
   photoURL?: string;
   medicalNotes?: string;
   enrollmentDate?: string; // ISO date
@@ -128,9 +126,7 @@ export interface DailyCommunication {
   id: string;
   schoolId: string;
   classId: string;
-  /** Teacher uid. */
   createdBy: string;
-  /** Planned activity / communication text. */
   message: string;
   date: string; // ISO date YYYY-MM-DD
   createdAt: string;
@@ -145,9 +141,7 @@ export interface Announcement {
   imageUrl?: string;
   /** MIME category for `imageUrl`: image or video. */
   mediaType?: string;
-  /** Optional document uploads (label + URL). */
   documents?: EventDocumentLink[];
-  /** Optional manual links (label + URL). */
   links?: EventDocumentLink[];
   createdBy: string;
   createdAt: string;
@@ -180,9 +174,7 @@ export interface Event {
   imageUrl?: string;
   /** MIME category for `imageUrl`: image or video. */
   mediaType?: string;
-  /** Optional document links (name + URL). */
   documents?: EventDocumentLink[];
-  /** Optional manual links (label + URL). */
   links?: EventDocumentLink[];
   startAt: string;
   endAt?: string;
@@ -410,7 +402,6 @@ export interface Chat {
   childId: string;
   createdAt: string;
   updatedAt: string;
-  /** Preview of last message for list UI. */
   lastMessageText?: string;
   lastMessageAt?: string;
   /** Uid of who sent the last message (for unread badges). */
@@ -421,7 +412,6 @@ export interface Chat {
   parentLastReadAt?: string;
 }
 
-/** Single message in a chat thread. */
 export interface ChatMessage {
   id: string;
   senderId: string;
@@ -435,10 +425,7 @@ export interface AppSession {
   userId: string;
   schoolId?: string;
   role: UserRole;
-  /** Session start (ISO). */
   startedAt: string;
-  /** Session end (ISO). */
   endedAt: string;
-  /** Duration in seconds. */
   durationSeconds: number;
 }

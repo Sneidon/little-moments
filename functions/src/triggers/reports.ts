@@ -5,7 +5,6 @@ import { buildReportNotificationCopy, reportTypeToNotificationPrefKey } from '..
 import { childEnrollmentIsActive } from '../lib/util';
 
 // When a daily report is created, send FCM to parents (respects notificationPreferences per report type).
-// Email: SendGrid not wired yet; add when SENDGRID_API_KEY (or similar) is configured.
 export const onReportCreated = functions.firestore
   .document('schools/{schoolId}/children/{childId}/reports/{reportId}')
   .onCreate(async (snap, context) => {

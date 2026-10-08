@@ -58,7 +58,6 @@ export const registerParentViaQr = functions.https.onRequest(async (req, res) =>
     return json(res, 410, { ok: false, error: 'qr_limit_reached' });
   }
 
-  // Validate class exists
   const classRef = db.collection('schools').doc(schoolId).collection('classes').doc(String(classId));
   const classSnap = await classRef.get();
   if (!classSnap.exists) return json(res, 400, { ok: false, error: 'invalid_class' });
@@ -178,7 +177,6 @@ export const registerParentViaQr = functions.https.onRequest(async (req, res) =>
       });
   }
 
-  // Parent welcome email (review pending)
   const schoolSnap = await db.collection('schools').doc(schoolId).get();
   const schoolName = schoolSnap.exists ? (schoolSnap.data() as { name?: string }).name || 'My Little Moments' : 'My Little Moments';
   await sendResendEmail({

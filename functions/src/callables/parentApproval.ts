@@ -127,7 +127,6 @@ export const approveOrRejectParent = functions.https.onCall(async (data, context
     return { ok: true };
   }
 
-  // Reject
   const rejectionReason = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 200) : null;
   await regRef.update({ status: 'REJECTED', decidedAt: now, decidedBy: uid, rejectionReason });
   await parentRef.set({ parentStatus: 'REJECTED', updatedAt: now }, { merge: true });

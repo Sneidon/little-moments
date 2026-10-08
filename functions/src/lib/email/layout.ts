@@ -16,7 +16,6 @@ export function inviteEmailEscapeHref(url: string): string {
   return url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
 
-/** Absolute URL on the invite / web app origin (hosted). */
 export function inviteEmailAppUrl(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`;
   return `${INVITE_ACCEPT_APP_BASE_URL}${p}`;
@@ -37,7 +36,6 @@ export const INVITE_EMAIL_FONT_MONO = "'Courier New',Courier,ui-monospace,monosp
 export const TRANSACTIONAL_EMAIL_UI_FONT =
   'ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial';
 
-/** Compact brand row: logo replaces former gradient square; same inline layout as original header. */
 export function transactionalEmailLogoTop(): string {
   const src = emailBrandLogoSrcAttr();
   return `<div style="margin:0 0 20px;text-align:center;line-height:0;">
@@ -56,7 +54,6 @@ ${inner}
 </html>`;
 }
 
-/** One row: optional icon column + text column; icon aligns left or right. */
 export function inviteEmailFeatureRow(params: {
   icon: string;
   title: string;

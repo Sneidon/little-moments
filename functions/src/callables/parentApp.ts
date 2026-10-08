@@ -2,7 +2,6 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { childEnrollmentIsActive, isoNow } from '../lib/util';
 
-// Parent activation helpers
 export const recordParentFirstLogin = functions.https.onCall(async (_data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
   const uid = context.auth.uid;

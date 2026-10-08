@@ -73,7 +73,6 @@ export const joinSchoolInfo = functions.https.onRequest(async (req, res) => {
     return json(res, 410, { ok: false, error: 'qr_limit_reached' });
   }
 
-  // Scan log
   const ip = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0] : req.ip) || '';
   const ipSalt = process.env.IP_HASH_SALT || '';
   const ipHash = ip ? sha256Hex(`${ipSalt}:${ip}`) : null;

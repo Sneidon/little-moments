@@ -54,7 +54,6 @@ export const adminQueueSchoolDeletion = functions.https.onCall(async (data, cont
     const u = await admin.auth().getUser(context.auth.uid);
     requestedByEmail = u.email ?? null;
   } catch {
-    // ignore
   }
 
   const now = isoNow();
